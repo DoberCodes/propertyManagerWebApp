@@ -186,7 +186,7 @@ inventory.
 
 ## Phase 2: Legacy Write Containment
 
-Status: implemented and build/test validated on the Phase 2 write-containment branch.
+Status: implemented, merged, and deployed.
 
 Implementation:
 
@@ -215,8 +215,7 @@ Acceptance gate:
 
 ## Phase 3: Shared History Adapter
 
-Status: adapter foundation implemented; equipment, reporting, profile, and
-Intelligence consumer migration remains in the next Phase 3 slice.
+Status: implemented and build/test validated. Canonical cutover is not enabled.
 
 All Maintenance History consumers should use one source-aware adapter for:
 
@@ -238,6 +237,13 @@ Foundation implementation:
 * Embedded property aliases are incorporated once at the query boundary.
 * Property detail and Maintenance History tab code no longer performs its own
   embedded-property merge.
+* Equipment detail, Equipment Hub, property equipment, reporting, profile,
+  dashboard, and Maintenance Profile consumers compose equipment-embedded
+  compatibility records through the shared device-source boundary.
+* Maintley Intelligence applies the same device-source boundary before rule
+  evaluation and no longer inspects equipment-embedded history independently.
+* Embedded compatibility records are visible but cannot be edited, deleted, or
+  bulk-grouped before controlled backfill gives them a canonical event ID.
 * Definitive ID and migration-provenance matches are deduplicated; merely
   similar independent records remain visible.
 
@@ -246,6 +252,15 @@ Acceptance gate:
 * No screen independently queries or merges legacy history.
 * Dates, costs, attachments, attribution, equipment, and task relationships
   render consistently across all consumers.
+
+Acceptance evidence:
+
+* Adapter unit tests cover collection, property alias, and equipment source
+  normalization and conservative deduplication.
+* A source-boundary test prevents the migrated consumers from reintroducing
+  independent embedded-history reads.
+* Intelligence tests verify that equipment-embedded history is adapted before
+  missing-history rules evaluate it.
 
 ## Phase 4: Controlled Backfill Engine
 
@@ -322,10 +337,11 @@ Authorized now:
 
 * Report-only inventory implementation and deterministic tests.
 * A reviewed production inventory run that performs no writes.
+* Legacy write containment through canonical server-owned workflows.
+* Shared dual-read history adaptation across current consumers.
 
 Not authorized now:
 
-* Legacy write containment changes.
 * Backfill apply mode.
 * Firestore rule changes.
 * Canonical-only cutover.

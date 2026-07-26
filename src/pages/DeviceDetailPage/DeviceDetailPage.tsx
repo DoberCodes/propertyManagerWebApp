@@ -34,6 +34,7 @@ import {
 	getMaintenanceEventTitle,
 	isContinuityEvent,
 } from '../../utils/maintenanceEventUtils';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 import { getTaskAssigneeDisplayName } from '../../utils/taskUtils';
 import { DetailPageLayout, TabContent, ReusableTable, GenericModal, ButtonGroup, FormInput, FormLabel, FormRow, FormSelect, FormTextarea } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
@@ -488,6 +489,14 @@ export const DeviceDetailPage: React.FC = () => {
 			skip: !property?.id,
 			refetchOnMountOrArgChange: true,
 		});
+	const resolvedPropertyMaintenanceHistory = useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				propertyMaintenanceHistory,
+				propertyDevices,
+			),
+		[propertyMaintenanceHistory, propertyDevices],
+	);
 
 	const normalizeIdentifier = (value?: string) =>
 		String(value || '')
@@ -574,7 +583,7 @@ export const DeviceDetailPage: React.FC = () => {
 		if (!device) return [];
 		const deviceIdString = String(device.id);
 
-		return propertyMaintenanceHistory
+		return resolvedPropertyMaintenanceHistory
 			.filter((record: any) => {
 				if (!isContinuityEvent(record)) return false;
 				if (String(record.deviceId || '') === deviceIdString) return true;
@@ -595,24 +604,15 @@ export const DeviceDetailPage: React.FC = () => {
 				const bDate = getDisplayDateTime(getMaintenanceEventDate(b));
 				return bDate - aDate;
 			});
-	}, [device, propertyMaintenanceHistory]);
+	}, [device, resolvedPropertyMaintenanceHistory]);
 
 	const deviceTimelineEntries = useMemo(() => {
-		const deviceMaintenanceEntries = Array.isArray(device?.maintenanceHistory)
-			? device.maintenanceHistory.map((entry: any, index: number) => ({
-				id: `device-log-${entry.date || 'no-date'}-${index}`,
-				sourceType: 'device-log',
-				date: entry.date,
-				title: getTimelineTitle(entry.description),
-				description: getTimelineDescription(entry.description),
-				type: 'Equipment Log',
-				raw: entry,
-			}))
-			: [];
-
 		const propertyEntries = relatedMaintenanceHistory.map((record: any, index: number) => ({
 			id: record.id || record.originalTaskId || `maintenance-record-${index}`,
-			sourceType: 'maintenance-record',
+			sourceType:
+				record.historySource === 'device.maintenanceHistory'
+					? 'device-log'
+					: 'maintenance-record',
 			date: getMaintenanceEventDate(record),
 			title: getMaintenanceEventTitle(record) || getTimelineTitle(record.description) || 'Maintenance event',
 			description:
@@ -625,63 +625,20 @@ export const DeviceDetailPage: React.FC = () => {
 			raw: record,
 		}));
 
-		return [...deviceMaintenanceEntries, ...propertyEntries].sort((a, b) => {
+		return propertyEntries.sort((a, b) => {
 			const aDate = getDisplayDateTime(a.date);
 			const bDate = getDisplayDateTime(b.date);
 			return bDate - aDate;
 		});
-	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
+	}, [relatedMaintenanceHistory]);
 
 	const applianceMaintenanceFeedRecords = useMemo(() => {
-		const records: any[] = [];
-		const seenKeys = new Set<string>();
-
-		const getRecordKey = (record: any) => {
-			const rawDate = getMaintenanceEventDate(record) || record?.date || '';
-			const dateKey = String(rawDate).split('T')[0];
-			const textKey = String(
-				record?.title ||
-				record?.taskTitle ||
-				record?.description ||
-				record?.completionNotes ||
-				'',
-			)
-				.trim()
-				.toLowerCase();
-			return `${dateKey}|${textKey}`;
-		};
-
-		relatedMaintenanceHistory.forEach((record: any) => {
-			const key = getRecordKey(record);
-			if (seenKeys.has(key)) return;
-			seenKeys.add(key);
-			records.push(record);
-		});
-
-		if (Array.isArray(device?.maintenanceHistory)) {
-			device.maintenanceHistory.forEach((entry: any, index: number) => {
-				const record = {
-					id: `appliance-log-${entry.date || 'no-date'}-${index}`,
-					date: entry.date,
-					completionDate: entry.date,
-					title: getTimelineTitle(entry.description),
-					description: getTimelineDescription(entry.description),
-					status: 'Logged',
-					sourceType: 'appliance-log',
-				};
-				const key = getRecordKey(record);
-				if (seenKeys.has(key)) return;
-				seenKeys.add(key);
-				records.push(record);
-			});
-		}
-
-		return records.sort((a, b) => {
+		return [...relatedMaintenanceHistory].sort((a, b) => {
 			const aDate = getDisplayDateTime(getMaintenanceEventDate(a) || a?.date);
 			const bDate = getDisplayDateTime(getMaintenanceEventDate(b) || b?.date);
 			return bDate - aDate;
 		});
-	}, [device?.maintenanceHistory, relatedMaintenanceHistory]);
+	}, [relatedMaintenanceHistory]);
 
 	const deviceFiles = useMemo(() => device?.files || [], [device?.files]);
 	const devicePhotoFile = useMemo(

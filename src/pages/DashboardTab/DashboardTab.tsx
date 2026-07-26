@@ -22,6 +22,7 @@ import {
 	getMaintenanceEventTitle,
 	isContinuityEvent,
 } from 'utils/maintenanceEventUtils';
+import { mergeMaintenanceHistoryWithDeviceSources } from 'maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	runDashboardIntelligence,
 	type DashboardIntelligenceSuggestion,
@@ -362,6 +363,10 @@ export const DashboardTab = () => {
 			skip: !currentUser?.id && !(currentUser as any)?.uid,
 			refetchOnMountOrArgChange: true,
 		});
+	const resolvedAllMaintenanceHistory = useMemo(
+		() => mergeMaintenanceHistoryWithDeviceSources(allMaintenanceHistory, allDevices),
+		[allMaintenanceHistory, allDevices],
+	);
 	const [fetchMaintenanceHistoryByProperty] =
 		useLazyGetMaintenanceHistoryByPropertyQuery();
 	const availableProperties = useMemo(() => {
@@ -684,6 +689,14 @@ export const DashboardTab = () => {
 			),
 		[allDevices, visiblePropertyIds],
 	);
+	const resolvedDashboardMaintenanceHistory = useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				dashboardMaintenanceHistory,
+				visibleDevices,
+			),
+		[dashboardMaintenanceHistory, visibleDevices],
+	);
 	const trackedSystemsCount = visibleDevices.length;
 
 	const handleDashboardScopeChange = async (
@@ -949,7 +962,7 @@ export const DashboardTab = () => {
 				.filter(Boolean),
 		);
 
-		return allMaintenanceHistory
+		return resolvedAllMaintenanceHistory
 			.filter(isContinuityEvent)
 			.filter((record: any) => {
 				const recordPropertyId = String(record?.propertyId || '').trim();
@@ -974,14 +987,14 @@ export const DashboardTab = () => {
 
 				return false;
 			});
-	}, [allMaintenanceHistory, allProperties]);
+	}, [resolvedAllMaintenanceHistory, allProperties]);
 
 	const dashboardIntelligenceHistory = useMemo(
 		() =>
-			dashboardMaintenanceHistory.length > 0
-				? dashboardMaintenanceHistory
+			resolvedDashboardMaintenanceHistory.length > 0
+				? resolvedDashboardMaintenanceHistory
 				: scopedMaintenanceHistory,
-		[dashboardMaintenanceHistory, scopedMaintenanceHistory],
+		[resolvedDashboardMaintenanceHistory, scopedMaintenanceHistory],
 	);
 
 	const effectivePlanId = useMemo(
@@ -1031,25 +1044,16 @@ export const DashboardTab = () => {
 	};
 
 	const completedTasksCount = useMemo(() => {
-		if (dashboardMaintenanceHistory.length > 0) {
-			return dashboardMaintenanceHistory.filter(isContinuityEvent).length;
+		if (resolvedDashboardMaintenanceHistory.length > 0) {
+			return resolvedDashboardMaintenanceHistory.filter(isContinuityEvent).length;
 		}
 
 		if (scopedMaintenanceHistory.length > 0) {
 			return scopedMaintenanceHistory.length;
 		}
 
-		// Legacy fallback for properties storing maintenance history directly.
-		return allProperties.reduce((total, property: any) => {
-			const taskHistoryCount = Array.isArray(property?.taskHistory)
-				? property.taskHistory.length
-				: 0;
-			const maintenanceHistoryCount = Array.isArray(property?.maintenanceHistory)
-				? property.maintenanceHistory.length
-				: 0;
-			return total + Math.max(taskHistoryCount, maintenanceHistoryCount);
-		}, 0);
-	}, [dashboardMaintenanceHistory, scopedMaintenanceHistory, allProperties]);
+		return 0;
+	}, [resolvedDashboardMaintenanceHistory, scopedMaintenanceHistory]);
 
 	const taskStatusCounts = useMemo(() => {
 		const now = new Date();
@@ -1090,8 +1094,8 @@ export const DashboardTab = () => {
 	]);
 
 	const homeHealth = useMemo(() => {
-		const sourceRecords = dashboardMaintenanceHistory.length
-			? dashboardMaintenanceHistory
+		const sourceRecords = resolvedDashboardMaintenanceHistory.length
+			? resolvedDashboardMaintenanceHistory
 			: scopedMaintenanceHistory;
 		const documentation = getDeviceDocumentationScore(visibleDevices);
 		const maintenanceDevices = visibleDevices.filter(expectsRecurringCareRecord);
@@ -1129,10 +1133,7 @@ export const DashboardTab = () => {
 			? clampHealthScore(
 				historyDevices.reduce((sum, device: any) => {
 					const deviceId = String(device?.id || '').trim();
-					const hasDeviceHistory =
-						(Array.isArray(device?.maintenanceHistory) &&
-							device.maintenanceHistory.length > 0) ||
-						sourceRecords.some((record: any) =>
+					const hasDeviceHistory = sourceRecords.some((record: any) =>
 							maintenanceRecordMatchesDevice(record, deviceId),
 						);
 
@@ -1204,7 +1205,7 @@ export const DashboardTab = () => {
 		};
 	}, [
 		ACTIVE_TASK_STATUSES,
-		dashboardMaintenanceHistory,
+		resolvedDashboardMaintenanceHistory,
 		filteredTasks,
 		scopedMaintenanceHistory,
 		visibleDevices,

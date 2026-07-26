@@ -17,6 +17,7 @@ import { getTaskDisplayStatus } from '../../utils/taskDisplayStatus';
 import { getTaskAssigneeDisplayName } from '../../utils/taskUtils';
 import { formatCurrency, getFinancialDisplayTotal } from '../../utils/financialUtils';
 import { Task } from '../../types/Task.types';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	DetailLabel,
 	DetailList,
@@ -386,8 +387,16 @@ export const MaintenanceProfilePage: React.FC = () => {
 	const { data: properties = [], isLoading: arePropertiesLoading } =
 		useGetPropertiesQuery();
 	const { data: devices = [], isLoading: areDevicesLoading } = useGetAllDevicesQuery();
-	const { data: maintenanceHistory = [], isLoading: isHistoryLoading } =
+	const { data: sourceMaintenanceHistory = [], isLoading: isHistoryLoading } =
 		useGetAllMaintenanceHistoryForUserQuery();
+	const maintenanceHistory = useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				sourceMaintenanceHistory,
+				devices,
+			),
+		[sourceMaintenanceHistory, devices],
+	);
 	const [showEditModal, setShowEditModal] = useState(false);
 	const [showCompleteModal, setShowCompleteModal] = useState(false);
 	const [showAssignModal, setShowAssignModal] = useState(false);

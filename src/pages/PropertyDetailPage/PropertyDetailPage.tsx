@@ -97,6 +97,7 @@ import {
 	PropertyScanRecommendation,
 } from '../../utils/propertyIntelligenceScan';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	props,
@@ -976,7 +977,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		);
 	}, [property, allTasks]);
 
-	const { data: maintenanceHistoryRecords = [] } =
+	const { data: sourceMaintenanceHistoryRecords = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
 			refetchOnMountOrArgChange: true,
@@ -984,6 +985,14 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
 		skip: !property?.id,
 	});
+	const maintenanceHistoryRecords = useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				sourceMaintenanceHistoryRecords,
+				propertyDevices,
+			),
+		[sourceMaintenanceHistoryRecords, propertyDevices],
+	);
 	const canRunPropertyScan =
 		canManageProperties &&
 		roleCapabilities.canManageAppliances &&

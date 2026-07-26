@@ -1,4 +1,5 @@
 import { calculateCostTotal } from '../utils/financialUtils';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../maintenanceHistory/maintenanceHistoryAdapter';
 
 export type ReportType =
 	| 'tasks'
@@ -985,6 +986,10 @@ export const buildApplianceServiceRows = ({
 	const propertyLookup = createPropertyLookup(properties);
 	const now = Date.now();
 	const thirtyDaysFromNow = now + 30 * 24 * 60 * 60 * 1000;
+	const resolvedMaintenanceHistory = mergeMaintenanceHistoryWithDeviceSources(
+		maintenanceHistory,
+		devices,
+	);
 
 	return devices.map((device: any) => {
 		const propertyId = String(device.propertyId || device.location?.propertyId || '').trim();
@@ -992,20 +997,10 @@ export const buildApplianceServiceRows = ({
 		const deviceTasks = tasks.filter((task: any) =>
 			(task.devices || []).map((id: any) => String(id)).includes(deviceId),
 		);
-		const deviceMaintenanceRecords = maintenanceHistory.filter((record: any) =>
+		const deviceMaintenanceRecords = resolvedMaintenanceHistory.filter((record: any) =>
 			(record.deviceIds || []).map((id: any) => String(id)).includes(deviceId),
 		);
-		const localMaintenanceRecords = (device.maintenanceHistory || []).map(
-			(record: any) => ({
-				...record,
-				completionDate: record.date,
-			}),
-		);
-		const allServiceRecords = [
-			...deviceMaintenanceRecords,
-			...localMaintenanceRecords,
-		];
-		const serviceDates = allServiceRecords
+		const serviceDates = deviceMaintenanceRecords
 			.map((record: any) => record.completionDate || record.date)
 			.filter(Boolean)
 			.sort();
@@ -1027,7 +1022,7 @@ export const buildApplianceServiceRows = ({
 			serialNumber: device.serialNumber || '',
 			installDate: device.installDate || device.installationDate || '',
 			lastServiceDate: serviceDates[serviceDates.length - 1] || '',
-			serviceCount: allServiceRecords.length,
+			serviceCount: deviceMaintenanceRecords.length,
 			openTasks: openTasks.length,
 			upcomingTasks: upcomingTasks.length,
 			warrantyEndDate: getWarrantyEndDate(device),

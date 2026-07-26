@@ -2,6 +2,7 @@ import {
 	adaptMaintenanceHistoryRecord,
 	deviceEmbeddedHistorySources,
 	mergeMaintenanceHistorySources,
+	mergeMaintenanceHistoryWithDeviceSources,
 	propertyEmbeddedHistorySources,
 } from './maintenanceHistoryAdapter';
 
@@ -147,6 +148,44 @@ describe('maintenanceHistoryAdapter', () => {
 		const [record] = mergeMaintenanceHistorySources(sources);
 
 		expect(record).toMatchObject({
+			propertyId: 'property-1',
+			deviceIds: ['device-1'],
+			historySource: 'device.maintenanceHistory',
+		});
+	});
+
+	it('combines adapted collection records and equipment history through one boundary', () => {
+		const adaptedRecords = mergeMaintenanceHistorySources([
+			{
+				source: 'maintenanceEvents',
+				sourceId: 'event-1',
+				record: {
+					id: 'event-1',
+					propertyId: 'property-1',
+					serviceDate: '2026-03-02',
+					title: 'Canonical service',
+					deviceIds: ['device-1'],
+				},
+			},
+		]);
+
+		const records = mergeMaintenanceHistoryWithDeviceSources(adaptedRecords, [
+			{
+				id: 'device-1',
+				location: { propertyId: 'property-1' },
+				maintenanceHistory: [
+					{ date: '2026-03-01', description: 'Legacy equipment inspection' },
+				],
+			},
+		]);
+
+		expect(records).toHaveLength(2);
+		expect(records[0]).toMatchObject({
+			id: 'event-1',
+			historySource: 'maintenanceEvents',
+			isCanonicalMaintenanceEvent: true,
+		});
+		expect(records[1]).toMatchObject({
 			propertyId: 'property-1',
 			deviceIds: ['device-1'],
 			historySource: 'device.maintenanceHistory',

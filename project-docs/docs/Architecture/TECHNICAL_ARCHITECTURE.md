@@ -725,6 +725,11 @@ canonical preference, safe provenance deduplication, and ordering. Individual
 property views should consume the adapted records rather than merging legacy
 arrays independently.
 
+Equipment compatibility history is composed through the same adapter before it
+reaches equipment timelines, reports, profile and dashboard summaries, or
+Maintley Intelligence. The Intelligence engine also enforces this boundary so
+all Intelligence consumers reason over the same normalized history contract.
+
 See:
 
 * MAINTENANCE_EVENT_SCHEMA.md
