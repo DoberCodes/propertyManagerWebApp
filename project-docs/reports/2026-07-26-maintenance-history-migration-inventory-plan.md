@@ -215,6 +215,9 @@ Acceptance gate:
 
 ## Phase 3: Shared History Adapter
 
+Status: adapter foundation implemented; equipment, reporting, profile, and
+Intelligence consumer migration remains in the next Phase 3 slice.
+
 All Maintenance History consumers should use one source-aware adapter for:
 
 * Property timelines
@@ -226,6 +229,17 @@ All Maintenance History consumers should use one source-aware adapter for:
 
 The adapter initially performs dual reads and central deduplication. It later
 becomes the cutover boundary for canonical-only reads.
+
+Foundation implementation:
+
+* `src/maintenanceHistory/maintenanceHistoryAdapter.ts`
+* Property- and account-scoped RTK history queries normalize through the same
+  adapter.
+* Embedded property aliases are incorporated once at the query boundary.
+* Property detail and Maintenance History tab code no longer performs its own
+  embedded-property merge.
+* Definitive ID and migration-provenance matches are deduplicated; merely
+  similar independent records remain visible.
 
 Acceptance gate:
 

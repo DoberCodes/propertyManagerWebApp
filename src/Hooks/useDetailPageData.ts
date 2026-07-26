@@ -11,7 +11,6 @@ import { Task } from '../types/Task.types';
 import { MaintenanceRequestItem } from '../types/MaintenanceRequest.types';
 import {
 	filterTasksForEntity,
-	filterMaintenanceHistory,
 	filterMaintenanceRequests,
 } from '../utils/detailPageUtils';
 import { isContinuityEvent } from '../utils/maintenanceEventUtils';
@@ -68,9 +67,7 @@ export const useDetailPageData = ({
 
 	const maintenanceHistory = useMemo(() => {
 		if (!property) return [];
-		const legacyHistory = filterMaintenanceHistory(property);
-		const baseHistory = maintenanceHistoryRecords.filter(isContinuityEvent);
-		return baseHistory.length ? baseHistory : legacyHistory;
+		return maintenanceHistoryRecords.filter(isContinuityEvent);
 	}, [property, maintenanceHistoryRecords]);
 
 	const maintenanceRequests = useMemo(() => {
