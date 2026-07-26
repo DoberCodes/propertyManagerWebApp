@@ -1,5 +1,9 @@
+// HISTORICAL DIAGNOSTIC ONLY.
+// Archived on 2026-07-25. Do not run against production without confirming the
+// current recurrence schema, Firebase project target, and credential source.
+
 const admin = require('firebase-admin');
-const serviceAccount = require('../serviceAccountKey.json');
+const serviceAccount = require('../../serviceAccountKey.json');
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 

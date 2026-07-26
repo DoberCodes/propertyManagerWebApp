@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 
+// HISTORICAL MUTATING MIGRATION. DO NOT RUN AGAINST PRODUCTION.
+// Archived on 2026-07-25. It contains hard-coded historical fixtures, performs
+// Firestore writes, and has no dry-run or current project confirmation guard.
+// Retained only as evidence of the prior device-structure migration.
+
 /**
  * Migration script to fix device data structure
  * Updates devices to use the correct location object structure
- * Run with: node scripts/migrateFixDeviceStructure.cjs
+ * Historical invocation: node scripts/migrateFixDeviceStructure.cjs
  */
 
 const admin = require('firebase-admin');
-const serviceAccount = require('../serviceAccountKey.json');
+const serviceAccount = require('../../serviceAccountKey.json');
 
 admin.initializeApp({
 	credential: admin.credential.cert(serviceAccount),

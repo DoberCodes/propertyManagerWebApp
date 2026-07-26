@@ -1,7 +1,7 @@
 # Legacy Code Removal-Safety Audit
 
 Date: 2026-07-25
-Status: Audit complete; all Safe-now cleanup implemented; production data was not removed
+Status: Audit complete; Safe-now and approved script-hygiene cleanup implemented; production data was not removed
 
 ## Purpose
 
@@ -119,6 +119,24 @@ The remaining Safe-now cleanup was implemented after Wave 1:
 
 No Review-before-archiving, observation-gated, migration-gated, or Keep item
 was removed by this pass.
+
+## Implementation Update: Script Hygiene Completed
+
+The approved review of the 15 unreferenced active root scripts was completed:
+
+* Removed 11 obsolete, duplicated, unsafe scratch, or superseded scripts.
+* Archived four historical diagnostic or migration artifacts with explicit
+  warnings against unreviewed production execution:
+  `auditTasksSchema.cjs`, `checkDeviceLocations.cjs`,
+  `debugRecurringTasks.cjs`, and `migrateFixDeviceStructure.cjs`.
+* Removed stale active-script listings from `scripts/README.md` and documented
+  the retained artifacts in `scripts/archive/README.md`.
+* Regenerated `script-audit-2026-07.md`; unreferenced active scripts decreased
+  from 15 to zero, while missing script targets remained at zero.
+
+This cleanup did not execute any diagnostic, migration, seed, notification, or
+production-data operation. The active push-delivery Functions and client token
+registration paths remain unchanged.
 
 ## Findings
 
@@ -241,25 +259,15 @@ The commands are already unusable. Remove the manifest entries and any stale
 documentation, or restore intentional replacements under an approved admin
 workflow. Do not leave broken operational commands in the package manifest.
 
-### G. Review Before Archiving: Unreferenced Root Scripts
+### G. Script Hygiene: Completed
 
-The script audit found 15 active scripts that are not invoked from a package
-manifest. This is not proof that they are dead because several are manually run
-diagnostics or migrations.
+The 15 formerly unreferenced active scripts were reviewed individually. Eleven
+obsolete or unsafe scratch utilities were removed. Four artifacts with useful
+historical investigation or migration context were moved to `scripts/archive`
+and marked as unsupported for production execution.
 
-Recommended classification:
-
-| Script group | Decision |
-|---|---|
-| Hard-coded Firebase query/debug scripts such as `checkDeviceLocations.cjs`, `debugRecurringTasks.cjs`, `testContractorsQuery.cjs`, and `testDevicesQuery.cjs` | Archive after confirming they are not in an operator runbook. They depend on local credentials or historical fixtures. |
-| One-time migrations such as `migrateFixDeviceStructure.cjs` | Archive only after production migration state is verified. |
-| Push test/trigger scripts | Keep only if they match the current notification architecture and are documented; otherwise archive. |
-| `sendPushOnNotificationCreate.js` | Likely superseded sample Function code; verify against deployed exports, then remove rather than treating it as an active Function. |
-| Pure local helpers such as `convert-to-root-imports.cjs` and `scan-packages-for-test-code.cjs` | Keep only if documented as supported developer utilities; otherwise archive. |
-| Recurrence scratch tests | Compare with the current automated recurrence suites and remove if coverage is duplicated. |
-
-Archived scripts are historical artifacts, not active runtime dead code, and
-should not be deleted merely because package manifests do not reference them.
+The active script directory now contains no unreferenced scripts. Archived
+scripts remain historical evidence rather than supported operational commands.
 
 ### H. Safe Mechanical Cleanup: Unused Imports - Completed
 
@@ -326,13 +334,16 @@ Validation:
 * Existing legacy Unit equipment/history fixtures still display their location
   labels.
 
-### Wave 2 - Script Hygiene
+### Wave 2 - Script Hygiene - Completed
 
-1. Confirm operational owners and runbooks for the 15 unreferenced scripts.
-2. Move completed one-time migrations and obsolete debug scripts to
-   `scripts/archive`.
-3. Add package commands and documentation for intentionally supported tools.
-4. Add dry-run/apply separation to any retained production-mutating script.
+1. Reviewed all 15 unreferenced active scripts.
+2. Removed 11 obsolete or superseded scripts.
+3. Archived four historical artifacts with production-safety warnings.
+4. Regenerated the script audit with zero unreferenced active scripts and zero
+   missing command targets.
+
+Dry-run/apply hardening remains a requirement for supported active scripts that
+can mutate production data; archived artifacts are not supported commands.
 
 ### Wave 3 - Unit/Suite Write Freeze
 

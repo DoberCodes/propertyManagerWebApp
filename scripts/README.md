@@ -280,7 +280,6 @@ silently fall back to a preview.
 * migratePropertyGroupMemberships.cjs
 * migratePruneInactiveUserData.cjs
 * migrateRemoveOrphanedData.cjs
-* migrateFixDeviceStructure.cjs
 
 ---
 
@@ -288,59 +287,15 @@ silently fall back to a preview.
 
 * testFirebaseRules.cjs
 * testStorageRules.cjs
-* debugRecurringTasks.cjs
-* testRecurrence.cjs
-* testRecurrenceLogic.cjs
-* auditTasksSchema.cjs
-* checkDeviceLocations.cjs
 
 ---
 
 ## Utilities
 
-* convert-to-root-imports.cjs
 * generateMaintleyContentIdea.cjs
-* scan-packages-for-test-code.cjs
 * seedFirestore.cjs
-* seedFirestoreAuth.cjs
 * seedDemoAccount.cjs
 * updateSupportUpdates.cjs
-
----
-
-# Needs Review
-
-These scripts remain in the repository but are not currently part of documented operational workflows.
-
-Review before use.
-
-* testFirebaseAdmin.cjs
-* testContractorsQuery.cjs
-* testDevicesQuery.cjs
-* test-push-notifications.cjs
-* trigger-push-notification.cjs
-
-Potential future action:
-
-* Keep
-* Archive
-* Remove
-
-depending on actual usage.
-
----
-
-# Remove Candidates
-
-The following scripts have been identified as likely obsolete or duplicated.
-
-Do not rely on them for current workflows.
-
-* sendPushOnNotificationCreate.js
-
-Potential action:
-
-* Remove after final verification.
 
 ---
 
@@ -359,6 +314,10 @@ scripts/archive/README.md
 ```
 
 for execution guidance and archive policies.
+
+The archive includes historical task-schema, device-location, recurring-task,
+and device-structure migration artifacts retained as evidence. They are not
+supported operational commands.
 
 ---
 

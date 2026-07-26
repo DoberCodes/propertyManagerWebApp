@@ -1,16 +1,16 @@
 # Script Audit - 2026-07
 
-Generated: 2026-07-26T03:40:58.404Z
+Generated: 2026-07-26T03:58:33.429Z
 Mode: report-only (no cleanup or migration actions performed)
 
 ## Summary
 
 - Package manifests scanned: 3
-- Active scripts scanned (scripts/): 65
-- Archived scripts scanned (scripts/archive/): 19
+- Active scripts scanned (scripts/): 50
+- Archived scripts scanned (scripts/archive/): 23
 - Alias scripts detected: 1
 - Missing script targets: 0
-- Unreferenced active scripts: 15
+- Unreferenced active scripts: 0
 - Duplicate filenames: 0
 - Risky scripts detected: 29
 - Risky scripts without dry-run signal: 18
@@ -27,26 +27,15 @@ Mode: report-only (no cleanup or migration actions performed)
 
 ## Unreferenced Active Scripts (scripts/)
 
-- scripts/auditTasksSchema.cjs
-- scripts/checkDeviceLocations.cjs
-- scripts/convert-to-root-imports.cjs
-- scripts/debugRecurringTasks.cjs
-- scripts/migrateFixDeviceStructure.cjs
-- scripts/scan-packages-for-test-code.cjs
-- scripts/seedFirestoreAuth.cjs
-- scripts/sendPushOnNotificationCreate.js
-- scripts/test-push-notifications.cjs
-- scripts/testContractorsQuery.cjs
-- scripts/testDevicesQuery.cjs
-- scripts/testFirebaseAdmin.cjs
-- scripts/testRecurrence.cjs
-- scripts/testRecurrenceLogic.cjs
-- scripts/trigger-push-notification.cjs
+- None found.
 
 ## Unreferenced Archived Scripts (scripts/archive/)
 
 - scripts/archive/addExtensiveMaintenanceHistory.cjs
 - scripts/archive/addUnitLevelMaintenanceHistory.cjs
+- scripts/archive/auditTasksSchema.cjs
+- scripts/archive/checkDeviceLocations.cjs
+- scripts/archive/debugRecurringTasks.cjs
 - scripts/archive/generateReleaseNotes.legacy.cjs
 - scripts/archive/migrateAddDevicesToProperties.cjs
 - scripts/archive/migrateAddMockDataForPropertyUser.cjs
@@ -55,6 +44,7 @@ Mode: report-only (no cleanup or migration actions performed)
 - scripts/archive/migrateAddUserToMyTeam.cjs
 - scripts/archive/migrateDefaultGroups.cjs
 - scripts/archive/migrateDeviceUserIds.cjs
+- scripts/archive/migrateFixDeviceStructure.cjs
 - scripts/archive/migrateFixTeamMemberUserIds.cjs
 - scripts/archive/migrateRemoveSharedPropertiesGroups.cjs
 - scripts/archive/migrateTasksAssignedToObject.cjs
@@ -75,6 +65,7 @@ Mode: report-only (no cleanup or migration actions performed)
 |---|---|---|
 | scripts/archive/addExtensiveMaintenanceHistory.cjs | remove | no |
 | scripts/archive/addUnitLevelMaintenanceHistory.cjs | remove | no |
+| scripts/archive/migrateFixDeviceStructure.cjs | delete, remove | no |
 | scripts/archive/migrateRemoveSharedPropertiesGroups.cjs | delete, remove | no |
 | scripts/archive/migrateTeamInvitationCodes.cjs | delete | no |
 | scripts/archive/migrateTenantInvitationCodes.cjs | delete, remove | no |
@@ -88,7 +79,6 @@ Mode: report-only (no cleanup or migration actions performed)
 | scripts/initFirestore.cjs | delete | no |
 | scripts/migrateEquipmentTerminology.cjs | apply | yes |
 | scripts/migrateFeedbackTicketNumbers.cjs | apply | no |
-| scripts/migrateFixDeviceStructure.cjs | delete, remove | no |
 | scripts/migrateFixReportAccountIntegrity.cjs | apply | no |
 | scripts/migrateMaintenanceHistoryToEvents.cjs | apply, delete | yes |
 | scripts/migratePropertyGroupMemberships.cjs | apply, delete, remove | yes |
@@ -107,6 +97,7 @@ Mode: report-only (no cleanup or migration actions performed)
 
 - scripts/archive/addExtensiveMaintenanceHistory.cjs
 - scripts/archive/addUnitLevelMaintenanceHistory.cjs
+- scripts/archive/migrateFixDeviceStructure.cjs
 - scripts/archive/migrateRemoveSharedPropertiesGroups.cjs
 - scripts/archive/migrateTeamInvitationCodes.cjs
 - scripts/archive/migrateTenantInvitationCodes.cjs
@@ -114,7 +105,6 @@ Mode: report-only (no cleanup or migration actions performed)
 - scripts/checkEntitlementBoundaries.cjs
 - scripts/initFirestore.cjs
 - scripts/migrateFeedbackTicketNumbers.cjs
-- scripts/migrateFixDeviceStructure.cjs
 - scripts/migrateFixReportAccountIntegrity.cjs
 - scripts/migratePruneInactiveUserData.cjs
 - scripts/migrateTenantDataReduction.cjs
