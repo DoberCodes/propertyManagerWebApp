@@ -240,9 +240,11 @@ Activation satisfies the 30-day notice for this 30-day program. It must not be
 duplicated by a second 30-day reminder. The existing signup welcome email and
 the later grant-activation message describe different events.
 
-Each delivery uses a deterministic identity based on program, grant, milestone,
-and template version. Operational state records sent, skipped, failed, retry,
-provider, and terminal outcome information under the account. Later milestones
+Each delivery uses a deterministic account-scoped provider identity based on
+account, program, grant, milestone, and template version. The stored delivery
+identifier remains scoped beneath its account. Operational state records sent,
+skipped, failed, retry, provider, and terminal outcome information under the
+account. Later milestones
 supersede unseen earlier messages rather than sending a stale sequence. Paid
 conversion and terminal grant states suppress obsolete delivery immediately.
 

@@ -211,6 +211,14 @@ export const getLifecycleDeliveryId = (
 		.replace(/[^a-zA-Z0-9_-]/g, '_')
 		.slice(0, 180);
 
+export const getLifecycleProviderIdempotencyKey = (
+	accountId: string,
+	deliveryId: string,
+): string =>
+	`${accountId}__${deliveryId}`
+		.replace(/[^a-zA-Z0-9_-]/g, '_')
+		.slice(0, 240);
+
 export const getDueLifecycleMilestones = (
 	grant: GrantRecord,
 	nowMs: number,
@@ -732,7 +740,7 @@ const processMilestone = async (
 			to: email,
 			subject: rendered.subject,
 			html: rendered.html,
-			idempotencyKey: deliveryId,
+			idempotencyKey: getLifecycleProviderIdempotencyKey(accountId, deliveryId),
 		});
 		await publishLifecycleNotice(
 			milestone,
