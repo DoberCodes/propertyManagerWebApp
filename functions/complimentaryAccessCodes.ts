@@ -21,6 +21,12 @@ const AUDIT_COLLECTION = 'admin_audit_logs';
 const MAX_ATTEMPTS_PER_HOUR = 20;
 const MAX_CODE_LENGTH = 80;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ACCESS_RANK: Record<AccessCodeProgram['bundleId'], number> = {
+	homeowner_plus: 1,
+	multi_homeowner: 2,
+	property: 3,
+	portfolio: 4,
+};
 
 type AccessCodeProgram = {
 	programId: string;
@@ -46,6 +52,7 @@ type AccessCodeRecord = {
 	expiresAtMs?: number | null;
 	maxRedemptions: number;
 	redeemedCount?: number;
+	recipientEmailLower?: string | null;
 };
 
 export type ComplimentaryAccessPreview = {
@@ -57,6 +64,7 @@ export type ComplimentaryAccessPreview = {
 	fallbackPlanId: 'homeowner';
 	limitOverrides: Record<string, number>;
 	automaticBilling: false;
+	recipientRestricted: boolean;
 };
 
 const text = (value: unknown): string => String(value || '').trim();
@@ -147,6 +155,7 @@ const asCodeRecord = (value: unknown): AccessCodeRecord => {
 		expiresAtMs: Number(data.expiresAtMs || 0) || null,
 		maxRedemptions: Number(data.maxRedemptions || 0),
 		redeemedCount: Number(data.redeemedCount || 0),
+		recipientEmailLower: text(data.recipientEmailLower).toLowerCase() || null,
 	};
 };
 
@@ -280,7 +289,29 @@ const previewForProgram = (program: AccessCodeProgram): ComplimentaryAccessPrevi
 	fallbackPlanId: program.fallbackPlanId,
 	limitOverrides: program.limitOverrides || {},
 	automaticBilling: false,
+	recipientRestricted: false,
 });
+
+export const assertRecipientEligibility = (
+	code: AccessCodeRecord,
+	email: unknown,
+	emailVerified: boolean,
+): void => {
+	const restrictedEmail = text(code.recipientEmailLower).toLowerCase();
+	if (!restrictedEmail) return;
+	if (text(email).toLowerCase() !== restrictedEmail) {
+		throw new functions.https.HttpsError(
+			'permission-denied',
+			'This access code was issued for a different email address.',
+		);
+	}
+	if (!emailVerified) {
+		throw new functions.https.HttpsError(
+			'failed-precondition',
+			'Verify your email address before activating this access code.',
+		);
+	}
+};
 
 const requestIdForCodeAction = (accountId: string, value: unknown): string => {
 	const provided = text(value);
@@ -311,9 +342,20 @@ export const previewComplimentaryAccessCode = functions
 				normalizeComplimentaryAccessCode(data?.code),
 				getRuntimePepper(),
 			);
-			const { program } = await loadProgramAndCode(codeHash, nowMs);
+			const { program, code } = await loadProgramAndCode(codeHash, nowMs);
+			assertRecipientEligibility(
+				code,
+				context.auth.token.email,
+				context.auth.token.email_verified === true,
+			);
 			await recordAttempt(accountId, requestId, 'previewed', program.programId);
-			return { success: true, preview: previewForProgram(program) };
+			return {
+				success: true,
+				preview: {
+					...previewForProgram(program),
+					recipientRestricted: Boolean(text(code.recipientEmailLower)),
+				},
+			};
 		} catch (error) {
 			await recordAttempt(accountId, requestId, 'preview_failed');
 			await writeRedemptionOutcomeAudit({
@@ -334,6 +376,8 @@ export const redeemComplimentaryAccessCodeForAccount = async (params: {
 	codeHash: string;
 	requestId: string;
 	nowMs: number;
+	beneficiaryEmail?: string;
+	beneficiaryEmailVerified?: boolean;
 }): Promise<{ grantId: string; replayed: boolean; preview: ComplimentaryAccessPreview }> => {
 	const { accountId, beneficiaryUserId, codeHash, requestId, nowMs } = params;
 	const loaded = await loadProgramAndCode(codeHash, nowMs);
@@ -369,9 +413,28 @@ export const redeemComplimentaryAccessCodeForAccount = async (params: {
 		}
 		const liveCode = asCodeRecord(codeSnapshot.data());
 		const liveProgram = asProgram(programSnapshot.id, programSnapshot.data());
+		assertRecipientEligibility(
+			liveCode,
+			params.beneficiaryEmail,
+			params.beneficiaryEmailVerified === true,
+		);
 		const basePlan = text((account.subscription as any)?.plan || (user.subscription as any)?.plan || 'homeowner');
 		if (!liveProgram.eligibleBasePlans?.includes(basePlan)) {
 			throw new functions.https.HttpsError('failed-precondition', 'This account is not eligible for the access program.');
+		}
+		const currentProjection = (account.effectiveEntitlementProjection || {}) as Record<string, any>;
+		const hasEquivalentPermanentAccess = Array.isArray(currentProjection.activeGrants) &&
+			currentProjection.activeGrants.some((grant: any) =>
+				grant?.kind === 'permanent' &&
+				grant?.state === 'active' &&
+				Number(ACCESS_RANK[grant?.bundleId as AccessCodeProgram['bundleId']] || 0) >=
+					ACCESS_RANK[liveProgram.bundleId],
+			);
+		if (hasEquivalentPermanentAccess) {
+			throw new functions.https.HttpsError(
+				'failed-precondition',
+				'This account already has equal or greater permanent access.',
+			);
 		}
 		if (
 			liveCode.status !== 'active' ||
@@ -495,7 +558,14 @@ export const redeemComplimentaryAccessCodeForAccount = async (params: {
 		return false;
 	});
 
-	return { grantId, replayed, preview: previewForProgram(program) };
+	return {
+		grantId,
+		replayed,
+		preview: {
+			...previewForProgram(program),
+			recipientRestricted: Boolean(text(code.recipientEmailLower)),
+		},
+	};
 };
 
 export const redeemComplimentaryAccessCode = functions
@@ -524,6 +594,8 @@ export const redeemComplimentaryAccessCode = functions
 				codeHash,
 				requestId,
 				nowMs,
+				beneficiaryEmail: context.auth.token.email,
+				beneficiaryEmailVerified: context.auth.token.email_verified === true,
 			});
 			await recordAttempt(
 				accountId,

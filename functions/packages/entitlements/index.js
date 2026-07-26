@@ -85,6 +85,7 @@ const ADMIN_AUDIT_ACTIONS = Object.freeze([
 	'grant.lifetime_created',
 	'program.applied',
 	'program.configured',
+	'access_code.created',
 	'program.redemption_failed',
 	'program.redemption_replayed',
 	'billing_transition.linked',
@@ -92,6 +93,10 @@ const ADMIN_AUDIT_ACTIONS = Object.freeze([
 	'billing_transition.opted_out',
 	'billing.stripe_linkage_cleared',
 	'access_email.sent',
+	'user_email.sent',
+	'maintley_team.invited',
+	'maintley_role.updated',
+	'maintley_team.revoked',
 	'stripe_migration.started',
 	'stripe_migration.completed',
 	'admin_action.failed',
@@ -361,13 +366,27 @@ const resolveBasePlan = ({
 			}),
 		);
 	}
-	if (rawPlanId && PLAN_ID_SET.has(rawPlanId) && !isPlanEnabled(rawPlanId, featureFlags)) {
+	if (
+		rawPlanId &&
+		PLAN_ID_SET.has(rawPlanId) &&
+		!isPlanEnabled(rawPlanId, featureFlags) &&
+		!isSubscriptionCurrentlyEntitled(subscription, nowMs)
+	) {
 		diagnostics.push(
 			createDiagnostic('disabled_plan', 'Disabled plan defaulted to Free access.', {
 				planId: rawPlanId,
 			}),
 		);
 		return fallback;
+	}
+	if (rawPlanId && PLAN_ID_SET.has(rawPlanId) && !isPlanEnabled(rawPlanId, featureFlags)) {
+		diagnostics.push(
+			createDiagnostic(
+				'disabled_plan_preserved',
+				'An existing entitled subscription remains recognized while new plan acquisition is disabled.',
+				{ planId: rawPlanId },
+			),
+		);
 	}
 
 	const usesLegacyPlanWithoutStatus = Boolean(

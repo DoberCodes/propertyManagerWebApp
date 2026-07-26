@@ -408,6 +408,26 @@ Every access-code program must define server-owned policy for:
 * transition mode after complimentary access
 * revocation, support, reporting, and audit treatment
 
+Each code grants exactly one approved access bundle. There is no "all plans"
+complimentary code. Admin-facing language may describe this as complimentary
+plan access, but storage continues to use the canonical bundle identifier so a
+code cannot become a parallel billing-plan source of truth.
+
+Maintley administrators may create programs and codes through a trusted admin
+surface. The server generates the redeemable secret, returns it once for secure
+delivery, stores only its keyed verifier, and records an immutable audit event.
+The admin must select the bundle, access duration, redemption deadline, maximum
+redemptions, transition mode, program label, and reason. A code may optionally
+be restricted to a normalized recipient email. Email-restricted redemption
+requires the authenticated account-owner email to match and be verified.
+
+Standard registration may collect a complimentary code separately from Stripe
+promotion and invitation codes. The Free account and owning family account must
+first be committed. Maintley then uses the authenticated preview and redemption
+contract before redirecting into onboarding. A failed code must not roll back
+or corrupt the newly created Free account; the user may correct it, skip it, or
+redeem it later from Settings.
+
 Redemption must be transactional, idempotent, rate-limited, and server
 validated. Redeemable secrets must not be stored or logged in plaintext.
 Repeated, expired, exhausted, or ineligible redemption attempts must fail
@@ -450,10 +470,21 @@ When a downgraded account is above its resulting property or team limits:
 * restored eligible access immediately restores expansion and paid capabilities
   according to the resolved bundle and current relationship permissions
 
+The application navigation must preserve a route to existing active team
+relationships after downgrade. This is a distinct view-and-reduce permission,
+not `team.manage`: the account owner may inspect and remove retained members,
+while invitation, reactivation, group creation, permission expansion, and other
+count-increasing actions remain blocked.
+
 This over-limit continuity state is not a Free-plan feature bundle and does not
 allow a new Free account to create multiple properties or establish a team.
 Quantitative limits govern net-new expansion; capabilities govern what existing
 resources can do; ownership and active relationships govern who may see them.
+
+Plan rollout flags control acquisition, not recognition. A valid existing
+Stripe-confirmed subscription remains resolvable even if the corresponding
+public acquisition flag is later disabled. Disabling acquisition must never
+silently relabel paid access as Free.
 
 ### Tenant occupancy continuity
 

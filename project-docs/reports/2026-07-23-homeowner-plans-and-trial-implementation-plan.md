@@ -1073,6 +1073,22 @@ and staged storage-rule enforcement remain Phase 9 operational gates.
 * Model a complimentary access code as a server-validated credential for one
   approved grant program; do not model it as a Stripe coupon, subscription, or
   plan.
+* Require every access-code program to select exactly one canonical bundle:
+  Homeowner+, Multi-Homeowner, Property, or Portfolio. Do not support an
+  all-plans code.
+* Add trusted admin creation and listing under Billing, visually separate from
+  Stripe coupons. Both Stripe Coupons and Complimentary Access Codes default to
+  collapsed sections and expand only when an administrator chooses to manage
+  them.
+* Generate high-entropy codes on the server, return plaintext once, store only
+  the keyed verifier, and audit creation, failure, disabling, and redemption.
+* Support redemption expiration, access duration, maximum redemptions, an
+  optional verified recipient-email restriction, transition mode, program
+  label, and an administrative reason.
+* Add a separate optional complimentary-code field to standard registration.
+  Commit the Free account first, then preview and explicitly activate through
+  the authenticated contract before onboarding. Invalid activation preserves
+  the Free account and offers retry, skip, and later Settings redemption.
 * Store only a secure verifier for redeemable codes and prevent plaintext codes
   from appearing in Firestore records, logs, analytics, or audit metadata.
 * Add trusted transactional redemption with stable request IDs, per-account
@@ -1350,6 +1366,12 @@ Already issued grants remain governed by their recorded lifecycle.
 * Record completion or rollback. Never bulk-migrate the current account set.
 
 ##### 9.10 - Cohort expansion and legacy removal
+
+Before cohort expansion, validate the admin operational controls added during
+observation: active-only coupon/code lists with an explicit historical toggle,
+caller-only Last Active heartbeat, routed admin user details, audited
+operational user email, and owner/admin-governed Maintley Team roles. Admin user
+inspection must never update the inspected customer's `lastActiveAt` value.
 
 * Expand one feature and one cohort at a time: Maintley internal accounts,
   invited testers, a small external cohort, then general availability.

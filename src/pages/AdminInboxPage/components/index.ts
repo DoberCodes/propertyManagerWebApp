@@ -8,4 +8,5 @@ export { PasswordResetDialog } from './PasswordResetDialog';
 export { TicketCard } from './AdminInboxTicketCard';
 export { AdminUserManagementPanel } from './AdminUserManagementPanel';
 export { AdminBillingToolsPanel } from './AdminBillingToolsPanel';
+export { AdminMaintleyTeamPanel } from './AdminMaintleyTeamPanel';
 export { AdminAuditLogPanel } from './AdminAuditLogPanel';

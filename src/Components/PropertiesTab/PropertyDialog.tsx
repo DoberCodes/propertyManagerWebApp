@@ -624,6 +624,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				...formData,
 				accessSnapshots: buildAccessSnapshots(),
 				propertyType: forceSingleFamily ? 'Single Family' : formData.propertyType,
+				isRental: forceSingleFamily
+					? initialData?.isRental ?? false
+					: !!formData.isRental,
 			}, setSaveProgress);
 			onClose();
 		} catch (error) {
@@ -983,17 +986,19 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								</FormField>
 							</FormRow>
 						)}
-						<FormField>
-							<Label>Rental Settings</Label>
-							<label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#475569' }}>
-								<input
-									type='checkbox'
-									checked={!!formData.isRental}
-									onChange={(e) => handleInputChange('isRental', e.target.checked)}
-								/>
-								Yes, this {recordLowerLabel} is a rental
-							</label>
-						</FormField>
+						{!forceSingleFamily && (
+							<FormField>
+								<Label>Rental Settings</Label>
+								<label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#475569' }}>
+									<input
+										type='checkbox'
+										checked={!!formData.isRental}
+										onChange={(e) => handleInputChange('isRental', e.target.checked)}
+									/>
+									Yes, this {recordLowerLabel} is a rental
+								</label>
+							</FormField>
+						)}
 						{isDuplicate && (
 							<FormField>
 								<Label>Duplicate Options</Label>
@@ -1118,7 +1123,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			[`${recordTitleLabel} Type`, formData.propertyType],
 			['Owner', formData.owner || 'Not set'],
 			['Bedrooms / Bathrooms', `${formData.bedrooms ?? 0} / ${formData.bathrooms ?? 0}`],
-			[`Rental ${recordTitleLabel}`, formData.isRental ? 'Yes' : 'No'],
+			...(!forceSingleFamily
+				? [[`Rental ${recordTitleLabel}`, formData.isRental ? 'Yes' : 'No'] as [string, React.ReactNode]]
+				: []),
 			[
 				'Co-Owners',
 				getShareMembers(formData.coOwners).map((member) => member.displayName).join(', ') || 'None',

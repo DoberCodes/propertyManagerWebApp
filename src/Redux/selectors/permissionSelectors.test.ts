@@ -211,6 +211,22 @@ describe('permission selectors', () => {
 			expect(selectCanAccessTeam(freeState)).toBe(false);
 			expect(selectCanAccessTeam(expiredState)).toBe(false);
 		});
+
+		it('preserves Team visibility for an owner with existing relationships after downgrade', () => {
+			const state: any = {
+				user: {
+					currentUser: {
+						hasExistingTeamMembers: true,
+						subscription: {
+							status: SUBSCRIPTION_STATUS.ACTIVE,
+							plan: 'multi_homeowner',
+						},
+					},
+				},
+			};
+			expect(selectCanAccessTeam(state)).toBe(true);
+			expect(selectCanInviteTeamMembers(state)).toBe(false);
+		});
 	});
 
 	describe('selectCanInviteTeamMembers', () => {

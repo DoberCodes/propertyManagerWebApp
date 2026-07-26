@@ -52,6 +52,7 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 		let familyAccountSubscription: Record<string, unknown> | null = null;
 		let familyEntitlementProjection: Record<string, unknown> | null = null;
 		let resolvedFamilyAccountId: string | null = null;
+		let familyHasExistingTeamMembers = false;
 		const userData = userDoc.data();
 		if (userData.accountId) {
 			try {
@@ -65,6 +66,7 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 						id: string;
 						subscription?: Record<string, unknown>;
 						effectiveEntitlementProjection?: Record<string, unknown>;
+						hasExistingTeamMembers?: boolean;
 					}
 				>('ensureFamilyAccount', {
 					accountId: String(userData.accountId),
@@ -73,6 +75,8 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 				familyEntitlementProjection =
 					accountSummary.data?.effectiveEntitlementProjection || null;
 				resolvedFamilyAccountId = accountSummary.data?.id || null;
+				familyHasExistingTeamMembers =
+					accountSummary.data?.hasExistingTeamMembers === true;
 			} catch (accountError) {
 				console.warn(
 					'Failed to load family account subscription:',
@@ -104,6 +108,7 @@ export const getUserProfile = async (uid: string): Promise<User> => {
 		const serializedData: any = {
 			...(serializeFirestoreValue(rawData) as Record<string, unknown>),
 			id: uid,
+			hasExistingTeamMembers: familyHasExistingTeamMembers,
 		};
 
 		if (

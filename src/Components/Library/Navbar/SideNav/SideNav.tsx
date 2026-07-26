@@ -110,7 +110,7 @@ export const SideNav = () => {
 			label: 'Team',
 			path: '/team',
 			icon: faUsers,
-			visible: !isUserTenant && !isHomeowner && canAccessTeam,
+			visible: !isUserTenant && canAccessTeam,
 		},
 		{
 			label: 'Reports',

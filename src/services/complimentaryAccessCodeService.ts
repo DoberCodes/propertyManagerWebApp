@@ -9,6 +9,7 @@ export type ComplimentaryAccessCodePreview = {
 	fallbackPlanId: 'homeowner';
 	limitOverrides: Record<string, number>;
 	automaticBilling: false;
+	recipientRestricted?: boolean;
 };
 
 const requestId = (prefix: string): string => {

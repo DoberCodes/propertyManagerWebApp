@@ -88,6 +88,7 @@ export interface User {
 		scope?: 'my_focus' | 'all_visible_properties';
 	};
 	workspaceMode?: WorkspaceMode;
+	hasExistingTeamMembers?: boolean;
 	pushToken?: string; // Push notification token for FCM
 	pushTokenUpdatedAt?: string; // When push token was last updated
 	pushTokens?: Array<{

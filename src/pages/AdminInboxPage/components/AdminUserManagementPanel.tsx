@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     Button,
+	ButtonRow,
     ErrorText,
     Input,
     InlineToggle,
@@ -41,6 +42,7 @@ import {
     adminPortalApplyUserBillingActions,
 	adminPortalMutateEntitlementGrant,
 	adminSendAccessLifecycleEmail,
+	adminSendOperationalUserEmail,
 	adminPortalPreviewEntitlementGrant,
     adminPortalManageUserSubscription,
     adminPortalRefreshUserSubscriptionFromStripe,
@@ -63,6 +65,9 @@ import { isMultiHomeownerPlanEnabled } from '../../../entitlements/planAvailabil
 
 interface AdminUserManagementPanelProps {
     sessionToken: string;
+	requestedUserId?: string;
+	onOpenUser?: (userId: string) => void;
+	onBackToUsers?: () => void;
 }
 
 const LIST_FILTER_OPTIONS = [
@@ -126,6 +131,9 @@ const createGrantRequestId = (): string => {
 
 export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> = ({
     sessionToken,
+	requestedUserId = '',
+	onOpenUser,
+	onBackToUsers,
 }) => {
     const dispatch = useDispatch<AppDispatch>();
     const filteredUsers = useSelector(selectFilteredAdminUsers);
@@ -171,6 +179,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 	} | null>(null);
 	const [grantActionLoading, setGrantActionLoading] = useState(false);
 	const [accessEmailLoadingGrantId, setAccessEmailLoadingGrantId] = useState('');
+	const [showEmailUserDialog, setShowEmailUserDialog] = useState(false);
+	const [emailCategory, setEmailCategory] = useState<'support_follow_up' | 'account_notice' | 'billing_access'>('support_follow_up');
+	const [emailSubject, setEmailSubject] = useState('');
+	const [emailMessage, setEmailMessage] = useState('');
+	const [emailReason, setEmailReason] = useState('');
+	const [emailSending, setEmailSending] = useState(false);
 	const billingMoreActionsRef = useRef<HTMLDetailsElement | null>(null);
     const displayError = localError || error || '';
 
@@ -254,7 +268,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
         dispatch(setUsersFilters(filterUpdates));
     };
 
-    const handleInspectUser = async (userId: string) => {
+	const loadUserDetails = async (userId: string) => {
         if (!userId) return;
         setDetailLoading(true);
         setLocalError('');
@@ -303,7 +317,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                 syncStripe,
             });
 
-            await handleInspectUser(selectedUserId);
+            await loadUserDetails(selectedUserId);
             setActionMessage(
                 `Subscription updated to ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). ${result.stripeUpdated ? 'Stripe updated. ' : ''
                 }Audit log saved.`,
@@ -362,7 +376,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 					? 'Stripe Checkout link created. No paid access was granted; Maintley will update only after Stripe confirms the subscription. Audit log saved.'
 					: `Stripe billing updated for ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). Audit log saved.`,
 			);
-            await handleInspectUser(selectedUserId);
+            await loadUserDetails(selectedUserId);
             setCheckoutLink(createdCheckoutLink);
             setTrialDays('');
             setCheckoutCouponCode('');
@@ -388,7 +402,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                 sessionToken,
                 userId: selectedUserId,
             });
-            await handleInspectUser(selectedUserId);
+            await loadUserDetails(selectedUserId);
             const matchLabel =
                 result.matchedBy === 'stripe_subscription_id'
                     ? 'subscription ID'
@@ -426,6 +440,59 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 		setGrantConfirmation('');
 		setGrantWizardStep(1);
 	};
+
+	const handleSendOperationalEmail = async () => {
+		if (!selectedUserId) return;
+		setLocalError('');
+		setActionMessage('');
+		setEmailSending(true);
+		try {
+			const requestId = `user-email:${
+				typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+					? crypto.randomUUID()
+					: `${Date.now()}:${Math.random().toString(36).slice(2, 12)}`
+			}`;
+			const result = await adminSendOperationalUserEmail({
+				sessionToken,
+				targetUserId: selectedUserId,
+				category: emailCategory,
+				subject: emailSubject,
+				message: emailMessage,
+				reason: emailReason,
+				requestId,
+			});
+			setActionMessage(
+				result.outcome === 'sent'
+					? 'Operational email sent. Audit log saved.'
+					: 'This email request was already completed. No duplicate was sent.',
+			);
+			setShowEmailUserDialog(false);
+			setEmailSubject('');
+			setEmailMessage('');
+			setEmailReason('');
+		} catch (emailError) {
+			setLocalError(
+				emailError instanceof Error ? emailError.message : 'Unable to send the operational email.',
+			);
+		} finally {
+			setEmailSending(false);
+		}
+	};
+
+	const handleInspectUser = async (userId: string) => {
+		if (onOpenUser) {
+			onOpenUser(userId);
+			return;
+		}
+		await loadUserDetails(userId);
+	};
+
+	React.useEffect(() => {
+		if (!requestedUserId || requestedUserId === selectedUserId) return;
+		void loadUserDetails(requestedUserId);
+		// Loading is intentionally keyed to the route identifier only.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [requestedUserId]);
 
 	const handleOpenGrantDialog = () => {
 		const programs = details?.access?.grantAdministration?.programs || [];
@@ -497,7 +564,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 				requestId: grantRequestId,
 				confirmation: grantConfirmation,
 			});
-			await handleInspectUser(selectedUserId);
+			await loadUserDetails(selectedUserId);
 			setActionMessage(
 				`${formatLabel(grantAction)} completed for internal grant ${result.grantId}. No Stripe billing relationship was created. Audit log saved.`,
 			);
@@ -549,7 +616,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 			});
 			setShowClearStripeConfirm(false);
 			setShowBillingActionsDialog(false);
-			await handleInspectUser(selectedUserId);
+			await loadUserDetails(selectedUserId);
 			setActionMessage(
 				'Stale Stripe linkage cleared. Billing returned to the free Homeowner plan; internal grants were preserved. Audit log saved.',
 			);
@@ -580,6 +647,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 
     return (
         <UserPanelWrap>
+			{requestedUserId ? (
+				<SecondaryButton type='button' onClick={onBackToUsers}>
+					Back to Users
+				</SecondaryButton>
+			) : null}
+			<div hidden={Boolean(requestedUserId)}>
             <SubTitle>
                 User troubleshooting: quickly inspect account profile, usage, support history, recent activity, and error context.
             </SubTitle>
@@ -676,6 +749,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                     </UserTable>
                 </UserTableWrap>
             ) : null}
+			</div>
 
             {details ? (
                 <UserDetailsPanel>
@@ -685,7 +759,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             : `Customer Lookup Card: ${details.profile.displayName}`}
                     </SubTitle>
 
-                    <Label>Account</Label>
+					<ButtonRow>
+						<Label>Account</Label>
+						<Button type='button' onClick={() => setShowEmailUserDialog(true)}>
+							Email User
+						</Button>
+					</ButtonRow>
                     <UserDetailsGrid>
                         <UserDetailsItem>
                             <UserDetailsKey>Name</UserDetailsKey>
@@ -1573,6 +1652,52 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 						}
 						onClick={() => void handleClearStripeLinkage()}>
 						{planActionLoading ? 'Verifying Stripe...' : 'Verify and Clear Linkage'}
+					</Button>
+				</div>
+			</GenericModal>
+
+			<GenericModal
+				isOpen={showEmailUserDialog}
+				title={`Email ${details?.profile.displayName || 'User'}`}
+				onClose={() => {
+					if (!emailSending) setShowEmailUserDialog(false);
+				}}
+				compact>
+				<div style={{ display: 'grid', gap: 14 }}>
+					<p style={{ margin: 0 }}>
+						Send an operational account or support message to{' '}
+						<strong>{details?.profile.email || 'this user'}</strong>. Marketing messages use a separate consent-based workflow.
+					</p>
+					<div>
+						<Label>Message type</Label>
+						<Select value={emailCategory} onChange={(event) => setEmailCategory(event.target.value as typeof emailCategory)}>
+							<option value='support_follow_up'>Support follow-up</option>
+							<option value='account_notice'>Account notice</option>
+							<option value='billing_access'>Billing or access</option>
+						</Select>
+					</div>
+					<div>
+						<Label>Subject</Label>
+						<Input value={emailSubject} maxLength={120} onChange={(event) => setEmailSubject(event.target.value)} />
+					</div>
+					<div>
+						<Label>Message</Label>
+						<Input as='textarea' rows={7} maxLength={3000} value={emailMessage} onChange={(event) => setEmailMessage(event.target.value)} />
+					</div>
+					<UserDetailsPanel>
+						<UserDetailsKey>Email preview</UserDetailsKey>
+						<UserDetailsValue><strong>{emailSubject || 'Subject'}</strong></UserDetailsValue>
+						<p style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{emailMessage || 'Your message will appear here.'}</p>
+					</UserDetailsPanel>
+					<div>
+						<Label>Required audit reason</Label>
+						<Input value={emailReason} maxLength={500} onChange={(event) => setEmailReason(event.target.value)} placeholder='Why this operational email is being sent' />
+					</div>
+					<Button
+						type='button'
+						disabled={emailSending || emailSubject.trim().length < 5 || emailMessage.trim().length < 10 || emailReason.trim().length < 10}
+						onClick={() => void handleSendOperationalEmail()}>
+						{emailSending ? 'Sending...' : 'Send Email'}
 					</Button>
 				</div>
 			</GenericModal>

@@ -80,6 +80,15 @@ Functions boundary. Setting `ENTITLEMENT_COMPARE_MODE=true` emits structured
 stored-plan versus resolved-plan comparison events during a controlled rollout;
 it does not change the access result.
 
+Public plan flags determine whether a customer can start a new Checkout for a
+plan. They do not invalidate an already active Stripe-confirmed subscription.
+Profile and Settings surfaces continue to resolve the existing canonical plan
+while purchase surfaces honor the acquisition flag.
+
+Admin Billing lists current active Stripe coupons and complimentary access
+codes by default. Administrators may explicitly enable `Show inactive and
+expired` within either section to review historical or exhausted records.
+
 The package defines temporary and permanent grant, billing-transition,
 administrative-audit, and rollout-flag contracts. The Homeowner+ first-property
 trial is the first persisted generic grant workflow. It remains disabled unless
@@ -147,6 +156,24 @@ a keyed verifier, and can use `none` or `checkout_required` continuation. They
 cannot configure automatic billing. Programs are provisioned with
 `npm --prefix functions run provision:access-code -- ...`; the plaintext code
 and matching pepper are supplied only through the operator's local environment.
+Eligible primary account holders redeem a code from Settings under Billing &
+Subscription. Maintley validates and previews the access duration and end
+behavior first; the user must then explicitly activate the complimentary
+access. Activation is not offered before a successful preview.
+
+Standard registration may also collect a complimentary code separately from
+Stripe coupons and invitation codes. Maintley first commits the Free account,
+then performs authenticated review and explicit activation before onboarding.
+An invalid or skipped code leaves the account on Free and remains retryable in
+Settings. Recipient-restricted codes require the authenticated account-owner
+email to match and be verified.
+
+The admin Billing area keeps Stripe Coupons and Complimentary Access Codes in
+separate collapsed sections. Creating a complimentary code requires one
+specific access level, duration, maximum redemptions, label, transition mode,
+and administrative reason; redemption expiration and recipient email are
+optional. The server generates the plaintext code, returns it once, stores only
+its keyed verifier, and writes the immutable high-value audit event.
 
 ---
 

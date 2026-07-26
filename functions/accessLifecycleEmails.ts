@@ -1031,3 +1031,112 @@ export const sendAdminAccessLifecycleEmail = functions
 			return { success: true, outcome, requestId };
 		},
 	);
+
+const OPERATIONAL_EMAIL_CATEGORIES = new Set([
+	'support_follow_up',
+	'account_notice',
+	'billing_access',
+]);
+
+export const sendAdminOperationalUserEmail = functions
+	.region('us-central1')
+	.runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 180, memory: '256MB' })
+	.https.onCall(
+		async (
+			data: {
+				sessionToken?: string;
+				targetUserId?: string;
+				category?: string;
+				subject?: string;
+				message?: string;
+				reason?: string;
+				requestId?: string;
+			},
+			context,
+		) => {
+			const authority = await resolveGrantAdminAuthority(
+				context,
+				String(data?.sessionToken || ''),
+				false,
+			);
+			const targetUserId = String(data?.targetUserId || '').trim();
+			const category = String(data?.category || '').trim();
+			const subject = String(data?.subject || '').trim();
+			const message = String(data?.message || '').trim();
+			const reason = String(data?.reason || '').trim();
+			const requestId = String(data?.requestId || '').trim();
+
+			if (!targetUserId || !OPERATIONAL_EMAIL_CATEGORIES.has(category)) {
+				throw new functions.https.HttpsError(
+					'invalid-argument',
+					'A target user and approved operational email category are required.',
+				);
+			}
+			if (subject.length < 5 || subject.length > 120) {
+				throw new functions.https.HttpsError('invalid-argument', 'Subject must be between 5 and 120 characters.');
+			}
+			if (message.length < 10 || message.length > 3000) {
+				throw new functions.https.HttpsError('invalid-argument', 'Message must be between 10 and 3,000 characters.');
+			}
+			if (reason.length < 10 || reason.length > 500) {
+				throw new functions.https.HttpsError('invalid-argument', 'An audit reason between 10 and 500 characters is required.');
+			}
+			if (!/^[a-zA-Z0-9:_-]{8,120}$/.test(requestId)) {
+				throw new functions.https.HttpsError('invalid-argument', 'A stable request ID is required.');
+			}
+
+			const eventId = getAdminAuditEventId('user_email.sent', requestId);
+			const auditRef = db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(eventId);
+			if ((await auditRef.get()).exists) {
+				return { success: true, outcome: 'replayed', requestId };
+			}
+
+			const targetSnapshot = await db.collection('users').doc(targetUserId).get();
+			if (!targetSnapshot.exists) {
+				throw new functions.https.HttpsError('not-found', 'Target user was not found.');
+			}
+			const target = targetSnapshot.data() || {};
+			const email = String(target.email || '').trim().toLowerCase();
+			if (!email) {
+				throw new functions.https.HttpsError('failed-precondition', 'Target user does not have an email address.');
+			}
+			const displayName =
+				`${String(target.firstName || '').trim()} ${String(target.lastName || '').trim()}`.trim() ||
+				' there';
+			const safeMessage = escapeHtml(message).replace(/\r?\n/g, '<br />');
+			const html = renderMaintleyEmailShell({
+				title: escapeHtml(subject),
+				previewText: escapeHtml(message.slice(0, 140)),
+				eyebrow: 'Maintley account message',
+				bodyHtml: `
+					<p style="margin:0 0 16px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Hi ${escapeHtml(displayName)},</p>
+					<p style="margin:0; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">${safeMessage}</p>
+				`,
+				footerHtml: 'This operational message was sent by Maintley about your account or support request.',
+			});
+
+			await sendMaintleyEmail(getResendClient(RESEND_API_KEY.value()), {
+				to: email,
+				subject,
+				html,
+				idempotencyKey: `admin-user-email-${requestId}`,
+			});
+
+			await auditRef.create({
+				eventId,
+				action: 'user_email.sent',
+				category: 'admin_communication',
+				actorUserId: authority.actorUserId,
+				targetAccountId: String(target.accountId || targetUserId),
+				targetUserId,
+				reason,
+				requestId,
+				createdAt: admin.firestore.FieldValue.serverTimestamp(),
+				before: { deliveryRequested: false },
+				after: { deliveryRequested: true, deliveryStatus: 'sent' },
+				metadata: { category, subject, recipientEmail: email },
+			});
+
+			return { success: true, outcome: 'sent', requestId };
+		},
+	);

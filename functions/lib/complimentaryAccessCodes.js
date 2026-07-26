@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.redeemComplimentaryAccessCode = exports.redeemComplimentaryAccessCodeForAccount = exports.previewComplimentaryAccessCode = exports.getComplimentaryAccessCodeHash = exports.normalizeComplimentaryAccessCode = void 0;
+exports.redeemComplimentaryAccessCode = exports.redeemComplimentaryAccessCodeForAccount = exports.previewComplimentaryAccessCode = exports.assertRecipientEligibility = exports.getComplimentaryAccessCodeHash = exports.normalizeComplimentaryAccessCode = void 0;
 const crypto_1 = require("crypto");
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
@@ -51,6 +51,12 @@ const AUDIT_COLLECTION = 'admin_audit_logs';
 const MAX_ATTEMPTS_PER_HOUR = 20;
 const MAX_CODE_LENGTH = 80;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ACCESS_RANK = {
+    homeowner_plus: 1,
+    multi_homeowner: 2,
+    property: 3,
+    portfolio: 4,
+};
 const text = (value) => String(value || '').trim();
 const isAccessCodeRolloutEnabled = () => process.env.ENABLE_COMPLIMENTARY_ACCESS_CODES === 'true';
 const normalizeComplimentaryAccessCode = (value) => {
@@ -119,6 +125,7 @@ const asCodeRecord = (value) => {
         expiresAtMs: Number(data.expiresAtMs || 0) || null,
         maxRedemptions: Number(data.maxRedemptions || 0),
         redeemedCount: Number(data.redeemedCount || 0),
+        recipientEmailLower: text(data.recipientEmailLower).toLowerCase() || null,
     };
 };
 const getAttemptWindowId = (accountId, nowMs) => `${accountId}_${Math.floor(nowMs / (60 * 60 * 1000))}`;
@@ -212,7 +219,20 @@ const previewForProgram = (program) => ({
     fallbackPlanId: program.fallbackPlanId,
     limitOverrides: program.limitOverrides || {},
     automaticBilling: false,
+    recipientRestricted: false,
 });
+const assertRecipientEligibility = (code, email, emailVerified) => {
+    const restrictedEmail = text(code.recipientEmailLower).toLowerCase();
+    if (!restrictedEmail)
+        return;
+    if (text(email).toLowerCase() !== restrictedEmail) {
+        throw new functions.https.HttpsError('permission-denied', 'This access code was issued for a different email address.');
+    }
+    if (!emailVerified) {
+        throw new functions.https.HttpsError('failed-precondition', 'Verify your email address before activating this access code.');
+    }
+};
+exports.assertRecipientEligibility = assertRecipientEligibility;
 const requestIdForCodeAction = (accountId, value) => {
     const provided = text(value);
     if (/^[a-zA-Z0-9:_-]{8,120}$/.test(provided))
@@ -239,9 +259,16 @@ exports.previewComplimentaryAccessCode = functions
     await assertRateLimit(accountId, nowMs);
     try {
         const codeHash = (0, exports.getComplimentaryAccessCodeHash)((0, exports.normalizeComplimentaryAccessCode)(data?.code), getRuntimePepper());
-        const { program } = await loadProgramAndCode(codeHash, nowMs);
+        const { program, code } = await loadProgramAndCode(codeHash, nowMs);
+        (0, exports.assertRecipientEligibility)(code, context.auth.token.email, context.auth.token.email_verified === true);
         await recordAttempt(accountId, requestId, 'previewed', program.programId);
-        return { success: true, preview: previewForProgram(program) };
+        return {
+            success: true,
+            preview: {
+                ...previewForProgram(program),
+                recipientRestricted: Boolean(text(code.recipientEmailLower)),
+            },
+        };
     }
     catch (error) {
         await recordAttempt(accountId, requestId, 'preview_failed');
@@ -290,9 +317,19 @@ const redeemComplimentaryAccessCodeForAccount = async (params) => {
         }
         const liveCode = asCodeRecord(codeSnapshot.data());
         const liveProgram = asProgram(programSnapshot.id, programSnapshot.data());
+        (0, exports.assertRecipientEligibility)(liveCode, params.beneficiaryEmail, params.beneficiaryEmailVerified === true);
         const basePlan = text(account.subscription?.plan || user.subscription?.plan || 'homeowner');
         if (!liveProgram.eligibleBasePlans?.includes(basePlan)) {
             throw new functions.https.HttpsError('failed-precondition', 'This account is not eligible for the access program.');
+        }
+        const currentProjection = (account.effectiveEntitlementProjection || {});
+        const hasEquivalentPermanentAccess = Array.isArray(currentProjection.activeGrants) &&
+            currentProjection.activeGrants.some((grant) => grant?.kind === 'permanent' &&
+                grant?.state === 'active' &&
+                Number(ACCESS_RANK[grant?.bundleId] || 0) >=
+                    ACCESS_RANK[liveProgram.bundleId]);
+        if (hasEquivalentPermanentAccess) {
+            throw new functions.https.HttpsError('failed-precondition', 'This account already has equal or greater permanent access.');
         }
         if (liveCode.status !== 'active' ||
             (liveCode.expiresAtMs && liveCode.expiresAtMs <= nowMs) ||
@@ -402,7 +439,14 @@ const redeemComplimentaryAccessCodeForAccount = async (params) => {
         });
         return false;
     });
-    return { grantId, replayed, preview: previewForProgram(program) };
+    return {
+        grantId,
+        replayed,
+        preview: {
+            ...previewForProgram(program),
+            recipientRestricted: Boolean(text(code.recipientEmailLower)),
+        },
+    };
 };
 exports.redeemComplimentaryAccessCodeForAccount = redeemComplimentaryAccessCodeForAccount;
 exports.redeemComplimentaryAccessCode = functions
@@ -428,6 +472,8 @@ exports.redeemComplimentaryAccessCode = functions
             codeHash,
             requestId,
             nowMs,
+            beneficiaryEmail: context.auth.token.email,
+            beneficiaryEmailVerified: context.auth.token.email_verified === true,
         });
         await recordAttempt(accountId, `${requestId}_result`, result.replayed ? 'replayed' : 'redeemed', result.preview.programId);
         if (result.replayed) {

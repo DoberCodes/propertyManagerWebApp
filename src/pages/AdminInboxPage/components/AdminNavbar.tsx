@@ -22,7 +22,7 @@ import {
 } from '../AdminInboxPage.styles';
 import type { AdminUser } from '../../../services/adminPortalService';
 
-export type AdminNavPage = 'inbox' | 'users' | 'billing' | 'audit';
+export type AdminNavPage = 'inbox' | 'users' | 'billing' | 'team' | 'audit';
 
 interface NavItem {
 	key: AdminNavPage;
@@ -34,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
 	{ key: 'inbox', label: 'Inbox', icon: 'I' },
 	{ key: 'users', label: 'Users', icon: 'U' },
 	{ key: 'billing', label: 'Billing', icon: '$' },
+	{ key: 'team', label: 'Maintley Team', icon: 'M' },
 	{ key: 'audit', label: 'Audit', icon: 'L' },
 ];
 
@@ -41,6 +42,7 @@ interface AdminNavbarProps {
 	activePage: AdminNavPage;
 	adminUser: AdminUser | null;
 	canViewAuditLogs: boolean;
+	canManageMaintleyTeam: boolean;
 	onNavigate: (page: AdminNavPage) => void;
 	onBackToApp: () => void;
 	onLogout: () => Promise<void>;
@@ -50,14 +52,18 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
 	activePage,
 	adminUser,
 	canViewAuditLogs,
+	canManageMaintleyTeam,
 	onNavigate,
 	onLogout,
 	onBackToApp,
 }) => {
 	const handleLogout = () => void onLogout();
-	const navItems = canViewAuditLogs
+	const roleFilteredItems = canManageMaintleyTeam
 		? NAV_ITEMS
-		: NAV_ITEMS.filter((item) => item.key !== 'audit');
+		: NAV_ITEMS.filter((item) => item.key !== 'team');
+	const navItems = canViewAuditLogs
+		? roleFilteredItems
+		: roleFilteredItems.filter((item) => item.key !== 'audit');
 
 	return (
 		<>

@@ -94,7 +94,6 @@ import { formatDate } from 'utils/detailPageUtils';
 import COLORS from 'constants/colors';
 import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
 import {
-	canManageTeam,
 	getActiveGrantedPlanAccess,
 	getActiveHomeownerPlusTrial,
 	getEffectiveAccessPlanId,
@@ -108,6 +107,7 @@ import { useStorageUsage } from 'Hooks/useStorageUsage';
 import {
 	selectIsTeamMemberAccount,
 	selectIsTenant,
+	selectCanAccessTeam,
 } from 'Redux/selectors/permissionSelectors';
 import { formatStorageBytes } from 'utils/storageQuota';
 import { isContinuityEvent } from 'utils/maintenanceEventUtils';
@@ -120,12 +120,6 @@ import {
 import { auth } from 'config/firebase';
 import { callFirebaseFunction } from 'config/firebaseFunctions';
 import { getCustomerBillingPortalUrl } from 'utils/authLinks';
-import {
-	complimentaryAccessCodesEnabled,
-	ComplimentaryAccessCodePreview,
-	previewComplimentaryAccessCode,
-	redeemComplimentaryAccessCode,
-} from 'services/complimentaryAccessCodeService';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
@@ -134,6 +128,7 @@ export const UserProfile: React.FC = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateUser] = useUpdateUserMutation();
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
+	const canAccessTeam = useSelector(selectCanAccessTeam);
 	const [isEditing, setIsEditing] = useState(false);
 
 	const [formData, setFormData] = useState({
@@ -157,11 +152,6 @@ export const UserProfile: React.FC = () => {
 	const [deleteAccountError, setDeleteAccountError] = useState('');
 	const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
-	const [accessCode, setAccessCode] = useState('');
-	const [accessCodePreview, setAccessCodePreview] =
-		useState<ComplimentaryAccessCodePreview | null>(null);
-	const [accessCodeError, setAccessCodeError] = useState('');
-	const [isAccessCodeBusy, setIsAccessCodeBusy] = useState(false);
 	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 	const [showNewPassword, setShowNewPassword] = useState(false);
@@ -196,9 +186,7 @@ export const UserProfile: React.FC = () => {
 			),
 		[sourceMaintenanceHistory, summarySystems],
 	);
-	const showTeamSection =
-		isTeamMemberAccount ||
-		(!!currentUser?.subscription && canManageTeam(currentUser.subscription));
+	const showTeamSection = isTeamMemberAccount || canAccessTeam;
 	const { data: profileTeamMembers = [], isLoading: areTeamMembersLoading } =
 		useGetTeamMembersQuery(undefined, {
 			skip: !showTeamSection,
@@ -558,42 +546,6 @@ export const UserProfile: React.FC = () => {
 	const storageFileLabel = storageUsage
 		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
 		: '';
-	const canRedeemComplimentaryAccess =
-		complimentaryAccessCodesEnabled &&
-		!isUserTenant &&
-		!isTeamMemberAccount &&
-		currentUser?.isAccountOwner !== false;
-
-	const handlePreviewAccessCode = async () => {
-		setAccessCodeError('');
-		setAccessCodePreview(null);
-		setIsAccessCodeBusy(true);
-		try {
-			setAccessCodePreview(await previewComplimentaryAccessCode(accessCode));
-		} catch (previewError: any) {
-			setAccessCodeError(
-				String(previewError?.message || 'This complimentary access code is not available.'),
-			);
-		} finally {
-			setIsAccessCodeBusy(false);
-		}
-	};
-
-	const handleRedeemAccessCode = async () => {
-		if (!accessCodePreview) return;
-		setAccessCodeError('');
-		setIsAccessCodeBusy(true);
-		try {
-			await redeemComplimentaryAccessCode(accessCode);
-			window.location.reload();
-		} catch (redeemError: any) {
-			setAccessCodeError(
-				String(redeemError?.message || 'Maintley could not apply this access code.'),
-			);
-			setAccessCodePreview(null);
-			setIsAccessCodeBusy(false);
-		}
-	};
 
 	// Initialize form with current user data
 	useEffect(() => {
@@ -1065,68 +1017,6 @@ export const UserProfile: React.FC = () => {
 						<PortfolioUsage>
 							{storageUsageLabel}
 						</PortfolioUsage>
-						{canRedeemComplimentaryAccess ? (
-							<div
-								style={{
-									marginTop: '8px',
-									paddingTop: '16px',
-									borderTop: '1px solid #E0E0E0',
-									display: 'grid',
-									gap: '10px',
-								}}
-							>
-								<FormLabel htmlFor='complimentary-access-code'>
-									Complimentary access code
-								</FormLabel>
-								<ActionHelperText>
-									Preview the included access and end behavior before applying it to this account.
-								</ActionHelperText>
-								<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-									<FormInput
-										id='complimentary-access-code'
-										value={accessCode}
-										onChange={(event) => {
-											setAccessCode(event.target.value);
-											setAccessCodePreview(null);
-											setAccessCodeError('');
-										}}
-										placeholder='Enter access code'
-										autoComplete='off'
-										style={{ flex: '1 1 220px' }}
-									/>
-									<ProfileActionButton
-										type='button'
-										disabled={isAccessCodeBusy || accessCode.trim().length < 8}
-										onClick={handlePreviewAccessCode}
-									>
-										{isAccessCodeBusy && !accessCodePreview ? 'Checking...' : 'Preview access'}
-									</ProfileActionButton>
-								</div>
-								{accessCodePreview ? (
-									<div
-										style={{
-											padding: '12px',
-											borderRadius: '8px',
-											background: '#ECFDF5',
-											border: '1px solid #A7F3D0',
-										}}
-									>
-										<strong>{accessCodePreview.label}</strong>
-										<p style={{ margin: '6px 0 12px' }}>
-											Adds {accessCodePreview.durationDays} days of {accessCodePreview.bundleId.replaceAll('_', ' ')} access. It does not create a charge or automatic renewal. When it ends, your existing records remain available through the Free plan and paid continuation requires Checkout.
-										</p>
-										<SaveButton
-											type='button'
-											disabled={isAccessCodeBusy}
-											onClick={handleRedeemAccessCode}
-										>
-											{isAccessCodeBusy ? 'Applying...' : 'Apply complimentary access'}
-										</SaveButton>
-									</div>
-								) : null}
-								{accessCodeError ? <ErrorMessage>{accessCodeError}</ErrorMessage> : null}
-							</div>
-						) : null}
 						{/* <ManagePlanButton
 							type='button'
 							onClick={() => navigate('/paywall')}>
