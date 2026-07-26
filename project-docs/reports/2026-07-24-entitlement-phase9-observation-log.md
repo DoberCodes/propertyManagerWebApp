@@ -229,6 +229,14 @@ Implemented for the next deployed validation:
   new selection and Checkout only.
 * Profile and Settings plan labels therefore use the paid canonical plan rather
   than silently displaying Free access.
+* Localhost validation against the older deployed Functions revision cannot
+  observe retained-team detection until the updated `ensureFamilyAccount`
+  Function is deployed or the local Functions emulator is used. The verified
+  fixture has an existing `teamMembers` record matching both its account ID and
+  legacy user ID, so no data migration is required.
+* Unknown and temporarily unavailable routes now redirect through absolute
+  fallback paths. This prevents a denied direct Team route from repeatedly
+  appending `/dashboard` to the current URL while entitlement state is loading.
 
 Remediation deployed and under observation:
 
