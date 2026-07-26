@@ -120,7 +120,6 @@ Submitted by: ${request.submittedByName} on ${
 							{request.priority} Priority
 						</PriorityBadge>
 						<CategoryBadge>{request.category}</CategoryBadge>
-						{/* Units are temporarily hidden from the app flow. */}
 					</SummaryDetail>
 					<SummaryDetail style={{ fontSize: '13px', color: '#666' }}>
 						Submitted by {request.submittedByName} •{' '}
@@ -326,8 +325,6 @@ const CategoryBadge = styled.span`
 	background-color: #e8eaf6;
 	color: #3f51b5;
 `;
-
-// Units are temporarily hidden from the app flow.
 
 const FormRow = styled.div`
 	display: grid;

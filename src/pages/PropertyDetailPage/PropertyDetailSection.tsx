@@ -80,30 +80,6 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 
 					<InfoValue>{props.property?.address}</InfoValue>
 				</InfoCard>
-				{/* Units are temporarily hidden from the app flow.
-				{props.property?.propertyType === 'Multi-Family' && (
-					<InfoCard>
-						<InfoLabel>Units</InfoLabel>
-
-						<InfoValue>
-							{(props.property?.units || []).map((u: any) => u.name).join(', ')}
-						</InfoValue>
-					</InfoCard>
-				)}
-				*/}
-				{/* Suites are temporarily hidden from the app flow.
-				{props.property?.propertyType === 'Commercial' &&
-					props.property?.hasSuites && (
-						<InfoCard>
-							<InfoLabel>Suites</InfoLabel>
-							<InfoValue>
-								{(props.property?.suites || [])
-									.map((s: any) => s.name)
-									.join(', ')}
-							</InfoValue>
-						</InfoCard>
-					)}
-				*/}
 				{props.property?.propertyType !== 'Commercial' &&
 					props.property?.propertyType !== 'Multi-Family' && (
 						<>

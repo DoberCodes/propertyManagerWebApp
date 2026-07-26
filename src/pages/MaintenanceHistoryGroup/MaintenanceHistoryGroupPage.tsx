@@ -32,7 +32,6 @@ export const MaintenanceHistoryGroupPage: React.FC = () => {
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const { property, tasks, maintenanceHistory } = useDetailPageData({
 		propertySlug: slug || '',
-		entityType: 'property',
 	});
 	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();
 	const { data: teamMembers = [] } = useGetTeamMembersQuery();

@@ -13,9 +13,6 @@ export interface TabsContextProps {
 	currentUser: any;
 	propertyMaintenanceRequests: any[];
 	canApproveMaintenanceRequest: (role: any) => boolean;
-	unitOptions?: { label: string; value: string }[];
-	selectedUnitId?: string;
-	onSelectUnit?: (id: string) => void;
 	canViewInsights?: boolean;
 	permissions?: RoleCapabilities;
 }
@@ -92,11 +89,6 @@ export const TabController: React.FC<TabsContextProps> = ({
 			value: 'insights',
 		});
 	}
-
-	// Units are temporarily hidden from the app flow while the core loop is simplified.
-	// if (!isTenant && property?.propertyType === 'Multi-Family') {
-	// 	tabsForProperty.push({ label: 'Units', value: 'units' });
-	// }
 
 	if (canViewTenantTabs) {
 		tabsForProperty.push({ label: 'Tenants', value: 'tenants' });

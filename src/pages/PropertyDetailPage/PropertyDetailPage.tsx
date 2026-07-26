@@ -294,8 +294,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			return;
 		}
 
-		// Units are temporarily hidden from the app flow; keep tenant users on
-		// the property surface instead of redirecting into a unit detail page.
+		// Resident access remains property-scoped; Unit detail routes are retired.
 	}, [property, currentUser?.email, isUserTenant, tenantAssignment, navigate]);
 
 	const handleEditTenant = (tenant: any) => {
@@ -650,14 +649,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			owner: formData.owner,
 			address: formData.address,
 			propertyType: effectivePropertyType,
-			hasSuites:
-				effectivePropertyType === 'Commercial'
-					? false
-					: undefined,
-			suites:
-				effectivePropertyType === 'Commercial'
-					? []
-					: undefined,
 			bedrooms: formData.bedrooms,
 			bathrooms: formData.bathrooms,
 			notes: formData.notes,
@@ -968,8 +959,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		if (!property) return [];
 		return allMaintenanceRequests.filter((req) => req.propertyId === property.id);
 	}, [property, allMaintenanceRequests]);
-
-	const unitOptions = useMemo<{ label: string; value: string }[]>(() => [], []);
 
 	const propertyTasks = useMemo(() => {
 		if (!property) return [];
@@ -1488,7 +1477,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 					propertyTasks={propertyTasks}
 					propertyDevices={propertyDevices}
-					unitOptions={unitOptions}
 					maintenanceHistoryRecords={maintenanceHistoryRecords}
 					propertyUnits={propertyUnits}
 					propertyContractors={propertyContractors}
@@ -1733,13 +1721,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 									| 'Single Family'
 									| 'Multi-Family'
 									| 'Commercial') || 'Single Family',
-							units: (((property as any).units || []) as any[]).map((unit) =>
-								typeof unit === 'string' ? unit : unit?.name,
-							),
-							hasSuites: (property as any).hasSuites ?? false,
-							suites: (((property as any).suites || []) as any[]).map((suite) =>
-								typeof suite === 'string' ? suite : suite?.name,
-							),
 							bedrooms: (property as any).bedrooms || 0,
 							bathrooms: (property as any).bathrooms || 0,
 							notes: (property as any).notes || '',

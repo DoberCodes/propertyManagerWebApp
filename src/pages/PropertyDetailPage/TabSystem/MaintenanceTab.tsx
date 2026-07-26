@@ -713,23 +713,6 @@ export const MaintenanceTab = ({
 
 	// Filter configuration for maintenance history
 	const maintenanceFilters: FilterConfig[] = [
-		// Units are temporarily hidden from the app flow.
-		// ...(property?.propertyType === 'Multi-Family'
-		// 	? [
-		// 			{
-		// 				key: 'unit',
-		// 				label: 'Unit',
-		// 				type: 'select' as const,
-		// 				options: [
-		// 					{ value: 'all', label: 'All Units' },
-		// 					...units.map((unit) => ({
-		// 						value: unit.id,
-		// 						label: unit.unitNumber || unit.address || `Unit ${unit.id}`,
-		// 					})),
-		// 				],
-		// 			},
-		// 	  ]
-		// 	: []),
 		{
 			key: 'completedBy',
 			label: 'Completed By',
@@ -937,15 +920,6 @@ export const MaintenanceTab = ({
 					})),
 			});
 		}
-
-		// Units are temporarily hidden from the app flow.
-		// if (filters.unit && filters.unit !== 'all') {
-		// 	chips.push({
-		// 		key: 'unit',
-		// 		label: `Unit: ${filters.unit}`,
-		// 		onRemove: () => setFilters((prev) => ({ ...prev, unit: 'all' })),
-		// 	});
-		// }
 
 		if (filters.completionDate_start || filters.completionDate_end) {
 			chips.push({

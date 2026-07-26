@@ -497,10 +497,9 @@ interface EditTaskModalProps {
 	})
 	| null;
 	propertyId?: string | null;
-	// when the caller wants the user to choose a property/unit
+	// when the caller wants the user to choose a property
 	propertyOptions?: { label: string; value: string }[];
 	unitId?: string | null;
-	unitOptions?: { label: string; value: string }[];
 	onClose: () => void;
 	onSaved?: (updatedTask?: any) => void; // called after successful create/update
 	statusOptions?: string[];
@@ -611,8 +610,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		if (!selectedPropertyId) return null;
 		return allProperties.find((p: any) => p.id === selectedPropertyId);
 	}, [selectedPropertyId, allProperties]);
-
-	// Units are temporarily hidden from the app flow.
 
 	const defaultCategoryOptions = useMemo(
 		() => [
@@ -1832,28 +1829,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 												)}
 										</SuggestionInputWrap>
 									</FormGroup>
-
-									{/* Units are temporarily hidden from the app flow.
-								{filteredUnitOptions.length > 0 && (
-									<FormGroup>
-										<FormLabel>Unit</FormLabel>
-										<TaskSelect
-											name='unitId'
-											value={formState.unitId || ''}
-											onChange={(value) =>
-												handleChange({
-													target: { name: 'unitId', value, type: 'select-one' },
-												} as any)
-											}
-											placeholder='(none)'
-											options={[
-												{ value: '', label: '(none)' },
-												...filteredUnitOptions,
-											]}
-										/>
-									</FormGroup>
-								)}
-								*/}
 
 									<FormGroup>
 										<FormLabel>Assigned To</FormLabel>

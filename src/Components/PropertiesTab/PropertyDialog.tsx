@@ -97,9 +97,6 @@ export interface PropertyFormData {
 	address: string;
 	propertyType: 'Single Family' | 'Multi-Family' | 'Commercial';
 	isRental?: boolean;
-	units: string[];
-	hasSuites?: boolean;
-	suites: string[];
 	bedrooms?: number | null;
 	bathrooms?: number | null;
 	notes: string;
@@ -257,9 +254,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		address: '',
 		propertyType: 'Single Family',
 		isRental: false,
-		units: [],
-		hasSuites: false,
-		suites: [],
 		bedrooms: 0,
 		bathrooms: 0,
 		notes: '',
@@ -274,8 +268,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	});
 	const [stepIndex, setStepIndex] = useState(0);
 	const wizardContentRef = useRef<HTMLDivElement | null>(null);
-	// Units are temporarily hidden from the app flow.
-	// const [unitInput, setUnitInput] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [saveProgress, setSaveProgress] = useState<PropertySaveProgress | null>(
 		null,
@@ -323,9 +315,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			setFormData({
 				...initialData,
 				propertyType: forceSingleFamily ? 'Single Family' : initialData.propertyType,
-				units: [],
-				suites: [],
-				hasSuites: false,
 				isRental: initialData.isRental ?? false,
 				groupId: initialData.groupId ?? selectedGroupId ?? null,
 				coOwners: initialData.coOwners || [],
@@ -344,9 +333,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				address: '',
 				propertyType: 'Single Family',
 				isRental: false,
-				units: [],
-				hasSuites: false,
-				suites: [],
 				bedrooms: 0,
 				bathrooms: 0,
 				notes: '',
@@ -362,8 +348,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}
 
 		setStepIndex(0);
-		// Units are temporarily hidden from the app flow.
-		// setUnitInput('');
 		setNewGroupName('');
 		setIsCreateGroupOpen(false);
 		setIsPhotoUploadOpen(false);
@@ -518,23 +502,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 	const handleInputChange = (field: keyof PropertyFormData, value: any) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
-
-	// Units are temporarily hidden from the app flow.
-	// const handleAddUnit = () => {
-	// 	if (!unitInput.trim()) return;
-	// 	setFormData((prev) => ({
-	// 		...prev,
-	// 		units: [...prev.units, unitInput.trim()],
-	// 	}));
-	// 	setUnitInput('');
-	// };
-
-	// const handleRemoveUnit = (index: number) => {
-	// 	setFormData((prev) => ({
-	// 		...prev,
-	// 		units: prev.units.filter((_, unitIndex) => unitIndex !== index),
-	// 	}));
-	// };
 
 	const handleUseFallbackPhoto = () => {
 		handleInputChange('photo', PROPERTY_IMAGE_PLACEHOLDER);
@@ -1099,75 +1066,6 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 							</FormField>
 						)}
 					</FormSection>
-
-					{/* Units are temporarily hidden from the app flow.
-						{formData.propertyType === 'Multi-Family' && (
-							<FormSection>
-								<Label>Units</Label>
-								<TagsContainer>
-								{formData.units.map((unit, index) => (
-									<Tag key={`${unit}-${index}`}>
-										{unit}
-										<RemoveTagButton onClick={() => handleRemoveUnit(index)}>×</RemoveTagButton>
-									</Tag>
-								))}
-							</TagsContainer>
-							<TagInput>
-								<Input
-									type='text'
-									value={unitInput}
-									disabled={!canUseMultiUnitManagement}
-									onChange={(e) => setUnitInput(e.target.value)}
-									placeholder='Add unit name'
-								/>
-								<AddButton onClick={handleAddUnit} disabled={!canUseMultiUnitManagement}>
-									Add Unit
-								</AddButton>
-								</TagInput>
-							</FormSection>
-						)}
-						*/}
-
-					{/* Suites are temporarily hidden from the app flow.
-					{formData.propertyType === 'Commercial' && (
-						<FormSection>
-							<Label>Suites</Label>
-							<label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#475569' }}>
-								<input
-									type='checkbox'
-									checked={!!formData.hasSuites}
-									disabled={!canUseMultiUnitManagement}
-									onChange={(e) => handleInputChange('hasSuites', e.target.checked)}
-								/>
-								Enable suite-level management
-							</label>
-							{formData.hasSuites && (
-								<>
-									<TagsContainer>
-										{formData.suites.map((suite, index) => (
-											<Tag key={`${suite}-${index}`}>
-												{suite}
-												<RemoveTagButton onClick={() => handleRemoveSuite(index)}>×</RemoveTagButton>
-											</Tag>
-										))}
-									</TagsContainer>
-									<TagInput>
-										<Input
-											type='text'
-											value={suiteInput}
-											disabled={!canUseMultiUnitManagement}
-											onChange={(e) => setSuiteInput(e.target.value)}
-											placeholder='Add suite name'
-										/>
-										<AddButton onClick={handleAddSuite} disabled={!canUseMultiUnitManagement}>
-											Add Suite
-										</AddButton>
-									</TagInput>
-								</>
-							)}
-						</FormSection>
-					)}
-					*/}
 
 					<FormSection>
 						<Label>Notes</Label>

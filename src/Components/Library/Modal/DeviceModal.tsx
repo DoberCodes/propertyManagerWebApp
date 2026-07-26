@@ -442,7 +442,6 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		});
 	}, [props.isOpen, activeTab]);
 
-	// Units are temporarily hidden from the app flow.
 	const selectedAssetType = normalizeAssetType(
 		props.deviceFormData.assetType || props.deviceFormData.type,
 	);
@@ -927,7 +926,6 @@ export const DeviceModal = (props: DeviceModalProps) => {
 									Setting this date marks the equipment as decommissioned.
 								</FieldHint>
 							</FormGroup>
-							{/* Units are temporarily hidden from the app flow. */}
 							{(props.deviceFormData.files || []).length > 0 && (
 							<FormGroupFull>
 								<AttachmentSection>

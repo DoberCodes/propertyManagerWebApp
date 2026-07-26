@@ -66,7 +66,6 @@ export {
 	WarningMessage,
 } from './Modal/ModalStyles';
 export { TaskModal } from './Modal/TaskModal';
-export { UnitModal } from './Modal/UnitModal';
 export { GenericModal } from './Modal/GenericModal';
 export { DeleteConfirmationModal } from './Modal/DeleteConfirmationModal';
 

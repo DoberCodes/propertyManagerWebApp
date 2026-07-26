@@ -27,3 +27,14 @@ Examples:
 - Do not reintroduce unit/suite navigation or primary workflows unless explicitly requested.
 - Keep existing unit/suite data and code paths safe where they still exist.
 - Documentation should describe unit/suite support as hidden or deferred, not removed forever.
+
+## Implementation Update: 2026-07-25
+
+The dormant Unit/Suite management UI and its unused current-source write hooks
+were retired after a removal-safety audit confirmed that they had no active
+route or consumer. Legacy read compatibility remains for equipment locations,
+maintenance history, reporting, permissions, export, and cascade deletion.
+
+This cleanup does not permanently remove the Unit/Suite data model. Collection,
+field, rule, or production-data removal still requires an inventory-backed
+migration and an explicit amendment or superseding architectural decision.

@@ -234,7 +234,9 @@ Examples:
 * /profile
 * /tenant-profile
 
-Units and suites remain intentionally hidden from active navigation.
+Unit and Suite management routes and screens have been retired from the active
+application. Legacy readers remain where existing equipment, history, reports,
+exports, permissions, and deletion workflows require location compatibility.
 
 ---
 

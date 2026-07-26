@@ -80,6 +80,26 @@ part of the core experience, while existing data paths remain safe. Permanently
 deleting the data model would exceed that ADR and requires an explicit ADR
 amendment or replacement.
 
+## Implementation Update: Wave 1 Completed
+
+The approved Unit/Suite Wave 1 cleanup was implemented on 2026-07-25:
+
+* Removed dormant routes, pages, tabs, modal, handlers, props, exports, and
+  commented management UI.
+* Removed unused Suite query/mutation endpoints, unused Unit mutations, and the
+  Unit-specific equipment query that was only consumed by dormant UI.
+* Removed dormant Unit occupant resolution and Unit/Suite branches from the
+  shared property-detail data hook.
+* Prevented ordinary property edits from clearing hidden legacy Unit/Suite
+  metadata now that no active form manages those fields.
+* Preserved active Unit readers, `unitId`/`suiteId` fields, reports, exports,
+  Firestore rules, Functions, and cascade deletion.
+
+Validation completed with a successful web production build, successful
+Functions TypeScript build, and 64 passing web test suites containing 460
+passing tests and one existing todo. The unused-symbol audit decreased from 42
+to 38 diagnostics; the remaining findings are unrelated mechanical cleanup.
+
 ## Findings
 
 ### A. Safe Now: Dormant Unit and Suite UI
@@ -94,6 +114,7 @@ tabs and have no active import consumer:
 * `src/pages/PropertyDetailPage/TabSystem/SuitesTab.tsx`
 * `src/Components/Library/Modal/UnitModal.tsx`
 * `src/pages/PropertyDetailPage/useUnitHandlers.ts`
+* `src/utils/unitOccupants.ts`
 * `UnitsTabProps` and `SuitesTabProps` in
   `src/types/PropertyDetailPage.types.ts`
 

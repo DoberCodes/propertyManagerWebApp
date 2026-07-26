@@ -45,6 +45,9 @@ describe('PropertyDialog', () => {
 		// onSave receives formData; the last call's first arg should have isRental true
 		const savedArg = (onSave as jest.Mock).mock.calls[0][0];
 		expect(savedArg.isRental).toBe(true);
+		expect(savedArg).not.toHaveProperty('units');
+		expect(savedArg).not.toHaveProperty('suites');
+		expect(savedArg).not.toHaveProperty('hasSuites');
 	});
 
 	test('shortens onboarding home creation to basics only', async () => {

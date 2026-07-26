@@ -8,10 +8,6 @@ import {
 import { ErrorPage } from './pages/ErrorPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { ProtectedRoutes } from './ProtectedRoutes';
-// Units are temporarily hidden from the app flow; keep the page code for the later relaunch.
-// import { UnitDetailPage } from './pages/UnitDetailPage';
-// Suites are temporarily hidden from the app flow; keep the page code for the later relaunch.
-// import { SuiteDetailPage } from './pages/SuiteDetailPage/SuiteDetailPage';
 import { isNativeApp } from './utils/platform';
 import { useSelector } from 'react-redux';
 import { selectCanAccessTeam } from './Redux/selectors/permissionSelectors';
@@ -267,26 +263,6 @@ export const RouterComponent = () => {
 								</ProtectedRoutes>
 							}
 						/>
-						{/* Units are temporarily hidden from the app flow.
-					<Route
-						path='property/:slug/unit/:unitName'
-						element={
-							<ProtectedRoutes>
-								<UnitDetailPage />
-							</ProtectedRoutes>
-						}
-					/>
-					*/}
-						{/* Suites are temporarily hidden from the app flow.
-					<Route
-						path='property/:slug/suite/:suiteName'
-						element={
-							<ProtectedRoutes>
-								<SuiteDetailPage />
-							</ProtectedRoutes>
-						}
-					/>
-					*/}
 						<Route
 							path='property/:slug/device/:deviceSlug'
 							element={

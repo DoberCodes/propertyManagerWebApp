@@ -2,7 +2,7 @@ import styled from 'styled-components';
 
 /**
  * Shared info card and grid components for displaying key-value pairs
- * Used across PropertyDetailPage, UnitDetailPage, SuiteDetailPage, and other detail views
+ * Used across property, equipment, and other detail views
  */
 
 /**
