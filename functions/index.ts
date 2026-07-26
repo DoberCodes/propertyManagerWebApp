@@ -105,6 +105,8 @@ export {
 	adminPortalManageUserSubscription,
 	adminPortalRefreshUserSubscriptionFromStripe,
 	adminPortalApplyUserBillingActions,
+	adminPortalCreateComplimentaryAccessCode,
+	adminPortalListComplimentaryAccessCodes,
 	adminPortalCreateBillingCoupon,
 	adminPortalListBillingCoupons,
 	adminPortalCreateCheckoutLinkWithCoupon,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
 	Button,
@@ -22,7 +22,10 @@ import {
 } from '../AdminInboxPage.styles';
 import {
 	adminPortalCreateBillingCoupon,
+	adminPortalCreateComplimentaryAccessCode,
+	adminPortalListComplimentaryAccessCodes,
 	type AdminBillingCoupon,
+	type AdminComplimentaryAccessCode,
 } from '../../../services/adminPortalService';
 import {
 	selectBillingCoupons,
@@ -47,6 +50,11 @@ const PLAN_OPTIONS = [
 	{ value: 'property', label: 'Property' },
 	{ value: 'portfolio', label: 'Portfolio' },
 ];
+
+const ACCESS_PLAN_OPTIONS = PLAN_OPTIONS.filter((option) => option.value);
+
+const createRequestId = (): string =>
+	`access-code:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`;
 
 const formatLabel = (value: string): string =>
 	String(value || '')
@@ -90,6 +98,20 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 	const [appliesToPlan, setAppliesToPlan] = useState('');
 	const [appliesToBillingCycle, setAppliesToBillingCycle] = useState<'month' | 'year'>('month');
 	const [internalNote, setInternalNote] = useState('');
+	const [couponsLoaded, setCouponsLoaded] = useState(false);
+	const [accessCodes, setAccessCodes] = useState<AdminComplimentaryAccessCode[]>([]);
+	const [accessCodesLoading, setAccessCodesLoading] = useState(false);
+	const [accessCodesLoaded, setAccessCodesLoaded] = useState(false);
+	const [accessLabel, setAccessLabel] = useState('');
+	const [accessBundleId, setAccessBundleId] = useState<'homeowner_plus' | 'multi_homeowner' | 'property' | 'portfolio'>('homeowner_plus');
+	const [accessDurationDays, setAccessDurationDays] = useState('30');
+	const [accessExpiresAt, setAccessExpiresAt] = useState('');
+	const [accessMaxRedemptions, setAccessMaxRedemptions] = useState('1');
+	const [accessRecipientEmail, setAccessRecipientEmail] = useState('');
+	const [accessTransitionMode, setAccessTransitionMode] = useState<'none' | 'checkout_required'>('checkout_required');
+	const [accessReason, setAccessReason] = useState('');
+	const [accessRequestId, setAccessRequestId] = useState(createRequestId);
+	const [generatedAccessCode, setGeneratedAccessCode] = useState('');
 	const displayError = localError || error || '';
 
 	const activeCoupons = useMemo(
@@ -99,12 +121,21 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 
 	const loadCoupons = async () => {
 		await dispatch(fetchBillingCoupons({ sessionToken, limit: 100 }));
+		setCouponsLoaded(true);
 	};
 
-	useEffect(() => {
-		void loadCoupons();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [sessionToken]);
+	const loadAccessCodes = async () => {
+		setAccessCodesLoading(true);
+		setLocalError('');
+		try {
+			setAccessCodes(await adminPortalListComplimentaryAccessCodes({ sessionToken, limit: 100 }));
+			setAccessCodesLoaded(true);
+		} catch (loadError) {
+			setLocalError(loadError instanceof Error ? loadError.message : 'Failed to load access codes.');
+		} finally {
+			setAccessCodesLoading(false);
+		}
+	};
 
 	const handleCreateCoupon = async () => {
 		setSaving(true);
@@ -148,15 +179,59 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 		}
 	};
 
+	const handleCreateAccessCode = async () => {
+		setSaving(true);
+		setLocalError('');
+		setMessage('');
+		setGeneratedAccessCode('');
+		try {
+			const result = await adminPortalCreateComplimentaryAccessCode({
+				sessionToken,
+				label: accessLabel.trim(),
+				bundleId: accessBundleId,
+				durationDays: Number(accessDurationDays),
+				expiresAt: accessExpiresAt || undefined,
+				maxRedemptions: accessRecipientEmail.trim() ? 1 : Number(accessMaxRedemptions),
+				recipientEmail: accessRecipientEmail.trim() || undefined,
+				transitionMode: accessTransitionMode,
+				reason: accessReason.trim(),
+				requestId: accessRequestId,
+			});
+			if (!result.code) {
+				setMessage('This request was already completed. Its plaintext code cannot be retrieved; create a new code if it was not saved.');
+				return;
+			}
+			setGeneratedAccessCode(result.code);
+			setMessage('Complimentary access code created. Copy it now; Maintley cannot retrieve it later.');
+			setAccessRequestId(createRequestId());
+			await loadAccessCodes();
+		} catch (createError) {
+			setLocalError(createError instanceof Error ? createError.message : 'Failed to create access code.');
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	return (
 		<UserPanelWrap>
 			<SubTitle>
-				Billing tools create Stripe coupons and checkout links. Stripe remains the billing source of truth.
+				Manage Stripe billing promotions and separate Maintley complimentary access. Stripe remains the billing source of truth for paid access.
 			</SubTitle>
 
 			{displayError ? <ErrorText>{displayError}</ErrorText> : null}
 			{message ? <SuccessText>{message}</SuccessText> : null}
 
+			<details
+				onToggle={(event) => {
+					if (event.currentTarget.open && !couponsLoaded) void loadCoupons();
+				}}
+				style={{ marginBottom: 16 }}>
+				<summary style={{ cursor: 'pointer', fontSize: 18, fontWeight: 700, padding: '16px 0' }}>
+					Stripe Coupons
+				</summary>
+				<SubTitle>
+					Discounts used during Stripe Checkout. These may establish or modify a billing relationship.
+				</SubTitle>
 			<UserDetailsPanel>
 				<Label>Create Coupon</Label>
 				<UserPanelToolbar>
@@ -372,6 +447,106 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 					Use cases: early adopter discounts, contractor trials, friends and family beta codes, annual promos, and first-month offers.
 				</UserActivityItem>
 			</UserActivityList>
+			</details>
+
+			<details
+				onToggle={(event) => {
+					if (event.currentTarget.open && !accessCodesLoaded) void loadAccessCodes();
+				}}
+				style={{ marginBottom: 16 }}>
+				<summary style={{ cursor: 'pointer', fontSize: 18, fontWeight: 700, padding: '16px 0' }}>
+					Complimentary Access Codes
+				</summary>
+				<SubTitle>
+					Temporary Maintley access without Stripe billing or automatic renewal. Each code grants one access level.
+				</SubTitle>
+				<UserDetailsPanel>
+					<Label>Create Complimentary Access Code</Label>
+					<UserPanelToolbar>
+						<div>
+							<Label htmlFor='access-code-label'>Program label</Label>
+							<Input id='access-code-label' value={accessLabel} onChange={(event) => setAccessLabel(event.target.value)} placeholder='Community partner trial' />
+						</div>
+						<div>
+							<Label htmlFor='access-code-plan'>Access level</Label>
+							<Select id='access-code-plan' value={accessBundleId} onChange={(event) => setAccessBundleId(event.target.value as typeof accessBundleId)}>
+								{ACCESS_PLAN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+							</Select>
+						</div>
+						<div>
+							<Label htmlFor='access-code-duration'>Access duration (days)</Label>
+							<Input id='access-code-duration' type='number' min='1' max='730' value={accessDurationDays} onChange={(event) => setAccessDurationDays(event.target.value)} />
+						</div>
+						<div>
+							<Label htmlFor='access-code-expiration'>Redeem by</Label>
+							<Input id='access-code-expiration' type='date' value={accessExpiresAt} onChange={(event) => setAccessExpiresAt(event.target.value)} />
+						</div>
+						<div>
+							<Label htmlFor='access-code-redemptions'>Maximum redemptions</Label>
+							<Input id='access-code-redemptions' type='number' min='1' max='1000' disabled={Boolean(accessRecipientEmail.trim())} value={accessRecipientEmail.trim() ? '1' : accessMaxRedemptions} onChange={(event) => setAccessMaxRedemptions(event.target.value)} />
+						</div>
+						<div>
+							<Label htmlFor='access-code-email'>Recipient email (optional)</Label>
+							<Input id='access-code-email' type='email' value={accessRecipientEmail} onChange={(event) => setAccessRecipientEmail(event.target.value)} placeholder='customer@example.com' />
+						</div>
+						<div>
+							<Label htmlFor='access-code-transition'>When access ends</Label>
+							<Select id='access-code-transition' value={accessTransitionMode} onChange={(event) => setAccessTransitionMode(event.target.value as typeof accessTransitionMode)}>
+								<option value='checkout_required'>Offer Checkout to continue</option>
+								<option value='none'>Return to existing plan</option>
+							</Select>
+						</div>
+					</UserPanelToolbar>
+					<UserDetailsGrid>
+						<UserDetailsItem>
+							<UserDetailsKey>Administrative reason</UserDetailsKey>
+							<Input value={accessReason} onChange={(event) => setAccessReason(event.target.value)} placeholder='Why this access is being offered' />
+						</UserDetailsItem>
+						<UserDetailsItem>
+							<UserDetailsKey>Generate</UserDetailsKey>
+							<Button type='button' disabled={saving} onClick={() => void handleCreateAccessCode()}>
+								{saving ? 'Generating...' : 'Generate Access Code'}
+							</Button>
+						</UserDetailsItem>
+					</UserDetailsGrid>
+					{generatedAccessCode ? (
+						<SuccessText>
+							<strong>{generatedAccessCode}</strong>{' '}
+							<Button type='button' onClick={() => void handleCopyCode(generatedAccessCode)}>Copy Code</Button>
+							<div style={{ marginTop: 8 }}>Copy this code now. Maintley stores only its secure verifier.</div>
+						</SuccessText>
+					) : null}
+				</UserDetailsPanel>
+
+				<UserDetailsPanel>
+					<ButtonRow>
+						<Label>Issued Codes</Label>
+						<Button type='button' disabled={accessCodesLoading} onClick={() => void loadAccessCodes()}>
+							{accessCodesLoading ? 'Loading...' : 'Refresh'}
+						</Button>
+					</ButtonRow>
+					<UserTableWrap>
+						<UserTable>
+							<thead><tr><th>Program</th><th>Access</th><th>Duration</th><th>Redeemed</th><th>Redeem by</th><th>Recipient</th><th>Status</th></tr></thead>
+							<tbody>
+								{accessCodes.length === 0 ? (
+									<tr><td colSpan={7}>No complimentary access codes loaded yet.</td></tr>
+								) : accessCodes.map((accessCode) => (
+									<tr key={accessCode.codeId}>
+										<td>{accessCode.label}<div style={{ fontSize: 11 }}>{accessCode.codeId}</div></td>
+										<td>{formatLabel(accessCode.bundleId)}</td>
+										<td>{accessCode.durationDays} days</td>
+										<td>{accessCode.redeemedCount} / {accessCode.maxRedemptions}</td>
+										<td>{formatDate(accessCode.expiresAt)}</td>
+										<td>{accessCode.recipientEmail || 'Any eligible account'}</td>
+										<td>{formatLabel(accessCode.status)}</td>
+									</tr>
+								))}
+							</tbody>
+						</UserTable>
+					</UserTableWrap>
+				</UserDetailsPanel>
+			</details>
 		</UserPanelWrap>
 	);
 };

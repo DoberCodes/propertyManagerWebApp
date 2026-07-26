@@ -64,6 +64,12 @@ Current capabilities:
 * Associate tenants with properties.
 * Track property type classifications.
 
+Homeowner mode keeps property setup focused on the user's home and does not
+display rental classification controls. Property-operator mode may classify a
+property as a rental. If an existing rental property later uses homeowner mode,
+Maintley preserves the saved classification without exposing an inapplicable
+homeowner control.
+
 Supported property types:
 
 * Single Family

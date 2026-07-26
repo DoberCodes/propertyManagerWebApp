@@ -234,6 +234,14 @@ Non-renewing access-code programs use transition mode `none` or
 chooses to continue, paid conversion requires intentional Stripe Checkout and
 Stripe confirmation under ADR 0032.
 
+Registration presents complimentary access as a distinct, optional path. It
+must not reuse Stripe coupon or invitation terminology. After the Free account
+is successfully committed, the authenticated user reviews the exact access
+bundle, duration, end behavior, and fallback before explicitly activating it.
+Activation occurs before the normal onboarding redirect so the first product
+experience resolves the newly granted capabilities. Invalid or skipped codes
+leave the account on Free and remain redeemable later from Settings.
+
 Before a multi-property grant expires, key email and in-app notices must explain
 that Maintley preserves access to every existing owned property and its records
 at the resulting plan's capability level. The notices must explain that the

@@ -145,7 +145,8 @@ deploy `#89`, then repeat the navigation sequence on the deployed web origin.
 ## 9.2 baseline entitlement and client parity
 
 Status: deployed permanent-grant, paid Stripe, and first-property temporary
-grant fixtures passed the current production observation checks.
+grant fixtures passed their current production observation checks. Downgrade
+continuity remains blocked by the Team-navigation defect recorded below.
 
 Completed locally:
 
@@ -186,6 +187,34 @@ Portfolio fixture: Settings showed the active Stripe plan while Profile showed
 the internal-grant-only statement that no automatic billing would occur. The
 subscription uses a real Stripe billing relationship with a 100% discount, so
 the statement was not an authoritative description of its renewal state.
+
+Production observation also found a downgrade-continuity defect on an account
+with existing active team members. After downgrade to Multi-Homeowner, the Team
+tab and `/team` route disappeared even though the existing team relationships
+must remain visible. The client currently uses the plan's `canManageTeam`
+capability for both viewing the existing-team surface and performing
+count-increasing team actions. Multi-Homeowner correctly removes the latter but
+must not remove the former from an account that legitimately established its
+team before downgrade.
+
+Required remediation and validation:
+
+* Separate permission to view and maintain existing team relationships from
+  permission to invite, reactivate, or otherwise add team capacity.
+* Keep Team navigation and the `/team` route available to the account owner
+  only while at least one existing team member remains after downgrade. Once
+  the team is empty, return to the resulting plan's normal navigation and route
+  behavior.
+* Allow the owner to inspect existing members, reduce permissions, revoke
+  access, or remove members while expansion is blocked.
+* Block new invitations, reactivation, group-based expansion, and replacement
+  slots until the account is below its effective team limit or eligible access
+  is restored.
+* Do not expose Team navigation to a Multi-Homeowner or Free account with no
+  existing team members, whether the account is newly created or has removed
+  its final preserved member after downgrade.
+* Verify the continuity behavior on desktop, tablet, mobile web, direct-route
+  navigation, reload, and signed Android.
 
 Remediation deployed and under observation:
 

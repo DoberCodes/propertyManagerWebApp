@@ -3,6 +3,7 @@ const test = require('node:test');
 const {
 	getComplimentaryAccessCodeHash,
 	normalizeComplimentaryAccessCode,
+	assertRecipientEligibility,
 } = require('./lib/complimentaryAccessCodes.js');
 
 const pepper = 'maintley-test-pepper-that-is-longer-than-thirty-two-characters';
@@ -21,4 +22,37 @@ test('stores a deterministic verifier without retaining plaintext', () => {
 	assert.match(hash, /^[a-f0-9]{64}$/);
 	assert.equal(hash.includes('MAINTLEY'), false);
 	assert.throws(() => getComplimentaryAccessCodeHash('MAINTLEY2026', 'too-short'));
+});
+
+test('enforces optional recipient email restrictions', () => {
+	assert.doesNotThrow(() =>
+		assertRecipientEligibility(
+			{ recipientEmailLower: null },
+			'customer@example.com',
+			false,
+		),
+	);
+	assert.doesNotThrow(() =>
+		assertRecipientEligibility(
+			{ recipientEmailLower: 'customer@example.com' },
+			'CUSTOMER@example.com',
+			true,
+		),
+	);
+	assert.throws(
+		() => assertRecipientEligibility(
+			{ recipientEmailLower: 'customer@example.com' },
+			'other@example.com',
+			true,
+		),
+		(error) => error?.code === 'permission-denied',
+	);
+	assert.throws(
+		() => assertRecipientEligibility(
+			{ recipientEmailLower: 'customer@example.com' },
+			'customer@example.com',
+			false,
+		),
+		(error) => error?.code === 'failed-precondition',
+	);
 });

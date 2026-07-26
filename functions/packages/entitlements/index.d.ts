@@ -58,6 +58,7 @@ export type AdminAuditAction =
 	| 'grant.lifetime_created'
 	| 'program.applied'
 	| 'program.configured'
+	| 'access_code.created'
 	| 'program.redemption_failed'
 	| 'program.redemption_replayed'
 	| 'billing_transition.linked'

@@ -1,12 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { getActiveGrantedPlanAccess, getEffectiveAccessPlanId, getEffectiveSubscriptionPlanId, getSubscriptionPlanDetails } from "utils/subscriptionUtils";
-import { BillingPlanSummary, BillingPortalButton, ButtonContainer, CancelButton, Container, GrantedAccessBadge, GrantedAccessCard, GrantedAccessHeader, GrantedAccessText, GrantedAccessTitle, PlanDetails, PlanFeature, PlanFeatures, PlanName, PlanPrice, PlanStatus, Section, SectionTitle, SubscriptionHeader, SubscriptionSection, Title, UpgradeButton } from "./SettingPage.styles";
+import { AccountButton, BillingPlanSummary, BillingPortalButton, ButtonContainer, CancelButton, Container, ErrorMessage, GrantedAccessBadge, GrantedAccessCard, GrantedAccessHeader, GrantedAccessText, GrantedAccessTitle, PlanDetails, PlanFeature, PlanFeatures, PlanName, PlanPrice, PlanStatus, Section, SectionTitle, SubscriptionHeader, SubscriptionSection, Title, UpgradeButton } from "./SettingPage.styles";
 import { RootState } from "Redux/store/store";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { isNativeApp } from "utils/platform";
 import { openCustomerBillingPortal, openSubscriptionManagementInBrowser } from "utils/authLinks";
 import { getStripeBillingPresentation } from "utils/billingDisclosure";
+import {
+    complimentaryAccessCodesEnabled,
+    ComplimentaryAccessCodePreview,
+    previewComplimentaryAccessCode,
+    redeemComplimentaryAccessCode,
+} from "services/complimentaryAccessCodeService";
 
 interface AccountManagementProps {
     setShowCancelSubscriptionModal: (show: boolean) => void;
@@ -19,12 +25,21 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
     const currentUser = useSelector((state: RootState) => state.user.currentUser);
     const nativeApp = isNativeApp();
     const subscription = currentUser?.subscription;
+    const [showAccessCodeEntry, setShowAccessCodeEntry] = useState(false);
+    const [accessCode, setAccessCode] = useState('');
+    const [accessCodePreview, setAccessCodePreview] = useState<ComplimentaryAccessCodePreview | null>(null);
+    const [accessCodeError, setAccessCodeError] = useState('');
+    const [isAccessCodeBusy, setIsAccessCodeBusy] = useState(false);
     const isTenant = currentUser?.role === 'tenant';
     const isPrimaryAccountHolder =
         !!currentUser &&
         (currentUser.isAccountOwner || currentUser.accountId === currentUser.id);
 
     const canViewPlanSection = !isTenant && isPrimaryAccountHolder;
+    const canRedeemComplimentaryAccess =
+        complimentaryAccessCodesEnabled &&
+        canViewPlanSection &&
+        currentUser?.isTeamMemberAccount !== true;
     const grantedAccess = getActiveGrantedPlanAccess(subscription);
     const planStatusDisplay = grantedAccess
         ? 'Granted'
@@ -82,6 +97,37 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                 : hasStripeBillingRelationship
                     ? 'Managed securely in Stripe'
                     : 'Not connected';
+
+    const handlePreviewAccessCode = async () => {
+        setAccessCodeError('');
+        setAccessCodePreview(null);
+        setIsAccessCodeBusy(true);
+        try {
+            setAccessCodePreview(await previewComplimentaryAccessCode(accessCode));
+        } catch (previewError: any) {
+            setAccessCodeError(
+                String(previewError?.message || 'This complimentary access code is not available.'),
+            );
+        } finally {
+            setIsAccessCodeBusy(false);
+        }
+    };
+
+    const handleRedeemAccessCode = async () => {
+        if (!accessCodePreview) return;
+        setAccessCodeError('');
+        setIsAccessCodeBusy(true);
+        try {
+            await redeemComplimentaryAccessCode(accessCode);
+            window.location.reload();
+        } catch (redeemError: any) {
+            setAccessCodeError(
+                String(redeemError?.message || 'Maintley could not activate this access code.'),
+            );
+            setAccessCodePreview(null);
+            setIsAccessCodeBusy(false);
+        }
+    };
 
     if (!subscription) {
         return (
@@ -218,6 +264,64 @@ export const AccountManagement: React.FC<AccountManagementProps> = ({ setShowCan
                                     </CancelButton>
                                 )}
                         </ButtonContainer>
+
+                        {canRedeemComplimentaryAccess && (
+                            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #d1d5db' }}>
+                                <AccountButton
+                                    type="button"
+                                    aria-expanded={showAccessCodeEntry}
+                                    onClick={() => setShowAccessCodeEntry((current) => !current)}>
+                                    {showAccessCodeEntry ? 'Hide access code' : 'Have an access code?'}
+                                </AccountButton>
+
+                                {showAccessCodeEntry && (
+                                    <div style={{ display: 'grid', gap: '10px', marginTop: '14px' }}>
+                                        <label htmlFor="complimentary-access-code" style={{ fontWeight: 600 }}>
+                                            Complimentary access code
+                                        </label>
+                                        <p style={{ margin: 0, color: '#64748b', fontSize: '14px', lineHeight: 1.5 }}>
+                                            Review the included access and what happens when it ends before activating it.
+                                        </p>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                            <input
+                                                id="complimentary-access-code"
+                                                value={accessCode}
+                                                onChange={(event) => {
+                                                    setAccessCode(event.target.value);
+                                                    setAccessCodePreview(null);
+                                                    setAccessCodeError('');
+                                                }}
+                                                placeholder="Enter access code"
+                                                autoComplete="off"
+                                                style={{ flex: '1 1 220px', minWidth: 0, padding: '12px', border: '1px solid #d1d5db', borderRadius: '8px' }}
+                                            />
+                                            <AccountButton
+                                                type="button"
+                                                disabled={isAccessCodeBusy || accessCode.trim().length < 8}
+                                                onClick={handlePreviewAccessCode}>
+                                                {isAccessCodeBusy && !accessCodePreview ? 'Reviewing...' : 'Review access'}
+                                            </AccountButton>
+                                        </div>
+                                        {accessCodePreview && (
+                                            <GrantedAccessCard style={{ margin: 0 }}>
+                                                <GrantedAccessTitle>{accessCodePreview.label}</GrantedAccessTitle>
+                                                <GrantedAccessText>
+                                                    Adds {accessCodePreview.durationDays} days of {accessCodePreview.bundleId.replaceAll('_', ' ')} access. It does not create a charge or automatic renewal. When it ends, your existing records remain available through the Free plan. Continuing with a paid plan requires Checkout.
+                                                </GrantedAccessText>
+                                                <UpgradeButton
+                                                    type="button"
+                                                    style={{ margin: '6px 0 0' }}
+                                                    disabled={isAccessCodeBusy}
+                                                    onClick={handleRedeemAccessCode}>
+                                                    {isAccessCodeBusy ? 'Activating...' : 'Activate complimentary access'}
+                                                </UpgradeButton>
+                                            </GrantedAccessCard>
+                                        )}
+                                        {accessCodeError && <ErrorMessage role="alert">{accessCodeError}</ErrorMessage>}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </SubscriptionSection>
                 </>
             )

@@ -112,10 +112,12 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 							: 'None'}
 					</InfoValue>
 				</InfoCard>
-				<InfoCard>
-					<InfoLabel>Rental Property</InfoLabel>
-					<InfoValue>{props.property?.isRental ? 'Yes' : 'No'}</InfoValue>
-				</InfoCard>
+				{!props.homeownerMode && (
+					<InfoCard>
+						<InfoLabel>Rental Property</InfoLabel>
+						<InfoValue>{props.property?.isRental ? 'Yes' : 'No'}</InfoValue>
+					</InfoCard>
+				)}
 				<InfoCard>
 					<InfoLabel>Notes</InfoLabel>
 

@@ -147,6 +147,24 @@ a keyed verifier, and can use `none` or `checkout_required` continuation. They
 cannot configure automatic billing. Programs are provisioned with
 `npm --prefix functions run provision:access-code -- ...`; the plaintext code
 and matching pepper are supplied only through the operator's local environment.
+Eligible primary account holders redeem a code from Settings under Billing &
+Subscription. Maintley validates and previews the access duration and end
+behavior first; the user must then explicitly activate the complimentary
+access. Activation is not offered before a successful preview.
+
+Standard registration may also collect a complimentary code separately from
+Stripe coupons and invitation codes. Maintley first commits the Free account,
+then performs authenticated review and explicit activation before onboarding.
+An invalid or skipped code leaves the account on Free and remains retryable in
+Settings. Recipient-restricted codes require the authenticated account-owner
+email to match and be verified.
+
+The admin Billing area keeps Stripe Coupons and Complimentary Access Codes in
+separate collapsed sections. Creating a complimentary code requires one
+specific access level, duration, maximum redemptions, label, transition mode,
+and administrative reason; redemption expiration and recipient email are
+optional. The server generates the plaintext code, returns it once, stores only
+its keyed verifier, and writes the immutable high-value audit event.
 
 ---
 

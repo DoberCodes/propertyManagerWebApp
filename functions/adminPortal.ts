@@ -27,6 +27,7 @@ import {
 	isMaintleyOwnerGrantRole,
 	isProhibitedSelfGrantTarget,
 } from './adminEntitlementGrantPolicy';
+import { getComplimentaryAccessCodeHash } from './complimentaryAccessCodes';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -35,6 +36,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
+const COMPLIMENTARY_ACCESS_CODE_PEPPER = defineSecret('COMPLIMENTARY_ACCESS_CODE_PEPPER');
 const FUNCTIONS_CONFIG_EXPORT = defineJsonSecret<Record<string, any>>(
 	'FUNCTIONS_CONFIG_EXPORT',
 );
@@ -77,6 +79,8 @@ const SESSION_TTL_HOURS = 12;
 const MAX_TICKET_RESULTS = 250;
 const FEEDBACK_TICKET_PREFIX = 'MNT';
 const ENTITLEMENT_GRANT_POLICY_VERSION = 'admin-grants-v1';
+const ENTITLEMENT_ACCESS_PROGRAMS_COLLECTION = 'entitlementAccessPrograms';
+const ENTITLEMENT_ACCESS_CODES_COLLECTION = 'entitlementAccessCodes';
 
 type AdminGrantProgramDefinition = {
 	programId: string;
@@ -3302,6 +3306,242 @@ export const adminPortalMutateEntitlementGrant = functions.https.onCall(
 			});
 			throw error;
 		}
+	},
+);
+
+export const adminPortalCreateComplimentaryAccessCode = functions
+	.runWith({ secrets: [COMPLIMENTARY_ACCESS_CODE_PEPPER] })
+	.https.onCall(
+		async (
+			data: {
+				sessionToken?: string;
+				label?: string;
+				bundleId?: string;
+				durationDays?: number;
+				expiresAt?: string;
+				maxRedemptions?: number;
+				recipientEmail?: string;
+				transitionMode?: string;
+				reason?: string;
+				requestId?: string;
+			},
+			context,
+		): Promise<Record<string, unknown>> => {
+			const authority = await resolveGrantAdminAuthority(
+				context,
+				String(data?.sessionToken || ''),
+			);
+			const actor = authority.actor;
+			const suppliedRequestId = String(data?.requestId || '').trim();
+			try {
+			const label = String(data?.label || '').trim();
+			const bundleId = String(data?.bundleId || '').trim().toLowerCase();
+			const durationDays = Number(data?.durationDays || 0);
+			const maxRedemptions = Number(data?.maxRedemptions || 1);
+			const transitionMode = String(data?.transitionMode || 'checkout_required').trim();
+			const reason = String(data?.reason || '').trim();
+			const requestId = suppliedRequestId;
+			const recipientEmailLower = String(data?.recipientEmail || '').trim().toLowerCase();
+			const allowedBundles = ['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'];
+
+			if (label.length < 3 || label.length > 120) {
+				throw new functions.https.HttpsError('invalid-argument', 'Enter a program label between 3 and 120 characters.');
+			}
+			if (!allowedBundles.includes(bundleId)) {
+				throw new functions.https.HttpsError('invalid-argument', 'Select one complimentary access level.');
+			}
+			if (bundleId === 'multi_homeowner' && !ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
+				throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
+			}
+			if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 730) {
+				throw new functions.https.HttpsError('invalid-argument', 'Access duration must be between 1 and 730 days.');
+			}
+			if (!Number.isInteger(maxRedemptions) || maxRedemptions < 1 || maxRedemptions > 1000) {
+				throw new functions.https.HttpsError('invalid-argument', 'Maximum redemptions must be between 1 and 1,000.');
+			}
+			if (!['none', 'checkout_required'].includes(transitionMode)) {
+				throw new functions.https.HttpsError('invalid-argument', 'Select a valid end behavior.');
+			}
+			if (reason.length < 10 || reason.length > 500) {
+				throw new functions.https.HttpsError('invalid-argument', 'Enter an administrative reason between 10 and 500 characters.');
+			}
+			if (!/^[a-zA-Z0-9:_-]{8,120}$/.test(requestId)) {
+				throw new functions.https.HttpsError('invalid-argument', 'A stable request ID is required.');
+			}
+			if (recipientEmailLower && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmailLower)) {
+				throw new functions.https.HttpsError('invalid-argument', 'Enter a valid recipient email address.');
+			}
+			if (recipientEmailLower && maxRedemptions !== 1) {
+				throw new functions.https.HttpsError(
+					'invalid-argument',
+					'Email-restricted access codes must allow exactly one redemption.',
+				);
+			}
+
+			const expirationText = String(data?.expiresAt || '').trim();
+			const expirationTimestamp = /^\d{4}-\d{2}-\d{2}$/.test(expirationText)
+				? `${expirationText}T23:59:59.999Z`
+				: expirationText;
+			const expiresAtMs = expirationText ? Date.parse(expirationTimestamp) : null;
+			if (expirationText && (!Number.isFinite(expiresAtMs) || Number(expiresAtMs) <= Date.now())) {
+				throw new functions.https.HttpsError('invalid-argument', 'Redemption expiration must be in the future.');
+			}
+
+			const requestHash = createHash('sha256').update(requestId).digest('hex').slice(0, 20);
+			const programId = `access_program_${requestHash}`;
+			const codeId = `access_code_${randomBytes(8).toString('hex')}`;
+			const code = `MNTL-${randomBytes(10).toString('hex').toUpperCase().match(/.{1,4}/g)?.join('-')}`;
+			const pepper = String(COMPLIMENTARY_ACCESS_CODE_PEPPER.value() || '').trim();
+			const codeHash = getComplimentaryAccessCodeHash(code, pepper);
+			const programRef = db.collection(ENTITLEMENT_ACCESS_PROGRAMS_COLLECTION).doc(programId);
+			const codeRef = db.collection(ENTITLEMENT_ACCESS_CODES_COLLECTION).doc(codeHash);
+			const auditRef = db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(
+				getAdminAuditEventId('access_code.created', requestId),
+			);
+
+			const result = await db.runTransaction(async (transaction) => {
+				const auditSnapshot = await transaction.get(auditRef);
+				if (auditSnapshot.exists) return { replayed: true };
+				transaction.create(programRef, {
+					programId,
+					label,
+					status: 'active',
+					bundleId,
+					bundleVersion: BUNDLE_VERSION,
+					durationDays,
+					redemptionExpiresAtMs: expiresAtMs,
+					totalRedemptionLimit: maxRedemptions,
+					redeemedCount: 0,
+					perAccountLimit: 1,
+					eligibleBasePlans: ['homeowner'],
+					limitOverrides: {},
+					transitionMode,
+					fallbackPlanId: 'homeowner',
+					policyVersion: `${programId}-v1`,
+					createdAt: admin.firestore.FieldValue.serverTimestamp(),
+					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				});
+				transaction.create(codeRef, {
+					codeId,
+					programId,
+					status: 'active',
+					expiresAtMs,
+					maxRedemptions,
+					redeemedCount: 0,
+					recipientEmailLower: recipientEmailLower || null,
+					createdAt: admin.firestore.FieldValue.serverTimestamp(),
+					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				});
+				transaction.create(auditRef, {
+					eventId: auditRef.id,
+					action: 'access_code.created',
+					category: 'entitlement_program',
+					actorUserId: authority.actorUserId,
+					targetAccountId: 'maintley-platform',
+					programId,
+					reason,
+					requestId,
+					createdAt: admin.firestore.FieldValue.serverTimestamp(),
+					before: { configured: false },
+					after: { configured: true, codeId, bundleId, durationDays, expiresAtMs, maxRedemptions },
+					metadata: {
+						source: 'admin_billing_portal',
+						plaintextStored: false,
+						recipientRestricted: Boolean(recipientEmailLower),
+						transitionMode,
+					},
+					performedBy: actor,
+				});
+				return { replayed: false };
+			});
+
+			if (result.replayed) {
+				return { success: true, replayed: true, code: null, programId };
+			}
+			return {
+				success: true,
+				replayed: false,
+				code,
+				programId,
+				program: {
+					programId,
+					codeId,
+					label,
+					bundleId,
+					durationDays,
+					expiresAt: expiresAtMs ? new Date(Number(expiresAtMs)).toISOString() : null,
+					maxRedemptions,
+					redeemedCount: 0,
+					recipientEmail: recipientEmailLower || null,
+					transitionMode,
+					status: 'active',
+				},
+			};
+			} catch (error) {
+				const requestId = /^[a-zA-Z0-9:_-]{8,120}$/.test(suppliedRequestId)
+					? suppliedRequestId
+					: `access-code-failed:${Date.now()}:${randomBytes(4).toString('hex')}`;
+				const failureRef = db.collection(ADMIN_AUDIT_LOGS_COLLECTION).doc(
+					getAdminAuditEventId('admin_action.failed', requestId),
+				);
+				try {
+					await failureRef.create({
+					eventId: failureRef.id,
+					action: 'admin_action.failed',
+					category: 'entitlement_program',
+					actorUserId: authority.actorUserId,
+					targetAccountId: 'maintley-platform',
+					reason: String(data?.reason || '').trim() || 'Complimentary access code creation failed.',
+					requestId,
+					createdAt: admin.firestore.FieldValue.serverTimestamp(),
+					metadata: {
+						source: 'admin_billing_portal',
+						requestedAction: 'access_code.created',
+						errorCode: error instanceof functions.https.HttpsError ? error.code : 'internal',
+					},
+						performedBy: actor,
+					});
+				} catch {
+					// Preserve the first immutable failure record for an idempotent request.
+				}
+				throw error;
+			}
+		},
+	);
+
+export const adminPortalListComplimentaryAccessCodes = functions.https.onCall(
+	async (
+		data: { sessionToken?: string; limit?: number },
+		context,
+	): Promise<Record<string, unknown>> => {
+		await resolveGrantAdminAuthority(context, String(data?.sessionToken || ''), true);
+		const limit = Math.min(Math.max(Number(data?.limit || 100), 1), 100);
+		const codeSnapshot = await db.collection(ENTITLEMENT_ACCESS_CODES_COLLECTION).limit(limit).get();
+		const programIds = Array.from(new Set(codeSnapshot.docs.map((doc) => String(doc.data().programId || '')).filter(Boolean)));
+		const programSnapshots = await Promise.all(
+			programIds.map((programId) => db.collection(ENTITLEMENT_ACCESS_PROGRAMS_COLLECTION).doc(programId).get()),
+		);
+		const programs = new Map(programSnapshots.map((snapshot) => [snapshot.id, snapshot.data() || {}]));
+		return {
+			codes: codeSnapshot.docs.map((snapshot) => {
+				const codeRecord = snapshot.data();
+				const program = programs.get(String(codeRecord.programId || '')) || {};
+				return {
+					codeId: String(codeRecord.codeId || snapshot.id.slice(0, 16)),
+					programId: String(codeRecord.programId || ''),
+					label: String(program.label || 'Complimentary access'),
+					bundleId: String(program.bundleId || ''),
+					durationDays: Number(program.durationDays || 0),
+					expiresAt: codeRecord.expiresAtMs ? new Date(Number(codeRecord.expiresAtMs)).toISOString() : null,
+					maxRedemptions: Number(codeRecord.maxRedemptions || 0),
+					redeemedCount: Number(codeRecord.redeemedCount || 0),
+					recipientEmail: codeRecord.recipientEmailLower || null,
+					transitionMode: String(program.transitionMode || 'none'),
+					status: String(codeRecord.status || 'disabled'),
+					createdAt: serializeTimestampValue(codeRecord.createdAt) || null,
+				};
+			}),
+		};
 	},
 );
 

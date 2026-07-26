@@ -74,6 +74,7 @@ describe('PropertyDialog', () => {
 		).toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: /^next$/i })).not.toBeInTheDocument();
 		expect(screen.queryByText('Access & Sharing')).not.toBeInTheDocument();
+		expect(screen.queryByText('Rental Settings')).not.toBeInTheDocument();
 
 		await user.type(screen.getByPlaceholderText('Enter home name'), 'Willow House');
 		await user.type(screen.getByPlaceholderText('Enter address'), '123 Willow Lane');
@@ -82,7 +83,45 @@ describe('PropertyDialog', () => {
 		await waitFor(() => expect(onSave).toHaveBeenCalled());
 		const savedArg = (onSave as jest.Mock).mock.calls[0][0];
 		expect(savedArg.propertyType).toBe('Single Family');
+		expect(savedArg.isRental).toBe(false);
 		expect(savedArg.openSetupAfterCreate).toBe(true);
+	});
+
+	test('preserves an existing rental marker while hiding homeowner rental controls', async () => {
+		const user = userEvent.setup();
+		const onSave = jest.fn().mockResolvedValue(undefined);
+
+		render(
+			<Provider store={store}>
+				<PropertyDialog
+					isOpen
+					onClose={jest.fn()}
+					onSave={onSave}
+					groups={[]}
+					forceSingleFamily
+					initialData={{
+						name: 'Existing Home',
+						owner: 'Homeowner',
+						address: '123 Main Street',
+						propertyType: 'Single Family',
+						isRental: true,
+						bedrooms: 3,
+						bathrooms: 2,
+						notes: '',
+					}}
+				/>
+			</Provider>,
+		);
+
+		expect(screen.queryByText('Rental Settings')).not.toBeInTheDocument();
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+		expect(screen.queryByText('Rental Home')).not.toBeInTheDocument();
+		await user.click(screen.getByRole('button', { name: /save home/i }));
+
+		await waitFor(() => expect(onSave).toHaveBeenCalled());
+		expect((onSave as jest.Mock).mock.calls[0][0].isRental).toBe(true);
 	});
 
 	test('keeps first-property access activation inside the save loading state', async () => {

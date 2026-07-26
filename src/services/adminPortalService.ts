@@ -231,6 +231,21 @@ export type AdminBillingCoupon = {
 	createdAt?: string | null;
 };
 
+export type AdminComplimentaryAccessCode = {
+	codeId: string;
+	programId: string;
+	label: string;
+	bundleId: 'homeowner_plus' | 'multi_homeowner' | 'property' | 'portfolio' | string;
+	durationDays: number;
+	expiresAt?: string | null;
+	maxRedemptions: number;
+	redeemedCount: number;
+	recipientEmail?: string | null;
+	transitionMode: 'none' | 'checkout_required' | string;
+	status: string;
+	createdAt?: string | null;
+};
+
 export type AdminPortalAuditLogRecord = {
 	id: string;
 	category?: string | null;
@@ -636,6 +651,47 @@ export const adminPortalCreateBillingCoupon = async (params: {
 
 	const result = await callable(params);
 	return result.data;
+};
+
+export const adminPortalCreateComplimentaryAccessCode = async (params: {
+	sessionToken: string;
+	label: string;
+	bundleId: 'homeowner_plus' | 'multi_homeowner' | 'property' | 'portfolio';
+	durationDays: number;
+	expiresAt?: string;
+	maxRedemptions: number;
+	recipientEmail?: string;
+	transitionMode: 'none' | 'checkout_required';
+	reason: string;
+	requestId: string;
+}): Promise<{
+	success: true;
+	replayed: boolean;
+	code: string | null;
+	programId: string;
+	program?: AdminComplimentaryAccessCode;
+}> => {
+	const callable = await getAdminCallable<typeof params, {
+		success: true;
+		replayed: boolean;
+		code: string | null;
+		programId: string;
+		program?: AdminComplimentaryAccessCode;
+	}>('adminPortalCreateComplimentaryAccessCode');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalListComplimentaryAccessCodes = async (params: {
+	sessionToken: string;
+	limit?: number;
+}): Promise<AdminComplimentaryAccessCode[]> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{ codes: AdminComplimentaryAccessCode[] }
+	>('adminPortalListComplimentaryAccessCodes');
+	const result = await callable(params);
+	return result.data.codes || [];
 };
 
 export const adminPortalListBillingCoupons = async (params: {

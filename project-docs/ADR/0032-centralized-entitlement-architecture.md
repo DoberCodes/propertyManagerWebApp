@@ -408,6 +408,26 @@ Every access-code program must define server-owned policy for:
 * transition mode after complimentary access
 * revocation, support, reporting, and audit treatment
 
+Each code grants exactly one approved access bundle. There is no "all plans"
+complimentary code. Admin-facing language may describe this as complimentary
+plan access, but storage continues to use the canonical bundle identifier so a
+code cannot become a parallel billing-plan source of truth.
+
+Maintley administrators may create programs and codes through a trusted admin
+surface. The server generates the redeemable secret, returns it once for secure
+delivery, stores only its keyed verifier, and records an immutable audit event.
+The admin must select the bundle, access duration, redemption deadline, maximum
+redemptions, transition mode, program label, and reason. A code may optionally
+be restricted to a normalized recipient email. Email-restricted redemption
+requires the authenticated account-owner email to match and be verified.
+
+Standard registration may collect a complimentary code separately from Stripe
+promotion and invitation codes. The Free account and owning family account must
+first be committed. Maintley then uses the authenticated preview and redemption
+contract before redirecting into onboarding. A failed code must not roll back
+or corrupt the newly created Free account; the user may correct it, skip it, or
+redeem it later from Settings.
+
 Redemption must be transactional, idempotent, rate-limited, and server
 validated. Redeemable secrets must not be stored or logged in plaintext.
 Repeated, expired, exhausted, or ineligible redemption attempts must fail

@@ -85,6 +85,7 @@ const ADMIN_AUDIT_ACTIONS = Object.freeze([
 	'grant.lifetime_created',
 	'program.applied',
 	'program.configured',
+	'access_code.created',
 	'program.redemption_failed',
 	'program.redemption_replayed',
 	'billing_transition.linked',
