@@ -5,8 +5,6 @@ import {
 	getDocs,
 	getDoc,
 	doc,
-	deleteDoc,
-	updateDoc,
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
@@ -371,19 +369,20 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						typeof input === 'string'
 							? 'Removed through the maintenance history interface.'
 							: input.correctionReason;
-					// Try new collection first, then fall back to legacy
-					const newDocRef = doc(db, 'maintenanceEvents', historyId);
-					const newSnap = await getDoc(newDocRef);
-					if (newSnap.exists()) {
-						await callFirebaseFunction(
-							'deleteMaintenanceEvent',
-							{
-								eventId: historyId,
-								correctionReason,
-							},
-						);
+					const canonicalSnapshot = await getDoc(
+						doc(db, 'maintenanceEvents', historyId),
+					);
+					if (canonicalSnapshot.exists()) {
+						await callFirebaseFunction('deleteMaintenanceEvent', {
+							eventId: historyId,
+							correctionReason,
+						});
 					} else {
-						await deleteDoc(doc(db, 'maintenanceHistory', historyId));
+						await callFirebaseFunction('correctMaintenanceHistoryRecord', {
+							recordId: historyId,
+							action: 'delete',
+							correctionReason,
+						});
 					}
 					return { data: undefined };
 				} catch (error: any) {
@@ -399,22 +398,19 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ id, updates }) {
 				try {
-					// Try new collection first, then fall back to legacy
-					const newDocRef = doc(db, 'maintenanceEvents', id);
-					const newSnap = await getDoc(newDocRef);
-					if (newSnap.exists()) {
-						await callFirebaseFunction(
-							'updateMaintenanceEvent',
-							{
-								eventId: id,
-								updates,
-								correctionReason: 'Corrected through the maintenance history interface.',
-							},
-						);
+					const canonicalSnapshot = await getDoc(doc(db, 'maintenanceEvents', id));
+					if (canonicalSnapshot.exists()) {
+						await callFirebaseFunction('updateMaintenanceEvent', {
+							eventId: id,
+							updates,
+							correctionReason: 'Corrected through the maintenance history interface.',
+						});
 					} else {
-						await updateDoc(doc(db, 'maintenanceHistory', id), {
-							...updates,
-							updatedAt: new Date().toISOString(),
+						await callFirebaseFunction('correctMaintenanceHistoryRecord', {
+							recordId: id,
+							action: 'update',
+							updates,
+							correctionReason: 'Corrected through the maintenance history interface.',
 						});
 					}
 					return { data: { id, ...updates } };

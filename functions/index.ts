@@ -71,6 +71,7 @@ export {
 	createMaintenanceEventsBatch,
 	updateMaintenanceEvent,
 	deleteMaintenanceEvent,
+	correctMaintenanceHistoryRecord,
 	notifyTaskCompletion,
 } from './maintenanceEvents';
 export {

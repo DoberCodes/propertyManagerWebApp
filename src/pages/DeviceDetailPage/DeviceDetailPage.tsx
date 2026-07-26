@@ -1097,52 +1097,18 @@ export const DeviceDetailPage: React.FC = () => {
 						: []),
 				],
 			}).unwrap();
-
-			const nextEntries = [
-				{
-					date: quickLogDate,
-					description: `${descriptionPrefix} ${summaryDescription}`,
-				},
-				...(Array.isArray(device.maintenanceHistory) ? device.maintenanceHistory : []),
-			];
-			await updateDevice({
-				id: device.id,
-				updates: { maintenanceHistory: nextEntries },
-			}).unwrap();
 			setShowQuickLogModal(false);
 		} finally {
 			setIsSavingQuickLog(false);
 		}
 	};
 
-	const handleRecurringTaskSaved = async () => {
+	const handleRecurringTaskSaved = () => {
 		if (!canCreateTaskActions) {
 			setShowRecurringTaskModal(false);
 			return;
 		}
-		if (!device) {
-			setShowRecurringTaskModal(false);
-			return;
-		}
-		try {
-			const deviceName = [device.type, device.brand, device.model]
-				.filter(Boolean)
-				.join(' ')
-				.trim() || 'Equipment';
-			const nextEntries = [
-				{
-					date: new Date().toISOString(),
-					description: `Recurring maintenance created: ${deviceName}`,
-				},
-				...(Array.isArray(device.maintenanceHistory) ? device.maintenanceHistory : []),
-			];
-			await updateDevice({
-				id: device.id,
-				updates: { maintenanceHistory: nextEntries },
-			}).unwrap();
-		} finally {
-			setShowRecurringTaskModal(false);
-		}
+		setShowRecurringTaskModal(false);
 	};
 
 	const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {

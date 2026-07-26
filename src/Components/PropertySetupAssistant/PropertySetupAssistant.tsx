@@ -451,7 +451,6 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						propertyId: property.id,
 					},
 					notes: 'Created from Property Setup Assistant.',
-					maintenanceHistory: [],
 				}) as any,
 			).unwrap();
 		} catch (error) {
