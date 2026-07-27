@@ -724,10 +724,15 @@ from authenticated server context and cannot be forged.
 Update:
 
 * Account managers
+* After downgrade, account managers may still update retained profile, contact,
+  notes, and file fields; access, roles, groups, and property assignments cannot
+  be expanded through this compatibility path.
 
 Delete:
 
 * Account managers
+* Removal and login-access revocation remain available after downgrade because
+  they reduce access rather than expand plan capabilities.
 
 ---
 

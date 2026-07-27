@@ -1,7 +1,10 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { hasCapability } from '@maintley/entitlements';
-import { assertInviteCapability } from './inviteAuthz';
+import {
+	assertInviteAccountManager,
+	assertInviteCapability,
+} from './inviteAuthz';
 import { resolveEntitlementsForAccount } from './subscriptionEntitlements';
 
 if (!admin.apps.length) {
@@ -340,7 +343,9 @@ export const revokeTeamMemberInvitationCode = functions.https.onCall(
 			);
 		}
 
-		const { accountId } = await assertInviteCapability(context.auth.uid, 'team');
+		// Revocation is relationship cleanup, so it remains available after a
+		// downgrade even though creating or regenerating access stays entitled.
+		const { accountId } = await assertInviteAccountManager(context.auth.uid);
 		const snapshot = await db
 			.collection('teamMemberInvitationCodes')
 			.where('accountId', '==', accountId)
@@ -360,7 +365,22 @@ export const revokeTeamMemberInvitationCode = functions.https.onCall(
 
 		const teamMemberRef = db.collection('teamMembers').doc(teamMemberId);
 		const teamMemberDoc = await teamMemberRef.get();
+		if (!teamMemberDoc.exists) {
+			throw new functions.https.HttpsError(
+				'not-found',
+				'Team member not found',
+			);
+		}
 		const teamMemberData = teamMemberDoc.data() || {};
+		const teamMemberAccountId = String(
+			teamMemberData.accountId || teamMemberData.userId || '',
+		).trim();
+		if (teamMemberAccountId !== accountId) {
+			throw new functions.https.HttpsError(
+				'permission-denied',
+				'Team member does not belong to this account',
+			);
+		}
 		const linkedUserId = String(
 			teamMemberData.userAccountId || teamMemberData.redeemedByUserId || '',
 		).trim();

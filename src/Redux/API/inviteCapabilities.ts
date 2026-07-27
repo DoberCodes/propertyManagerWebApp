@@ -43,6 +43,13 @@ export const assertCanManageTeamMembers = async (
 	}
 };
 
+export const canManageTeamMembers = async (
+	accountId: string,
+): Promise<boolean> => {
+	const subscription = await getAccountSubscription(accountId);
+	return !!subscription && canManageTeam(subscription);
+};
+
 export const assertCanInviteTeamMembers = assertCanManageTeamMembers;
 
 export const assertCanManageAdvancedTeamSettings = async (

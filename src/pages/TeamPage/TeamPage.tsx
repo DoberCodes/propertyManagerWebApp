@@ -397,6 +397,8 @@ export default function TeamPage() {
 	>({});
 	const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
 	const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+	const canEditCurrentMember =
+		canManage || (Boolean(editingMember) && canReviewRetainedTeam);
 	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 	const [editingGroupName, setEditingGroupName] = useState<string>('');
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -700,7 +702,9 @@ export default function TeamPage() {
 			title: formData.title.trim(),
 			email: isEditingAcceptedMember ? editingMember!.email : formData.email,
 			phone: formData.phone,
-			role: isAdvancedTeamManagement ? formData.role : USER_ROLES.ADMIN,
+			role: isAdvancedTeamManagement
+				? formData.role
+				: editingMember?.role || USER_ROLES.ADMIN,
 			address: buildMailingAddress({
 				street: formData.address,
 				city: formData.mailingCity,
@@ -709,7 +713,9 @@ export default function TeamPage() {
 			}),
 			image: imagePreview || editingMember?.image || '',
 			notes: formData.notes,
-			linkedProperties: isAdvancedTeamManagement ? formData.linkedProperties : [],
+			linkedProperties: isAdvancedTeamManagement
+				? formData.linkedProperties
+				: editingMember?.linkedProperties || [],
 			taskHistory: editingMember?.taskHistory || [],
 			files: uploadedFiles,
 			...invitationFields,
@@ -849,18 +855,16 @@ export default function TeamPage() {
 			const memberToDelete = groupsWithMembers
 				.flatMap((g) => g.members || [])
 				.find((m) => m?.id === memberId);
-			await deleteTeamMemberApi(memberId).unwrap();
 
-			// Revoke invitation code if it exists
-			if ((memberToDelete as any)?.invitationCodeId) {
-				try {
-					await revokeTeamMemberInvitationCode({
-						teamMemberId: memberId,
-					}).unwrap();
-				} catch (revokeError) {
-					console.error('Failed to revoke invitation code:', revokeError);
-				}
+			// Revoke linked login access before deleting the profile. The revoke
+			// function needs the team-member record to resolve the linked account.
+			if (memberToDelete && hasRevocableTeamAccess(memberToDelete)) {
+				await revokeTeamMemberInvitationCode({
+					teamMemberId: memberId,
+				}).unwrap();
 			}
+
+			await deleteTeamMemberApi(memberId).unwrap();
 
 			// Create notification for team member deletion
 			try {
@@ -1261,11 +1265,11 @@ export default function TeamPage() {
 							? 'Team management is managed by the account holder'
 							: 'Team collaboration is locked on your current plan'
 					}
-					description={
-						isTeamMemberAccount
-							? 'Your account access is controlled by your assigned role and property access.'
-							: 'You can review current team assignments in read-only mode. Upgrade to Property to invite team members.'
-					}
+						description={
+							isTeamMemberAccount
+								? 'Your account access is controlled by your assigned role and property access.'
+								: 'You can maintain or remove existing team relationships. Upgrade to Property to invite new team members.'
+						}
 					upgradeLabel='Upgrade for Team Access'
 					showUpgradeAction={!isTeamMemberAccount}
 				/>
@@ -1462,8 +1466,18 @@ export default function TeamPage() {
 						</DialogIntro>
 
 						<fieldset
-							disabled={!canManage}
-							style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+							disabled={!canEditCurrentMember}
+							style={{
+								border: 0,
+								margin: 0,
+								padding: 0,
+								minWidth: 0,
+								minHeight: 0,
+								flex: 1,
+								display: 'flex',
+								flexDirection: 'column',
+								overflow: 'hidden',
+							}}>
 						<DialogBody>
 							<LeftColumn>
 								<CollapsibleDialogSection
@@ -1702,7 +1716,7 @@ export default function TeamPage() {
 									</CollapsibleDialogBody>
 								</CollapsibleDialogSection>
 
-								{canManage && (
+								{(canManage || (canReviewRetainedTeam && editingMember)) && (
 									<CollapsibleDialogSection
 										open={teamMemberDialogOpenSections.access}
 										onToggle={handleTeamMemberDialogSectionToggle('access')}>
@@ -1803,7 +1817,7 @@ export default function TeamPage() {
 																	? 'revoked'
 																	: 'active'
 															}>
-															{getTeamMemberAccessState(editingMember) ===
+												{canManage && getTeamMemberAccessState(editingMember) ===
 																'accepted'
 																? 'Active'
 																: getTeamMemberAccessState(editingMember) ===
@@ -2111,7 +2125,7 @@ export default function TeamPage() {
 							<CancelButton onClick={() => setShowTeamMemberDialog(false)}>
 								{canManage ? 'Cancel' : 'Close'}
 							</CancelButton>
-							{canManage && (
+							{canEditCurrentMember && (
 								<SaveButton onClick={handleSaveTeamMember}>
 									{editingMember ? 'Update Member' : 'Add Member'}
 								</SaveButton>

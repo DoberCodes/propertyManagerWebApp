@@ -375,6 +375,9 @@ After a downgrade:
 * Persisted point-in-time Intelligence results remain visible; new premium
   processing stops.
 * Existing permission assignments must never widen automatically.
+* Retained team-member profiles remain editable and removable. Account managers
+  may revoke existing login access after downgrade, but cannot invite new team
+  members or change premium roles, groups, or property assignments.
 * Account cancellation and account deletion remain separate actions.
 
 Entitlements should distinguish viewing existing data from creating,

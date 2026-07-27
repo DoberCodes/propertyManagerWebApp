@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.assertInviteCapability = void 0;
+exports.assertInviteCapability = exports.assertInviteAccountManager = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const entitlements_1 = require("@maintley/entitlements");
@@ -47,9 +47,14 @@ const INVITE_CAPABILITIES = {
     team: 'team.manage',
     tenant: 'residents.manage',
 };
-const assertInviteCapability = async (uid, capability) => {
+const assertInviteAccountManager = async (uid) => {
     const accountId = await (0, accountAuthz_1.resolveAccountIdForUser)(uid);
     await (0, accountAuthz_1.assertAccountRole)(uid, accountId, ['account_owner', 'admin', 'manager']);
+    return { accountId };
+};
+exports.assertInviteAccountManager = assertInviteAccountManager;
+const assertInviteCapability = async (uid, capability) => {
+    const { accountId } = await (0, exports.assertInviteAccountManager)(uid);
     const accountOwnerDoc = await db.collection('users').doc(accountId).get();
     if (!accountOwnerDoc.exists) {
         throw new functions.https.HttpsError('not-found', 'Account owner profile not found');

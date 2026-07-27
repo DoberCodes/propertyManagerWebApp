@@ -23,6 +23,14 @@ const INVITE_CAPABILITIES = {
 
 type InviteCapability = keyof typeof INVITE_CAPABILITIES;
 
+export const assertInviteAccountManager = async (
+	uid: string,
+): Promise<{ accountId: string }> => {
+	const accountId = await resolveAccountIdForUser(uid);
+	await assertAccountRole(uid, accountId, ['account_owner', 'admin', 'manager']);
+	return { accountId };
+};
+
 export const assertInviteCapability = async (
 	uid: string,
 	capability: InviteCapability,
@@ -31,8 +39,7 @@ export const assertInviteCapability = async (
 	subscription: SubscriptionEntitlementLike;
 	entitlements: ResolvedAccountEntitlements;
 }> => {
-	const accountId = await resolveAccountIdForUser(uid);
-	await assertAccountRole(uid, accountId, ['account_owner', 'admin', 'manager']);
+	const { accountId } = await assertInviteAccountManager(uid);
 
 	const accountOwnerDoc = await db.collection('users').doc(accountId).get();
 	if (!accountOwnerDoc.exists) {
