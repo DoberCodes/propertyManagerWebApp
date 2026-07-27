@@ -379,7 +379,7 @@ Examples:
 * Recommendations
 * Dashboard Insights
 * Setup Progress
-* Property Health
+* Maintley Intelligence readiness
 * Attention Center summaries
 
 These features derive information from existing records and should not become authoritative sources of data.

@@ -24,7 +24,7 @@ export const renderMaintleyEmailShell = ({
 	previewText = '',
 	eyebrow = 'Maintley',
 	bodyHtml,
-	footerHtml = 'Maintley helps you preserve the operational memory of your property.',
+	footerHtml = 'Keep your property maintenance history and records easy to find with Maintley.',
 }: MaintleyEmailShellInput): string => `
 	<div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">${previewText}</div>
 	<div style="margin:0; padding:0; background:${EMAIL_BRAND.canvas}; font-family:${EMAIL_FONT_STACK}; color:${EMAIL_BRAND.slate};">

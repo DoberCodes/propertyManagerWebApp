@@ -70,7 +70,7 @@ describe('PropertyDialog', () => {
 		expect(screen.getByText('Home Basics')).toBeInTheDocument();
 		expect(screen.getByText('Home Type')).toBeInTheDocument();
 		expect(
-			screen.getByText(/Maintley will open the Home Setup Assistant/i),
+			screen.getByText(/Maintley will confirm your home and let you choose/i),
 		).toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: /^next$/i })).not.toBeInTheDocument();
 		expect(screen.queryByText('Access & Sharing')).not.toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('PropertyDialog', () => {
 		const savedArg = (onSave as jest.Mock).mock.calls[0][0];
 		expect(savedArg.propertyType).toBe('Single Family');
 		expect(savedArg.isRental).toBe(false);
-		expect(savedArg.openSetupAfterCreate).toBe(true);
+		expect(savedArg.openSetupAfterCreate).toBe(false);
 	});
 
 	test('preserves an existing rental marker while hiding homeowner rental controls', async () => {

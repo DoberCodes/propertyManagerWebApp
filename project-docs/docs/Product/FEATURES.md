@@ -361,9 +361,12 @@ The Support Center brings together:
 * Frequently asked questions.
 * Troubleshooting and bug-report guidance.
 * A curated feed showing the latest five significant features and major user-facing updates.
-* In-depth homeowner-friendly articles covering core Maintley functions.
+* In-depth homeowner-friendly articles covering core Maintley functions and
+  account behavior.
 * Optional inline screenshots in support articles when a visual example helps explain a feature.
-* Founder notes that explain the practical thinking behind each guide.
+* Automatically derived reading times based on visible article content.
+* Related-guide links that keep connected workflows discoverable.
+* Selective founder notes when practical product context adds to the guide.
 
 Articles use stable, shareable routes:
 
@@ -387,6 +390,20 @@ Current article topics include:
 * Preparing property records for a contractor.
 * Choosing between a task and a maintenance record.
 * Preserving useful information after service work.
+* Understanding plans, trials, and complimentary access.
+* Managing Stripe billing and subscriptions.
+* Understanding what happens after a downgrade.
+* Managing team-member access and permissions.
+* Creating reports and property exports.
+* Understanding storage limits and file management.
+* Protecting and deleting an account.
+
+Each article is maintained as an individual structured content module with a
+central index. The existing article renderer owns the shared presentation so
+content organization does not create parallel page implementations.
+
+In-app Support explains how to use Maintley and how current Maintley behavior
+works. General home-maintenance education belongs on public resource pages.
 
 The Support Center shows a featured selection. The full article library is
 available through **View all articles**.

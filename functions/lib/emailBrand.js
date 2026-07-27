@@ -11,7 +11,7 @@ exports.EMAIL_BRAND = Object.freeze({
     white: '#FFFFFF',
 });
 exports.EMAIL_FONT_STACK = "Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
-const renderMaintleyEmailShell = ({ title, previewText = '', eyebrow = 'Maintley', bodyHtml, footerHtml = 'Maintley helps you preserve the operational memory of your property.', }) => `
+const renderMaintleyEmailShell = ({ title, previewText = '', eyebrow = 'Maintley', bodyHtml, footerHtml = 'Keep your property maintenance history and records easy to find with Maintley.', }) => `
 	<div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">${previewText}</div>
 	<div style="margin:0; padding:0; background:${exports.EMAIL_BRAND.canvas}; font-family:${exports.EMAIL_FONT_STACK}; color:${exports.EMAIL_BRAND.slate};">
 		<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${exports.EMAIL_BRAND.canvas}; padding:32px 14px;">

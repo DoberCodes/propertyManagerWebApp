@@ -187,4 +187,28 @@ for (const relativePath of emailSourceFiles) {
 	}
 }
 
+const propertyInsightsSource = fs.readFileSync(
+	path.join(projectRoot, 'functions', 'propertyInsightEmails.ts'),
+	'utf8',
+).toLowerCase();
+for (const prohibitedPhrase of [
+	'property record completeness',
+	'no obvious record gaps found',
+	'view all property insights',
+]) {
+	assert.ok(
+		!propertyInsightsSource.includes(prohibitedPhrase),
+		`propertyInsightEmails.ts must not use ${prohibitedPhrase}`,
+	);
+}
+
+const emailBrandSource = fs.readFileSync(
+	path.join(projectRoot, 'functions', 'emailBrand.ts'),
+	'utf8',
+).toLowerCase();
+assert.ok(
+	!emailBrandSource.includes('operational memory'),
+	'emailBrand.ts must keep internal product philosophy out of the customer footer',
+);
+
 console.log('Email branding and access lifecycle template tests passed.');

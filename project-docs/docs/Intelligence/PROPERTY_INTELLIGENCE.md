@@ -24,6 +24,11 @@ The goal is not to score properties, force documentation, or require users to co
 
 The goal is to provide useful, actionable guidance.
 
+Maintley may also explain how much useful context its records provide through
+`Maintley Intelligence readiness`. Readiness describes Maintley's ability to
+provide specific kinds of guidance. It does not describe the physical condition
+of the property or the quality of the homeowner.
+
 ---
 
 # Intelligence Philosophy
@@ -61,6 +66,53 @@ Documentation Score: 41%
 ```
 
 Maintley Intelligence should encourage action rather than create anxiety.
+
+---
+
+# Maintley Intelligence Readiness
+
+Readiness answers:
+
+> What can Maintley help me understand with the records available today?
+
+The initial readiness categories are:
+
+* **Equipment context** - whether Maintley has enough structured equipment
+  information for equipment-specific guidance.
+* **Maintenance coverage** - whether Maintley can connect expected care,
+  recurring tasks, and upcoming work.
+* **Service history** - whether completed work is recorded and connected well
+  enough to provide historical context.
+
+Customer-facing levels are:
+
+* **Starting** - Maintley has little or no usable context in this category.
+* **Building context** - Maintley can provide some guidance and can identify the
+  next records that would make it more useful.
+* **Ready** - the current records support the defined benefit for that category.
+
+Readiness is not a property score. Do not show:
+
+* an overall percentage;
+* a weighted score across categories;
+* health signals;
+* a property grade;
+* language implying the physical property was inspected.
+
+Each category result should include:
+
+1. The categorical level.
+2. What Maintley can currently do.
+3. The evidence or records supporting the result.
+4. One practical next step when additional context would help.
+
+Readiness rules must live in the shared Maintley Intelligence layer. Consumer
+surfaces may choose how much detail to show, but they must not calculate their
+own readiness thresholds.
+
+Readiness and subscription access are separate. The resolver determines which
+product capabilities the account may use. Readiness only describes the context
+available to an allowed Intelligence capability.
 
 ---
 

@@ -255,6 +255,9 @@ export const MobileNavLabel = styled.span`
 `;
 
 export const Card = styled.div`
+	box-sizing: border-box;
+	min-width: 0;
+	width: 100%;
 	max-width: 1100px;
 	margin: 0 auto;
 	background: #ffffff;
@@ -1278,6 +1281,7 @@ export const UserPanelWrap = styled.div`
 	margin-top: 14px;
 	display: grid;
 	gap: 16px;
+	min-width: 0;
 `;
 
 export const UserPanelToolbar = styled.div`
@@ -1310,14 +1314,23 @@ export const UserPanelToolbar = styled.div`
 `;
 
 export const UserTableWrap = styled.div`
+	min-width: 0;
+	max-width: 100%;
 	overflow-x: auto;
+	overscroll-behavior-inline: contain;
+	-webkit-overflow-scrolling: touch;
 	border: 1px solid #fed7aa;
 	border-radius: 10px;
 	background: #ffffff;
+
+	@media (max-width: 640px) {
+		display: none;
+	}
 `;
 
 export const UserTable = styled.table`
 	width: 100%;
+	min-width: 880px;
 	border-collapse: collapse;
 
 	thead {
@@ -1342,6 +1355,93 @@ export const UserTable = styled.table`
 
 	td {
 		color: #7c2d12;
+	}
+`;
+
+export const UserCardList = styled.div`
+	display: none;
+
+	@media (max-width: 640px) {
+		display: grid;
+		gap: 10px;
+	}
+`;
+
+export const UserCard = styled.article`
+	display: grid;
+	gap: 12px;
+	padding: 14px;
+	border: 1px solid #fed7aa;
+	border-radius: 10px;
+	background: #ffffff;
+`;
+
+export const UserCardHeader = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+`;
+
+export const UserCardIdentity = styled.div`
+	min-width: 0;
+	display: grid;
+	gap: 3px;
+
+	strong {
+		color: #7c2d12;
+		font-size: 14px;
+		word-break: break-word;
+	}
+
+	span {
+		color: #9a3412;
+		font-size: 12px;
+		word-break: break-word;
+	}
+`;
+
+export const UserCardMeta = styled.dl`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	margin: 0;
+
+	div {
+		display: grid;
+		gap: 2px;
+	}
+
+	dt {
+		color: #9a3412;
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	dd {
+		margin: 0;
+		color: #7c2d12;
+		font-size: 12px;
+		word-break: break-word;
+	}
+`;
+
+export const UserCardActionButton = styled.button`
+	width: 100%;
+	min-height: 40px;
+	padding: 8px 10px;
+	border: 1px solid #fdba74;
+	border-radius: 8px;
+	background: #fff7ed;
+	color: #9a3412;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+
+	:hover {
+		background: #ffedd5;
 	}
 `;
 

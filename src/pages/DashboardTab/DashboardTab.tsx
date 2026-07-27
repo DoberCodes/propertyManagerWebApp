@@ -28,21 +28,19 @@ import {
 	type DashboardIntelligenceSuggestion,
 	type DashboardSuggestedTaskPrefill,
 } from 'intelligence/consumers/portfolioDashboard';
-import {
-	expectsEquipmentIdentityDetails,
-	expectsMaintenanceHistoryRecord,
-	expectsRecurringCareRecord,
-} from 'intelligence/assetRecordExpectations';
+import { deriveMaintleyIntelligenceReadiness } from 'intelligence/readiness';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { TrialWarningBanner } from 'Components/TrialWarningBanner/TrialWarningBanner';
 import { ExpiredTrialBanner } from 'Components/ExpiredTrialBanner/ExpiredTrialBanner';
 import { ScheduledSubscriptionBanner } from 'Components/ScheduledSubscriptionBanner/ScheduledSubscriptionBanner';
 import {
+	canUseRecurringTasks,
 	getEffectiveSubscriptionPlanId,
 	getTrialDaysRemaining,
 	isTrialExpired,
 } from 'utils/subscriptionUtils';
 import { USER_ROLES } from 'constants/roles';
+import { TODAY_PAGE_LABEL } from 'constants/navigation';
 import {
 	ActionFirstTopSection,
 	TodayFocusCard,
@@ -55,35 +53,31 @@ import {
 	TodayFocusTaskMeta,
 	TodayFocusButtons,
 	FocusButton,
-	PortfolioHealthCard,
-	HomeHealthBarFill,
-	HomeHealthBarTrack,
-	HomeHealthBreakdown,
-	HomeHealthBreakdownRow,
-	HomeHealthMemoryBlock,
-	HomeHealthMemoryBlocks,
-	HomeHealthMemoryText,
-	HomeHealthQuickWin,
-	HomeHealthQuickWinLabel,
-	HomeHealthQuickWinText,
-	HomeHealthQuickWinButton,
-	HomeHealthStatus,
-	HomeHealthStatusLabel,
-	HomeHealthStatusLine,
-	HomeHealthStatusPercent,
-	HomeHealthSummary,
-	HomeHealthHeader,
-	HomeHealthHelp,
-	HomeHealthHelpButton,
-	HomeHealthDialogBody,
-	HomeHealthDialogLead,
-	HomeHealthDialogNote,
-	HomeHealthDialogSection,
-	HomeHealthDialogSubhead,
-	HomeHealthDialogFooter,
+	IntelligenceReadinessCard,
+	IntelligenceReadinessHeader,
+	IntelligenceReadinessHelp,
+	IntelligenceReadinessHelpButton,
+	IntelligenceReadinessIntro,
+	IntelligenceReadinessTitle,
+	IntelligenceReadinessDescription,
+	IntelligenceReadinessCategories,
+	IntelligenceReadinessCategory,
+	IntelligenceReadinessCategoryTitle,
+	IntelligenceReadinessLevel,
+	IntelligenceReadinessSummary,
+	IntelligenceReadinessNextStep,
+	IntelligenceReadinessFooter,
+	IntelligenceReadinessReviewButton,
+	IntelligenceReadinessDialogBody,
+	IntelligenceReadinessDialogLead,
+	IntelligenceReadinessDialogNote,
+	IntelligenceReadinessDialogSection,
+	IntelligenceReadinessDialogSubhead,
+	IntelligenceReadinessDialogFooter,
 	DashboardIntelligenceCard,
 	DashboardIntelligenceHeader,
 	DashboardIntelligenceSourcePill,
+	DashboardIntelligenceRecommendationTitle,
 	DashboardIntelligenceContext,
 	DashboardIntelligenceImpact,
 	DashboardIntelligenceEvidence,
@@ -145,103 +139,6 @@ import {
 } from '../../Components/Library/AppPageLayout/AppPageLayout.styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
-
-const getLinkedDeviceIds = (task: Partial<Task> & { deviceId?: string | number }): Set<string> => {
-	const ids = new Set<string>();
-	if (Array.isArray(task.devices)) {
-		task.devices.forEach((deviceId) => {
-			if (deviceId !== undefined && deviceId !== null) {
-				ids.add(String(deviceId));
-			}
-		});
-	}
-	if (task.deviceId !== undefined && task.deviceId !== null) {
-		ids.add(String(task.deviceId));
-	}
-	return ids;
-};
-
-const clampHealthScore = (score: number): number =>
-	Math.max(0, Math.min(100, Math.round(score)));
-
-const hasRecordedValue = (value: unknown): boolean => {
-	if (Array.isArray(value)) return value.length > 0;
-	if (typeof value === 'number') return Number.isFinite(value);
-	return String(value || '').trim().length > 0;
-};
-
-const getFirstRecordedValue = (
-	source: Record<string, unknown>,
-	keys: string[],
-): unknown => keys.map((key) => source[key]).find(hasRecordedValue);
-
-const getDeviceDocumentationScore = (devices: any[]): number => {
-	if (!devices.length) return 0;
-
-	const documentationDevices = devices.filter(expectsEquipmentIdentityDetails);
-	if (!documentationDevices.length) return 100;
-
-	const total = documentationDevices.reduce((sum, device) => {
-		const detailChecks = [
-			getFirstRecordedValue(device, ['assetType', 'type', 'name']),
-			getFirstRecordedValue(device, ['brand', 'manufacturer', 'make']),
-			getFirstRecordedValue(device, ['model', 'modelNumber']),
-			getFirstRecordedValue(device, [
-				'installDate',
-				'installedDate',
-				'installationDate',
-				'installYear',
-				'estimatedInstallYear',
-				'yearInstalled',
-			]),
-			getFirstRecordedValue(device, [
-				'serialNumber',
-				'filterSize',
-				'warrantyEndDate',
-				'warrantyLength',
-				'warrantyDocumentAttached',
-			]),
-		];
-
-		const completeFields = detailChecks.filter(hasRecordedValue).length;
-		return sum + (completeFields / detailChecks.length) * 100;
-	}, 0);
-
-	return clampHealthScore(total / documentationDevices.length);
-};
-
-const maintenanceRecordMatchesDevice = (
-	record: any,
-	deviceId: string,
-): boolean => {
-	const directIds = [
-		record?.deviceId,
-		record?.applianceId,
-		record?.systemId,
-		record?.relatedDeviceId,
-		record?.relatedApplianceId,
-		record?.equipmentId,
-	];
-
-	if (directIds.some((id) => String(id || '').trim() === deviceId)) {
-		return true;
-	}
-
-	const arrayFields = [
-		record?.devices,
-		record?.deviceIds,
-		record?.appliances,
-		record?.applianceIds,
-		record?.systems,
-		record?.systemIds,
-	];
-
-	return arrayFields.some(
-		(value) =>
-			Array.isArray(value) &&
-			value.some((id) => String(id || '').trim() === deviceId),
-	);
-};
 
 const isPermissionDeniedError = (error: unknown): boolean => {
 	const err = error as {
@@ -378,7 +275,7 @@ export const DashboardTab = () => {
 	const [selectedPropertyId, setSelectedPropertyId] = useState('');
 	const [draftPropertyId, setDraftPropertyId] = useState('');
 	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-	const [isHomeHealthHelpOpen, setIsHomeHealthHelpOpen] = useState(false);
+	const [isReadinessHelpOpen, setIsReadinessHelpOpen] = useState(false);
 	const [activeHomeActivityTab, setActiveHomeActivityTab] =
 		useState<HomeActivityTabKey>('needs_attention');
 	const propertyFilteredProperties = useMemo(
@@ -748,14 +645,12 @@ export const DashboardTab = () => {
 		const overviewEyebrow = isMyFocus
 			? 'Your Homes'
 			: isSinglePropertyScope
-				? isHomeowner
-					? 'Home Health'
-					: 'Property Health'
+				? 'Maintley Intelligence'
 				: 'Homes in View';
 		const overviewText =
 			allProperties.length === 0
 				? 'No homes have assigned work in this view.'
-				: `Maintenance readiness based on saved records across ${propertyCountLabel} and ${systemsCountLabel}.`;
+				: `Guidance based on saved records across ${propertyCountLabel} and ${systemsCountLabel}.`;
 
 		switch (dashboardAudience) {
 			case 'maintenance_lead':
@@ -846,7 +741,6 @@ export const DashboardTab = () => {
 		allProperties.length,
 		dashboardAudience,
 		dashboardScope,
-		isHomeowner,
 		trackedSystemsCount,
 	]);
 
@@ -1093,138 +987,42 @@ export const DashboardTab = () => {
 		DASHBOARD_DUE_WINDOW_DAYS,
 	]);
 
-	const homeHealth = useMemo(() => {
+	const intelligenceReadiness = useMemo(() => {
 		const sourceRecords = resolvedDashboardMaintenanceHistory.length
 			? resolvedDashboardMaintenanceHistory
 			: scopedMaintenanceHistory;
-		const documentation = getDeviceDocumentationScore(visibleDevices);
-		const maintenanceDevices = visibleDevices.filter(expectsRecurringCareRecord);
-		const historyDevices = visibleDevices.filter(expectsMaintenanceHistoryRecord);
-		const recurringCareDeviceIds = new Set<string>();
-
-		filteredTasks.forEach((task) => {
-			if (task.isRecurring !== true || !ACTIVE_TASK_STATUSES.has(task.status)) return;
-			getLinkedDeviceIds(task).forEach((deviceId) =>
-				recurringCareDeviceIds.add(deviceId),
-			);
+		return deriveMaintleyIntelligenceReadiness({
+			systems: visibleDevices,
+			tasks: filteredTasks,
+			maintenanceHistory: sourceRecords,
 		});
-
-		const maintenance = maintenanceDevices.length
-			? clampHealthScore(
-				maintenanceDevices.reduce((sum, device: any) => {
-					const deviceId = String(device?.id || '').trim();
-					const serviceItems = Array.isArray(device?.serviceItems)
-						? device.serviceItems
-						: [];
-					const hasRecurringCare = recurringCareDeviceIds.has(deviceId);
-					const hasServiceItems = serviceItems.length > 0;
-
-					if (hasRecurringCare && hasServiceItems) return sum + 100;
-					if (hasRecurringCare) return sum + 80;
-					if (hasServiceItems) return sum + 60;
-					return sum;
-				}, 0) / maintenanceDevices.length,
-			)
-			: visibleDevices.length
-				? 100
-				: 0;
-
-		const history = historyDevices.length
-			? clampHealthScore(
-				historyDevices.reduce((sum, device: any) => {
-					const deviceId = String(device?.id || '').trim();
-					const hasDeviceHistory = sourceRecords.some((record: any) =>
-							maintenanceRecordMatchesDevice(record, deviceId),
-						);
-
-					return sum + (hasDeviceHistory ? 100 : 0);
-				}, 0) / historyDevices.length,
-			)
-			: visibleDevices.length
-				? 100
-				: sourceRecords.length > 0
-					? 70
-					: 0;
-
-		const overall = clampHealthScore(
-			documentation * 0.35 + maintenance * 0.35 + history * 0.3,
-		);
-		const status =
-			overall >= 90
-				? 'Excellent'
-				: overall >= 75
-					? 'Good'
-					: overall >= 60
-						? 'Fair'
-						: overall >= 40
-							? 'Needs Improvement'
-							: 'Building';
-		const categories = [
-			{ label: 'Documentation', value: documentation },
-			{ label: 'Maintenance', value: maintenance },
-			{ label: 'History', value: history },
-		];
-		const lowestCategory = [...categories].sort((a, b) => a.value - b.value)[0];
-		const opportunities = [
-			...(history < 75 ? ['Record maintenance history'] : []),
-			...(documentation < 75 ? ['Add equipment install dates'] : []),
-			...(documentation < 85 ? ['Upload warranties'] : []),
-			...(maintenance < 75 ? ['Add recurring care'] : []),
-		].slice(0, 3);
-		const quickWin =
-			overall >= 90
-				? {
-					label: 'Keep records current',
-					detail: 'Add documents and maintenance notes as new work happens.',
-				}
-				: lowestCategory.label === 'Maintenance'
-					? {
-						label: 'Add recurring care',
-						detail: 'Record one recurring service item or reminder for important equipment.',
-					}
-					: lowestCategory.label === 'History'
-						? {
-							label: 'Record recent maintenance',
-							detail: "Add one completed service note to strengthen this home's history.",
-						}
-						: {
-							label: 'Add equipment details',
-							detail: 'Add make, model, install date, warranty, or serial details for one record.',
-						};
-
-		return {
-			overall,
-			status,
-			categories,
-			largestGap: lowestCategory,
-			opportunities:
-				opportunities.length > 0
-					? opportunities
-					: ['Keep adding records as maintenance happens'],
-			quickWin,
-		};
 	}, [
-		ACTIVE_TASK_STATUSES,
 		resolvedDashboardMaintenanceHistory,
 		filteredTasks,
 		scopedMaintenanceHistory,
 		visibleDevices,
 	]);
-
-	const healthRecordLabel = isHomeowner ? 'home' : 'property';
-	const canOpenHealthReview = allProperties.length === 1;
-	const healthReviewLabel = isHomeowner ? 'Home Review' : 'Property Review';
-	const healthCardEyebrow = canOpenHealthReview
-		? isHomeowner
-			? 'Home Health'
-			: 'Property Health'
-		: dashboardFraming.overviewEyebrow;
-	const homeHealthMemoryBlocks = Math.max(
-		0,
-		Math.min(10, Math.round(homeHealth.overall / 10)),
+	const hasRecurringTaskAccess = canUseRecurringTasks(
+		currentUser?.subscription as any,
 	);
-	const handleOpenHealthReview = () => {
-		if (!canOpenHealthReview) return;
+	const getReadinessNextStep = (
+		category: (typeof intelligenceReadiness.categories)[number],
+	): string => {
+		if (
+			category.id === 'maintenance_coverage' &&
+			category.level !== 'ready' &&
+			!hasRecurringTaskAccess
+		) {
+			return 'Your current access does not include recurring tasks. You can still add one-time maintenance tasks.';
+		}
+		return category.nextStep;
+	};
+
+	const readinessRecordLabel = isHomeowner ? 'home' : 'property';
+	const canOpenIntelligenceReview = allProperties.length === 1;
+	const intelligenceReviewLabel = isHomeowner ? 'Home Review' : 'Property Review';
+	const handleOpenIntelligenceReview = () => {
+		if (!canOpenIntelligenceReview) return;
 
 		const targetProperty = allProperties[0] as any;
 		const targetSlug = String(targetProperty?.slug || targetProperty?.id || '').trim();
@@ -1640,13 +1438,13 @@ export const DashboardTab = () => {
 
 			<StandardAppPageHeader>
 				<StandardAppPageTitleBlock>
-					<StandardAppPageTitle>Dashboard</StandardAppPageTitle>
+					<StandardAppPageTitle>{TODAY_PAGE_LABEL}</StandardAppPageTitle>
 					<StandardAppPageSubtitle>
 						{dashboardFraming.pageSubtitle}
 					</StandardAppPageSubtitle>
 				</StandardAppPageTitleBlock>
 				<DashboardHeaderActions>
-					<DashboardScopeControl aria-label='Dashboard view'>
+					<DashboardScopeControl aria-label='Today view'>
 						<DashboardScopeButton
 							type='button'
 							$isActive={dashboardScope === 'my_focus'}
@@ -1780,74 +1578,66 @@ export const DashboardTab = () => {
 					</TodayFocusButtons>
 				</TodayFocusCard>
 
-				<PortfolioHealthCard>
-					<HomeHealthHeader>
-						<CardEyebrow>{healthCardEyebrow}</CardEyebrow>
-						<HomeHealthHelp>
-							<HomeHealthHelpButton
+				<IntelligenceReadinessCard>
+					<IntelligenceReadinessHeader>
+						<CardEyebrow>Maintley Intelligence</CardEyebrow>
+						<IntelligenceReadinessHelp>
+							<IntelligenceReadinessHelpButton
 								type='button'
-								aria-label='How Home Health is calculated'
-								title='How Home Health is calculated'
-								onClick={() => setIsHomeHealthHelpOpen(true)}>
+								aria-label='How Maintley Intelligence readiness works'
+								title='How readiness works'
+								onClick={() => setIsReadinessHelpOpen(true)}>
 								<FontAwesomeIcon icon={faCircleInfo} aria-hidden='true' />
-							</HomeHealthHelpButton>
-						</HomeHealthHelp>
-					</HomeHealthHeader>
-					<HomeHealthSummary>
-						<HomeHealthStatus>
-							<HomeHealthStatusLine>
-								<HomeHealthStatusLabel>{homeHealth.status}</HomeHealthStatusLabel>
-								<HomeHealthStatusPercent>{homeHealth.overall}%</HomeHealthStatusPercent>
-							</HomeHealthStatusLine>
-							<HomeHealthMemoryBlocks
-								aria-label={`${homeHealth.status}: ${homeHealthMemoryBlocks} of 10 home health signals`}>
-								{Array.from({ length: 10 }).map((_, index) => (
-									<HomeHealthMemoryBlock
-										key={index}
-										$filled={index < homeHealthMemoryBlocks}
-									/>
-								))}
-							</HomeHealthMemoryBlocks>
-							<HomeHealthMemoryText>
-								{homeHealthMemoryBlocks} of 10 home health signals
-							</HomeHealthMemoryText>
-						</HomeHealthStatus>
-						<HomeHealthBreakdown>
-							{homeHealth.categories.map((category) => (
-								<HomeHealthBreakdownRow
-									key={category.label}
-									type='button'
-									$clickable={canOpenHealthReview}
-									disabled={!canOpenHealthReview}
-									aria-label={`Open ${healthReviewLabel} for ${category.label.toLowerCase()} details`}
-									title={`Open ${healthReviewLabel}`}
-									onClick={handleOpenHealthReview}>
-									<span>{category.label}</span>
-									<HomeHealthBarTrack aria-hidden='true'>
-										<HomeHealthBarFill $percent={category.value} />
-									</HomeHealthBarTrack>
-									<span>{category.value}%</span>
-								</HomeHealthBreakdownRow>
-							))}
-						</HomeHealthBreakdown>
-					</HomeHealthSummary>
-					<HomeHealthQuickWin>
-						<div>
-							<HomeHealthQuickWinLabel>Next best step</HomeHealthQuickWinLabel>
-							<HomeHealthQuickWinText>
-								<strong>{homeHealth.quickWin.label}</strong>
-								<span>{homeHealth.quickWin.detail}</span>
-							</HomeHealthQuickWinText>
-						</div>
-						{canOpenHealthReview && (
-							<HomeHealthQuickWinButton
+							</IntelligenceReadinessHelpButton>
+						</IntelligenceReadinessHelp>
+					</IntelligenceReadinessHeader>
+					<IntelligenceReadinessIntro>
+						<IntelligenceReadinessTitle>
+							Readiness for Guidance
+						</IntelligenceReadinessTitle>
+						<IntelligenceReadinessDescription>
+							See what Maintley can currently understand from the records saved for this {readinessRecordLabel}.
+						</IntelligenceReadinessDescription>
+					</IntelligenceReadinessIntro>
+					<IntelligenceReadinessCategories>
+						{intelligenceReadiness.categories.map((category) => (
+							<IntelligenceReadinessCategory
+								key={category.id}
 								type='button'
-								onClick={handleOpenHealthReview}>
-								View {healthReviewLabel}
-							</HomeHealthQuickWinButton>
-						)}
-					</HomeHealthQuickWin>
-				</PortfolioHealthCard>
+								$clickable={canOpenIntelligenceReview}
+								disabled={!canOpenIntelligenceReview}
+								aria-label={
+									canOpenIntelligenceReview
+										? `Open ${intelligenceReviewLabel} for ${category.title.toLowerCase()} details`
+										: `${category.title}: ${category.levelLabel}. ${category.summary}`
+								}
+								title={canOpenIntelligenceReview ? `Open ${intelligenceReviewLabel}` : undefined}
+								onClick={handleOpenIntelligenceReview}>
+								<IntelligenceReadinessCategoryTitle>
+									{category.title}
+								</IntelligenceReadinessCategoryTitle>
+								<IntelligenceReadinessLevel $level={category.level}>
+									{category.levelLabel}
+								</IntelligenceReadinessLevel>
+								<IntelligenceReadinessSummary>
+									{category.summary}
+								</IntelligenceReadinessSummary>
+								<IntelligenceReadinessNextStep>
+									Next: {getReadinessNextStep(category)}
+								</IntelligenceReadinessNextStep>
+							</IntelligenceReadinessCategory>
+						))}
+					</IntelligenceReadinessCategories>
+					{canOpenIntelligenceReview && (
+						<IntelligenceReadinessFooter>
+							<IntelligenceReadinessReviewButton
+								type='button'
+								onClick={handleOpenIntelligenceReview}>
+								View {intelligenceReviewLabel}
+							</IntelligenceReadinessReviewButton>
+						</IntelligenceReadinessFooter>
+					)}
+				</IntelligenceReadinessCard>
 
 				{dashboardSuggestion && (
 					<DashboardIntelligenceCard>
@@ -1857,7 +1647,10 @@ export const DashboardTab = () => {
 								{getDashboardSuggestionSourceLabel(dashboardSuggestion)}
 							</DashboardIntelligenceSourcePill>
 						</DashboardIntelligenceHeader>
-						<CardTitle>{dashboardSuggestion.title}</CardTitle>
+						<CardTitle>Recommended Next Step</CardTitle>
+						<DashboardIntelligenceRecommendationTitle>
+							{dashboardSuggestion.title}
+						</DashboardIntelligenceRecommendationTitle>
 						{dashboardSuggestion.contextLabel && (
 							<DashboardIntelligenceContext>
 								{dashboardSuggestion.contextLabel}
@@ -2092,51 +1885,41 @@ export const DashboardTab = () => {
 			</HomeActivitySection>
 
 			<GenericModal
-				isOpen={isHomeHealthHelpOpen}
-				title={`${healthCardEyebrow} explained`}
-				onClose={() => setIsHomeHealthHelpOpen(false)}
+				isOpen={isReadinessHelpOpen}
+				title='Maintley Intelligence readiness'
+				onClose={() => setIsReadinessHelpOpen(false)}
 				showActions={false}
 				compact>
-				<HomeHealthDialogBody>
-					<HomeHealthDialogLead>
-						{isHomeowner
-							? "Home Health uses the information you've saved about your home. It reflects how complete and useful your home's maintenance memory is—not the physical condition of the home."
-							: "Property Health uses the information saved about this property. It reflects how complete and useful this property's maintenance memory is—not the physical condition of the property."}
-					</HomeHealthDialogLead>
-					<HomeHealthDialogSubhead>What Maintley reviews</HomeHealthDialogSubhead>
-					<HomeHealthDialogSection>
-						<strong>Documentation</strong>
+				<IntelligenceReadinessDialogBody>
+					<IntelligenceReadinessDialogLead>
+						Readiness shows what guidance Maintley can provide from the records saved for this {readinessRecordLabel}. It does not describe the physical condition of the {readinessRecordLabel}.
+					</IntelligenceReadinessDialogLead>
+					<IntelligenceReadinessDialogSubhead>What the levels mean</IntelligenceReadinessDialogSubhead>
+					<IntelligenceReadinessDialogSection>
+						<strong>Starting</strong>
 						<span>
-							Maintley Intelligence reviews how completely equipment has been
-							documented, including make, model, install date, serial number,
-							warranty information, and other identifying details.
+							Maintley has little or no usable context in this category yet.
 						</span>
-					</HomeHealthDialogSection>
-					<HomeHealthDialogSection>
-						<strong>Maintenance</strong>
+					</IntelligenceReadinessDialogSection>
+					<IntelligenceReadinessDialogSection>
+						<strong>Building context</strong>
 						<span>
-							Maintley Intelligence reviews recurring care and maintenance
-							records to understand how consistently important service is
-							being tracked.
+							Maintley can provide some guidance and shows which record would make that guidance more useful.
 						</span>
-					</HomeHealthDialogSection>
-					<HomeHealthDialogSection>
-						<strong>History</strong>
+					</IntelligenceReadinessDialogSection>
+					<IntelligenceReadinessDialogSection>
+						<strong>Ready</strong>
 						<span>
-							Maintley Intelligence reviews completed maintenance history
-							connected to this {healthRecordLabel}. More history provides
-							better context for future guidance.
+							The current records support the type of guidance described for that category.
 						</span>
-					</HomeHealthDialogSection>
-					<HomeHealthDialogNote>
-						As this {healthRecordLabel}'s memory grows, Home Health improves,
-						allowing Maintley Intelligence to provide more personalized
-						recommendations and guidance over time.
-					</HomeHealthDialogNote>
-					<HomeHealthDialogFooter>
-						Powered by Maintley Intelligence
-					</HomeHealthDialogFooter>
-				</HomeHealthDialogBody>
+					</IntelligenceReadinessDialogSection>
+					<IntelligenceReadinessDialogNote>
+						Readiness is separate from your plan. Adding records does not change your subscription or grant access to paid features.
+					</IntelligenceReadinessDialogNote>
+					<IntelligenceReadinessDialogFooter>
+						Based only on saved Maintley records
+					</IntelligenceReadinessDialogFooter>
+				</IntelligenceReadinessDialogBody>
 			</GenericModal>
 
 			{/* Task Completion Modal */}

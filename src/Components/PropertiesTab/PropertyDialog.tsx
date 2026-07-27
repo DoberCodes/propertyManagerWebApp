@@ -257,7 +257,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		viewers: [],
 		accessSnapshots: {},
 		showOnDashboard: true,
-		openSetupAfterCreate: true,
+		openSetupAfterCreate: !showOnboardingSetupTip,
 	});
 	const [stepIndex, setStepIndex] = useState(0);
 	const wizardContentRef = useRef<HTMLDivElement | null>(null);
@@ -335,7 +335,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 				viewers: [],
 				accessSnapshots: {},
 				showOnDashboard: true,
-				openSetupAfterCreate: true,
+				openSetupAfterCreate: !showOnboardingSetupTip,
 			});
 		}
 
@@ -347,7 +347,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setImageError(null);
 		setIsDeleteConfirmOpen(false);
 		setIsOnboardingTipDismissed(false);
-	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser, isHiddenFromDashboard]);
+	}, [isOpen, initialData, selectedGroupId, forceSingleFamily, currentUser, isHiddenFromDashboard, showOnboardingSetupTip]);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -804,7 +804,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 							<OnboardingNextStepBanner>
 								<FontAwesomeIcon icon={faInfoCircle} />
 								<span>
-									<strong>Next:</strong> after saving, Maintley will open the {setupAssistantLabel} so you can add equipment and suggested maintenance tasks.
+									<strong>Next:</strong> after saving, Maintley will confirm your {recordLowerLabel} and let you choose whether to continue setup now.
 								</span>
 							</OnboardingNextStepBanner>
 						)}
@@ -1180,14 +1180,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					/>
 					<DashboardVisibilityText>
 						<DashboardVisibilityTitle>
-							Show this {recordLowerLabel} on the dashboard
+							Show this {recordLowerLabel} on Today
 						</DashboardVisibilityTitle>
 						<DashboardVisibilityHint>
-							Keep this on for active {recordPluralLowerLabel} you want included in dashboard summaries. Turn it off for archived or less-used {recordPluralLowerLabel}.
+							Keep this on for active {recordPluralLowerLabel} you want included in Today summaries. Turn it off for archived or less-used {recordPluralLowerLabel}.
 						</DashboardVisibilityHint>
 					</DashboardVisibilityText>
 				</DashboardVisibilityCard>
-				{!initialData && !isDuplicate && (
+				{!initialData && !isDuplicate && !showOnboardingSetupTip && (
 					<DashboardVisibilityCard>
 						<input
 							type='checkbox'

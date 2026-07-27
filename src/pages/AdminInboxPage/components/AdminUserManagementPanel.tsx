@@ -23,8 +23,14 @@ import {
 	SecondaryButton,
     SubTitle,
     SuccessText,
-    UserActivityItem,
-    UserActivityList,
+	UserActivityItem,
+	UserActivityList,
+	UserCard,
+	UserCardActionButton,
+	UserCardHeader,
+	UserCardIdentity,
+	UserCardList,
+	UserCardMeta,
     UserDetailsGrid,
     UserDetailsItem,
     UserDetailsKey,
@@ -701,6 +707,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
             </div>
 
             {isUserListExpanded ? (
+				<>
                 <UserTableWrap id='admin-user-list-table'>
                     <UserTable>
                         <thead>
@@ -748,6 +755,36 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                         </tbody>
                     </UserTable>
                 </UserTableWrap>
+				<UserCardList aria-label='Admin users'>
+					{sortedUsers.length === 0 ? (
+						<UserCard>No users loaded yet.</UserCard>
+					) : (
+						sortedUsers.map((user) => (
+							<UserCard key={String(user.id)}>
+								<UserCardHeader>
+									<UserCardIdentity>
+										<strong>{String(user.displayName || '') || 'Unknown User'}</strong>
+										<span>{String(user.email || '') || 'No email'}</span>
+									</UserCardIdentity>
+									<UserRolePill>{formatLabel(String(user.maintleyRole || 'user'))}</UserRolePill>
+								</UserCardHeader>
+								<UserCardMeta>
+									<div><dt>Plan</dt><dd>{formatLabel(String(user.subscriptionPlan || 'none'))}</dd></div>
+									<div><dt>Status</dt><dd>{formatLabel(String(user.accountStatus || user.subscriptionStatus || 'active'))}</dd></div>
+									<div><dt>Properties</dt><dd>{String(user.propertyCount ?? 0)}</dd></div>
+									<div><dt>Last active</dt><dd>{formatRelative(user.lastActiveAt)}</dd></div>
+									<div><dt>Created</dt><dd>{formatDate(String(user.createdAt || ''))}</dd></div>
+								</UserCardMeta>
+								<UserCardActionButton
+									type='button'
+									onClick={() => void handleInspectUser(String(user.id || ''))}>
+									Inspect user
+								</UserCardActionButton>
+							</UserCard>
+						))
+					)}
+				</UserCardList>
+				</>
             ) : null}
 			</div>
 

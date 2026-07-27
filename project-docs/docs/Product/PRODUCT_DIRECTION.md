@@ -531,6 +531,15 @@ Recommended flow:
 
 The Setup Assistant should not become a required onboarding checklist.
 
+Initial onboarding should introduce one outcome and one primary action. For a
+new account, the blocking flow is limited to a concise welcome and a
+first-property confirmation. Property creation remains responsible for its own
+fields, and the user chooses whether to continue into Setup Assistant afterward.
+
+Users with an existing property should not be sent through property-creation
+education again. Advanced feature education belongs in contextual empty states,
+help content, and the relevant feature surface rather than the initial tour.
+
 ---
 
 ## Ongoing Setup

@@ -359,7 +359,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const deviceFilters: FilterConfig[] = [
 		{
 			key: 'status',
-			label: 'Lifecycle Status',
+			label: 'Equipment status',
 			type: 'select',
 			options: [
 				{ value: 'Active', label: 'Active' },
@@ -617,7 +617,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 								}}>
 								View history
 							</button>
-							<span style={{ color: '#94a3b8' }}>Lifecycle timeline and service records</span>
+							<span style={{ color: '#94a3b8' }}>Service history and related records</span>
 						</div>
 					</div>
 				);
@@ -670,7 +670,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{activityText}</div>
 						<div style={{ fontSize: 12, color: '#64748b' }}>
-							Last lifecycle update: {formatRelativeTime(row.decommissionDate || getDeviceInstallDate(row))}
+							Installed or retired: {formatRelativeTime(row.decommissionDate || getDeviceInstallDate(row))}
 						</div>
 					</div>
 				);
@@ -1050,8 +1050,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			/>
 			<SectionHeader>Equipment</SectionHeader>
 			<SectionLead>
-				Track each equipment record as part of the maintenance memory for {equipmentLanguage.contextNoun}, including
-				task context and service lifecycle history.
+				Keep equipment details, related tasks, and service history together for {equipmentLanguage.contextNoun}.
 			</SectionLead>
 			<TabSummaryBar>
 				<TabSummaryPill>Total: {devices.length}</TabSummaryPill>
@@ -1093,7 +1092,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				defaultSortValue='type'
 				sortOptions={[
 					{ value: 'type', label: 'Equipment type' },
-					{ value: 'status', label: 'Lifecycle status' },
+					{ value: 'status', label: 'Equipment status' },
 					{ value: 'brand', label: 'Brand' },
 				]}
 				onSortChange={(value) =>
@@ -1165,7 +1164,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						}
 						style={{ minHeight: 42, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}>
 						<option value='type'>Sort: Equipment type</option>
-						<option value='status'>Sort: Lifecycle status</option>
+						<option value='status'>Sort: Equipment status</option>
 						<option value='brand'>Sort: Brand</option>
 					</select>
 				</div>

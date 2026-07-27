@@ -33,6 +33,7 @@ import {
 	getEffectiveSubscriptionPlanId,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
+import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
 
 export const TopNav = () => {
 	const navigate = useNavigate();
@@ -42,7 +43,7 @@ export const TopNav = () => {
 	const { data: navProperties = [] } = useGetPropertiesQuery();
 	const activeRoute = useSelector((state: RootState) => state.navigation.activeRoute);
 
-	const [navLocation, setNavLocation] = useState('Dashboard');
+	const [navLocation, setNavLocation] = useState(TODAY_PAGE_LABEL);
 
 	const pathname = location.pathname || '';
 	const isPropertyContext = /^\/property\//i.test(pathname);
@@ -118,7 +119,7 @@ export const TopNav = () => {
 				(isHomeowner ? 'Home' : 'Property'),
 			);
 		} else {
-			setNavLocation('Dashboard');
+			setNavLocation(TODAY_PAGE_LABEL);
 		}
 		// Set document title for better UX
 

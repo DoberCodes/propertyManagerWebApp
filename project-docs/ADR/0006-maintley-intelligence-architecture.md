@@ -3,7 +3,7 @@
 Status: Accepted - initial implementation
 Accepted: 2026-06-18
 Date: 2026-06-18
-Amended: 2026-06-30
+Amended: 2026-07-26
 Decision Source: ADR Gap Audit
 
 ## Context
@@ -53,6 +53,29 @@ One intelligence engine. Multiple experiences.
 - Rules should be modular. Each rule evaluates one concern and returns zero or more findings.
 - Finding records should be structured and explainable, including identifiers, rule ID, category, severity, priority, title, description, why it matters, suggested action metadata, affected records, required plan/capability metadata where applicable, baseline version, and supporting metadata.
 - Scan persistence is a consumer responsibility. The intelligence engine itself does not save scans.
+- Maintley Intelligence may expose a shared, derived readiness assessment that
+  explains which kinds of guidance the currently saved records can support.
+- Readiness evaluates Maintley's available context. It does not evaluate the
+  physical condition of a property, grade the customer, certify record
+  completeness, or determine subscription access.
+- Readiness uses explainable categories tied to supported Intelligence benefits.
+  The initial categories are equipment context, maintenance coverage, and
+  service history.
+- Customer-facing readiness uses categorical levels such as `Starting`,
+  `Building context`, and `Ready`. It does not expose an overall percentage,
+  weighted property score, or health-signal count.
+- Every readiness category must explain what Maintley can currently do with the
+  available records and identify a practical next step when more context would
+  enable better guidance.
+- Readiness evaluation belongs to the shared Intelligence layer. Dashboard,
+  property, email, and future consumers must not create their own readiness
+  calculations.
+- Data readiness and paid capability access remain separate. A readiness result
+  cannot grant an entitlement, and presentation must not imply that adding data
+  unlocks a capability excluded by the account's effective access.
+- Readiness is derived rather than canonical Firestore state. If a consumer
+  persists a point-in-time snapshot, it must retain the readiness contract and
+  baseline versions needed to explain the historical result.
 
 
 ## Reasoning
@@ -83,8 +106,12 @@ One intelligence engine. Multiple experiences.
 - Positive: keeps recommendation behavior centralized and easier to validate.
 - Positive: allows consumers to tune presentation without changing rule logic.
 - Positive: keeps scan history and displayed recommendations explainable through structured metadata and baseline versions.
+- Positive: lets Maintley explain when saved records support more specific
+  guidance without judging the home or presenting false precision.
 - Cost: requires deliberate synchronization discipline between data model and intelligence logic.
 - Cost: consumers must respect the engine contract instead of adding local recommendation shortcuts.
+- Cost: readiness benefits and prerequisites must remain synchronized with
+  capabilities Maintley actually implements.
 
 
 ## Non-Goals

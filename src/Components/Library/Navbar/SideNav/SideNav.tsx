@@ -43,6 +43,7 @@ import {
 	getEffectiveSubscriptionPlanId,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
+import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
 import { COLORS } from '../../../../constants/colors';
 import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
 
@@ -83,7 +84,7 @@ export const SideNav = () => {
 	// Desktop nav items
 	const desktopMenuItems = [
 		{
-			label: 'Dashboard',
+			label: TODAY_PAGE_LABEL,
 			path: '/dashboard',
 			icon: faTachometerAlt,
 			visible: !isUserTenant,
