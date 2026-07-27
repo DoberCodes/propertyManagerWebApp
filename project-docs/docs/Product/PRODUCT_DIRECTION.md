@@ -438,9 +438,6 @@ the core maintenance workflow. It does not include full Maintley Intelligence.
 Portfolio combines advanced business coordination with full Maintley
 Intelligence and cross-property understanding.
 
-Multi-Homeowner is retired as a public plan. Its internal identifier remains a
-compatibility alias for existing Stripe and entitlement records.
-
 When deciding feature placement, ask:
 
 * Does this help someone record or maintain a home? Include it in Free.

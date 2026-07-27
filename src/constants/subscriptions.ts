@@ -11,7 +11,6 @@ const getPublicPlan = (planId: string) => {
 
 const HOMEOWNER_PUBLIC = getPublicPlan('homeowner');
 const HOMEOWNER_PLUS_PUBLIC = getPublicPlan('homeowner_plus');
-const MULTI_HOMEOWNER_PUBLIC = getPublicPlan('multi_homeowner');
 const PROPERTY_PUBLIC = getPublicPlan('property');
 const PORTFOLIO_PUBLIC = getPublicPlan('portfolio');
 
@@ -64,42 +63,6 @@ export const SUBSCRIPTION_PLANS = {
 			'AI Guidance & Knowledge Packs',
 			'Advanced Document Processing',
 			'10 GB Document Storage',
-		],
-		permissions: {
-			canManageTeam: false,
-			canManageTenants: false,
-			canViewReports: true,
-			canExportData: true,
-			canAdvancedAuditTrail: true,
-			canManageMultiUnit: false,
-			canTrackWarranties: true,
-			canLinkParts: true,
-			canPortfolioReporting: false,
-			canAdvancedAnalytics: false,
-			canPropertyGroups: true,
-			prioritySupport: false,
-			canCreateProperties: true,
-			canManageProperties: true,
-			canSubmitMaintenanceRequests: false,
-			canViewTenantInfo: false,
-			canUseSuggestedMaintenancePackages: true,
-			suggestedMaintenancePackageLimit: 999,
-			canUseRecurringTasks: true,
-			canUseNotifications: true,
-		},
-	},
-	MULTI_HOMEOWNER: {
-		...MULTI_HOMEOWNER_PUBLIC,
-		features: [
-			'Legacy Homeowner+ access:',
-			'Up to 5 Homes',
-			'Property Groups',
-			'Cross-home Organization',
-			'Unlimited Equipment Records',
-			'Maintley Intelligence',
-			'Recurring Maintenance Tasks',
-			'Notifications & Reminders',
-			'Advanced Document Storage',
 		],
 		permissions: {
 			canManageTeam: false,

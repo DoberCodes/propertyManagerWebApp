@@ -1,7 +1,6 @@
 export type PlanId =
 	| 'homeowner'
 	| 'homeowner_plus'
-	| 'multi_homeowner'
 	| 'property'
 	| 'portfolio'
 	| 'guest'
@@ -10,7 +9,6 @@ export type PlanId =
 
 export type PaidPlanId =
 	| 'homeowner_plus'
-	| 'multi_homeowner'
 	| 'property'
 	| 'portfolio';
 
@@ -180,7 +178,6 @@ export interface AdminAuditEvent<TTimestamp = unknown> {
 }
 
 export interface EntitlementFeatureFlags {
-	multiHomeownerPlan: boolean;
 	homeownerPlusProductTrial: boolean;
 	internalEntitlementGrantIssuance: boolean;
 	complimentaryPaidTransitions: boolean;

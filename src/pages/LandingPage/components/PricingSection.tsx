@@ -9,7 +9,6 @@ import {
 	faTimes,
 } from '@fortawesome/free-solid-svg-icons';
 import { SUBSCRIPTION_PLANS } from '../../../constants/subscriptions';
-import { isMultiHomeownerPlanEnabled } from '../../../entitlements/planAvailability';
 import {
 	PricingActionButton,
 	PricingActionLink,
@@ -41,7 +40,6 @@ import {
 const paidPlans = [
 	SUBSCRIPTION_PLANS.HOMEOWNER,
 	SUBSCRIPTION_PLANS.HOMEOWNER_PLUS,
-	SUBSCRIPTION_PLANS.MULTI_HOMEOWNER,
 	SUBSCRIPTION_PLANS.PROPERTY,
 	SUBSCRIPTION_PLANS.PORTFOLIO,
 ];
@@ -49,8 +47,8 @@ const paidPlans = [
 type PlanAudience = 'home' | 'business';
 
 const planGroups: Record<PlanAudience, number[]> = {
-	home: [0, 1, ...(isMultiHomeownerPlanEnabled() ? [2] : [])],
-	business: [3, 4],
+	home: [0, 1],
+	business: [2, 3],
 };
 
 const formatLimit = (
@@ -65,8 +63,7 @@ const comparisonValues = <T,>(
 	homeownerPlus: T,
 	property: T,
 	portfolio: T,
-	multiHomeowner: T = homeownerPlus,
-): T[] => [free, homeownerPlus, multiHomeowner, property, portfolio];
+): T[] => [free, homeownerPlus, property, portfolio];
 
 const quickComparisonRows = [
 	{
@@ -91,7 +88,7 @@ const quickComparisonRows = [
 	{ label: 'Manual tasks', values: comparisonValues(true, true, true, true) },
 	{ label: 'Task assignment', values: comparisonValues(true, true, true, true) },
 	{ label: 'Basic record gap check', values: comparisonValues(true, true, true, true) },
-	{ label: 'Maintley Intelligence guidance', values: comparisonValues('Lightweight record check', 'Home guidance', 'Lightweight record check', 'Portfolio guidance', 'Home guidance') },
+	{ label: 'Maintley Intelligence guidance', values: comparisonValues('Lightweight record check', 'Home guidance', 'Lightweight record check', 'Portfolio guidance') },
 	{ label: 'Property Insight observations', values: comparisonValues(false, true, false, true) },
 	{ label: 'Suggested maintenance actions', values: comparisonValues('Generate tasks', 'Generate tasks', 'Generate tasks', 'Generate tasks') },
 	{ label: 'Recurring maintenance scheduling', values: comparisonValues(true, true, true, true) },
@@ -107,7 +104,7 @@ const quickComparisonRows = [
 	{ label: 'Team collaboration', values: comparisonValues<boolean | string>(false, false, 'Simple', true) },
 	{ label: 'Resident maintenance requests', values: comparisonValues(false, false, true, true) },
 	{ label: 'Role-based access', values: comparisonValues(false, false, false, true) },
-	{ label: 'Property groups', values: comparisonValues(false, false, true, true, true) },
+	{ label: 'Property groups', values: comparisonValues(false, true, true, true) },
 	{ label: 'Portfolio reporting', values: comparisonValues(false, false, false, true) },
 	{ label: 'Advanced analytics', values: comparisonValues(false, false, false, true) },
 	{ label: 'Priority support', values: comparisonValues(false, false, false, true) },

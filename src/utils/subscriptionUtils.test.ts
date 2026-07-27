@@ -74,9 +74,6 @@ describe('subscriptionUtils', () => {
 		const homeownerPlus = activeSubscription('homeowner_plus');
 
 		expect(getMaxPropertiesForPlan('homeowner_plus')).toBe(5);
-		expect(getMaxPropertiesForPlan('multi_homeowner')).toBe(5);
-		expect(getMaxFilesForPlan('multi_homeowner')).toBe(999999999);
-		expect(getMaxStorageGbForPlan('multi_homeowner')).toBe(10);
 		expect(getMaxFilesForPlan('homeowner_plus')).toBe(999999999);
 		expect(getMaxStorageGbForPlan('homeowner_plus')).toBe(10);
 		expect(getMaxStorageGbForPlan('homeowner_plus')).toBeLessThan(

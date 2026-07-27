@@ -36,12 +36,6 @@ const STRIPE_PRICE_PARAMS = {
 	homeownerPlusAnnualPriceId: optionalStringParam(
 		'STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID',
 	),
-	multiHomeownerMonthlyPriceId: optionalStringParam(
-		'STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID',
-	),
-	multiHomeownerAnnualPriceId: optionalStringParam(
-		'STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID',
-	),
 	propertyMonthlyPriceId: optionalStringParam(
 		'STRIPE_PROPERTY_MONTHLY_PRICE_ID',
 	),
@@ -186,12 +180,6 @@ const resolvePriceIdForPlan = (
 		readExportedStripeConfig('property_monthly_price_id') ||
 		readExportedStripeConfig('property_price_id') ||
 		readEnv('REACT_APP_STRIPE_PROPERTY_PLAN_ID');
-	const multiHomeownerPriceId =
-		readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerMonthlyPriceId) ||
-		readExportedStripeConfig('multi_homeowner_monthly_price_id');
-	const multiHomeownerAnnualPriceId =
-		readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerAnnualPriceId) ||
-		readExportedStripeConfig('multi_homeowner_annual_price_id');
 	const propertyAnnualPriceId =
 		readStringParam(STRIPE_PRICE_PARAMS.propertyAnnualPriceId) ||
 		readExportedStripeConfig('property_annual_price_id') ||
@@ -210,14 +198,12 @@ const resolvePriceIdForPlan = (
 
 	const monthlyPriceMap: Record<string, string> = {
 		homeowner_plus: homeownerPlusPriceId,
-		multi_homeowner: multiHomeownerPriceId,
 		property: propertyPriceId,
 		portfolio: portfolioPriceId,
 	};
 
 	const annualPriceMap: Record<string, string> = {
 		homeowner_plus: homeownerPlusAnnualPriceId || homeownerPlusPriceId,
-		multi_homeowner: multiHomeownerAnnualPriceId || multiHomeownerPriceId,
 		property: propertyAnnualPriceId || propertyPriceId,
 		portfolio: portfolioAnnualPriceId || portfolioPriceId,
 	};
@@ -231,7 +217,6 @@ const resolvePriceIdForPlan = (
 
 const CHECKOUT_PLAN_IDS = [
 	'homeowner_plus',
-	'multi_homeowner',
 	'property',
 	'portfolio',
 ] as const;
@@ -632,65 +617,6 @@ const applyGrantTransitionMetadata = async (params: {
 	});
 };
 
-const BUSINESS_PLAN_IDS = new Set(['property', 'portfolio']);
-
-const assertMultiHomeownerSelfDowngradeAllowed = async (
-	accountId: string,
-	currentPlanId: string,
-): Promise<void> => {
-	if (!BUSINESS_PLAN_IDS.has(String(currentPlanId || '').toLowerCase())) {
-		return;
-	}
-
-	const normalizedAccountId = String(accountId || '').trim();
-	const [
-		familyAccount,
-		teamMembersByAccount,
-		legacyTeamMembers,
-		residentProfiles,
-		residentInvites,
-		properties,
-	] = await Promise.all([
-		db.collection('familyAccounts').doc(normalizedAccountId).get(),
-		db.collection('teamMembers').where('accountId', '==', normalizedAccountId).get(),
-		db.collection('teamMembers').where('userId', '==', normalizedAccountId).get(),
-		db.collection('tenantProfiles').where('accountId', '==', normalizedAccountId).get(),
-		db.collection('tenantInvitationCodes').where('accountId', '==', normalizedAccountId).get(),
-		db.collection('properties').where('accountId', '==', normalizedAccountId).get(),
-	]);
-
-	const issues: string[] = [];
-	const propertyCount = Number(familyAccount.data()?.propertyCount ?? properties.size);
-	if (propertyCount > 5 || properties.size > 5) {
-		issues.push('more than five properties');
-	}
-	if (!teamMembersByAccount.empty || !legacyTeamMembers.empty) {
-		issues.push('team members');
-	}
-	if (!residentProfiles.empty) {
-		issues.push('resident profiles');
-	}
-	const hasActiveResidentInvite = residentInvites.docs.some((invite) => {
-		const status = String(invite.data().status || 'active').toLowerCase();
-		return !['revoked', 'expired', 'cancelled', 'canceled'].includes(status);
-	});
-	const hasAssignedResidents = properties.docs.some((property) => {
-		const tenants = property.data().tenants;
-		return Array.isArray(tenants) && tenants.length > 0;
-	});
-	if (hasActiveResidentInvite || hasAssignedResidents) {
-		issues.push('active resident access');
-	}
-
-	if (issues.length > 0) {
-		throw new functions.https.HttpsError(
-			'failed-precondition',
-			`Before switching to Multi-Homeowner, resolve these business-only items: ${issues.join(', ')}. No records were changed.`,
-			{ code: 'multi-homeowner-downgrade-blocked', issues },
-		);
-	}
-};
-
 const removeUndefinedFields = (obj: Record<string, any>) => {
 	return Object.fromEntries(
 		Object.entries(obj).filter(([, value]) => value !== undefined),
@@ -760,7 +686,9 @@ const syncFamilyAccountSubscription = async (
 
 	try {
 		const normalizedPlan = String(subscription.plan || '').trim().toLowerCase();
-		const preservesResidentContinuity = BUSINESS_PLAN_IDS.has(normalizedPlan);
+		const preservesResidentContinuity = ['property', 'portfolio'].includes(
+			normalizedPlan,
+		);
 		await db
 			.collection('familyAccounts')
 			.doc(accountId)
@@ -854,16 +782,6 @@ export const createCheckoutSession = functions
 				});
 			}
 		}
-		if (
-			checkoutPlanId === 'multi_homeowner' &&
-			!ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan
-		) {
-			throw new functions.https.HttpsError(
-				'failed-precondition',
-				'Multi-Homeowner is not currently available.',
-			);
-		}
-
 		if (!resolvedPriceId || !userId || !email) {
 			throw new functions.https.HttpsError(
 				'failed-precondition',
@@ -893,12 +811,6 @@ export const createCheckoutSession = functions
 			}
 			const userData = userDoc.data() || {};
 			const accountId = String(userData.accountId || authenticatedUserId);
-			if (checkoutPlanId === 'multi_homeowner') {
-				await assertMultiHomeownerSelfDowngradeAllowed(
-					accountId,
-					String(userData?.subscription?.plan || ''),
-				);
-			}
 			await ensureFamilyAccountForUser(
 				authenticatedUserId,
 				{
@@ -2544,11 +2456,6 @@ function getPlanFromPriceId(
 		readEnv('REACT_APP_STRIPE_PROPERTY_PLAN_ID'),
 	].filter(Boolean) as string[];
 
-	const multiHomeownerPriceIds = [
-		readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerMonthlyPriceId),
-		readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerAnnualPriceId),
-	].filter(Boolean) as string[];
-
 	const portfolioPriceIds = [
 		readStringParam(STRIPE_PRICE_PARAMS.portfolioMonthlyPriceId),
 		readStringParam(STRIPE_PRICE_PARAMS.portfolioAnnualPriceId),
@@ -2561,9 +2468,6 @@ function getPlanFromPriceId(
 	const priceMap: Record<string, string> = {
 		...Object.fromEntries(
 			homeownerPlusPriceIds.map((id) => [id, 'homeowner_plus']),
-		),
-		...Object.fromEntries(
-			multiHomeownerPriceIds.map((id) => [id, 'multi_homeowner']),
 		),
 		...Object.fromEntries(propertyPriceIds.map((id) => [id, 'property'])),
 		...Object.fromEntries(portfolioPriceIds.map((id) => [id, 'portfolio'])),
@@ -2598,11 +2502,6 @@ function getPriceIdFromPlan(
 		readStringParam(STRIPE_PRICE_PARAMS.propertyAnnualPriceId) ||
 		readEnv('REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID') ||
 		propertyPriceId;
-	const multiHomeownerPriceId =
-		readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerMonthlyPriceId) || '';
-	const multiHomeownerAnnualPriceId =
-		readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerAnnualPriceId) ||
-		multiHomeownerPriceId;
 	const portfolioPriceId =
 		readStringParam(STRIPE_PRICE_PARAMS.portfolioMonthlyPriceId) ||
 		readEnv('STRIPE_PORTFOLIO_PRICE_ID') ||
@@ -2614,14 +2513,12 @@ function getPriceIdFromPlan(
 
 	const monthlyPlanMap: Record<string, string> = {
 		homeowner_plus: homeownerPlusPriceId,
-		multi_homeowner: multiHomeownerPriceId,
 		property: propertyPriceId,
 		portfolio: portfolioPriceId,
 	};
 
 	const annualPlanMap: Record<string, string> = {
 		homeowner_plus: homeownerPlusAnnualPriceId,
-		multi_homeowner: multiHomeownerAnnualPriceId,
 		property: propertyAnnualPriceId,
 		portfolio: portfolioAnnualPriceId,
 	};

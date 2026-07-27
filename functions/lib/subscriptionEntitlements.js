@@ -39,8 +39,6 @@ const entitlements_1 = require("@maintley/entitlements");
 Object.defineProperty(exports, "normalizePlanId", { enumerable: true, get: function () { return entitlements_1.normalizePlanId; } });
 exports.ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
     ...entitlements_1.DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
-    // Retired publicly. Existing records still resolve through compatibility mode.
-    multiHomeownerPlan: false,
     homeownerPlusProductTrial: process.env.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true',
     internalEntitlementGrantIssuance: process.env.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true',
     complimentaryPaidTransitions: process.env.ENABLE_COMPLIMENTARY_PAID_TRANSITIONS === 'true',

@@ -235,7 +235,7 @@ export type AdminComplimentaryAccessCode = {
 	codeId: string;
 	programId: string;
 	label: string;
-	bundleId: 'homeowner_plus' | 'multi_homeowner' | 'property' | 'portfolio' | string;
+	bundleId: 'homeowner_plus' | 'property' | 'portfolio' | string;
 	durationDays: number;
 	expiresAt?: string | null;
 	maxRedemptions: number;
@@ -736,7 +736,7 @@ export const adminSendOperationalUserEmail = async (params: {
 export const adminPortalCreateComplimentaryAccessCode = async (params: {
 	sessionToken: string;
 	label: string;
-	bundleId: 'homeowner_plus' | 'multi_homeowner' | 'property' | 'portfolio';
+	bundleId: 'homeowner_plus' | 'property' | 'portfolio';
 	durationDays: number;
 	expiresAt?: string;
 	maxRedemptions: number;

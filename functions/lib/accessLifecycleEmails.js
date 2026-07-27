@@ -235,7 +235,6 @@ exports.renderAccessLifecycleEmail = renderAccessLifecycleEmail;
 const bundleLabel = (bundleId) => {
     const labels = {
         homeowner_plus: 'Homeowner+',
-        multi_homeowner: 'Multi-Homeowner',
         property: 'Property',
         portfolio: 'Portfolio',
     };

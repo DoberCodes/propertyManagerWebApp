@@ -165,8 +165,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const isHomeownerMode = currentUser?.workspaceMode
 		? currentUser.workspaceMode === 'homeowner'
 		: effectivePlanId === 'homeowner' ||
-			effectivePlanId === 'homeowner_plus' ||
-			effectivePlanId === 'multi_homeowner';
+			effectivePlanId === 'homeowner_plus';
 	const setupLanguage = {
 		eyebrow: isHomeownerMode ? 'Home Setup Assistant' : 'Property Setup Assistant',
 		completeLabel: isHomeownerMode ? 'Home setup complete' : 'Property setup complete',

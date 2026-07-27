@@ -67,7 +67,6 @@ import {
 import { setUsersFilters } from '../../../Redux/Slices/adminPortalSlice';
 import { fetchAdminUsers } from '../../../Redux/thunks/adminPortalThunks';
 import type { AppDispatch } from '../../../Redux/store/store';
-import { isMultiHomeownerPlanEnabled } from '../../../entitlements/planAvailability';
 
 interface AdminUserManagementPanelProps {
     sessionToken: string;
@@ -89,9 +88,6 @@ const LIST_FILTER_OPTIONS = [
 const PLAN_OPTIONS = [
     { value: 'homeowner', label: 'Homeowner' },
     { value: 'homeowner_plus', label: 'Homeowner+' },
-    ...(isMultiHomeownerPlanEnabled()
-        ? [{ value: 'multi_homeowner', label: 'Multi-Homeowner' }]
-        : []),
     { value: 'property', label: 'Property' },
     { value: 'portfolio', label: 'Portfolio' },
 ];

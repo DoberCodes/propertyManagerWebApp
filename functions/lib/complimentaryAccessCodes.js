@@ -53,9 +53,8 @@ const MAX_CODE_LENGTH = 80;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ACCESS_RANK = {
     homeowner_plus: 1,
-    multi_homeowner: 2,
-    property: 3,
-    portfolio: 4,
+    property: 2,
+    portfolio: 3,
 };
 const text = (value) => String(value || '').trim();
 const isAccessCodeRolloutEnabled = () => process.env.ENABLE_COMPLIMENTARY_ACCESS_CODES === 'true';
@@ -102,7 +101,7 @@ const asProgram = (id, value) => {
         policyVersion: text(data.policyVersion),
     };
     if (program.status !== 'active' ||
-        !['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(program.bundleId) ||
+        !['homeowner_plus', 'property', 'portfolio'].includes(program.bundleId) ||
         !Number.isInteger(program.durationDays) ||
         program.durationDays < 1 ||
         program.durationDays > 730 ||

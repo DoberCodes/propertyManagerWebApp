@@ -65,8 +65,8 @@ async function run() {
     const programId = required('program-id');
     const label = required('label');
     const bundleId = required('bundle');
-    if (!['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(bundleId)) {
-        throw new Error('--bundle must be homeowner_plus, multi_homeowner, property, or portfolio.');
+    if (!['homeowner_plus', 'property', 'portfolio'].includes(bundleId)) {
+        throw new Error('--bundle must be homeowner_plus, property, or portfolio.');
     }
     const transitionMode = String(args.get('transition') || 'checkout_required');
     if (!['none', 'checkout_required'].includes(transitionMode)) {

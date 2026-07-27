@@ -42,7 +42,6 @@ describe('centralized entitlement resolver', () => {
 		const plans = [
 			SUBSCRIPTION_PLANS.HOMEOWNER,
 			SUBSCRIPTION_PLANS.HOMEOWNER_PLUS,
-			SUBSCRIPTION_PLANS.MULTI_HOMEOWNER,
 			SUBSCRIPTION_PLANS.PROPERTY,
 			SUBSCRIPTION_PLANS.PORTFOLIO,
 			SUBSCRIPTION_PLANS.GUEST,
@@ -62,37 +61,6 @@ describe('centralized entitlement resolver', () => {
 			});
 			expect(toLegacyPermissions(preset)).toEqual(plan.permissions);
 		}
-	});
-
-	it('keeps Multi-Homeowner acquisition disabled without hiding an existing paid subscription', () => {
-		const subscription = activeSubscription('multi_homeowner', 'sub-multi');
-		const disabled = resolveAccountEntitlements({
-			subscription,
-			nowMs: NOW_MS,
-		});
-		const enabled = resolveAccountEntitlements({
-			subscription,
-			nowMs: NOW_MS,
-			featureFlags: { multiHomeownerPlan: true },
-		});
-
-		expect(isPlanEnabled('multi_homeowner')).toBe(false);
-		expect(isPlanEnabled('unknown-plan')).toBe(false);
-		expect(
-			isPlanEnabled('multi_homeowner', { multiHomeownerPlan: true }),
-		).toBe(false);
-		expect(disabled.basePlanId).toBe('multi_homeowner');
-		expect(disabled.diagnostics.map(({ code }) => code)).toContain(
-			'disabled_plan_preserved',
-		);
-		expect(enabled.basePlanId).toBe('multi_homeowner');
-		expect(enabled.limits.properties).toBe(5);
-		expect(enabled.limits.files).toBe(999999999);
-		expect(enabled.limits.storage_gb).toBe(10);
-		expect(enabled.capabilities['property_groups.manage']).toBe(true);
-		expect(enabled.capabilities['team.manage']).toBe(false);
-		expect(enabled.capabilities['residents.manage']).toBe(false);
-		expect(enabled.capabilities['portfolio.reporting']).toBe(false);
 	});
 
 	it('provides typed default-deny capability and limit lookups', () => {
@@ -408,7 +376,6 @@ describe('centralized entitlement resolver', () => {
 
 	it('keeps every new access program disabled by default', () => {
 		expect(DEFAULT_ENTITLEMENT_FEATURE_FLAGS).toEqual({
-			multiHomeownerPlan: false,
 			homeownerPlusProductTrial: false,
 			internalEntitlementGrantIssuance: false,
 			complimentaryPaidTransitions: false,

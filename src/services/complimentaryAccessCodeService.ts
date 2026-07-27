@@ -3,7 +3,7 @@ import { callFirebaseFunction } from '../config/firebaseFunctions';
 export type ComplimentaryAccessCodePreview = {
 	programId: string;
 	label: string;
-	bundleId: 'homeowner_plus' | 'multi_homeowner' | 'property' | 'portfolio';
+	bundleId: 'homeowner_plus' | 'property' | 'portfolio';
 	durationDays: number;
 	transitionMode: 'none' | 'checkout_required';
 	fallbackPlanId: 'homeowner';

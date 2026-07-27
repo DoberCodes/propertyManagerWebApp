@@ -23,16 +23,15 @@ const MAX_CODE_LENGTH = 80;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ACCESS_RANK: Record<AccessCodeProgram['bundleId'], number> = {
 	homeowner_plus: 1,
-	multi_homeowner: 2,
-	property: 3,
-	portfolio: 4,
+	property: 2,
+	portfolio: 3,
 };
 
 type AccessCodeProgram = {
 	programId: string;
 	label: string;
 	status: 'active' | 'disabled';
-	bundleId: 'homeowner_plus' | 'multi_homeowner' | 'property' | 'portfolio';
+	bundleId: 'homeowner_plus' | 'property' | 'portfolio';
 	bundleVersion?: string;
 	durationDays: number;
 	redemptionExpiresAtMs?: number | null;
@@ -125,7 +124,7 @@ const asProgram = (id: string, value: unknown): AccessCodeProgram => {
 	};
 	if (
 		program.status !== 'active' ||
-		!['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(
+		!['homeowner_plus', 'property', 'portfolio'].includes(
 			program.bundleId,
 		) ||
 		!Number.isInteger(program.durationDays) ||

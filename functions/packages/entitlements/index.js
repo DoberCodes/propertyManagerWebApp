@@ -5,7 +5,6 @@ const BUNDLE_VERSION = 'v1';
 const PLAN_IDS = Object.freeze([
 	'homeowner',
 	'homeowner_plus',
-	'multi_homeowner',
 	'property',
 	'portfolio',
 	'guest',
@@ -15,7 +14,6 @@ const PLAN_IDS = Object.freeze([
 
 const PAID_PLAN_IDS = Object.freeze([
 	'homeowner_plus',
-	'multi_homeowner',
 	'property',
 	'portfolio',
 ]);
@@ -104,7 +102,6 @@ const ADMIN_AUDIT_ACTIONS = Object.freeze([
 ]);
 
 const DEFAULT_ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
-	multiHomeownerPlan: false,
 	homeownerPlusProductTrial: false,
 	internalEntitlementGrantIssuance: false,
 	complimentaryPaidTransitions: false,
@@ -225,11 +222,6 @@ const HOMEOWNER_PLUS_CAPABILITIES = [
 	'property_groups.manage',
 ];
 
-const MULTI_HOMEOWNER_CAPABILITIES = [
-	...HOMEOWNER_PLUS_CAPABILITIES,
-	'property_groups.manage',
-];
-
 const PROPERTY_CAPABILITIES = [
 	...HOMEOWNER_CAPABILITIES,
 	'team.manage',
@@ -278,18 +270,6 @@ const PLAN_PRESETS = Object.freeze({
 			suggested_maintenance_packages: 999,
 		},
 	),
-	multi_homeowner: createPreset(
-		'multi_homeowner',
-		'base',
-		MULTI_HOMEOWNER_CAPABILITIES,
-		{
-			properties: 5,
-			devices: 999,
-			files: 999999999,
-			storage_gb: 10,
-			suggested_maintenance_packages: 999,
-		},
-	),
 	property: createPreset('property', 'base', PROPERTY_CAPABILITIES, {
 		properties: 7,
 		devices: 999,
@@ -329,9 +309,6 @@ const normalizePlanId = (planId, fallbackPlanId = 'homeowner') => {
 const isPlanEnabled = (planId, featureFlags = DEFAULT_ENTITLEMENT_FEATURE_FLAGS) => {
 	const normalizedPlanId = normalizeRawPlanId(planId);
 	if (!PLAN_ID_SET.has(normalizedPlanId)) return false;
-	if (normalizedPlanId === 'multi_homeowner') {
-		return false;
-	}
 	return true;
 };
 

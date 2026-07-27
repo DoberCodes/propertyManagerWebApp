@@ -133,9 +133,8 @@ export const getEffectiveAccessPlanId = (
 		tenant: 0,
 		homeowner: 1,
 		homeowner_plus: 2,
-		multi_homeowner: 3,
-		property: 4,
-		portfolio: 5,
+		property: 3,
+		portfolio: 4,
 	};
 	return candidates.reduce((best, candidate) =>
 		(rank[candidate] || 0) > (rank[best] || 0) ? candidate : best,
@@ -154,9 +153,8 @@ export type ActiveGrantedPlanAccess = {
 
 const GRANTED_PLAN_RANK: Record<string, number> = {
 	homeowner_plus: 1,
-	multi_homeowner: 2,
-	property: 3,
-	portfolio: 4,
+	property: 2,
+	portfolio: 3,
 };
 
 export const getActiveGrantedPlanAccess = (

@@ -36,7 +36,6 @@ import {
 import { addBillingCoupon } from '../../../Redux/Slices/adminPortalSlice';
 import { fetchBillingCoupons } from '../../../Redux/thunks/adminPortalThunks';
 import type { AppDispatch } from '../../../Redux/store/store';
-import { isMultiHomeownerPlanEnabled } from '../../../entitlements/planAvailability';
 
 interface AdminBillingToolsPanelProps {
 	sessionToken: string;
@@ -45,9 +44,6 @@ interface AdminBillingToolsPanelProps {
 const PLAN_OPTIONS = [
 	{ value: '', label: 'All Paid Plans' },
 	{ value: 'homeowner_plus', label: 'Homeowner+' },
-	...(isMultiHomeownerPlanEnabled()
-		? [{ value: 'multi_homeowner', label: 'Multi-Homeowner' }]
-		: []),
 	{ value: 'property', label: 'Property' },
 	{ value: 'portfolio', label: 'Portfolio' },
 ];
@@ -106,7 +102,7 @@ export const AdminBillingToolsPanel: React.FC<AdminBillingToolsPanelProps> = ({
 	const [accessCodesLoading, setAccessCodesLoading] = useState(false);
 	const [accessCodesLoaded, setAccessCodesLoaded] = useState(false);
 	const [accessLabel, setAccessLabel] = useState('');
-	const [accessBundleId, setAccessBundleId] = useState<'homeowner_plus' | 'multi_homeowner' | 'property' | 'portfolio'>('homeowner_plus');
+	const [accessBundleId, setAccessBundleId] = useState<'homeowner_plus' | 'property' | 'portfolio'>('homeowner_plus');
 	const [accessDurationDays, setAccessDurationDays] = useState('30');
 	const [accessExpiresAt, setAccessExpiresAt] = useState('');
 	const [accessMaxRedemptions, setAccessMaxRedemptions] = useState('1');

@@ -131,27 +131,25 @@ service cloud.firestore {
 		  ? 1
 		  : (plan == 'homeowner_plus'
 		    ? 5
-		  : (plan == 'multi_homeowner'
-		    ? 5
-		    : (plan == 'property' ? 7 : (plan == 'portfolio' ? 15 : 0)))))
+		    : (plan == 'property' ? 7 : (plan == 'portfolio' ? 15 : 0))))
         : (limitId == 'devices'
-		  ? (['homeowner', 'homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan]) ? 999 : 0)
+		  ? (['homeowner', 'homeowner_plus', 'property', 'portfolio'].hasAny([plan]) ? 999 : 0)
           : 0);
     }
 
     function planHasCapability(plan, capabilityId) {
       return capabilityId == 'properties.manage'
-        ? ['homeowner', 'homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan])
+		? ['homeowner', 'homeowner_plus', 'property', 'portfolio'].hasAny([plan])
         : (capabilityId == 'residents.manage'
           ? ['property', 'portfolio'].hasAny([plan])
           : (capabilityId == 'property_groups.manage'
-			? ['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan])
+			? ['homeowner_plus', 'property', 'portfolio'].hasAny([plan])
             : (capabilityId == 'team.manage'
               ? ['property', 'portfolio'].hasAny([plan])
               : (capabilityId == 'team.advanced'
                 ? plan == 'portfolio'
                 : (capabilityId == 'recurring_tasks.use'
-				  ? ['homeowner', 'homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan])
+				  ? ['homeowner', 'homeowner_plus', 'property', 'portfolio'].hasAny([plan])
                   : false)))));
     }
 
@@ -165,7 +163,7 @@ service cloud.firestore {
           !('stripeCustomerId' in data.subscription) &&
           (
             !('pendingCheckoutPlan' in data.subscription) ||
-            ['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([
+			['homeowner_plus', 'property', 'portfolio'].hasAny([
               data.subscription.pendingCheckoutPlan
             ])
           )
@@ -247,15 +245,7 @@ service cloud.firestore {
               projection.bundleExpirationsMs.homeowner_plus > request.time.toMillis()
             )
           ) ||
-          (
-            activeBundleIds.hasAny(['multi_homeowner']) &&
-            (
-              !('bundleExpirationsMs' in projection) ||
-              !('multi_homeowner' in projection.bundleExpirationsMs) ||
-              projection.bundleExpirationsMs.multi_homeowner > request.time.toMillis()
-            )
-          ) ||
-          (
+		  (
             activeBundleIds.hasAny(['property']) &&
             (
               !('bundleExpirationsMs' in projection) ||
@@ -286,17 +276,14 @@ service cloud.firestore {
         ? 15
         : (hasActiveProjectedBundle(accountId, 'property') && baseLimit < 7
           ? 7
-          : (hasActiveProjectedBundle(accountId, 'multi_homeowner') && baseLimit < 5
-            ? 5
-            : baseLimit));
+		  : baseLimit);
     }
 
     function maxDevicesForAccount(accountId) {
       let baseLimit = planLimit(baseEntitledPlanForAccount(accountId), 'devices');
       return (
-        hasActiveProjectedBundle(accountId, 'homeowner_plus') ||
-        hasActiveProjectedBundle(accountId, 'multi_homeowner') ||
-        hasActiveProjectedBundle(accountId, 'property') ||
+		hasActiveProjectedBundle(accountId, 'homeowner_plus') ||
+		hasActiveProjectedBundle(accountId, 'property') ||
         hasActiveProjectedBundle(accountId, 'portfolio')
       ) && baseLimit < 999
         ? 999
@@ -364,9 +351,8 @@ service cloud.firestore {
     function canUsePropertyGroups(accountId) {
       return accountOwnerDocExists(accountId) &&
         (
-          planHasCapability(baseEntitledPlanForAccount(accountId), 'property_groups.manage') ||
-          hasActiveProjectedBundle(accountId, 'multi_homeowner') ||
-          hasActiveProjectedBundle(accountId, 'property') ||
+		  planHasCapability(baseEntitledPlanForAccount(accountId), 'property_groups.manage') ||
+		  hasActiveProjectedBundle(accountId, 'property') ||
           hasActiveProjectedBundle(accountId, 'portfolio')
         );
     }
