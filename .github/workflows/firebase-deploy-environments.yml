@@ -175,6 +175,10 @@ jobs:
           ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event.before }}
         run: yarn check:entitlement-package-version
 
+      - name: Check entitlement lock synchronization
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: yarn check:entitlement-locks
+
       - name: Validate Functions deploy package
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn validate:functions-package
