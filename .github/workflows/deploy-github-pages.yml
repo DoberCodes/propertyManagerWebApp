@@ -29,8 +29,11 @@ jobs:
           ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: yarn check:entitlement-package-version
 
+      - name: Check entitlement lock synchronization
+        run: yarn check:entitlement-locks
+
       - name: Entitlement package version policy tests
-        run: yarn test:entitlement-package-version
+        run: yarn test:entitlement-package-version && yarn test:entitlement-locks
 
   version-validate:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next'

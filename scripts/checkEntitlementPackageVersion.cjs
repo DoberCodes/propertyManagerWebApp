@@ -83,7 +83,7 @@ function main() {
       `Entitlement package version check failed: deployable package files changed, but the package version remains ${baseVersion || '(missing)'}.`,
     );
     console.error(
-      'Bump functions/packages/entitlements/package.json and refresh both Yarn lockfiles.',
+      'Run yarn version:entitlements -- <new-version> to bump the package and synchronize both Yarn lockfiles.',
     );
     process.exit(1);
   }

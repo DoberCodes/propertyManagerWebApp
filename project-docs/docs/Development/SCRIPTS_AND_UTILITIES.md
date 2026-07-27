@@ -42,6 +42,22 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 - `adr:promote` writes final accepted ADRs into `project-docs/ADR/`.
 - `adr:author`, `adr:promote`, and `adr:promote:dry-run` are the canonical ADR workflow commands.
 - `validate:functions-package` verifies that local Functions dependencies are contained within the Firebase upload boundary.
+- `version:entitlements -- <version>` updates the bundled entitlement package and both Yarn lockfile entries together.
+- `sync:entitlement-locks` repairs both lockfile entries from the current bundled entitlement package version.
+- `check:entitlement-locks` verifies synchronization without modifying files and runs in GitHub deployment workflows.
+
+### Entitlement Package Version Workflow
+
+When deployable files under `functions/packages/entitlements/` change, use:
+
+```bash
+yarn version:entitlements -- 0.3.0
+```
+
+This updates `functions/packages/entitlements/package.json`, `yarn.lock`, and
+`functions/yarn.lock` as one operation. Commit all three files with the package
+change. CI runs `yarn check:entitlement-locks` and remains non-mutating so a
+deployment cannot silently rely on generated changes that were never committed.
 
 ### ADR Promotion Queue Workflow
 
