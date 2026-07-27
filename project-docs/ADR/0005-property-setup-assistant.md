@@ -128,3 +128,10 @@ The first implementation adds:
 Future iterations can add richer Maintley Intelligence readiness integration,
 completed-state dismissal behavior, and more detailed room/property-record
 fields.
+## 2026-07 homeowner maintenance access update
+
+Recurring maintenance and setup-generated recurring tasks are part of the core
+homeowner workflow. The Setup Assistant must allow Free users to review and
+create suggested recurring tasks. Maintley Intelligence may provide deeper
+premium interpretation, but the task creation required to maintain one home is
+not a premium capability.

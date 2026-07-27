@@ -13,7 +13,7 @@ export const afterDowngradeArticle: HelpfulArticle = {
 		] },
 		{ heading: 'What remains and what changes', paragraphs: [
 			'Existing property information, equipment records, Maintenance History, and saved documents remain available. The lower plan’s limits apply to new records and uploads. If existing usage is above a lower limit, keep and review existing information rather than deleting it simply to complete the downgrade.',
-			'Paid automation and deeper guidance stop when they are no longer included. For example, recurring-care generation, reminder emails, push notifications, full Home or Property Review, Property Insights, or document suggestion review may become unavailable. Existing tasks and history remain records; future automated behavior depends on the effective plan.',
+			'Core maintenance remains available after a downgrade, including recurring care and ordinary task reminders. Premium processing stops when it is no longer included. Full Home or Property Review, Property Insights, AI guidance, Knowledge Packs, and advanced document processing may become unavailable, while accepted suggestions and the underlying customer records remain visible.',
 		] },
 		{ heading: 'Prepare for the change', steps: [
 			'Review the effective end date in Billing & Subscription.',

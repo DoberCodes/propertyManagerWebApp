@@ -60,7 +60,7 @@ export const buildPropertyRecordArticle: HelpfulArticle = {
 		{
 			heading: 'Troubleshooting and requirements',
 			paragraphs: [
-				'If you cannot add another property or piece of equipment, review your current plan limits. Free and Homeowner+ accounts are designed around one property, while business plans support additional properties. Free accounts currently include up to 15 equipment records. Property Groups are available for supported multi-property plans and only organize the Properties page; they do not change ownership or permissions.',
+				'If you cannot add another property, review your current plan limit. Free supports one home, Homeowner+ supports up to five personal or family homes, Property supports seven properties, and Portfolio supports 15. Equipment records are unlimited across standard plans. Property Groups are available on Homeowner+, Property, and Portfolio; they organize the page without changing ownership or permissions.',
 				'If a record is missing, confirm that you are viewing the correct property and that your account role includes access to it. Team members with assigned-property access may not see the entire account. If a recent change has not appeared, refresh after confirming your connection before entering the information again.',
 			],
 		},

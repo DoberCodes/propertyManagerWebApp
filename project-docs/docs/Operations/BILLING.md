@@ -143,12 +143,11 @@ plans and narrowly scoped pending-checkout or promo-code changes. Stripe
 Functions, webhooks, and approved admin operations remain responsible for paid
 plan, billing status, period, customer, and subscription identifiers.
 
-Multi-Homeowner is also disabled by default during its staged rollout. The web
-uses `REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN`; Functions use
-`ENABLE_MULTI_HOMEOWNER_PLAN`. When disabled, public pricing, registration,
-checkout, and admin selection omit or reject the plan. Its canonical Stripe
-prices remain server-owned and map to `multi_homeowner` only when the launch
-flag is enabled.
+Multi-Homeowner is retired as a public plan. Public pricing, registration,
+checkout, and normal admin selection omit or reject it. The internal
+`multi_homeowner` identifier and canonical Stripe prices remain available only
+for compatibility with existing subscription and grant records, which resolve
+to the equivalent Homeowner+ five-home bundle without destructive migration.
 
 Complimentary access codes are internal grant credentials, not Stripe coupons.
 They are independently gated by `ENABLE_COMPLIMENTARY_ACCESS_CODES`, store only
@@ -358,6 +357,28 @@ Downgrades should:
 * Avoid destructive data removal.
 
 Existing records should remain accessible unless explicitly required otherwise.
+
+### Non-destructive downgrade contract
+
+Plan limits govern new creation and premium processing. They do not revoke
+visibility of customer records created while a higher plan was active.
+
+After a downgrade:
+
+* Existing properties, equipment, tasks, Maintenance History, and files remain
+  visible and usable.
+* Existing files remain downloadable even when storage usage exceeds the new
+  plan quota.
+* New resource creation is blocked only while current usage meets or exceeds
+  the lower limit.
+* Accepted document suggestions remain ordinary customer records.
+* Persisted point-in-time Intelligence results remain visible; new premium
+  processing stops.
+* Existing permission assignments must never widen automatically.
+* Account cancellation and account deletion remain separate actions.
+
+Entitlements should distinguish viewing existing data from creating,
+processing, automating, inviting, or configuring new premium behavior.
 
 ---
 

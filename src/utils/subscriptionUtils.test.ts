@@ -42,7 +42,19 @@ const expiredSubscription = (plan: string): SubscriptionData => ({
 });
 
 describe('subscriptionUtils', () => {
-	it('treats Homeowner Plus like Property for paid maintenance capabilities', () => {
+	it('keeps the complete maintenance workflow available on Free', () => {
+		const free = activeSubscription('homeowner');
+
+		expect(canUseSuggestedMaintenancePackages(free)).toBe(true);
+		expect(getSuggestedMaintenancePackageLimit(free)).toBe(
+			Number.POSITIVE_INFINITY,
+		);
+		expect(canUseRecurringTasks(free)).toBe(true);
+		expect(canUseNotifications(free)).toBe(true);
+		expect(canLinkParts(free)).toBe(true);
+	});
+
+	it('gives Homeowner Plus homeowner Intelligence and five-home limits', () => {
 		const homeownerPlus = activeSubscription('homeowner_plus');
 
 		expect(canUseSuggestedMaintenancePackages(homeownerPlus)).toBe(true);
@@ -58,18 +70,15 @@ describe('subscriptionUtils', () => {
 		expect(canAdvancedAuditTrail(homeownerPlus)).toBe(true);
 	});
 
-	it('keeps Homeowner Plus homeowner-sized limits without team or tenant management', () => {
+	it('keeps Homeowner Plus out of business team and resident management', () => {
 		const homeownerPlus = activeSubscription('homeowner_plus');
 
-		expect(getMaxPropertiesForPlan('homeowner_plus')).toBe(1);
+		expect(getMaxPropertiesForPlan('homeowner_plus')).toBe(5);
 		expect(getMaxPropertiesForPlan('multi_homeowner')).toBe(5);
-		expect(getMaxFilesForPlan('multi_homeowner')).toBe(250);
-		expect(getMaxStorageGbForPlan('multi_homeowner')).toBe(5);
-		expect(getMaxFilesForPlan('homeowner_plus')).toBe(250);
-		expect(getMaxStorageGbForPlan('homeowner_plus')).toBe(5);
-		expect(getMaxFilesForPlan('homeowner_plus')).toBeLessThan(
-			getMaxFilesForPlan('property'),
-		);
+		expect(getMaxFilesForPlan('multi_homeowner')).toBe(999999999);
+		expect(getMaxStorageGbForPlan('multi_homeowner')).toBe(10);
+		expect(getMaxFilesForPlan('homeowner_plus')).toBe(999999999);
+		expect(getMaxStorageGbForPlan('homeowner_plus')).toBe(10);
 		expect(getMaxStorageGbForPlan('homeowner_plus')).toBeLessThan(
 			getMaxStorageGbForPlan('property'),
 		);
@@ -79,19 +88,19 @@ describe('subscriptionUtils', () => {
 
 	it('matches the matrix limits for Free, Property, and Portfolio', () => {
 		expect(getMaxPropertiesForPlan('homeowner')).toBe(1);
-		expect(getMaxFilesForPlan('homeowner')).toBe(10);
+		expect(getMaxFilesForPlan('homeowner')).toBe(999999999);
 		expect(getMaxStorageGbForPlan('homeowner')).toBe(1);
 
 		expect(getMaxPropertiesForPlan('property')).toBe(7);
-		expect(getMaxFilesForPlan('property')).toBe(1500);
+		expect(getMaxFilesForPlan('property')).toBe(999999999);
 		expect(getMaxStorageGbForPlan('property')).toBe(15);
 
 		expect(getMaxPropertiesForPlan('portfolio')).toBe(15);
-		expect(getMaxFilesForPlan('portfolio')).toBe(5000);
+		expect(getMaxFilesForPlan('portfolio')).toBe(999999999);
 		expect(getMaxStorageGbForPlan('portfolio')).toBe(25);
 	});
 
-	it('allows Free raw exports and warranty info without task generation', () => {
+	it('allows Free raw exports, warranties, and task generation', () => {
 		const free = activeSubscription('homeowner');
 
 		expect(canViewReports(free)).toBe(true);
@@ -99,8 +108,10 @@ describe('subscriptionUtils', () => {
 		expect(canAccessReportBuilder(free)).toBe(true);
 		expect(canExportReports(free)).toBe(true);
 		expect(canTrackWarranties(free)).toBe(true);
-		expect(canUseSuggestedMaintenancePackages(free)).toBe(false);
-		expect(getSuggestedMaintenancePackageLimit(free)).toBe(0);
+		expect(canUseSuggestedMaintenancePackages(free)).toBe(true);
+		expect(getSuggestedMaintenancePackageLimit(free)).toBe(
+			Number.POSITIVE_INFINITY,
+		);
 	});
 
 	it('allows expired users to access report exports for their existing data', () => {
@@ -324,8 +335,8 @@ describe('subscriptionUtils', () => {
 			],
 		};
 
-		expect(canUseRecurringTasks(freeWithExpiredTrial)).toBe(false);
-		expect(canUseNotifications(freeWithExpiredTrial)).toBe(false);
+		expect(canUseRecurringTasks(freeWithExpiredTrial)).toBe(true);
+		expect(canUseNotifications(freeWithExpiredTrial)).toBe(true);
 		expect(getActiveHomeownerPlusTrial(freeWithExpiredTrial, nowMs)).toBeNull();
 		expect(getActiveGrantedPlanAccess(freeWithExpiredTrial, nowMs)).toBeNull();
 	});

@@ -62,7 +62,7 @@ export const documentSuggestionsArticle: HelpfulArticle = {
 			heading: 'Troubleshooting, plans, and permissions',
 			paragraphs: [
 				'Text-based PDFs and clear images generally provide better results than blurry photographs, handwriting, unusual layouts, or packets containing several documents. If important text is missed, upload a clearer source when available or enter the verified information manually. Repeated processing will not necessarily improve a poor source image.',
-				'File upload and organization are available across standard plans. Suggested-details review is a preview on Free and available on Homeowner+ and higher plans. You must also have access to the relevant property and permission to update the destination record. If an Apply action is unavailable, check the plan, property selection, role, and whether the proposed destination still exists.',
+				'File upload and organization are available across standard plans. Advanced suggested-details review is available on Homeowner+ and Portfolio, while Free and Property may show a limited preview. You must also have access to the relevant property and permission to update the destination record. If an Apply action is unavailable, check the plan, property selection, role, and whether the proposed destination still exists.',
 			],
 		},
 	],

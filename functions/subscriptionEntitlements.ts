@@ -18,7 +18,8 @@ export { normalizePlanId };
 
 export const ENTITLEMENT_FEATURE_FLAGS = Object.freeze({
 	...DEFAULT_ENTITLEMENT_FEATURE_FLAGS,
-	multiHomeownerPlan: process.env.ENABLE_MULTI_HOMEOWNER_PLAN === 'true',
+	// Retired publicly. Existing records still resolve through compatibility mode.
+	multiHomeownerPlan: false,
 	homeownerPlusProductTrial:
 		process.env.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true',
 	internalEntitlementGrantIssuance:

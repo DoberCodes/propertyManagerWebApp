@@ -7,15 +7,15 @@
 			"priceMonthly": 0,
 			"priceYearly": 0,
 			"maxProperties": 1,
-			"maxDevices": 15,
-			"maxFiles": 10,
+			"maxDevices": 999,
+			"maxFiles": 999999999,
 			"maxStorageGb": 1,
 			"bestFor": "Best for: organizing one home's essential records",
 			"highlights": [
-				"Manual maintenance tasks",
-				"Up to 15 equipment records",
-				"Basic record gap check",
-				"Starter document storage"
+				"Complete maintenance workflow",
+				"Unlimited equipment records",
+				"Recurring care and reminders",
+				"1 GB document storage"
 			]
 		},
 		{
@@ -24,16 +24,16 @@
 			"audience": "home",
 			"priceMonthly": 3.99,
 			"priceYearly": 39.99,
-			"maxProperties": 1,
+			"maxProperties": 5,
 			"maxDevices": 999,
-			"maxFiles": 250,
-			"maxStorageGb": 5,
-			"bestFor": "Best for: turning records into maintenance guidance",
+			"maxFiles": 999999999,
+			"maxStorageGb": 10,
+			"bestFor": "Best for: understanding and planning for up to five homes",
 			"highlights": [
-				"Unlimited equipment records",
-				"Maintley Intelligence",
-				"Reminders and timelines",
-				"Advanced document storage"
+				"Up to 5 homes",
+				"Maintley Intelligence and AI guidance",
+				"Knowledge Packs and deeper reviews",
+				"Advanced document processing"
 			]
 		},
 		{
@@ -44,11 +44,11 @@
 			"priceYearly": 59.99,
 			"maxProperties": 5,
 			"maxDevices": 999,
-			"maxFiles": 250,
-			"maxStorageGb": 5,
+			"maxFiles": 999999999,
+			"maxStorageGb": 10,
 			"bestFor": "Best for: organizing several personal or family homes",
 			"highlights": [
-				"Everything in Homeowner+",
+				"Legacy compatibility bundle",
 				"Up to 5 homes",
 				"Property groups",
 				"Cross-home organization"
@@ -62,9 +62,9 @@
 			"priceYearly": 89,
 			"maxProperties": 7,
 			"maxDevices": 999,
-			"maxFiles": 1500,
+			"maxFiles": 999999999,
 			"maxStorageGb": 15,
-			"bestFor": "Best for: managing several properties in one place",
+			"bestFor": "Best for: managing properties with a team and residents",
 			"highlights": [
 				"Unlimited equipment records",
 				"Simple team management",
@@ -80,14 +80,14 @@
 			"priceYearly": 249,
 			"maxProperties": 15,
 			"maxDevices": 999,
-			"maxFiles": 5000,
+			"maxFiles": 999999999,
 			"maxStorageGb": 25,
 			"bestFor": "Best for: coordinating a property portfolio with your team",
 			"highlights": [
-				"Team collaboration",
-				"Resident maintenance requests",
-				"Role-based access",
-				"Cross-property reporting"
+				"Full Maintley Intelligence",
+				"Advanced team and property access",
+				"Cross-property guidance",
+				"Advanced reporting and analytics"
 			]
 		}
 	]

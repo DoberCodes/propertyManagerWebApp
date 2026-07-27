@@ -68,12 +68,12 @@ describe('CheckoutCompletionPage', () => {
 		render(<CheckoutCompletionPage />);
 
 		expect(screen.getByText('Finishing your account')).toBeInTheDocument();
-		await waitFor(() => {
-			expect(handleCheckoutSuccess).toHaveBeenCalledWith('cs_test_123');
-			expect(getUserProfile).toHaveBeenCalledWith('user-123');
-			expect(dispatch).toHaveBeenCalled();
-			expect(navigate).toHaveBeenCalledWith('/dashboard', { replace: true });
-		});
+		await waitFor(() =>
+			expect(navigate).toHaveBeenCalledWith('/dashboard', { replace: true }),
+		);
+		expect(handleCheckoutSuccess).toHaveBeenCalledWith('cs_test_123');
+		expect(getUserProfile).toHaveBeenCalledWith('user-123');
+		expect(dispatch).toHaveBeenCalled();
 	});
 
 	it('shows a recovery action when checkout verification fails', async () => {
@@ -83,10 +83,8 @@ describe('CheckoutCompletionPage', () => {
 
 		render(<CheckoutCompletionPage />);
 
-		await waitFor(() => {
-			expect(screen.getByText('We need one more moment')).toBeInTheDocument();
-			expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
-		});
+		expect(await screen.findByText('We need one more moment')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
 		expect(navigate).not.toHaveBeenCalled();
 	});
 });

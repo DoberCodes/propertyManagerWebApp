@@ -406,6 +406,55 @@ Users should be able to understand Maintley without tutorials.
 
 ---
 
+# Homeowner-First Product and Plan Direction
+
+Maintley is a homeowner product first. Businesses may refer, integrate with,
+or collaborate through Maintley, but the homeowner owns the property's
+operational history.
+
+Operational memory remains the destination. The initial adoption wedge is the
+complete maintenance workflow that helps a homeowner build that memory.
+Maintley therefore does not charge a homeowner merely to create recurring care
+or preserve a complete record for one home.
+
+The product has two plan tracks:
+
+```text
+Homeowners: Free (Maintain) -> Homeowner+ (Understand)
+Businesses: Property (Manage) -> Portfolio (Understand and Coordinate)
+```
+
+Free includes the complete maintenance workflow for one home: equipment,
+documents, warranties, recurring tasks, Maintenance History, ordinary task
+notifications, and a lightweight record check.
+
+Homeowner+ adds up to five homes, Property Groups, Maintley Intelligence, AI
+guidance, Knowledge Packs, advanced document processing, and future premium
+understanding and planning capabilities.
+
+Property adds simple teams, residents, requests, and business collaboration to
+the core maintenance workflow. It does not include full Maintley Intelligence.
+
+Portfolio combines advanced business coordination with full Maintley
+Intelligence and cross-property understanding.
+
+Multi-Homeowner is retired as a public plan. Its internal identifier remains a
+compatibility alias for existing Stripe and entitlement records.
+
+When deciding feature placement, ask:
+
+* Does this help someone record or maintain a home? Include it in Free.
+* Does this help someone understand, infer, predict, or decide? Include it in
+  Homeowner+ and Portfolio.
+* Does this coordinate people or resident workflows? Include it in Property
+  and Portfolio.
+
+Plan downgrades are non-destructive. They may restrict new creation, premium
+processing, automation, invitations, or configuration, but they must not hide
+or delete existing customer records.
+
+---
+
 # Dashboard Direction
 
 The dashboard should answer:

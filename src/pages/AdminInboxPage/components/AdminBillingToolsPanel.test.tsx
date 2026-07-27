@@ -35,8 +35,7 @@ describe('AdminBillingToolsPanel', () => {
 	test('keeps Stripe coupons and complimentary access codes collapsed by default', () => {
 		render(<AdminBillingToolsPanel sessionToken='admin-session' />);
 
-		const stripeSection = screen.getByText('Stripe Coupons').closest('details');
-		const accessSection = screen.getByText('Complimentary Access Codes').closest('details');
+		const [stripeSection, accessSection] = screen.getAllByRole('group');
 
 		expect(stripeSection).not.toHaveAttribute('open');
 		expect(accessSection).not.toHaveAttribute('open');

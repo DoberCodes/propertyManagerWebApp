@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { adminPortalListMaintleyTeam } from '../../../services/adminPortalService';
 import { AdminMaintleyTeamPanel } from './AdminMaintleyTeamPanel';
 
@@ -24,7 +24,7 @@ describe('AdminMaintleyTeamPanel', () => {
 		render(<AdminMaintleyTeamPanel sessionToken='session' />);
 
 		expect(screen.getByText(/separate from homeowner and property-account ownership/i)).toBeInTheDocument();
-		await waitFor(() => expect(screen.getByText('Maintley Admin')).toBeInTheDocument());
+		expect(await screen.findByText('Maintley Admin')).toBeInTheDocument();
 		expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
 	});
 });

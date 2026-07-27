@@ -12,6 +12,7 @@ const extensions = new Set(['.ts', '.tsx', '.js']);
 const allowedDirectPlanChecks = new Map([
 	['functions/adminPortal.ts', 'billing and admin presentation'],
 	['functions/deleteUserAccount.ts', 'billing cleanup'],
+	['functions/grantAwareCheckout.ts', 'cross-track checkout policy'],
 	['functions/packages/entitlements/index.js', 'canonical shared resolver'],
 	['functions/stripeFunctions.ts', 'server pricing and billing mapping'],
 	['functions/subscriptionEntitlements.ts', 'approved resolver boundary'],
@@ -20,6 +21,8 @@ const allowedDirectPlanChecks = new Map([
 	['src/Components/Library/Navbar/TopNav/TopNav.tsx', 'plan presentation'],
 	['src/Components/Library/TabController/TabController.tsx', 'homeowner vocabulary and navigation mode'],
 	['src/Components/PropertySetupAssistant/PropertySetupAssistant.tsx', 'homeowner vocabulary'],
+	['src/Components/PropertyIntelligence/PropertyAuditPanel.tsx', 'upgrade plan presentation'],
+	['src/Components/PropertyIntelligence/PropertyScanPanel.tsx', 'upgrade plan presentation'],
 	['src/Components/RegistrationCard/RegistrationCard.tsx', 'checkout presentation'],
 	['src/Components/ScheduledSubscriptionBanner/ScheduledSubscriptionBanner.tsx', 'billing presentation'],
 	['src/pages/DevicesHubPage/DevicesHubPage.tsx', 'homeowner vocabulary'],

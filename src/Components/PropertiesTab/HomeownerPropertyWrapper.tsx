@@ -33,7 +33,7 @@ const HomeownerPropertyWrapper: React.FC = () => {
 		(group) => group.properties || [],
 	);
 
-	// Only allow one property for homeowners
+	// Preserve the legacy direct-to-first-home route for this unused wrapper.
 	const isHomeowner = useSelector(selectIsHomeowner);
 
 	useEffect(() => {

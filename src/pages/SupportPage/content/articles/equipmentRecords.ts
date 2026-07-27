@@ -60,7 +60,7 @@ export const equipmentRecordsArticle: HelpfulArticle = {
 		{
 			heading: 'Troubleshooting and plan requirements',
 			paragraphs: [
-				'If you cannot add another equipment profile, check the current plan limit. Free accounts currently include up to 15 equipment records, while Homeowner+ and business plans include unlimited equipment. Existing records remain part of the property when a plan changes, but creating additional records may be limited by the effective plan.',
+				'Equipment records are unlimited across standard plans. If a profile will not save, confirm the selected property, your permission to update it, and the connection before entering the information again. Existing equipment remains visible after any plan change.',
 				'If equipment does not appear, confirm the selected property and your access assignment. If a document upload fails, check file and storage limits as well as connection quality. If details extracted from a document are incomplete, keep the original file, correct the profile manually, and apply only suggestions you can verify.',
 			],
 		},

@@ -7,6 +7,14 @@ const PAID_PLAN_RANK = {
     property: 3,
     portfolio: 4,
 };
+// Checkout ordering is intentionally narrower than entitlement composition.
+// Homeowner+ and Property are parallel product tracks; neither covers the other.
+const planCoversTarget = (grantPlanId, targetPlanId) => grantPlanId === targetPlanId ||
+    grantPlanId === 'portfolio' ||
+    (grantPlanId === 'multi_homeowner' && targetPlanId === 'homeowner_plus');
+const isWithinTrackUpgrade = (grantPlanId, targetPlanId) => targetPlanId === 'portfolio' &&
+    grantPlanId !== 'portfolio' &&
+    grantPlanId !== 'multi_homeowner';
 const isPaidPlanId = (value) => Object.prototype.hasOwnProperty.call(PAID_PLAN_RANK, String(value || ''));
 const isActiveGrant = (grant, nowMs) => {
     if (grant.state !== 'active' || Number(grant.startsAtMs) > nowMs)
@@ -30,10 +38,8 @@ const getGrantAwareCheckoutPolicy = (params) => {
             : highest;
     }, activePlanGrants[0].bundleId);
     const controllingGrants = activePlanGrants.filter((grant) => grant.bundleId === effectiveGrantPlanId);
-    const targetRank = PAID_PLAN_RANK[targetPlanId];
-    const grantRank = PAID_PLAN_RANK[effectiveGrantPlanId];
     const permanentGrantsCoveringTarget = activePlanGrants.filter((grant) => grant.kind === 'permanent' &&
-        PAID_PLAN_RANK[grant.bundleId] >= targetRank);
+        planCoversTarget(grant.bundleId, targetPlanId));
     if (permanentGrantsCoveringTarget.length) {
         const highestPermanentPlanId = permanentGrantsCoveringTarget.reduce((highest, grant) => {
             const candidate = grant.bundleId;
@@ -48,7 +54,7 @@ const getGrantAwareCheckoutPolicy = (params) => {
         };
     }
     const convertibleGrants = activePlanGrants.filter(isCheckoutConvertible);
-    if (targetRank > grantRank) {
+    if (isWithinTrackUpgrade(effectiveGrantPlanId, targetPlanId)) {
         if (!convertibleGrants.length) {
             return { kind: 'standard', effectiveGrantPlanId: null };
         }
@@ -57,6 +63,9 @@ const getGrantAwareCheckoutPolicy = (params) => {
             effectiveGrantPlanId,
             conversionGrantIds: convertibleGrants.map((grant) => grant.grantId),
         };
+    }
+    if (!planCoversTarget(effectiveGrantPlanId, targetPlanId)) {
+        return { kind: 'standard', effectiveGrantPlanId: null };
     }
     const controllingTemporaryGrants = controllingGrants.filter((grant) => grant.kind === 'temporary');
     const firstChargeAtMs = controllingTemporaryGrants.reduce((latest, grant) => Math.max(latest, Number(grant.endsAtMs || 0)), 0);
@@ -69,7 +78,7 @@ const getGrantAwareCheckoutPolicy = (params) => {
         effectiveGrantPlanId,
         firstChargeAtSeconds: Math.floor(firstChargeAtMs / 1000),
         controllingGrantIds: controllingTemporaryGrants.map((grant) => grant.grantId),
-        conversionGrantIds: targetRank === grantRank
+        conversionGrantIds: targetPlanId === effectiveGrantPlanId
             ? controllingConvertibleGrants.map((grant) => grant.grantId)
             : [],
     };

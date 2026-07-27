@@ -544,7 +544,7 @@ export const UserProfile: React.FC = () => {
 			)}`
 			: 'Storage not included';
 	const storageFileLabel = storageUsage
-		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
+		? `${storageUsage.fileCount} files stored`
 		: '';
 
 	// Initialize form with current user data

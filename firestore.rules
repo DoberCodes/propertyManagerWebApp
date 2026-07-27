@@ -127,15 +127,15 @@ service cloud.firestore {
     // with @maintley/entitlements and cover it with emulator parity tests.
     function planLimit(plan, limitId) {
       return limitId == 'properties'
-        ? (['homeowner', 'homeowner_plus'].hasAny([plan])
-          ? 1
-          : (plan == 'multi_homeowner'
-            ? 5
-            : (plan == 'property' ? 7 : (plan == 'portfolio' ? 15 : 0))))
+		? (plan == 'homeowner'
+		  ? 1
+		  : (plan == 'homeowner_plus'
+		    ? 5
+		  : (plan == 'multi_homeowner'
+		    ? 5
+		    : (plan == 'property' ? 7 : (plan == 'portfolio' ? 15 : 0)))))
         : (limitId == 'devices'
-          ? (plan == 'homeowner'
-            ? 15
-            : (['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan]) ? 999 : 0))
+		  ? (['homeowner', 'homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan]) ? 999 : 0)
           : 0);
     }
 
@@ -145,13 +145,13 @@ service cloud.firestore {
         : (capabilityId == 'residents.manage'
           ? ['property', 'portfolio'].hasAny([plan])
           : (capabilityId == 'property_groups.manage'
-            ? ['multi_homeowner', 'property', 'portfolio'].hasAny([plan])
+			? ['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan])
             : (capabilityId == 'team.manage'
               ? ['property', 'portfolio'].hasAny([plan])
               : (capabilityId == 'team.advanced'
                 ? plan == 'portfolio'
                 : (capabilityId == 'recurring_tasks.use'
-                  ? ['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan])
+				  ? ['homeowner', 'homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].hasAny([plan])
                   : false)))));
     }
 

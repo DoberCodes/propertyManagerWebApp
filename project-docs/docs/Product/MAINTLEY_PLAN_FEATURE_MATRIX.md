@@ -54,39 +54,41 @@ See:
 
 ## Free
 
-Document and organize your property.
+Maintain your home.
 
 Answers:
 
-> What do I own?
+> What have I done, and what maintenance needs attention?
 
 Best for:
 
-* Homeowners getting started
-* Property documentation
-* Equipment tracking
-* Manual maintenance tracking
+* Maintaining one home indefinitely
+* Complete property documentation
+* Unlimited equipment tracking
+* Manual and recurring maintenance
+* Ordinary task reminders
 
 ---
 
 ## Homeowner+
 
-Automate maintenance and receive personalized guidance.
+Understand and plan for up to five homes.
 
 Answers:
 
-> What should I be paying attention to?
+> What should I understand, prioritize, and plan for next?
 
 Best for:
 
-* Active homeowners
-* Recurring maintenance
-* Maintley Intelligence
-* Maintenance automation
+* Homeowners who want Maintley Intelligence
+* Multiple personal or family homes
+* AI guidance and Knowledge Packs
+* Advanced document processing
+* Lifecycle, cost, and replacement planning
 
 ---
 
-## Multi-Homeowner (launch-gated)
+## Multi-Homeowner (retired compatibility identifier)
 
 Maintain several personal or family homes without adopting business workflows.
 
@@ -100,39 +102,33 @@ Best for:
 * Family or inherited properties
 * Homeowners responsible for up to five homes
 
-Multi-Homeowner is disabled by default during staged implementation. When
-enabled, it includes every Homeowner+ capability, raises the property limit to
-five, and adds Property Groups. It retains Homeowner+'s limits of 250 files and
-5 GB of storage. It does not include resident profiles or requests, business
-teams, advanced permissions, portfolio reporting, organizations, or
-professional-contribution workflows.
-
-Approved pricing is $5.99 monthly or $59.99 annually. Public pricing,
-registration, checkout, and admin plan selection must remain hidden or rejected
-until the launch flag is enabled.
+Multi-Homeowner is not a public plan. Homeowner+ now includes up to five homes
+and Property Groups. The internal `multi_homeowner` identifier remains only so
+existing Stripe, grant, and account records can resolve to an equivalent
+Homeowner+ capability bundle without destructive migration.
 
 ---
 
 ## Property
 
-Manage a small portfolio of properties.
+Manage properties with business collaboration.
 
 Answers:
 
-> How do I efficiently manage multiple properties?
+> How do I manage maintenance with a team and residents?
 
 Best for:
 
 * Landlords
-* Small property owners
-* Small maintenance operations
-* Simple collaboration
+* Small property operations
+* Simple teams and resident requests
+* Core maintenance management without premium Intelligence
 
 ---
 
 ## Portfolio
 
-Coordinate maintenance across properties, teams, and stakeholders.
+Understand and coordinate maintenance at scale.
 
 Answers:
 
@@ -145,6 +141,7 @@ Best for:
 * Teams
 * Contractor coordination
 * Owner collaboration
+* Full Maintley Intelligence and cross-property guidance
 
 ---
 
@@ -152,18 +149,18 @@ Best for:
 
 | Feature                  | Free | Homeowner+ | Property | Portfolio |
 | ------------------------ | ---- | ---------- | -------- | --------- |
-| Properties               | 1    | 1          | 7        | 15        |
+| Properties               | 1    | 5          | 7        | 15        |
 | Property Photos          | ✓    | ✓          | ✓        | ✓         |
 | Property Details         | ✓    | ✓          | ✓        | ✓         |
 | Property Setup Assistant | ✓    | ✓          | ✓        | ✓         |
-| Property Groups          | ✗    | ✗          | ✓        | ✓         |
+| Property Groups          | ✗    | ✓          | ✓        | ✓         |
 
 ### Notes
 
 * Property Groups are intended for multi-property workflows.
-* Free and Homeowner+ are optimized around a single-property experience.
-* Multi-Homeowner adds homeowner-oriented grouping for up to five properties
-  without enabling resident, team, or other business workflows.
+* Free is optimized around one home.
+* Homeowner+ supports up to five personal or family homes without enabling
+  resident, team, or other business workflows.
 * Future property limits may evolve based on usage patterns.
 
 ---
@@ -172,19 +169,19 @@ Best for:
 
 | Feature                               | Free      | Homeowner+ | Property  | Portfolio |
 | ------------------------------------- | --------- | ---------- | --------- | --------- |
-| Equipment / Assets         | 15        | Unlimited  | Unlimited | Unlimited |
+| Equipment / Assets         | Unlimited | Unlimited  | Unlimited | Unlimited |
 | Warranty Information                  | ✓         | ✓          | ✓         | ✓         |
 | Serial Numbers                        | ✓         | ✓          | ✓         | ✓         |
 | Model Numbers                         | ✓         | ✓          | ✓         | ✓         |
 | Installation Dates                    | ✓         | ✓          | ✓         | ✓         |
-| Suggested Maintenance Visibility      | View Only | ✓          | ✓         | ✓         |
-| Suggested Maintenance Task Generation | ✗         | ✓          | ✓         | ✓         |
+| Suggested Maintenance Visibility      | ✓         | ✓          | ✓         | ✓         |
+| Suggested Maintenance Task Generation | ✓         | ✓          | ✓         | ✓         |
 
 ### Notes
 
 * Assets may include equipment, systems, vehicles, generators, tools, equipment, trailers, and other maintainable items.
-* Free users may view recommendations.
-* Paid plans may generate maintenance tasks from recommendations.
+* The core maintenance workflow, including setup-generated maintenance tasks,
+  is available across all standard plans.
 
 ---
 
@@ -196,12 +193,12 @@ Best for:
 | Due Dates                   | ✓    | ✓          | ✓        | ✓         |
 | Task History                | ✓    | ✓          | ✓        | ✓         |
 | Task Assignment             | ✓    | ✓          | ✓        | ✓         |
-| Recurring Tasks             | ✗    | ✓          | ✓        | ✓         |
-| Suggested Maintenance Tasks | ✗    | ✓          | ✓        | ✓         |
+| Recurring Tasks             | ✓    | ✓          | ✓        | ✓         |
+| Suggested Maintenance Tasks | ✓    | ✓          | ✓        | ✓         |
 
 ### Notes
 
-* Recurring tasks are considered automation functionality.
+* Recurring tasks are part of the complete core maintenance workflow.
 * Task assignment remains available across all plans.
 
 ---
@@ -210,11 +207,11 @@ Best for:
 
 | Feature                        | Free | Homeowner+ | Property | Portfolio |
 | ------------------------------ | ---- | ---------- | -------- | --------- |
-| Dashboard Recommendations      | Yes  | Yes        | Yes      | Yes       |
-| Quick Property Scan            | Yes  | Yes        | Yes      | Yes       |
+| Dashboard Recommendations      | Record check | Yes | Record check | Yes |
+| Quick Property Scan            | Lightweight | Yes | Lightweight | Yes |
 | Setup Recommendations          | Yes  | Yes        | Yes      | Yes       |
-| Home / Property Review         | Preview | Yes     | Yes      | Yes       |
-| Property Insights              | No   | Yes        | Yes      | Yes       |
+| Home / Property Review         | Preview | Yes     | Preview  | Yes       |
+| Property Insights              | No   | Yes        | No       | Yes       |
 
 ### Notes
 
@@ -229,15 +226,20 @@ Capabilities may include:
 * Quick Property Scan observations
 * Property Insight observations
 
-Quick Property Scan should remain available on free and paid plans.
+Free and Property retain a lightweight record check. Full Maintley Intelligence
+is available on Homeowner+ and Portfolio.
 
 Premium intelligence should expand what Maintley can review and explain, not turn free recommendations into unsolvable warnings.
 
 Free Quick Scan is the first layer of Maintley Intelligence. It is powered by Home Memory / Property Memory and focuses on information the user has saved, such as missing details, setup gaps, maintenance history, overdue tasks, and documents.
 
-Homeowner+ and higher plans expand Maintley Intelligence with Maintley Knowledge, Home / Property History, Seasonal Context, and Maintenance Patterns.
+Homeowner+ and Portfolio expand Maintley Intelligence with Maintley Knowledge,
+Home / Property History, Seasonal Context, Maintenance Patterns, AI guidance,
+Knowledge Packs, and advanced document processing as implemented.
 
-Home / Property Review is the deeper completeness-oriented layer. Free users may see a paid preview, but the full review is available on Homeowner+ and higher plans.
+Home / Property Review is the deeper completeness-oriented layer. Free and
+Property users may see a paid preview, but the full review is available on
+Homeowner+ and Portfolio.
 
 See PROPERTY_INTELLIGENCE.md for recommendation behavior and prioritization rules.
 
@@ -252,14 +254,16 @@ Ongoing Maintley Intelligence remains a roadmap item, not a current plan entitle
 | In-App Notifications     | ✓    | ✓          | ✓        | ✓         |
 | Monthly Property Summary | ✓    | ✓          | ✓        | ✓         |
 | Seasonal Guidance        | ✓    | ✓          | ✓        | ✓         |
-| Task Reminder Emails     | ✗    | ✓          | ✓        | ✓         |
-| Push Notifications       | ✗    | ✓          | ✓        | ✓         |
+| Task Reminder Emails     | ✓    | ✓          | ✓        | ✓         |
+| Push Notifications       | ✓    | ✓          | ✓        | ✓         |
 
 ### Notes
 
 * Monthly Property Summary is available to all users.
 * Standalone seasonal dashboard guidance has been removed. Future seasonal guidance should appear through Maintley Intelligence rather than a separate dashboard module.
-* Reminder and push functionality require paid plans.
+* Ordinary task reminders and push functionality are part of the core
+  maintenance workflow. Premium Intelligence summaries remain limited to plans
+  that include full Maintley Intelligence.
 
 See EMAIL_NOTIFICATIONS.md for delivery behavior.
 
@@ -274,15 +278,18 @@ See EMAIL_NOTIFICATIONS.md for delivery behavior.
 | File Deletion         | ✓    | ✓          | ✓        | ✓         |
 | Storage Usage Display | ✓    | ✓          | ✓        | ✓         |
 | Suggested Details from Documents | Preview | Yes | Yes | Yes |
-| File Limit            | 10   | 250        | 1500     | 5000      |
-| Storage Limit         | 1 GB | 5 GB       | 15 GB    | 25 GB     |
+| File Count Limit      | None | None       | None     | None      |
+| Storage Limit         | 1 GB | 10 GB      | 15 GB    | 25 GB     |
 
 ### Notes
 
 * Users should always retain access to existing files.
-* Storage limits may evolve based on real-world usage.
+* Storage limits may evolve based on real-world usage. Storage volume, rather
+  than file count, is the customer-facing resource boundary.
 * File management remains available on all plans.
-* Free users can upload and organize documents. Homeowner+ and higher plans unlock Maintley's suggested detail review from uploaded documents.
+* Free and Property users can upload and organize documents and may see a
+  limited advanced-processing preview. Homeowner+ and Portfolio unlock
+  Maintley's advanced suggested-detail review from uploaded documents.
 
 ---
 
@@ -376,6 +383,9 @@ Maintley does not currently provide:
 * Intended for simple collaboration.
 * Team members operate as administrators.
 * Property-level restrictions are not currently included.
+* Property includes the complete core maintenance workflow and lightweight
+  record checks. Full Maintley Intelligence is reserved for Portfolio on the
+  business track.
 
 ---
 
@@ -397,6 +407,8 @@ Maintley does not currently provide:
 * Supports advanced operational workflows.
 * Supports property-level access control.
 * Supports owner-specific visibility.
+* Includes full Maintley Intelligence, advanced document processing, and
+  cross-property guidance.
 
 ---
 
@@ -424,26 +436,27 @@ Maintley does not currently provide:
 
 Unlock:
 
-* Unlimited Systems & Assets
-* Suggested Maintenance Task Generation
-* Recurring Tasks
-* Task Reminder Emails
-* Push Notifications
-* Expanded Maintley Intelligence
-* Home Review
-* Expanded Storage
+* Up to five homes
+* Property Groups
+* Full Maintley Intelligence
+* Home Review and Property Insights
+* AI guidance and Knowledge Packs
+* Advanced document processing
+* 10 GB storage
 
 ---
 
-## Homeowner+ → Property
+## Homeowner+ or Free → Property
 
 Unlock:
 
-* Up to 7 Properties
-* Property Groups
 * Resident Maintenance Requests
 * Team Collaboration
-* Multi-Property Management
+* Business Workflows
+
+Property is a separate business track, not a higher homeowner Intelligence
+tier. It includes lightweight record checks rather than full Maintley
+Intelligence.
 
 ---
 
@@ -456,10 +469,31 @@ Unlock:
 * Advanced Permissions
 * Owner-Specific Access
 * Advanced Operational Management
+* Full Maintley Intelligence
+* Cross-Property Guidance
+* Advanced Document Processing
 
 ---
 
 # Guiding Principles
+
+## Non-Destructive Downgrades
+
+Downgrades change future capability without hiding or deleting existing
+customer records.
+
+* Existing properties, equipment, tasks, Maintenance History, and files remain
+  visible.
+* Existing files remain downloadable when an account exceeds the lower storage
+  quota.
+* New creation is restricted while usage meets or exceeds the lower limit.
+* Previously accepted premium suggestions remain ordinary customer records.
+* Persisted point-in-time premium results remain visible, while new premium
+  processing stops.
+* Business permission changes must never widen access automatically.
+* Cancellation does not delete the account.
+
+---
 
 Maintley plans should remain easy to understand.
 
@@ -468,21 +502,9 @@ Feature differentiation should be based on customer value rather than technical 
 Plan progression should follow a natural growth path:
 
 ```text
-Free
-  ↓
-Organize
+Homeowners: Free (Maintain) → Homeowner+ (Understand)
 
-Homeowner+
-  ↓
-Maintain
-
-Property
-  ↓
-Manage Multiple Properties
-
-Portfolio
-  ↓
-Coordinate Operations
+Businesses: Property (Manage) → Portfolio (Understand and Coordinate)
 ```
 
 Plans should remain focused on helping users maintain properties, preserve records, and improve long-term maintenance outcomes.

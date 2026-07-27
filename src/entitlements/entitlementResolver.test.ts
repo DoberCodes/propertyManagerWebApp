@@ -80,15 +80,15 @@ describe('centralized entitlement resolver', () => {
 		expect(isPlanEnabled('unknown-plan')).toBe(false);
 		expect(
 			isPlanEnabled('multi_homeowner', { multiHomeownerPlan: true }),
-		).toBe(true);
+		).toBe(false);
 		expect(disabled.basePlanId).toBe('multi_homeowner');
 		expect(disabled.diagnostics.map(({ code }) => code)).toContain(
 			'disabled_plan_preserved',
 		);
 		expect(enabled.basePlanId).toBe('multi_homeowner');
 		expect(enabled.limits.properties).toBe(5);
-		expect(enabled.limits.files).toBe(250);
-		expect(enabled.limits.storage_gb).toBe(5);
+		expect(enabled.limits.files).toBe(999999999);
+		expect(enabled.limits.storage_gb).toBe(10);
 		expect(enabled.capabilities['property_groups.manage']).toBe(true);
 		expect(enabled.capabilities['team.manage']).toBe(false);
 		expect(enabled.capabilities['residents.manage']).toBe(false);
@@ -99,7 +99,9 @@ describe('centralized entitlement resolver', () => {
 		expect(hasCapability(PLAN_PRESETS.homeowner_plus, 'notifications.use')).toBe(
 			true,
 		);
-		expect(hasCapability(PLAN_PRESETS.homeowner, 'notifications.use')).toBe(false);
+		expect(hasCapability(PLAN_PRESETS.homeowner, 'notifications.use')).toBe(true);
+		expect(hasCapability(PLAN_PRESETS.property, 'property_intelligence.use')).toBe(false);
+		expect(hasCapability(PLAN_PRESETS.portfolio, 'property_intelligence.use')).toBe(true);
 		expect(getEntitlementLimit(PLAN_PRESETS.property, 'properties')).toBe(7);
 		expect(
 			hasCapability(
@@ -225,7 +227,7 @@ describe('centralized entitlement resolver', () => {
 		expect(result.capabilities['recurring_tasks.use']).toBe(true);
 		expect(result.capabilities['team.manage']).toBe(true);
 		expect(result.limits.properties).toBe(5);
-		expect(result.limits.files).toBe(400);
+		expect(result.limits.files).toBe(999999999);
 		expect(result.activeGrantIds).toEqual(['grant-1', 'grant-2']);
 	});
 
@@ -249,7 +251,7 @@ describe('centralized entitlement resolver', () => {
 		expect(result.activeGrantIds).toEqual(['grant-1']);
 	});
 
-	it('supports a promotional bundle with lower grant-specific file limits', () => {
+	it('keeps file count unlimited while honoring grant-specific storage limits', () => {
 		const result = resolveAccountEntitlements({
 			accountId: 'account-1',
 			subscription: activeSubscription('homeowner'),
@@ -264,7 +266,7 @@ describe('centralized entitlement resolver', () => {
 		});
 
 		expect(result.capabilities['portfolio.reporting']).toBe(true);
-		expect(result.limits.files).toBe(100);
+		expect(result.limits.files).toBe(999999999);
 		expect(result.limits.storage_gb).toBe(2);
 	});
 
@@ -282,7 +284,7 @@ describe('centralized entitlement resolver', () => {
 			nowMs: NOW_MS,
 		});
 
-		expect(result.limits.files).toBe(1500);
+		expect(result.limits.files).toBe(999999999);
 		expect(result.limits.storage_gb).toBe(15);
 	});
 
@@ -326,7 +328,7 @@ describe('centralized entitlement resolver', () => {
 		});
 
 		expect(result.activeGrantIds).toEqual([]);
-		expect(result.capabilities['recurring_tasks.use']).toBe(false);
+		expect(result.capabilities['recurring_tasks.use']).toBe(true);
 	});
 
 	it('requires account scope and rejects grants owned by another account', () => {

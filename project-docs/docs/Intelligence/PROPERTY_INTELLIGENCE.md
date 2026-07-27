@@ -1013,7 +1013,7 @@ Provide a comprehensive review of property record completeness, maintenance cove
 
 Availability:
 
-Preview on Free. Full review on Homeowner+ and higher plans.
+Preview on Free and Property. Full review on Homeowner+ and Portfolio.
 
 Expected time:
 

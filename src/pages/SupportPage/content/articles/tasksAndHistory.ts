@@ -61,7 +61,7 @@ export const tasksAndHistoryArticle: HelpfulArticle = {
 		{
 			heading: 'Troubleshooting, plans, and permissions',
 			paragraphs: [
-				'Manual tasks, due dates, task assignment, and Maintenance History are available across standard plans. Recurring tasks, suggested maintenance task generation, reminder email, and push features require a plan that includes those capabilities. If a recurrence control is unavailable, keep the current task as a one-time task or review plan options; do not create many speculative future tasks.',
+				'Manual tasks, recurring tasks, due dates, suggested maintenance task generation, task assignment, reminder email, push notifications, and Maintenance History are part of the core maintenance workflow across standard plans. If a recurrence control is unavailable, refresh the account and contact Support rather than creating many speculative future tasks.',
 				'If you cannot edit, complete, or delete a task, confirm your account role and property assignment. Limited team roles may only see or update assigned work. If the task points to the wrong property or equipment, correct that context before completion. If completion appears to fail, keep the page open, check the connection, and avoid submitting repeatedly until you know whether the first action saved.',
 			],
 		},

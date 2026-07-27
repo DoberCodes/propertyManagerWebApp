@@ -136,3 +136,19 @@ One intelligence engine. Multiple experiences.
 - project-docs/docs/Architecture/DATA_MODEL.md:910
 - project-docs/docs/Architecture/DATA_MODEL.md:1060
 - project-docs/docs/Architecture/DATA_MODEL.md:1062
+## 2026-07 plan-boundary update
+
+Maintley Intelligence is the primary premium value for homeowners and for
+Portfolio customers. Free and Property retain a lightweight record check so
+the core product can explain saved information and obvious record gaps.
+
+Homeowner+ and Portfolio add full property reviews, cross-record inference,
+Knowledge Packs, advanced document processing, AI guidance, lifecycle and cost
+planning, and future predictive capabilities as each becomes implemented.
+Property does not inherit the Homeowner+ Intelligence bundle merely because it
+is a higher-priced business plan; it adds business collaboration to the core
+maintenance bundle. Portfolio combines both Intelligence and advanced business
+coordination.
+
+This distinction does not change the derived-data decision. Intelligence must
+remain explainable and must not become a competing canonical source of truth.

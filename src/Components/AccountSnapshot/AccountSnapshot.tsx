@@ -116,7 +116,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 			)}`
 			: 'Storage not included';
 	const storageFileLabel = storageUsage
-		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
+		? `${storageUsage.fileCount} files stored`
 		: '';
 
 	return (

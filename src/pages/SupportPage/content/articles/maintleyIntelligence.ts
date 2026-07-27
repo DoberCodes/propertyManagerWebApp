@@ -59,7 +59,7 @@ export const maintleyIntelligenceArticle: HelpfulArticle = {
 		{
 			heading: 'Troubleshooting and plan requirements',
 			paragraphs: [
-				'Dashboard recommendations, setup recommendations, and Quick Property Scan are available on Free and paid plans. Free recommendations focus on saved property knowledge. Homeowner+ and higher plans add deeper sources such as Maintley Knowledge, property history, seasonal context, and maintenance patterns. Full Home or Property Review and Property Insights require Homeowner+ or higher; Free may show a clearly labeled preview.',
+				'Free and Property include a lightweight record check focused on saved facts, setup gaps, and core maintenance context. Homeowner+ and Portfolio add full Maintley Intelligence with deeper sources such as Maintley Knowledge, property history, seasonal context, maintenance patterns, AI guidance, and Knowledge Packs as implemented. Full Home or Property Review and Property Insights require Homeowner+ or Portfolio; Free and Property may show a clearly labeled preview.',
 				'If a recommendation looks stale, verify the underlying record and refresh the page. If it references the wrong equipment, inspect the task, history, or document links that supplied the context. If no recommendations appear, the property may not yet contain enough useful information, the current record may have no high-value findings, or your role may not include the relevant property.',
 			],
 		},

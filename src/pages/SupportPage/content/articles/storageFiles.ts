@@ -6,11 +6,11 @@ export const storageFilesArticle: HelpfulArticle = {
 	summary: 'Keep useful files organized, review usage, and respond safely when the account reaches a limit.',
 	path: '/settings?category=account',
 	actionLabel: 'Review Plan and Storage',
-	introduction: 'Files support property, equipment, task, and maintenance records. Plan limits apply to both the number of files and total storage used.',
+	introduction: 'Files support property, equipment, task, and maintenance records. Standard plans limit total storage volume without imposing a customer-facing file-count limit.',
 	sections: [
 		{ heading: 'Current storage limits', paragraphs: [
-			'Free includes 10 files and 1 GB. Homeowner+ includes 250 files and 5 GB. Property includes 1,500 files and 15 GB. Portfolio includes 5,000 files and 25 GB. Limits may evolve, so use the current plan and storage display when making a decision.',
-			'File uploads, downloads, deletion, and storage-usage display are available across standard plans. Existing files should remain accessible after a downgrade even when current usage is above the lower plan’s limit, but new uploads may be blocked until usage or access changes.',
+			'Free includes 1 GB, Homeowner+ includes 10 GB, Property includes 15 GB, and Portfolio includes 25 GB. Standard plans do not use a customer-facing file-count limit. Storage limits may evolve, so use the current plan and storage display when making a decision.',
+			'File uploads, downloads, deletion, and storage-usage display are available across standard plans. Existing files remain visible and downloadable after a downgrade even when current usage is above the lower storage limit, but new uploads are blocked until usage falls below the current quota or access changes.',
 		] },
 		{ heading: 'Manage files step by step', steps: [
 			'Upload the file from the property, equipment, task, or maintenance record it supports.',
