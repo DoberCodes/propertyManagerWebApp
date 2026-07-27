@@ -1,6 +1,9 @@
 import { Device } from '../types/Property.types';
 import { Task } from '../types/Task.types';
-import { deriveMaintleyIntelligenceReadiness } from './readiness';
+import {
+	aggregateMaintleyIntelligenceReadiness,
+	deriveMaintleyIntelligenceReadiness,
+} from './readiness';
 
 const system = (overrides: Partial<Device> = {}): Device =>
 	({
@@ -20,6 +23,8 @@ const task = (overrides: Partial<Task> = {}): Task =>
 		dueDate: '2026-08-01',
 		status: 'Pending',
 		isRecurring: true,
+		recurrenceFrequency: 'monthly',
+		recurrenceInterval: 3,
 		devices: ['hvac-1'],
 		...overrides,
 	}) as Task;
@@ -97,6 +102,40 @@ describe('Maintley Intelligence readiness', () => {
 		expect(result.categories[1].level).toBe('building_context');
 	});
 
+	it('does not count a recurring task without a usable schedule as coverage', () => {
+		const result = deriveMaintleyIntelligenceReadiness({
+			systems: [system()],
+			tasks: [task({ recurrenceFrequency: undefined })],
+			maintenanceHistory: [],
+		});
+
+		expect(result.categories[1]).toEqual(
+			expect.objectContaining({
+				level: 'building_context',
+				evidence: expect.objectContaining({ scheduledRecords: 0 }),
+			}),
+		);
+	});
+
+	it('separates Maintley-guided and custom recurring schedules', () => {
+		const result = deriveMaintleyIntelligenceReadiness({
+			systems: [system(), system({ id: 'hvac-2' })],
+			tasks: [
+				task(),
+				task({ id: 'task-2', title: 'Custom seasonal check', devices: ['hvac-2'] }),
+			],
+			maintenanceHistory: [],
+		});
+
+		expect(result.categories[1].evidence).toEqual(
+			expect.objectContaining({
+				scheduledRecords: 2,
+				guidedRecords: 1,
+				customScheduleRecords: 1,
+			}),
+		);
+	});
+
 	it('marks linked service history ready', () => {
 		const result = deriveMaintleyIntelligenceReadiness({
 			systems: [system()],
@@ -118,5 +157,48 @@ describe('Maintley Intelligence readiness', () => {
 				level: 'ready',
 			}),
 		);
+	});
+
+	it('requires three comparable dated events before exposing a recorded pattern', () => {
+		const result = deriveMaintleyIntelligenceReadiness({
+			systems: [system()],
+			tasks: [],
+			maintenanceHistory: ['2026-01-01', '2026-04-01', '2026-07-01'].map(
+				(serviceDate, index) => ({
+					id: `event-${index}`,
+					propertyId: 'property-1',
+					deviceIds: ['hvac-1'],
+					title: 'Replace HVAC filter',
+					serviceDate,
+				}),
+			),
+		});
+
+		expect(result.categories[2].evidence.patternRecords).toBe(1);
+	});
+
+	it('aggregates independently derived property readiness without creating a score', () => {
+		const ready = deriveMaintleyIntelligenceReadiness({
+			systems: [system()],
+			tasks: [task()],
+			maintenanceHistory: [],
+		});
+		const building = deriveMaintleyIntelligenceReadiness({
+			systems: [system({ id: 'hvac-2' })],
+			tasks: [],
+			maintenanceHistory: [],
+		});
+		const aggregate = aggregateMaintleyIntelligenceReadiness([
+			{ propertyId: 'one', propertyTitle: 'Primary Home', propertySlug: 'one', readiness: ready },
+			{ propertyId: 'two', propertyTitle: 'Lake House', propertySlug: 'two', readiness: building },
+		]);
+
+		expect(aggregate.categories[1]).toEqual(
+			expect.objectContaining({
+				level: 'building_context',
+				evidence: expect.objectContaining({ applicableRecords: 2, supportedRecords: 1 }),
+			}),
+		);
+		expect(aggregate).not.toHaveProperty('score');
 	});
 });

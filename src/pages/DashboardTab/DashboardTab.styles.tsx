@@ -1179,6 +1179,120 @@ export const IntelligenceReadinessDialogFooter = styled.p`
 	text-transform: uppercase;
 `;
 
+export const IntelligenceReadinessPropertyList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-height: min(52vh, 520px);
+	overflow-y: auto;
+	padding-right: 2px;
+`;
+
+export const IntelligenceReadinessPropertyCard = styled.article`
+	display: flex;
+	flex-direction: column;
+	gap: 9px;
+	padding: 12px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 12px;
+	background: ${COLORS.bgWhite};
+`;
+
+export const IntelligenceReadinessPropertyHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+`;
+
+export const IntelligenceReadinessPropertyTitle = styled.strong`
+	color: ${COLORS.textPrimary};
+	font-size: 0.92rem;
+	font-weight: 800;
+	line-height: 1.35;
+`;
+
+export const IntelligenceReadinessPropertyLevel = styled.span<{
+	$level: 'starting' | 'building_context' | 'ready';
+}>`
+	flex-shrink: 0;
+	padding: 3px 8px;
+	border-radius: 999px;
+	font-size: 0.68rem;
+	font-weight: 900;
+	color: ${(props) =>
+		props.$level === 'ready'
+			? COLORS.successDark
+			: props.$level === 'building_context'
+				? COLORS.warningDark
+				: COLORS.textSecondary};
+	background: ${(props) =>
+		props.$level === 'ready'
+			? COLORS.successLight
+			: props.$level === 'building_context'
+				? COLORS.warningLight
+				: COLORS.gray100};
+`;
+
+export const IntelligenceReadinessEvidenceList = styled.ul`
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	margin: 0;
+	padding: 0 0 0 18px;
+`;
+
+export const IntelligenceReadinessEvidenceItem = styled.li`
+	color: ${COLORS.textSecondary};
+	font-size: 0.78rem;
+	font-weight: 600;
+	line-height: 1.4;
+`;
+
+export const IntelligenceReadinessPropertyAction = styled.button`
+	align-self: flex-end;
+	min-height: 38px;
+	padding: 7px 11px;
+	border: 1px solid rgba(4, 120, 87, 0.24);
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 0.78rem;
+	font-weight: 900;
+	cursor: pointer;
+
+	&:hover,
+	&:focus-visible {
+		border-color: rgba(4, 120, 87, 0.45);
+		background: rgba(63, 204, 124, 0.16);
+		outline: none;
+	}
+
+	@media (max-width: 520px) {
+		align-self: stretch;
+		width: 100%;
+		min-height: 44px;
+	}
+`;
+
+export const IntelligenceReadinessFractions = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+`;
+
+export const IntelligenceReadinessFraction = styled.span`
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 8px;
+	border-radius: 999px;
+	background: ${COLORS.gray50};
+	border: 1px solid ${COLORS.border};
+	color: ${COLORS.textSecondary};
+	font-size: 0.72rem;
+	font-weight: 800;
+`;
+
 export const RecentActivitySection = styled.section`
 	background: ${COLORS.bgWhite};
 	border: 1px solid ${COLORS.border};
