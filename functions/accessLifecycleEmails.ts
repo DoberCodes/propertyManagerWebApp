@@ -331,7 +331,6 @@ type PromotionalLifecycleEmailInput = LifecycleEmailInput & {
 const bundleLabel = (bundleId: unknown): string => {
 	const labels: Record<string, string> = {
 		homeowner_plus: 'Homeowner+',
-		multi_homeowner: 'Multi-Homeowner',
 		property: 'Property',
 		portfolio: 'Portfolio',
 	};

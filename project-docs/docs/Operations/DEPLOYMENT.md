@@ -282,8 +282,6 @@ Important GitHub Actions secrets include:
 * Stripe price IDs for non-interactive Functions deploy:
   * `PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`
   * `PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID`
-  * `PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`
-  * `PROD_STRIPE_MULTIPLE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID`
   * `PROD_STRIPE_PROPERTY_MONTHLY_PRICE_ID`
   * `PROD_STRIPE_PROPERTY_ANNUAL_PRICE_ID`
   * `PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID`
@@ -312,7 +310,6 @@ is absent.
 
 | Repository variable | Value format | Workflow destination | Purpose |
 | --- | --- | --- | --- |
-| `ENABLE_MULTI_HOMEOWNER_PLAN` | `true` or `false` | Web: `REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN`; Functions: `ENABLE_MULTI_HOMEOWNER_PLAN` | Makes the multi-homeowner plan available to the configured web and backend paths. |
 | `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` | `true` or `false` | Web: `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL`; Functions: `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` | Enables the Homeowner+ internal trial surfaces and issuance path. |
 | `ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` | `true` or `false` | Web: `REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; Functions: `ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` | Enables internal entitlement-grant administration and server issuance. |
 | `ENABLE_COMPLIMENTARY_PAID_TRANSITIONS` | `true` or `false` | Functions: same name | Enables grant-aware Checkout timing and audited conversion. Keep false until deployed Checkout, webhook, cancellation, and first-charge validation passes. |

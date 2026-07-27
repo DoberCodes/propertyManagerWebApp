@@ -43,8 +43,7 @@ export const selectIsHomeowner = createSelector([selectUser], (user) => {
 	const plan = getEffectiveAccessPlanId(user.subscription);
 	return !!user &&
 		(plan === 'homeowner' ||
-			plan === 'homeowner_plus' ||
-			plan === 'multi_homeowner');
+			plan === 'homeowner_plus');
 });
 
 export const selectCanAccessTeam = createSelector([selectUser], (user) => {

@@ -2,25 +2,22 @@ import { EntitlementGrant, PaidPlanId } from '@maintley/entitlements';
 
 const PAID_PLAN_RANK: Record<PaidPlanId, number> = {
 	homeowner_plus: 1,
-	multi_homeowner: 2,
-	property: 3,
-	portfolio: 4,
+	property: 2,
+	portfolio: 3,
 };
 
 // Checkout ordering is intentionally narrower than entitlement composition.
 // Homeowner+ and Property are parallel product tracks; neither covers the other.
 const planCoversTarget = (grantPlanId: PaidPlanId, targetPlanId: PaidPlanId) =>
 	grantPlanId === targetPlanId ||
-	grantPlanId === 'portfolio' ||
-	(grantPlanId === 'multi_homeowner' && targetPlanId === 'homeowner_plus');
+	grantPlanId === 'portfolio';
 
 const isWithinTrackUpgrade = (
 	grantPlanId: PaidPlanId,
 	targetPlanId: PaidPlanId,
 ) =>
 	targetPlanId === 'portfolio' &&
-	grantPlanId !== 'portfolio' &&
-	grantPlanId !== 'multi_homeowner';
+	grantPlanId !== 'portfolio';
 
 export type GrantAwareCheckoutPolicy =
 	| { kind: 'standard'; effectiveGrantPlanId: null }

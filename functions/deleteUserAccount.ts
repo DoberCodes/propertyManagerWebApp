@@ -18,7 +18,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 const PAID_SUBSCRIPTION_PLANS = new Set([
 	'homeowner_plus',
-	'multi_homeowner',
 	'property',
 	'portfolio',
 ]);

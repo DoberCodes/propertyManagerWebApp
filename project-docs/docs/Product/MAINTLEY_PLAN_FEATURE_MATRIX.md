@@ -88,27 +88,6 @@ Best for:
 
 ---
 
-## Multi-Homeowner (retired compatibility identifier)
-
-Maintain several personal or family homes without adopting business workflows.
-
-Answers:
-
-> How do I preserve and organize maintenance across the homes I care for?
-
-Best for:
-
-* Vacation and second homes
-* Family or inherited properties
-* Homeowners responsible for up to five homes
-
-Multi-Homeowner is not a public plan. Homeowner+ now includes up to five homes
-and Property Groups. The internal `multi_homeowner` identifier remains only so
-existing Stripe, grant, and account records can resolve to an equivalent
-Homeowner+ capability bundle without destructive migration.
-
----
-
 ## Property
 
 Manage properties with business collaboration.

@@ -59,8 +59,6 @@ const optionalStringParam = (name) => (0, params_1.defineString)(name, { default
 const STRIPE_PRICE_PARAMS = {
     homeownerPlusMonthlyPriceId: optionalStringParam('STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID'),
     homeownerPlusAnnualPriceId: optionalStringParam('STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID'),
-    multiHomeownerMonthlyPriceId: optionalStringParam('STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID'),
-    multiHomeownerAnnualPriceId: optionalStringParam('STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID'),
     propertyMonthlyPriceId: optionalStringParam('STRIPE_PROPERTY_MONTHLY_PRICE_ID'),
     propertyAnnualPriceId: optionalStringParam('STRIPE_PROPERTY_ANNUAL_PRICE_ID'),
     portfolioMonthlyPriceId: optionalStringParam('STRIPE_PORTFOLIO_MONTHLY_PRICE_ID'),
@@ -688,10 +686,6 @@ const resolveStripePriceIdForPlan = (planId, billingCycle = 'month') => {
         readExportedStripeConfig('property_monthly_price_id') ||
         readExportedStripeConfig('property_price_id') ||
         readEnv('REACT_APP_STRIPE_PROPERTY_PLAN_ID');
-    const multiHomeownerPriceId = readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerMonthlyPriceId) ||
-        readExportedStripeConfig('multi_homeowner_monthly_price_id');
-    const multiHomeownerAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.multiHomeownerAnnualPriceId) ||
-        readExportedStripeConfig('multi_homeowner_annual_price_id');
     const propertyAnnualPriceId = readStringParam(STRIPE_PRICE_PARAMS.propertyAnnualPriceId) ||
         readExportedStripeConfig('property_annual_price_id') ||
         readEnv('REACT_APP_STRIPE_PROPERTY_ANNUAL_PLAN_ID');
@@ -705,13 +699,11 @@ const resolveStripePriceIdForPlan = (planId, billingCycle = 'month') => {
         readEnv('REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PLAN_ID');
     const monthlyPriceMap = {
         homeowner_plus: homeownerPlusPriceId,
-        multi_homeowner: multiHomeownerPriceId,
         property: propertyPriceId,
         portfolio: portfolioPriceId,
     };
     const annualPriceMap = {
         homeowner_plus: homeownerPlusAnnualPriceId || homeownerPlusPriceId,
-        multi_homeowner: multiHomeownerAnnualPriceId || multiHomeownerPriceId,
         property: propertyAnnualPriceId || propertyPriceId,
         portfolio: portfolioAnnualPriceId || portfolioPriceId,
     };
@@ -807,7 +799,6 @@ const resolveMaintleyPlanFromStripePriceId = (priceId) => {
         return '';
     for (const planId of [
         'homeowner_plus',
-        'multi_homeowner',
         'property',
         'portfolio',
     ]) {
@@ -2435,15 +2426,12 @@ exports.adminPortalCreateComplimentaryAccessCode = functions
         const reason = String(data?.reason || '').trim();
         const requestId = suppliedRequestId;
         const recipientEmailLower = String(data?.recipientEmail || '').trim().toLowerCase();
-        const allowedBundles = ['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'];
+        const allowedBundles = ['homeowner_plus', 'property', 'portfolio'];
         if (label.length < 3 || label.length > 120) {
             throw new functions.https.HttpsError('invalid-argument', 'Enter a program label between 3 and 120 characters.');
         }
         if (!allowedBundles.includes(bundleId)) {
             throw new functions.https.HttpsError('invalid-argument', 'Select one complimentary access level.');
-        }
-        if (bundleId === 'multi_homeowner' && !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
-            throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
         }
         if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 730) {
             throw new functions.https.HttpsError('invalid-argument', 'Access duration must be between 1 and 730 days.');
@@ -2664,10 +2652,6 @@ exports.adminPortalCreateBillingCoupon = functions
         expiresAtSeconds = Math.floor(parsed / 1000);
     }
     const appliesToPlan = String(data?.appliesToPlan || '').trim().toLowerCase();
-    if (appliesToPlan === 'multi_homeowner' &&
-        !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
-        throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
-    }
     const appliesToBillingCycle = normalizeBillingCycle(data?.appliesToBillingCycle);
     const appliesToProductId = appliesToPlan
         ? await resolveStripeProductIdForPlan(appliesToPlan, appliesToBillingCycle)
@@ -2770,10 +2754,6 @@ exports.adminPortalCreateCheckoutLinkWithCoupon = functions
     }
     if (!planId || planId === 'homeowner') {
         throw new functions.https.HttpsError('invalid-argument', 'Select a paid plan before creating a checkout link.');
-    }
-    if (planId === 'multi_homeowner' &&
-        !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
-        throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
     }
     if (!promoCode) {
         throw new functions.https.HttpsError('invalid-argument', 'Coupon code is required.');
@@ -2971,12 +2951,8 @@ exports.adminPortalApplyUserBillingActions = functions
         throw new functions.https.HttpsError('invalid-argument', 'userId is required.');
     }
     if (nextPlanId &&
-        !['homeowner', 'homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(nextPlanId)) {
+        !['homeowner', 'homeowner_plus', 'property', 'portfolio'].includes(nextPlanId)) {
         throw new functions.https.HttpsError('invalid-argument', 'Select a valid plan.');
-    }
-    if (nextPlanId === 'multi_homeowner' &&
-        !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
-        throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
     }
     if (rawTrialDays && (!Number.isFinite(trialDays) || trialDays < 1 || trialDays > 90)) {
         throw new functions.https.HttpsError('invalid-argument', 'Trial days must be a number between 1 and 90.');
@@ -3300,11 +3276,6 @@ exports.adminPortalManageUserSubscription = functions
     }
     if (action === 'change_plan' && !nextPlanId) {
         throw new functions.https.HttpsError('invalid-argument', 'planId is required for change_plan.');
-    }
-    if (action === 'change_plan' &&
-        nextPlanId === 'multi_homeowner' &&
-        !subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.multiHomeownerPlan) {
-        throw new functions.https.HttpsError('failed-precondition', 'Multi-Homeowner is not currently available.');
     }
     if (action === 'extend_trial' && (!Number.isFinite(trialDays) || trialDays < 1 || trialDays > 90)) {
         throw new functions.https.HttpsError('invalid-argument', 'trialDays must be a number between 1 and 90.');

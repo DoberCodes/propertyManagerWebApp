@@ -20,7 +20,6 @@ export type MaintleyFindingSource =
 export type MaintleyPlanId =
 	| 'homeowner'
 	| 'homeowner_plus'
-	| 'multi_homeowner'
 	| 'property'
 	| 'portfolio'
 	| 'guest'

@@ -5,11 +5,7 @@ const path = require('path');
 
 const projectRoot = path.resolve(__dirname, '..');
 const pricingHtml = fs.readFileSync(path.join(projectRoot, 'public', 'pricing', 'index.html'), 'utf8');
-const { plans: configuredPlans } = JSON.parse(fs.readFileSync(path.join(projectRoot, 'src', 'config', 'publicPlanFacts.json'), 'utf8'));
-const multiHomeownerEnabled = false;
-const plans = configuredPlans.filter(
-	({ id }) => id !== 'multi_homeowner' || multiHomeownerEnabled,
-);
+const { plans } = JSON.parse(fs.readFileSync(path.join(projectRoot, 'src', 'config', 'publicPlanFacts.json'), 'utf8'));
 const failures = [];
 
 const cardPattern = /<article class="card" data-plan-id="([^"]+)" data-price-monthly="([^"]+)" data-price-yearly="([^"]+)" data-max-properties="([^"]+)" data-max-devices="([^"]+)" data-max-files="([^"]+)" data-storage-gb="([^"]+)">([\s\S]*?)<\/article>/g;

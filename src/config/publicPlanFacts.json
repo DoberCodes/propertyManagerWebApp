@@ -37,24 +37,6 @@
 			]
 		},
 		{
-			"id": "multi_homeowner",
-			"name": "Multi-Homeowner",
-			"audience": "home",
-			"priceMonthly": 5.99,
-			"priceYearly": 59.99,
-			"maxProperties": 5,
-			"maxDevices": 999,
-			"maxFiles": 999999999,
-			"maxStorageGb": 10,
-			"bestFor": "Best for: organizing several personal or family homes",
-			"highlights": [
-				"Legacy compatibility bundle",
-				"Up to 5 homes",
-				"Property groups",
-				"Cross-home organization"
-			]
-		},
-		{
 			"id": "property",
 			"name": "Property",
 			"audience": "business",

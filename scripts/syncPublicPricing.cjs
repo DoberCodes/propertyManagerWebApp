@@ -6,11 +6,7 @@ const path = require('path');
 const projectRoot = path.resolve(__dirname, '..');
 const pricingPath = path.join(projectRoot, 'public', 'pricing', 'index.html');
 const planFactsPath = path.join(projectRoot, 'src', 'config', 'publicPlanFacts.json');
-const { plans: configuredPlans } = JSON.parse(fs.readFileSync(planFactsPath, 'utf8'));
-const multiHomeownerEnabled = false;
-const plans = configuredPlans.filter(
-	({ id }) => id !== 'multi_homeowner' || multiHomeownerEnabled,
-);
+const { plans } = JSON.parse(fs.readFileSync(planFactsPath, 'utf8'));
 
 const escapeHtml = (value) => String(value)
 	.replace(/&/g, '&amp;')
@@ -37,9 +33,7 @@ ${plan.highlights.map((highlight) => `\t\t\t\t\t\t\t<li>${escapeHtml(highlight)}
 						</ul>
 					</article>`).join('\n');
 
-const pricingLead = multiHomeownerEnabled
-	? 'Homeowner plans cover one or several personal homes. Property and Portfolio are for landlords, property owners, and property-management teams that need business coordination.'
-	: 'Homeowner plans support one or several personal homes. Property and Portfolio are for landlords and property-management teams that need business coordination.';
+const pricingLead = 'Homeowner plans support one or several personal homes. Property and Portfolio are for landlords and property-management teams that need business coordination.';
 
 const pricingSection = `<section class="section" data-public-pricing>
 				<h2>Choose the plan that fits your home or property portfolio</h2>

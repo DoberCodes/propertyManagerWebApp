@@ -23,8 +23,6 @@ export const STRIPE_PLANS = {
 		process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID ||
 		process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_PRICE_ID ||
 		'',
-	MULTI_HOMEOWNER:
-		process.env.REACT_APP_STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID || '',
 	PROPERTY:
 		process.env.REACT_APP_STRIPE_PROPERTY_MONTHLY_PLAN_ID ||
 		process.env.REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID ||
@@ -52,12 +50,6 @@ const STRIPE_PLAN_PRICE_IDS = {
 			process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PLAN_ID ||
 			process.env.REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID ||
 			'',
-	},
-	multi_homeowner: {
-		month:
-			process.env.REACT_APP_STRIPE_MULTI_HOMEOWNER_MONTHLY_PRICE_ID || '',
-		year:
-			process.env.REACT_APP_STRIPE_MULTI_HOMEOWNER_ANNUAL_PRICE_ID || '',
 	},
 	property: {
 		month:
@@ -93,7 +85,6 @@ export const getStripePriceIdForPlan = (
 	const planAliases: Record<string, keyof typeof STRIPE_PLAN_PRICE_IDS> = {
 		homeowner: 'homeowner',
 		homeowner_plus: 'homeowner_plus',
-		multi_homeowner: 'multi_homeowner',
 		property: 'property',
 		portfolio: 'portfolio',
 	};
@@ -112,7 +103,6 @@ export const getStripePriceIdForPlan = (
 export const STRIPE_PRICES = {
 	HOMEOWNER: 0,
 	HOMEOWNER_PLUS: 3.99,
-	MULTI_HOMEOWNER: 5.99,
 	PROPERTY: 8.99,
 	PORTFOLIO: 23.99,
 };

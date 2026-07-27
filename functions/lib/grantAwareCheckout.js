@@ -3,18 +3,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getGrantAwareCheckoutPolicy = void 0;
 const PAID_PLAN_RANK = {
     homeowner_plus: 1,
-    multi_homeowner: 2,
-    property: 3,
-    portfolio: 4,
+    property: 2,
+    portfolio: 3,
 };
 // Checkout ordering is intentionally narrower than entitlement composition.
 // Homeowner+ and Property are parallel product tracks; neither covers the other.
 const planCoversTarget = (grantPlanId, targetPlanId) => grantPlanId === targetPlanId ||
-    grantPlanId === 'portfolio' ||
-    (grantPlanId === 'multi_homeowner' && targetPlanId === 'homeowner_plus');
+    grantPlanId === 'portfolio';
 const isWithinTrackUpgrade = (grantPlanId, targetPlanId) => targetPlanId === 'portfolio' &&
-    grantPlanId !== 'portfolio' &&
-    grantPlanId !== 'multi_homeowner';
+    grantPlanId !== 'portfolio';
 const isPaidPlanId = (value) => Object.prototype.hasOwnProperty.call(PAID_PLAN_RANK, String(value || ''));
 const isActiveGrant = (grant, nowMs) => {
     if (grant.state !== 'active' || Number(grant.startsAtMs) > nowMs)

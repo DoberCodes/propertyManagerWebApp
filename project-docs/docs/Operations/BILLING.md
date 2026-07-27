@@ -51,7 +51,6 @@ Current plans:
 | -------------- | -------------------------------- |
 | homeowner      | Free homeowner plan              |
 | homeowner_plus | Paid homeowner plan              |
-| multi_homeowner | Five-home homeowner plan (launch-gated) |
 | property       | Small portfolio plan             |
 | portfolio      | Advanced portfolio and team plan |
 
@@ -142,12 +141,6 @@ subscription fields after signup. Firestore permits only non-billable initial
 plans and narrowly scoped pending-checkout or promo-code changes. Stripe
 Functions, webhooks, and approved admin operations remain responsible for paid
 plan, billing status, period, customer, and subscription identifiers.
-
-Multi-Homeowner is retired as a public plan. Public pricing, registration,
-checkout, and normal admin selection omit or reject it. The internal
-`multi_homeowner` identifier and canonical Stripe prices remain available only
-for compatibility with existing subscription and grant records, which resolve
-to the equivalent Homeowner+ five-home bundle without destructive migration.
 
 Complimentary access codes are internal grant credentials, not Stripe coupons.
 They are independently gated by `ENABLE_COMPLIMENTARY_ACCESS_CODES`, store only

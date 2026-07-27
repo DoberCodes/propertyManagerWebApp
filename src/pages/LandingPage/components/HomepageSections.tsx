@@ -7,7 +7,6 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import publicNavigation from '../../../config/publicNavigation.json';
 import publicPlanFacts from '../../../config/publicPlanFacts.json';
-import { isPlanAvailable } from '../../../entitlements/planAvailability';
 import {
 	MemoryGrid,
 	MemoryHeader,
@@ -404,7 +403,7 @@ export const PricingPreviewSection = () => (
 				several. Portfolio remains available for larger property collections.
 			</SectionIntro>
 			<PricingGrid>
-				{publicPlanFacts.plans.filter(({ id }) => isPlanAvailable(id)).map((plan) => (
+				{publicPlanFacts.plans.map((plan) => (
 					<PriceCard key={plan.id} $featured={plan.id === 'homeowner_plus'}>
 						<PriceName>{plan.name}</PriceName>
 						<PriceValue>{formatMonthlyPrice(plan.priceMonthly)}</PriceValue>

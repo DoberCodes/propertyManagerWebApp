@@ -667,7 +667,7 @@ export const UserProfile: React.FC = () => {
 	};
 
 	const hasBlockingSubscription =
-		(['homeowner_plus', 'multi_homeowner', 'property', 'portfolio'].includes(
+		(['homeowner_plus', 'property', 'portfolio'].includes(
 			String(currentUser?.subscription?.plan || '').trim().toLowerCase(),
 		) &&
 			(currentUser?.subscription?.status === 'active' ||
@@ -676,7 +676,6 @@ export const UserProfile: React.FC = () => {
 
 	const paidPlanIds = [
 		'homeowner_plus',
-		'multi_homeowner',
 		'property',
 		'portfolio',
 	];
