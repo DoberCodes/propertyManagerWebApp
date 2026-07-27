@@ -28,7 +28,11 @@ import {
 	type DashboardIntelligenceSuggestion,
 	type DashboardSuggestedTaskPrefill,
 } from 'intelligence/consumers/portfolioDashboard';
-import { deriveMaintleyIntelligenceReadiness } from 'intelligence/readiness';
+import {
+	aggregateMaintleyIntelligenceReadiness,
+	deriveMaintleyIntelligenceReadiness,
+	type MaintleyIntelligenceReadinessCategoryId,
+} from 'intelligence/readiness';
 import { TaskCompletionModal } from 'Components/TaskCompletionModal';
 import { TrialWarningBanner } from 'Components/TrialWarningBanner/TrialWarningBanner';
 import { ExpiredTrialBanner } from 'Components/ExpiredTrialBanner/ExpiredTrialBanner';
@@ -74,6 +78,16 @@ import {
 	IntelligenceReadinessDialogSection,
 	IntelligenceReadinessDialogSubhead,
 	IntelligenceReadinessDialogFooter,
+	IntelligenceReadinessPropertyList,
+	IntelligenceReadinessPropertyCard,
+	IntelligenceReadinessPropertyHeader,
+	IntelligenceReadinessPropertyTitle,
+	IntelligenceReadinessPropertyLevel,
+	IntelligenceReadinessEvidenceList,
+	IntelligenceReadinessEvidenceItem,
+	IntelligenceReadinessPropertyAction,
+	IntelligenceReadinessFractions,
+	IntelligenceReadinessFraction,
 	DashboardIntelligenceCard,
 	DashboardIntelligenceHeader,
 	DashboardIntelligenceSourcePill,
@@ -276,6 +290,10 @@ export const DashboardTab = () => {
 	const [draftPropertyId, setDraftPropertyId] = useState('');
 	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 	const [isReadinessHelpOpen, setIsReadinessHelpOpen] = useState(false);
+	const [selectedReadinessCategoryId, setSelectedReadinessCategoryId] =
+		useState<MaintleyIntelligenceReadinessCategoryId | null>(null);
+	const [isReadinessPropertyChooserOpen, setIsReadinessPropertyChooserOpen] =
+		useState(false);
 	const [activeHomeActivityTab, setActiveHomeActivityTab] =
 		useState<HomeActivityTabKey>('needs_attention');
 	const propertyFilteredProperties = useMemo(
@@ -987,21 +1005,53 @@ export const DashboardTab = () => {
 		DASHBOARD_DUE_WINDOW_DAYS,
 	]);
 
-	const intelligenceReadiness = useMemo(() => {
+	const propertyIntelligenceReadiness = useMemo(() => {
 		const sourceRecords = resolvedDashboardMaintenanceHistory.length
 			? resolvedDashboardMaintenanceHistory
 			: scopedMaintenanceHistory;
-		return deriveMaintleyIntelligenceReadiness({
-			systems: visibleDevices,
-			tasks: filteredTasks,
-			maintenanceHistory: sourceRecords,
+		return allProperties.map((property) => {
+			const propertyId = String(property.id);
+			const systems = visibleDevices.filter(
+				(device) => String(device.location?.propertyId || '') === propertyId,
+			);
+			const systemIds = new Set(systems.map((system) => String(system.id)));
+			const tasks = propertyScopedTasks.filter(
+				(task) => String(task.propertyId || task.property || '') === propertyId,
+			);
+			const maintenanceHistory = sourceRecords.filter((record: any) => {
+				if (String(record?.propertyId || '') === propertyId) return true;
+				const linkedIds = [
+					...(Array.isArray(record?.deviceIds) ? record.deviceIds : []),
+					record?.deviceId,
+					record?.equipmentId,
+				]
+					.map((value) => String(value || ''))
+					.filter(Boolean);
+				return linkedIds.some((id) => systemIds.has(id));
+			});
+
+			return {
+				propertyId,
+				propertyTitle: String(property.title || 'Property'),
+				propertySlug: String(property.slug || property.id || ''),
+				readiness: deriveMaintleyIntelligenceReadiness({
+					systems,
+					tasks,
+					maintenanceHistory,
+				}),
+			};
 		});
 	}, [
+		allProperties,
 		resolvedDashboardMaintenanceHistory,
-		filteredTasks,
+		propertyScopedTasks,
 		scopedMaintenanceHistory,
 		visibleDevices,
 	]);
+	const intelligenceReadiness = useMemo(
+		() => aggregateMaintleyIntelligenceReadiness(propertyIntelligenceReadiness),
+		[propertyIntelligenceReadiness],
+	);
 	const hasRecurringTaskAccess = canUseRecurringTasks(
 		currentUser?.subscription as any,
 	);
@@ -1019,18 +1069,66 @@ export const DashboardTab = () => {
 	};
 
 	const readinessRecordLabel = isHomeowner ? 'home' : 'property';
-	const canOpenIntelligenceReview = allProperties.length === 1;
-	const intelligenceReviewLabel = isHomeowner ? 'Home Review' : 'Property Review';
-	const handleOpenIntelligenceReview = () => {
-		if (!canOpenIntelligenceReview) return;
-
-		const targetProperty = allProperties[0] as any;
-		const targetSlug = String(targetProperty?.slug || targetProperty?.id || '').trim();
+	const openIntelligenceReviewForProperty = (propertySlug: string) => {
+		const targetSlug = String(propertySlug || '').trim();
 		if (!targetSlug) return;
-
+		setSelectedReadinessCategoryId(null);
+		setIsReadinessPropertyChooserOpen(false);
 		navigate(
 			`/property/${encodeURIComponent(targetSlug)}?tab=insights&insightsTab=overview`,
 		);
+	};
+	const handleReadinessReviewAction = () => {
+		if (propertyIntelligenceReadiness.length === 1) {
+			openIntelligenceReviewForProperty(
+				propertyIntelligenceReadiness[0].propertySlug,
+			);
+			return;
+		}
+		setIsReadinessPropertyChooserOpen(true);
+	};
+	const readinessScopeLabel =
+		propertyIntelligenceReadiness.length === 0
+			? 'No properties in view'
+			: propertyIntelligenceReadiness.length === 1
+			? propertyIntelligenceReadiness[0].propertyTitle
+			: `Across ${propertyIntelligenceReadiness.length} properties`;
+	const selectedReadinessCategory = intelligenceReadiness.categories.find(
+		(category) => category.id === selectedReadinessCategoryId,
+	);
+	const getPropertyReadinessCategory = (
+		property: (typeof propertyIntelligenceReadiness)[number],
+		categoryId: MaintleyIntelligenceReadinessCategoryId,
+	) =>
+		property.readiness.categories.find((category) => category.id === categoryId);
+	const formatReadinessFraction = (
+		property: (typeof propertyIntelligenceReadiness)[number],
+		categoryId: MaintleyIntelligenceReadinessCategoryId,
+	): string => {
+		const category = getPropertyReadinessCategory(property, categoryId);
+		if (!category || category.evidence.applicableRecords === 0) return '—';
+		return `${category.evidence.supportedRecords}/${category.evidence.applicableRecords}`;
+	};
+	const getReadinessEvidenceLines = (
+		category: (typeof intelligenceReadiness.categories)[number],
+	): string[] => {
+		const { evidence } = category;
+		if (category.id === 'equipment_context') {
+			return [
+				`${evidence.supportedRecords} of ${evidence.applicableRecords} equipment records have a recognized type.`,
+			];
+		}
+		if (category.id === 'maintenance_coverage') {
+			return [
+				`${evidence.scheduledRecords || 0} equipment records have a valid recurring schedule.`,
+				`${evidence.guidedRecords || 0} schedules match general Maintley care guidance.`,
+				`${evidence.customScheduleRecords || 0} schedules use a custom interval or care item.`,
+			];
+		}
+		return [
+			`${evidence.supportedRecords} of ${evidence.applicableRecords} applicable records have linked service history.`,
+			`${evidence.patternRecords || 0} equipment records have at least three comparable, dated service events for a recorded pattern.`,
+		];
 	};
 
 	const urgentTasks = useMemo(() => {
@@ -1596,7 +1694,7 @@ export const DashboardTab = () => {
 							Readiness for Guidance
 						</IntelligenceReadinessTitle>
 						<IntelligenceReadinessDescription>
-							See what Maintley can currently understand from the records saved for this {readinessRecordLabel}.
+							{readinessScopeLabel}. See what Maintley can currently understand from the records saved in this view.
 						</IntelligenceReadinessDescription>
 					</IntelligenceReadinessIntro>
 					<IntelligenceReadinessCategories>
@@ -1604,15 +1702,10 @@ export const DashboardTab = () => {
 							<IntelligenceReadinessCategory
 								key={category.id}
 								type='button'
-								$clickable={canOpenIntelligenceReview}
-								disabled={!canOpenIntelligenceReview}
-								aria-label={
-									canOpenIntelligenceReview
-										? `Open ${intelligenceReviewLabel} for ${category.title.toLowerCase()} details`
-										: `${category.title}: ${category.levelLabel}. ${category.summary}`
-								}
-								title={canOpenIntelligenceReview ? `Open ${intelligenceReviewLabel}` : undefined}
-								onClick={handleOpenIntelligenceReview}>
+								$clickable
+								aria-label={`Explain ${category.title.toLowerCase()} readiness by property`}
+								title={`View ${category.title.toLowerCase()} details`}
+								onClick={() => setSelectedReadinessCategoryId(category.id)}>
 								<IntelligenceReadinessCategoryTitle>
 									{category.title}
 								</IntelligenceReadinessCategoryTitle>
@@ -1628,12 +1721,14 @@ export const DashboardTab = () => {
 							</IntelligenceReadinessCategory>
 						))}
 					</IntelligenceReadinessCategories>
-					{canOpenIntelligenceReview && (
+					{propertyIntelligenceReadiness.length > 0 && (
 						<IntelligenceReadinessFooter>
 							<IntelligenceReadinessReviewButton
 								type='button'
-								onClick={handleOpenIntelligenceReview}>
-								View {intelligenceReviewLabel}
+								onClick={handleReadinessReviewAction}>
+								{propertyIntelligenceReadiness.length === 1
+									? `Open ${propertyIntelligenceReadiness[0].propertyTitle} Review`
+									: `Choose a ${readinessRecordLabel} to review`}
 							</IntelligenceReadinessReviewButton>
 						</IntelligenceReadinessFooter>
 					)}
@@ -1883,6 +1978,107 @@ export const DashboardTab = () => {
 					)}
 				</HomeActivityContent>
 			</HomeActivitySection>
+
+			<GenericModal
+				isOpen={Boolean(selectedReadinessCategoryId)}
+				title={selectedReadinessCategory?.title || 'Readiness details'}
+				onClose={() => setSelectedReadinessCategoryId(null)}
+				showActions={false}
+				compact>
+				<IntelligenceReadinessDialogBody>
+					<IntelligenceReadinessDialogLead>
+						{selectedReadinessCategory?.summary}
+					</IntelligenceReadinessDialogLead>
+					<IntelligenceReadinessDialogSubhead>
+						Readiness by property
+					</IntelligenceReadinessDialogSubhead>
+					<IntelligenceReadinessPropertyList>
+						{selectedReadinessCategoryId &&
+							propertyIntelligenceReadiness.map((property) => {
+								const category = getPropertyReadinessCategory(
+									property,
+									selectedReadinessCategoryId,
+								);
+								if (!category) return null;
+								return (
+									<IntelligenceReadinessPropertyCard key={property.propertyId}>
+										<IntelligenceReadinessPropertyHeader>
+											<IntelligenceReadinessPropertyTitle>
+												{property.propertyTitle}
+											</IntelligenceReadinessPropertyTitle>
+											<IntelligenceReadinessPropertyLevel $level={category.level}>
+												{category.levelLabel}
+											</IntelligenceReadinessPropertyLevel>
+										</IntelligenceReadinessPropertyHeader>
+										<IntelligenceReadinessSummary>
+											{category.summary}
+										</IntelligenceReadinessSummary>
+										<IntelligenceReadinessEvidenceList>
+											{getReadinessEvidenceLines(category).map((line) => (
+												<IntelligenceReadinessEvidenceItem key={line}>
+													{line}
+												</IntelligenceReadinessEvidenceItem>
+											))}
+										</IntelligenceReadinessEvidenceList>
+										<IntelligenceReadinessPropertyAction
+											type='button'
+											onClick={() =>
+												openIntelligenceReviewForProperty(property.propertySlug)
+											}>
+											Open {property.propertyTitle} Insights
+										</IntelligenceReadinessPropertyAction>
+									</IntelligenceReadinessPropertyCard>
+								);
+							})}
+					</IntelligenceReadinessPropertyList>
+					<IntelligenceReadinessDialogNote>
+						Maintley uses saved schedules, general Maintley guidance, and recorded maintenance history. It does not inspect equipment or predict equipment failure.
+					</IntelligenceReadinessDialogNote>
+				</IntelligenceReadinessDialogBody>
+			</GenericModal>
+
+			<GenericModal
+				isOpen={isReadinessPropertyChooserOpen}
+				title={`Choose a ${readinessRecordLabel} to review`}
+				onClose={() => setIsReadinessPropertyChooserOpen(false)}
+				showActions={false}
+				compact>
+				<IntelligenceReadinessDialogBody>
+					<IntelligenceReadinessDialogLead>
+						Choose the property whose saved records and Maintley guidance you want to review.
+					</IntelligenceReadinessDialogLead>
+					<IntelligenceReadinessPropertyList>
+						{propertyIntelligenceReadiness.map((property) => (
+							<IntelligenceReadinessPropertyCard key={property.propertyId}>
+								<IntelligenceReadinessPropertyTitle>
+									{property.propertyTitle}
+								</IntelligenceReadinessPropertyTitle>
+								<IntelligenceReadinessFractions>
+									<IntelligenceReadinessFraction>
+										Equipment {formatReadinessFraction(property, 'equipment_context')}
+									</IntelligenceReadinessFraction>
+									<IntelligenceReadinessFraction>
+										Care {formatReadinessFraction(property, 'maintenance_coverage')}
+									</IntelligenceReadinessFraction>
+									<IntelligenceReadinessFraction>
+										History {formatReadinessFraction(property, 'service_history')}
+									</IntelligenceReadinessFraction>
+								</IntelligenceReadinessFractions>
+								<IntelligenceReadinessPropertyAction
+									type='button'
+									onClick={() =>
+										openIntelligenceReviewForProperty(property.propertySlug)
+									}>
+									Open {property.propertyTitle} Review
+								</IntelligenceReadinessPropertyAction>
+							</IntelligenceReadinessPropertyCard>
+						))}
+					</IntelligenceReadinessPropertyList>
+					<IntelligenceReadinessDialogFooter>
+						Fractions show supported records out of applicable records
+					</IntelligenceReadinessDialogFooter>
+				</IntelligenceReadinessDialogBody>
+			</GenericModal>
 
 			<GenericModal
 				isOpen={isReadinessHelpOpen}

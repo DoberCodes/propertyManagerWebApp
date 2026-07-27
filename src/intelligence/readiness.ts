@@ -6,6 +6,7 @@ import {
 	expectsRecurringCareRecord,
 } from './assetRecordExpectations';
 import { getDeviceAssetType, UNKNOWN_ASSET_TYPE } from '../utils/systemTypes';
+import { getBaselineDefinitionForAsset } from './baselineCareLibrary';
 
 export const MAINTLEY_INTELLIGENCE_READINESS_VERSION = 'maintley-readiness-v1';
 
@@ -29,12 +30,23 @@ export interface MaintleyIntelligenceReadinessCategory {
 	evidence: {
 		applicableRecords: number;
 		supportedRecords: number;
+		scheduledRecords?: number;
+		guidedRecords?: number;
+		customScheduleRecords?: number;
+		patternRecords?: number;
 	};
 }
 
 export interface MaintleyIntelligenceReadinessResult {
 	version: typeof MAINTLEY_INTELLIGENCE_READINESS_VERSION;
 	categories: MaintleyIntelligenceReadinessCategory[];
+}
+
+export interface PropertyIntelligenceReadinessResult {
+	propertyId: string;
+	propertyTitle: string;
+	propertySlug: string;
+	readiness: MaintleyIntelligenceReadinessResult;
 }
 
 export interface MaintleyIntelligenceReadinessInput {
@@ -61,6 +73,51 @@ const levelLabel = (
 };
 
 const normalizedId = (value: unknown): string => String(value || '').trim();
+const normalizedText = (value: unknown): string =>
+	String(value || '').trim().toLowerCase();
+
+const hasUsableRecurringSchedule = (task: Task): boolean =>
+	task.isRecurring === true &&
+	ACTIVE_RECURRING_TASK_STATUSES.has(task.status) &&
+	Boolean(task.recurrenceFrequency) &&
+	Boolean(task.dueDate) &&
+	Number.isFinite(new Date(task.dueDate).getTime());
+
+const taskMatchesMaintleyGuidance = (task: Task, system: Device): boolean => {
+	const baseline = getBaselineDefinitionForAsset(system);
+	if (!baseline) return false;
+	const taskText = normalizedText(`${task.title || ''} ${task.description || ''}`);
+	return baseline.suggestedMaintenanceCadence.some((cadence) =>
+		cadence.matchTerms.some((term) => taskText.includes(normalizedText(term))),
+	);
+};
+
+const hasRecordedPattern = (system: Device, maintenanceHistory: any[]): boolean => {
+	const systemId = normalizedId(system.id);
+	const baseline = getBaselineDefinitionForAsset(system);
+	if (!systemId || !baseline) return false;
+
+	return baseline.suggestedMaintenanceCadence.some((cadence) => {
+		const matchingDates = maintenanceHistory
+			.filter((record) => historySystemIds(record).includes(systemId))
+			.filter((record) => {
+				const recordText = normalizedText(
+					`${record?.title || ''} ${record?.description || ''} ${record?.servicePerformed || ''}`,
+				);
+				return cadence.matchTerms.some((term) =>
+					recordText.includes(normalizedText(term)),
+				);
+			})
+			.map((record) =>
+				new Date(
+					record?.serviceDate || record?.completionDate || record?.date || '',
+				).getTime(),
+			)
+			.filter(Number.isFinite);
+
+		return new Set(matchingDates).size >= 3;
+	});
+};
 
 const linkedTaskSystemIds = (task: Task): string[] => {
 	const legacyDeviceId = normalizedId(
@@ -147,16 +204,21 @@ const buildMaintenanceCoverage = (
 		applicableSystems.map((system) => normalizedId(system.id)).filter(Boolean),
 	);
 	const coveredIds = new Set<string>();
+	const guidedIds = new Set<string>();
 
 	tasks.forEach((task) => {
-		if (
-			task.isRecurring !== true ||
-			!ACTIVE_RECURRING_TASK_STATUSES.has(task.status)
-		) {
+		if (!hasUsableRecurringSchedule(task)) {
 			return;
 		}
 		linkedTaskSystemIds(task).forEach((id) => {
-			if (applicableIds.has(id)) coveredIds.add(id);
+			if (!applicableIds.has(id)) return;
+			coveredIds.add(id);
+			const system = applicableSystems.find(
+				(candidate) => normalizedId(candidate.id) === id,
+			);
+			if (system && taskMatchesMaintleyGuidance(task, system)) {
+				guidedIds.add(id);
+			}
 		});
 	});
 
@@ -192,6 +254,9 @@ const buildMaintenanceCoverage = (
 		evidence: {
 			applicableRecords: applicableSystems.length,
 			supportedRecords: coveredIds.size,
+			scheduledRecords: coveredIds.size,
+			guidedRecords: guidedIds.size,
+			customScheduleRecords: Math.max(0, coveredIds.size - guidedIds.size),
 		},
 	};
 };
@@ -205,6 +270,11 @@ const buildServiceHistory = (
 		applicableSystems.map((system) => normalizedId(system.id)).filter(Boolean),
 	);
 	const linkedIds = new Set<string>();
+	const patternIds = new Set(
+		applicableSystems
+			.filter((system) => hasRecordedPattern(system, maintenanceHistory))
+			.map((system) => normalizedId(system.id)),
+	);
 
 	maintenanceHistory.forEach((record) => {
 		historySystemIds(record).forEach((id) => {
@@ -248,6 +318,7 @@ const buildServiceHistory = (
 				applicableSystems.length || maintenanceHistory.length,
 			supportedRecords:
 				applicableSystems.length > 0 ? linkedIds.size : maintenanceHistory.length,
+			patternRecords: patternIds.size,
 		},
 	};
 };
@@ -269,5 +340,93 @@ export const deriveMaintleyIntelligenceReadiness = (
 			buildMaintenanceCoverage(systems, tasks),
 			buildServiceHistory(systems, maintenanceHistory),
 		],
+	};
+};
+
+export const aggregateMaintleyIntelligenceReadiness = (
+	properties: PropertyIntelligenceReadinessResult[],
+): MaintleyIntelligenceReadinessResult => {
+	const categoryIds: MaintleyIntelligenceReadinessCategoryId[] = [
+		'equipment_context',
+		'maintenance_coverage',
+		'service_history',
+	];
+
+	const categories = categoryIds.map((categoryId) => {
+		const propertyCategories = properties
+			.map((property) =>
+				property.readiness.categories.find((category) => category.id === categoryId),
+			)
+			.filter(
+				(category): category is MaintleyIntelligenceReadinessCategory =>
+					Boolean(category),
+			);
+		const template = propertyCategories[0];
+		const applicableRecords = propertyCategories.reduce(
+			(total, category) => total + category.evidence.applicableRecords,
+			0,
+		);
+		const supportedRecords = propertyCategories.reduce(
+			(total, category) => total + category.evidence.supportedRecords,
+			0,
+		);
+		const sumEvidence = (
+			key: 'scheduledRecords' | 'guidedRecords' | 'customScheduleRecords' | 'patternRecords',
+		) =>
+			propertyCategories.reduce(
+				(total, category) => total + (category.evidence[key] || 0),
+				0,
+			);
+		const level: MaintleyIntelligenceReadinessLevel =
+			applicableRecords === 0
+				? 'starting'
+				: supportedRecords === applicableRecords
+					? 'ready'
+					: 'building_context';
+		const remaining = Math.max(0, applicableRecords - supportedRecords);
+		const title =
+			template?.title ||
+			(categoryId === 'equipment_context'
+				? 'Equipment context'
+				: categoryId === 'maintenance_coverage'
+					? 'Maintenance coverage'
+					: 'Service history');
+		const recordLabel = applicableRecords === 1 ? 'record' : 'records';
+		const summary =
+			applicableRecords === 0
+				? template?.summary || 'Add property records so Maintley can provide guidance.'
+				: `${supportedRecords} of ${applicableRecords} applicable ${recordLabel} support this guidance across ${properties.length} ${properties.length === 1 ? 'property' : 'properties'}.`;
+		const nextStep =
+			remaining > 0
+				? `Improve ${remaining} ${remaining === 1 ? 'record' : 'records'} shown in the property details.`
+				: template?.nextStep || 'Keep records current as maintenance happens.';
+
+		return {
+			id: categoryId,
+			title,
+			level,
+			levelLabel: levelLabel(level),
+			summary,
+			nextStep,
+			evidence: {
+				applicableRecords,
+				supportedRecords,
+				...(categoryId === 'maintenance_coverage'
+					? {
+							scheduledRecords: sumEvidence('scheduledRecords'),
+							guidedRecords: sumEvidence('guidedRecords'),
+							customScheduleRecords: sumEvidence('customScheduleRecords'),
+						}
+					: {}),
+				...(categoryId === 'service_history'
+					? { patternRecords: sumEvidence('patternRecords') }
+					: {}),
+			},
+		};
+	});
+
+	return {
+		version: MAINTLEY_INTELLIGENCE_READINESS_VERSION,
+		categories,
 	};
 };

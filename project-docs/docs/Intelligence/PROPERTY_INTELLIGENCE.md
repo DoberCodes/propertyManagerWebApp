@@ -110,6 +110,30 @@ Readiness rules must live in the shared Maintley Intelligence layer. Consumer
 surfaces may choose how much detail to show, but they must not calculate their
 own readiness thresholds.
 
+Cross-property dashboard readiness is calculated for each property first and
+then summarized. The summary must retain supported and applicable record counts;
+it must not pool records into a new percentage or hide which property needs
+additional context. Opening a readiness category shows the independent property
+results and names the property before navigating to its Insights review.
+
+Readiness uses three customer-facing levels, while supporting evidence explains
+the depth of guidance available:
+
+* **Scheduled care** means an active recurring task has a valid recurrence and
+  next due date linked to the equipment record.
+* **Maintley guidance** means the saved recurring care item matches attributed
+  general care guidance in Maintley's baseline knowledge.
+* **Custom schedule** means Maintley can follow the user's schedule but does not
+  claim that its interval came from Maintley guidance.
+* **Recorded pattern** requires at least three comparable, dated maintenance
+  events linked to the equipment record and a recognized care item. A pattern
+  describes saved history; it does not predict equipment condition or failure.
+
+The dashboard property chooser may show compact fractions such as `Care 2/4`.
+Fractions mean supported applicable records divided by total applicable records
+for that category. Use an em dash when no records are applicable. Do not combine
+category fractions into an overall score.
+
 Readiness and subscription access are separate. The resolver determines which
 product capabilities the account may use. Readiness only describes the context
 available to an allowed Intelligence capability.
