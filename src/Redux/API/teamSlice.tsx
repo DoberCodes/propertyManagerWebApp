@@ -23,6 +23,7 @@ import {
 	assertCanManageAdvancedTeamSettings,
 	assertCanManageTeamMembers,
 	canManageAdvancedTeamSettings,
+	canManageTeamMembers,
 } from './inviteCapabilities';
 import { USER_ROLES } from '../../constants/roles';
 
@@ -299,12 +300,26 @@ export const teamSlice = apiSlice.injectEndpoints({
 			async queryFn({ id, updates }) {
 				try {
 					const targetUserId = await resolveTargetUserId();
-					await assertCanManageTeamMembers(targetUserId);
 					const docRef = doc(db, 'teamMembers', id);
-					const updatesForPlan = await normalizeTeamMemberForPlan(
-						targetUserId,
-						updates,
-					);
+					const hasTeamManagement = await canManageTeamMembers(targetUserId);
+					const retainedProfileFields = [
+						'firstName',
+						'lastName',
+						'title',
+						'phone',
+						'address',
+						'image',
+						'notes',
+						'files',
+					] as const;
+					const retainedProfileUpdates = Object.fromEntries(
+						retainedProfileFields
+							.filter((field) => updates[field] !== undefined)
+							.map((field) => [field, updates[field]]),
+					) as Partial<TeamMember>;
+					const updatesForPlan = hasTeamManagement
+						? await normalizeTeamMemberForPlan(targetUserId, updates)
+						: retainedProfileUpdates;
 					let existingMember: Partial<TeamMember> = {};
 					try {
 						const existingSnapshot = await getDoc(docRef);

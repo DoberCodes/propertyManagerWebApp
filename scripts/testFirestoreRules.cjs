@@ -202,7 +202,9 @@ async function seedFirestore(env) {
 			accountId: downgradedOwnerUid,
 			firstName: 'Existing',
 			lastName: 'Member',
-			role: 'admin',
+			role: 'maintenance_lead',
+			groupId: 'retained-group',
+			linkedProperties: [`${downgradedOwnerUid}-property-1`],
 		});
 
 		await db.doc(`users/${ownerUid}`).set({
@@ -757,6 +759,19 @@ async function run() {
 				firstName: 'New',
 				lastName: 'Member',
 				role: 'admin',
+			}),
+		);
+		await assertSucceeds(
+			downgradedOwnerDb.doc('teamMembers/downgraded-existing-member').update({
+				firstName: 'Updated',
+				notes: 'Retained profile context',
+				updatedAt: '2026-07-27T12:00:00.000Z',
+			}),
+		);
+		await assertFails(
+			downgradedOwnerDb.doc('teamMembers/downgraded-existing-member').update({
+				role: 'admin',
+				updatedAt: '2026-07-27T12:01:00.000Z',
 			}),
 		);
 		await assertSucceeds(

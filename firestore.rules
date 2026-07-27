@@ -400,6 +400,23 @@ service cloud.firestore {
         (canUseAdvancedTeam(accountId) || isSimpleTeamMemberData(data));
     }
 
+    // A downgrade may stop team expansion, but it must not trap retained
+    // relationship records. Account managers can still maintain basic profile
+    // context without changing access, roles, groups, or property assignments.
+    function isRetainedTeamMemberProfileUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        'firstName',
+        'lastName',
+        'title',
+        'phone',
+        'address',
+        'image',
+        'notes',
+        'files',
+        'updatedAt'
+      ]);
+    }
+
     function propertyWriteRespectsResidentPlan(accountId) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tenants']) ||
         hasActiveManagedInvitePlan(accountId);
@@ -767,7 +784,8 @@ service cloud.firestore {
       allow update: if isAuthenticated() && canManageTeamMemberResource() &&
         (
           (('accountId' in resource.data) && canWriteTeamMemberData(resource.data.accountId, request.resource.data)) ||
-          (('userId' in resource.data) && canWriteTeamMemberData(resource.data.userId, request.resource.data))
+          (('userId' in resource.data) && canWriteTeamMemberData(resource.data.userId, request.resource.data)) ||
+          isRetainedTeamMemberProfileUpdate()
         );
       // Removing a relationship is always permitted to an account manager,
       // including after downgrade. Entitlements gate expansion, not cleanup.
