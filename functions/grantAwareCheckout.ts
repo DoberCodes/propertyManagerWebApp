@@ -7,6 +7,21 @@ const PAID_PLAN_RANK: Record<PaidPlanId, number> = {
 	portfolio: 4,
 };
 
+// Checkout ordering is intentionally narrower than entitlement composition.
+// Homeowner+ and Property are parallel product tracks; neither covers the other.
+const planCoversTarget = (grantPlanId: PaidPlanId, targetPlanId: PaidPlanId) =>
+	grantPlanId === targetPlanId ||
+	grantPlanId === 'portfolio' ||
+	(grantPlanId === 'multi_homeowner' && targetPlanId === 'homeowner_plus');
+
+const isWithinTrackUpgrade = (
+	grantPlanId: PaidPlanId,
+	targetPlanId: PaidPlanId,
+) =>
+	targetPlanId === 'portfolio' &&
+	grantPlanId !== 'portfolio' &&
+	grantPlanId !== 'multi_homeowner';
+
 export type GrantAwareCheckoutPolicy =
 	| { kind: 'standard'; effectiveGrantPlanId: null }
 	| {
@@ -65,12 +80,10 @@ export const getGrantAwareCheckoutPolicy = (params: {
 	const controllingGrants = activePlanGrants.filter(
 		(grant) => grant.bundleId === effectiveGrantPlanId,
 	);
-	const targetRank = PAID_PLAN_RANK[targetPlanId];
-	const grantRank = PAID_PLAN_RANK[effectiveGrantPlanId];
 	const permanentGrantsCoveringTarget = activePlanGrants.filter(
 		(grant) =>
 			grant.kind === 'permanent' &&
-			PAID_PLAN_RANK[grant.bundleId as PaidPlanId] >= targetRank,
+			planCoversTarget(grant.bundleId as PaidPlanId, targetPlanId),
 	);
 
 	if (permanentGrantsCoveringTarget.length) {
@@ -91,7 +104,7 @@ export const getGrantAwareCheckoutPolicy = (params: {
 	}
 
 	const convertibleGrants = activePlanGrants.filter(isCheckoutConvertible);
-	if (targetRank > grantRank) {
+	if (isWithinTrackUpgrade(effectiveGrantPlanId, targetPlanId)) {
 		if (!convertibleGrants.length) {
 			return { kind: 'standard', effectiveGrantPlanId: null };
 		}
@@ -100,6 +113,10 @@ export const getGrantAwareCheckoutPolicy = (params: {
 			effectiveGrantPlanId,
 			conversionGrantIds: convertibleGrants.map((grant) => grant.grantId),
 		};
+	}
+
+	if (!planCoversTarget(effectiveGrantPlanId, targetPlanId)) {
+		return { kind: 'standard', effectiveGrantPlanId: null };
 	}
 
 	const controllingTemporaryGrants = controllingGrants.filter(
@@ -125,7 +142,7 @@ export const getGrantAwareCheckoutPolicy = (params: {
 			(grant) => grant.grantId,
 		),
 		conversionGrantIds:
-			targetRank === grantRank
+			targetPlanId === effectiveGrantPlanId
 				? controllingConvertibleGrants.map((grant) => grant.grantId)
 				: [],
 	};

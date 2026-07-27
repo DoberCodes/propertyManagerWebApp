@@ -273,7 +273,7 @@ export const renderAccessLifecycleEmail = ({
 				bodyHtml: `${commonIntro}
 					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your first property record is ready. Creating it also activated 30 days of complimentary Homeowner+ access on your Free account. Access ends on <strong>${endDate}</strong>.</p>
 					<div style="margin:18px 0; padding:16px; border-radius:10px; background:${EMAIL_BRAND.canvas}; border:1px solid ${EMAIL_BRAND.accent}; color:${EMAIL_BRAND.slate};"><strong>No payment method is connected.</strong><br />You will not be charged automatically. Continuing with Homeowner+ later requires an intentional Checkout.</div>
-					<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Continue setup to add the major systems you want Maintley to remember and review suggested recurring maintenance before anything is created.</p>
+					<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Continue building your home record, then use Home Review and Maintley Intelligence to understand the details, history, and maintenance patterns Maintley can connect.</p>
 					${renderMaintleyEmailButton('Continue property setup', safeDashboardUrl)}`,
 			}),
 		};
@@ -301,7 +301,7 @@ export const renderAccessLifecycleEmail = ({
 				previewText: `Homeowner+ access ends ${endDate}; your records remain available.`,
 				bodyHtml: `${commonIntro}
 					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your complimentary Homeowner+ access ends on <strong>${endDate}</strong>.</p>
-					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your Free account, property records, maintenance history, and saved documents remain available. Homeowner+ automation—including recurring-care generation—stops when the trial ends.</p>
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your Free account keeps the complete maintenance workflow, including recurring care, ordinary reminders, property records, maintenance history, and saved documents. New Homeowner+ Intelligence reviews and advanced document processing stop when the trial ends.</p>
 					<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">You will not be charged automatically. Choose Homeowner+ through Checkout only if you want to continue.</p>
 					${renderMaintleyEmailButton('Review Homeowner+ options', safeUpgradeUrl)}`,
 			}),
@@ -315,7 +315,7 @@ export const renderAccessLifecycleEmail = ({
 			previewText: 'Your Homeowner+ trial ended; your Free account and saved records remain available.',
 			bodyHtml: `${commonIntro}
 				<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your complimentary Homeowner+ access ended on <strong>${endDate}</strong>. Your account is now on the Free plan.</p>
-				<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your property memory, maintenance history, and existing records have not expired. Homeowner+ automation has stopped, but you can still open and manage the information included with Free.</p>
+				<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your property memory, maintenance history, recurring care, ordinary reminders, and existing records have not expired. New Homeowner+ Intelligence reviews and advanced processing have stopped, while the complete Free maintenance workflow remains available.</p>
 				<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">You were not charged. If you want Homeowner+ again, you can intentionally start Checkout from Maintley.</p>
 				${renderMaintleyEmailButton('Open your account', safeDashboardUrl)}
 				<span style="display:inline-block; width:8px;"></span>
@@ -417,7 +417,7 @@ export const renderPromotionalAccessLifecycleEmail = ({
 				previewText: `Your access ends ${endDate}; your saved records remain available.`,
 				bodyHtml: `${commonIntro}
 					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your complimentary ${accessLabel} access ends on <strong>${endDate}</strong>.</p>
-					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Every existing property and saved record remains available through your resulting plan. New properties, team members, uploads, and paid automation pause when they exceed that plan's limits.</p>
+					<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Every existing property and saved record remains available through your resulting plan. New properties, team members, uploads, and premium processing pause when they exceed that plan's limits.</p>
 					<p style="margin:0 0 18px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">No automatic charge is scheduled. Continuing requires intentional Checkout.</p>
 					${renderMaintleyEmailButton('Review plan options', safeUpgradeUrl)}`,
 			}),
@@ -431,7 +431,7 @@ export const renderPromotionalAccessLifecycleEmail = ({
 			previewText: 'Complimentary access ended without deleting your property memory.',
 			bodyHtml: `${commonIntro}
 				<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your complimentary ${accessLabel} access ended on <strong>${endDate}</strong>.</p>
-				<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your existing properties, files, maintenance history, and active relationships were not deleted. Paid automation and expansion beyond your resulting limits have stopped.</p>
+				<p style="margin:0 0 14px; font-size:15px; line-height:1.7; color:${EMAIL_BRAND.slate};">Your existing properties, files, maintenance history, and active relationships were not deleted. Premium processing and expansion beyond your resulting limits have stopped.</p>
 				${renderMaintleyEmailButton('Open your account', safeDashboardUrl)}
 				<span style="display:inline-block; width:8px;"></span>
 				${renderMaintleyEmailButton('Review plan options', safeUpgradeUrl)}`,
@@ -609,7 +609,7 @@ const publishLifecycleNotice = async (
 		},
 		expired: {
 			title: 'Your account is now on Free',
-			message: 'Your property memory and saved records are still available. Homeowner+ automation has stopped.',
+			message: 'Your complete maintenance workflow remains available. New Homeowner+ Intelligence reviews and advanced processing have stopped.',
 			actionLabel: 'Open your account',
 			actionUrl: '/dashboard',
 		},

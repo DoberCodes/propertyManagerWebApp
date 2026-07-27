@@ -50,7 +50,7 @@ test('starts a higher paid plan immediately and converts only convertible grants
 	assert.deepEqual(result.conversionGrantIds, ['grant-homeowner-plus']);
 });
 
-test('delays a lower paid plan until the effective temporary grant ends', () => {
+test('delays Property checkout while a temporary Portfolio grant covers it', () => {
 	const result = getGrantAwareCheckoutPolicy({
 		grants: [grant({ bundleId: 'portfolio', endsAtMs: 500000 })],
 		targetPlanId: 'property',
@@ -60,6 +60,19 @@ test('delays a lower paid plan until the effective temporary grant ends', () => 
 	assert.equal(result.kind, 'delayed');
 	assert.equal(result.firstChargeAtSeconds, 500);
 	assert.deepEqual(result.conversionGrantIds, []);
+});
+
+test('does not treat permanent Property access as covering Homeowner+ Intelligence', () => {
+	const result = getGrantAwareCheckoutPolicy({
+		grants: [grant({ kind: 'permanent', endsAtMs: null, bundleId: 'property' })],
+		targetPlanId: 'homeowner_plus',
+		nowMs: 1000,
+	});
+
+	assert.deepEqual(result, {
+		kind: 'standard',
+		effectiveGrantPlanId: null,
+	});
 });
 
 test('blocks equivalent or lower checkout for permanent effective access', () => {

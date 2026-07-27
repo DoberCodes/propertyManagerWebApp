@@ -131,6 +131,12 @@ all_visible_properties
 This preference affects Dashboard presentation only. It does not change account
 permissions, property ownership, task assignment, or source records.
 
+The later language-alignment phase replaced the locally calculated Home Health
+percentage with category-based Maintley Intelligence readiness from the shared
+Intelligence layer. The Dashboard now presents equipment context, maintenance
+coverage, and service history as `Starting`, `Building context`, or `Ready`,
+with an explanation and next step instead of a property score.
+
 ## Alternatives Considered
 
 ### Always Portfolio-First

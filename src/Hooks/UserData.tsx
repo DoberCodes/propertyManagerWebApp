@@ -3,6 +3,15 @@ import { setUserCred } from '../Redux/Slices/userSlice';
 import { useDispatch } from 'react-redux';
 import { Timeout } from './Controller';
 
+const FAILED_AUTH_STATUS = {
+	loading: false,
+	Authenticated: false,
+};
+const PASSED_AUTH_STATUS = {
+	loading: false,
+	Authenticated: true,
+};
+
 const getStoredLoggedUser = () => {
 	try {
 		const rawValue = localStorage.getItem('loggedUser');
@@ -21,18 +30,8 @@ export const useGetAuthStatus = () => {
 		loading: true,
 		Authenticated: false,
 	});
-	const failed = {
-		loading: false,
-		Authenticated: false,
-	};
-	const passed = {
-		loading: false,
-		Authenticated: true,
-	};
-
-	const localUser = getStoredLoggedUser();
-
 	useEffect(() => {
+		const localUser = getStoredLoggedUser();
 		if (Authenticated.loading && localUser) {
 			const payload = {
 				token: localUser,
@@ -46,15 +45,15 @@ export const useGetAuthStatus = () => {
 					let userData;
 					if (res.status === 200) {
 						userData = await res.json();
-						setAuthenticated(passed);
+						setAuthenticated(PASSED_AUTH_STATUS);
 						dispatch(setUserCred(userData));
 					}
 				});
 			} else {
-				setAuthenticated(failed);
+				setAuthenticated(FAILED_AUTH_STATUS);
 			}
 		}
-	}, []);
+	}, [Authenticated.loading, dispatch]);
 	return Authenticated;
 };
 

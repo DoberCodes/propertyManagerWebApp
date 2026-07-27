@@ -163,7 +163,7 @@ export const homepageFaqs = [
 	{
 		question: 'Is Maintley free?',
 		answer:
-			'Yes. The Free plan supports one home with essential maintenance tasks, up to 15 equipment records, and starter document storage. Paid plans add more capacity and guidance.',
+			'Yes. Free supports one home with unlimited equipment records, recurring maintenance, reminders, Maintenance History, and 1 GB of document storage. Homeowner+ adds more homes and deeper Maintley Intelligence.',
 	},
 	{
 		question: 'Can I manage multiple properties?',

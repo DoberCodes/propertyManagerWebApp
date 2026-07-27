@@ -8,10 +8,16 @@ import {
 	faQuoteLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getHelpfulArticle } from './SupportContent';
+import {
+	getHelpfulArticle,
+	getRelatedHelpfulArticles,
+} from './SupportContent';
 import {
 	ArticleBackButton,
 	ArticleFooter,
+	ArticleCard,
+	ArticleDescription,
+	ArticleGrid,
 	ArticleHero,
 	ArticlePageContent,
 	ArticlePageIntro,
@@ -20,6 +26,9 @@ import {
 	ArticlePageTitle,
 	ArticlePrimaryAction,
 	ArticleSection,
+	ArticleSummary,
+	ArticleSummaryCopy,
+	ArticleTitle,
 	ArticleSectionImage,
 	ArticleTips,
 	EmptyState,
@@ -34,6 +43,7 @@ export const SupportArticlePage: React.FC = () => {
 	const navigate = useNavigate();
 	const { articleSlug } = useParams<{ articleSlug: string }>();
 	const article = getHelpfulArticle(articleSlug);
+	const relatedArticles = getRelatedHelpfulArticles(articleSlug);
 
 	if (!article) {
 		return (
@@ -72,16 +82,18 @@ export const SupportArticlePage: React.FC = () => {
 			</ArticleHero>
 
 			<ArticlePageContent>
-				<FounderNote>
-					<FounderNoteIcon>
-						<FontAwesomeIcon icon={faQuoteLeft} />
-					</FounderNoteIcon>
-					<FounderNoteLabel>Why this matters</FounderNoteLabel>
-					{article.founderNote.map((paragraph) => (
-						<FounderNoteText key={paragraph}>{paragraph}</FounderNoteText>
-					))}
-					<FounderSignature>Austin, Founder of Maintley</FounderSignature>
-				</FounderNote>
+				{article.founderNote?.length ? (
+					<FounderNote>
+						<FounderNoteIcon>
+							<FontAwesomeIcon icon={faQuoteLeft} />
+						</FounderNoteIcon>
+						<FounderNoteLabel>Why this matters</FounderNoteLabel>
+						{article.founderNote.map((paragraph) => (
+							<FounderNoteText key={paragraph}>{paragraph}</FounderNoteText>
+						))}
+						<FounderSignature>Austin, Founder of Maintley</FounderSignature>
+					</FounderNote>
+				) : null}
 
 				{article.sections.map((section) => (
 					<ArticleSection key={section.heading}>
@@ -118,6 +130,28 @@ export const SupportArticlePage: React.FC = () => {
 						) : null}
 					</ArticleSection>
 				))}
+
+				{relatedArticles.length ? (
+					<ArticleSection>
+						<h2>Related guides</h2>
+						<ArticleGrid>
+							{relatedArticles.map((relatedArticle) => (
+								<ArticleCard
+									key={relatedArticle.slug}
+									type='button'
+									onClick={() => navigate(`/support/articles/${relatedArticle.slug}`)}>
+									<ArticleSummary>
+										<ArticleSummaryCopy>
+											<ArticleTitle>{relatedArticle.title}</ArticleTitle>
+											<ArticleDescription>{relatedArticle.summary}</ArticleDescription>
+										</ArticleSummaryCopy>
+										<FontAwesomeIcon icon={faArrowRight} />
+									</ArticleSummary>
+								</ArticleCard>
+							))}
+						</ArticleGrid>
+					</ArticleSection>
+				) : null}
 			</ArticlePageContent>
 
 			<ArticleFooter>

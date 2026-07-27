@@ -353,11 +353,11 @@ export const NotificationPreferences: React.FC<
 		enabled: boolean,
 	) => {
 		if (key === 'taskReminders' && !taskReminderEmailsEnabledByPlan) {
-			feedback.notify('Task reminder emails are available on Homeowner+ and higher plans.');
+			feedback.notify('Task reminder emails are included with standard Maintley plans. Refresh your account and try again.');
 			return;
 		}
 		if (key === 'propertyInsights' && !propertyInsightsEnabledByPlan) {
-			feedback.notify('Property Insights are available on Homeowner+ and higher plans.');
+			feedback.notify('Property Insights are available with Homeowner+ and Portfolio.');
 			return;
 		}
 

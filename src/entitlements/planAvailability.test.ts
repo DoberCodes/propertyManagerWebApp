@@ -29,13 +29,13 @@ afterEach(() => {
 });
 
 describe('plan availability rollout flags', () => {
-	it('exposes Multi-Homeowner only when its client flag is explicitly true', () => {
+	it('keeps retired Multi-Homeowner unavailable even when a stale flag is present', () => {
 		expect(loadAvailability({}).isPlanAvailable('multi_homeowner')).toBe(false);
 		expect(
 			loadAvailability({
 				REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN: 'true',
 			}).isPlanAvailable('multi_homeowner'),
-		).toBe(true);
+		).toBe(false);
 		expect(loadAvailability({}).isPlanAvailable('homeowner_plus')).toBe(true);
 	});
 

@@ -212,7 +212,7 @@ Submitted by: ${request.submittedByName} on ${
 							))}
 					</Select>
 					<Helper>
-						Assign now or leave unassigned and route later in your maintenance workflow
+						Assign now or leave this maintenance task unassigned for later
 					</Helper>
 				</FormGroup>
 

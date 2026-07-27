@@ -135,6 +135,19 @@ const PLAN_RANK: Record<PaidPlanId, number> = {
 	portfolio: 4,
 };
 
+const planCoversTarget = (grantPlanId: PaidPlanId, targetPlanId: PaidPlanId) =>
+	grantPlanId === targetPlanId ||
+	grantPlanId === 'portfolio' ||
+	(grantPlanId === 'multi_homeowner' && targetPlanId === 'homeowner_plus');
+
+const isWithinTrackUpgrade = (
+	grantPlanId: PaidPlanId,
+	targetPlanId: PaidPlanId,
+) =>
+	targetPlanId === 'portfolio' &&
+	grantPlanId !== 'portfolio' &&
+	grantPlanId !== 'multi_homeowner';
+
 const getAudienceForPlan = (
 	planId: string,
 	fallback: PlanAudience = 'home',
@@ -222,13 +235,11 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 		if (selectionOnly || planId === 'homeowner' || !effectiveGrantPlanId) {
 			return null;
 		}
-		const targetRank = PLAN_RANK[planId];
-		const grantRank = PLAN_RANK[effectiveGrantPlanId];
 		const permanentCoveringGrant = activePlanGrants
 			.filter(
 				(grant) =>
 					grant.kind === 'permanent' &&
-					PLAN_RANK[grant.bundleId as PaidPlanId] >= targetRank,
+					planCoversTarget(grant.bundleId as PaidPlanId, planId),
 			)
 			.sort(
 				(left, right) =>
@@ -252,7 +263,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 					grant.kind === 'temporary' && grant.bundleId === effectiveGrantPlanId,
 			);
 			if (
-				targetRank <= grantRank &&
+				planCoversTarget(effectiveGrantPlanId, planId) &&
 				controllingTemporaryGrants.some(
 					(grant) => grant.transition?.mode === 'checkout_required',
 				)
@@ -267,7 +278,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 					),
 				};
 			}
-			if (targetRank > grantRank) {
+			if (isWithinTrackUpgrade(effectiveGrantPlanId, planId)) {
 				return {
 					kind: 'immediate' as const,
 					grantPlanId: effectiveGrantPlanId,

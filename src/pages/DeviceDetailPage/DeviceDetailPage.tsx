@@ -1609,7 +1609,7 @@ export const DeviceDetailPage: React.FC = () => {
 			badge={resolvedDeviceStatus}
 			backPath={applianceProfileBackPath}
 			backLabel={applianceProfileBackLabel}
-			headerTheme='slate'
+			headerTheme='green'
 			contentMaxWidth='100%'
 			topRightActions={
 				canManageApplianceActions ? (

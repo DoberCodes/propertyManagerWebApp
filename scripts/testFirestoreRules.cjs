@@ -691,12 +691,12 @@ async function run() {
 			}),
 		);
 
-		await assertFails(
+		await assertSucceeds(
 			expiredTrialOwnerDb.doc('tasks/expired-recurring-task').set({
 				...createTask({
 					accountId: expiredTrialOwnerUid,
 					propertyId: `${expiredTrialOwnerUid}-property`,
-					title: 'Expired grant recurring task',
+					title: 'Core recurring task after grant expiration',
 				}),
 				isRecurring: true,
 				recurrenceFrequency: 'monthly',
@@ -790,7 +790,7 @@ async function run() {
 				updatedAt: '2026-07-01T13:00:00.000Z',
 			}),
 		);
-		await assertFails(
+		await assertSucceeds(
 			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').update({
 				isRecurring: true,
 				recurrenceFrequency: 'weekly',

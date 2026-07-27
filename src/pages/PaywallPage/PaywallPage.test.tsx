@@ -57,11 +57,11 @@ describe('PaywallPage free-plan recovery', () => {
 			/>,
 		);
 
-		expect(screen.getByText('Basic Record Gap Check')).toBeInTheDocument();
+		expect(screen.getByText('Lightweight Home Record Check')).toBeInTheDocument();
 		expect(screen.queryByText('Maintenance History Tracking')).not.toBeInTheDocument();
 
 		const homeownerFeatureToggle = screen
-			.getAllByRole('button', { name: 'Show 5 more features' })
+			.getAllByRole('button', { name: 'Show 6 more features' })
 			.find(
 				(button) =>
 					button.getAttribute('aria-controls') === 'homeowner-plan-features',

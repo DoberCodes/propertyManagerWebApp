@@ -7,9 +7,7 @@ const projectRoot = path.resolve(__dirname, '..');
 const pricingPath = path.join(projectRoot, 'public', 'pricing', 'index.html');
 const planFactsPath = path.join(projectRoot, 'src', 'config', 'publicPlanFacts.json');
 const { plans: configuredPlans } = JSON.parse(fs.readFileSync(planFactsPath, 'utf8'));
-const multiHomeownerEnabled =
-	process.env.REACT_APP_ENABLE_MULTI_HOMEOWNER_PLAN === 'true' ||
-	process.env.ENABLE_MULTI_HOMEOWNER_PLAN === 'true';
+const multiHomeownerEnabled = false;
 const plans = configuredPlans.filter(
 	({ id }) => id !== 'multi_homeowner' || multiHomeownerEnabled,
 );
@@ -33,7 +31,7 @@ const planCards = plans.map((plan) => `					<article class="card" data-plan-id="
 						<ul class="check-list">
 							<li>${escapeHtml(formatLimit(plan.maxProperties, 'property', 'properties'))}</li>
 							<li>${escapeHtml(formatLimit(plan.maxDevices, 'equipment record', 'equipment records', true))}</li>
-							<li>${escapeHtml(formatLimit(plan.maxFiles, 'file'))}</li>
+							<li>No file-count limit</li>
 							<li>${plan.maxStorageGb} GB storage</li>
 ${plan.highlights.map((highlight) => `\t\t\t\t\t\t\t<li>${escapeHtml(highlight)}</li>`).join('\n')}
 						</ul>
@@ -41,7 +39,7 @@ ${plan.highlights.map((highlight) => `\t\t\t\t\t\t\t<li>${escapeHtml(highlight)}
 
 const pricingLead = multiHomeownerEnabled
 	? 'Homeowner plans cover one or several personal homes. Property and Portfolio are for landlords, property owners, and property-management teams that need business coordination.'
-	: 'Homeowner plans support one home. Property and Portfolio are for landlords, property owners, and property-management teams that need more property capacity and coordination.';
+	: 'Homeowner plans support one or several personal homes. Property and Portfolio are for landlords and property-management teams that need business coordination.';
 
 const pricingSection = `<section class="section" data-public-pricing>
 				<h2>Choose the plan that fits your home or property portfolio</h2>

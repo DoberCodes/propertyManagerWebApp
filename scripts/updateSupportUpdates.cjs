@@ -67,9 +67,9 @@ function renderUpdates(updates) {
 	return `export const recentMaintleyUpdates = [\n${entries},\n];`;
 }
 
-function replaceUpdates(target, renderedUpdates) {
+function replaceUpdates(target, renderedUpdates, eol) {
 	const pattern =
-		/export const recentMaintleyUpdates = \[[\s\S]*?\];\n\ninterface ArticleSection/;
+		/export const recentMaintleyUpdates = \[[\s\S]*?\];\r?\n\r?\ninterface ArticleSection/;
 
 	if (!pattern.test(target)) {
 		throw new Error('Could not find recentMaintleyUpdates in SupportContent.ts.');
@@ -77,7 +77,7 @@ function replaceUpdates(target, renderedUpdates) {
 
 	return target.replace(
 		pattern,
-		`${renderedUpdates}\n\ninterface ArticleSection`,
+		`${renderedUpdates}${eol}${eol}interface ArticleSection`,
 	);
 }
 
@@ -85,7 +85,9 @@ function main() {
 	const dryRun = process.argv.includes('--dry-run');
 	const updates = loadUpdates();
 	const currentTarget = fs.readFileSync(TARGET_PATH, 'utf8');
-	const nextTarget = replaceUpdates(currentTarget, renderUpdates(updates));
+	const eol = currentTarget.includes('\r\n') ? '\r\n' : '\n';
+	const renderedUpdates = renderUpdates(updates).replace(/\n/g, eol);
+	const nextTarget = replaceUpdates(currentTarget, renderedUpdates, eol);
 
 	if (currentTarget === nextTarget) {
 		console.log('Support feature updates are already current.');

@@ -215,7 +215,7 @@ Users should reach common workflows within one or two interactions whenever poss
 Preferred:
 
 ```text
-Dashboard
+Today
   ↓
 Task
   ↓
@@ -248,7 +248,7 @@ Mobile should prioritize a small set of globally available destinations.
 
 Recommended primary destinations:
 
-* Dashboard
+* Today
 * Properties
 * Tasks
 * Equipment
@@ -338,6 +338,11 @@ Property selection should not require navigating into a property page.
 ---
 
 # Dashboard Guidelines
+
+The dashboard surface is labeled `Today` in customer-facing navigation and page
+headings. The `/dashboard` route and internal Dashboard architecture names remain
+unchanged. This distinction keeps the interface action-oriented without forcing
+an internal route or component migration.
 
 The dashboard should answer:
 

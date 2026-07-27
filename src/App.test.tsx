@@ -100,13 +100,11 @@ test('does not erase a resolved grant when an account snapshot omits its project
 		},
 	);
 
-	act(() => {
-		render(
-			<Provider store={store}>
-				<App />
-			</Provider>,
-		);
-	});
+	render(
+		<Provider store={store}>
+			<App />
+		</Provider>,
+	);
 
 	expect(
 		store.getState().user.currentUser?.subscription?.entitlementGrants,
@@ -154,13 +152,11 @@ test('clears resolved grants when the account snapshot explicitly reports none',
 		},
 	);
 
-	act(() => {
-		render(
-			<Provider store={store}>
-				<App />
-			</Provider>,
-		);
-	});
+	render(
+		<Provider store={store}>
+			<App />
+		</Provider>,
+	);
 
 	expect(
 		store.getState().user.currentUser?.subscription?.entitlementGrants,

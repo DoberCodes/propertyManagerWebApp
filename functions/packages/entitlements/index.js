@@ -211,17 +211,18 @@ const HOMEOWNER_CAPABILITIES = [
 	'reports.view',
 	'data.export',
 	'warranties.track',
+	'parts.link',
+	'maintenance_packages.suggested',
+	'recurring_tasks.use',
+	'notifications.use',
 ];
 
 const HOMEOWNER_PLUS_CAPABILITIES = [
 	...HOMEOWNER_CAPABILITIES,
 	'audit.advanced',
-	'parts.link',
-	'maintenance_packages.suggested',
-	'recurring_tasks.use',
-	'notifications.use',
 	'property_intelligence.use',
 	'property_knowledge.acquire',
+	'property_groups.manage',
 ];
 
 const MULTI_HOMEOWNER_CAPABILITIES = [
@@ -230,7 +231,7 @@ const MULTI_HOMEOWNER_CAPABILITIES = [
 ];
 
 const PROPERTY_CAPABILITIES = [
-	...HOMEOWNER_PLUS_CAPABILITIES,
+	...HOMEOWNER_CAPABILITIES,
 	'team.manage',
 	'residents.manage',
 	'residents.view',
@@ -239,6 +240,9 @@ const PROPERTY_CAPABILITIES = [
 
 const PORTFOLIO_CAPABILITIES = [
 	...PROPERTY_CAPABILITIES,
+	'audit.advanced',
+	'property_intelligence.use',
+	'property_knowledge.acquire',
 	'team.advanced',
 	'multi_unit.manage',
 	'portfolio.reporting',
@@ -257,20 +261,20 @@ const ZERO_LIMITS = Object.freeze({
 const PLAN_PRESETS = Object.freeze({
 	homeowner: createPreset('homeowner', 'base', HOMEOWNER_CAPABILITIES, {
 		properties: 1,
-		devices: 15,
-		files: 10,
+		devices: 999,
+		files: 999999999,
 		storage_gb: 1,
-		suggested_maintenance_packages: 0,
+		suggested_maintenance_packages: 999,
 	}),
 	homeowner_plus: createPreset(
 		'homeowner_plus',
 		'base',
 		HOMEOWNER_PLUS_CAPABILITIES,
 		{
-			properties: 1,
+			properties: 5,
 			devices: 999,
-			files: 250,
-			storage_gb: 5,
+			files: 999999999,
+			storage_gb: 10,
 			suggested_maintenance_packages: 999,
 		},
 	),
@@ -281,22 +285,22 @@ const PLAN_PRESETS = Object.freeze({
 		{
 			properties: 5,
 			devices: 999,
-			files: 250,
-			storage_gb: 5,
+			files: 999999999,
+			storage_gb: 10,
 			suggested_maintenance_packages: 999,
 		},
 	),
 	property: createPreset('property', 'base', PROPERTY_CAPABILITIES, {
 		properties: 7,
 		devices: 999,
-		files: 1500,
+		files: 999999999,
 		storage_gb: 15,
 		suggested_maintenance_packages: 999,
 	}),
 	portfolio: createPreset('portfolio', 'base', PORTFOLIO_CAPABILITIES, {
 		properties: 15,
 		devices: 999,
-		files: 5000,
+		files: 999999999,
 		storage_gb: 25,
 		suggested_maintenance_packages: 999,
 	}),
@@ -326,7 +330,7 @@ const isPlanEnabled = (planId, featureFlags = DEFAULT_ENTITLEMENT_FEATURE_FLAGS)
 	const normalizedPlanId = normalizeRawPlanId(planId);
 	if (!PLAN_ID_SET.has(normalizedPlanId)) return false;
 	if (normalizedPlanId === 'multi_homeowner') {
-		return featureFlags && featureFlags.multiHomeownerPlan === true;
+		return false;
 	}
 	return true;
 };

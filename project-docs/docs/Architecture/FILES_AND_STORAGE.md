@@ -223,12 +223,21 @@ src/utils/subscriptionUtils.ts
 
 Current limits:
 
-| Plan       | File Limit | Storage Limit |
-| ---------- | ---------- | ------------- |
-| Homeowner  | 10         | 1 GB          |
-| Homeowner+ | 250        | 5 GB          |
-| Property   | 1000       | 10 GB         |
-| Portfolio  | 5000       | 25 GB         |
+| Plan       | File Count Limit | Storage Limit |
+| ---------- | ---------------- | ------------- |
+| Homeowner  | None             | 1 GB          |
+| Homeowner+ | None             | 10 GB         |
+| Property   | None             | 15 GB         |
+| Portfolio  | None             | 25 GB         |
+
+Storage volume is the enforceable customer-facing resource boundary. The
+entitlement package uses a large technical sentinel for `files` to preserve its
+versioned numeric contract, but upload authorization does not present or rely
+on a practical file-count allowance.
+
+Existing files remain readable and downloadable after a downgrade. New uploads
+are blocked only when the current storage usage meets or exceeds the effective
+plan's byte quota.
 
 Customer-facing plan definitions should remain in:
 

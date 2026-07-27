@@ -1,3 +1,9 @@
+import {
+	getGooglePlayStoreURL,
+	getUpdateDestinationURL,
+	setAvailableVersion,
+} from './versionCheck';
+
 jest.mock('../Redux/API/apiSlice', () => ({
 	apiSlice: {
 		endpoints: {
@@ -29,12 +35,6 @@ jest.mock('@capacitor/browser', () => ({
 jest.mock('../config/appVersion', () => ({
 	CURRENT_APP_VERSION: '2.7.24',
 }));
-
-import {
-	getGooglePlayStoreURL,
-	getUpdateDestinationURL,
-	setAvailableVersion,
-} from './versionCheck';
 
 describe('versionCheck Android update destination', () => {
 	beforeEach(() => {

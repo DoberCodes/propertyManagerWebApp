@@ -55,7 +55,7 @@
 		"sync:seo-nav": "node scripts/syncPublicSeoNav.cjs",
 		"sync:public-pricing": "node scripts/syncPublicPricing.cjs",
 		"sync:android-icons": "node scripts/syncAndroidLauncherIcons.cjs",
-		"lint": "eslint 'src/**/*.{ts,tsx}'",
+		"lint": "eslint src --ext .ts,.tsx",
 		"test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
 		"test:ci": "node ./node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --passWithNoTests",
 		"analyze:bundle": "node scripts/reportBuildAssets.cjs",
