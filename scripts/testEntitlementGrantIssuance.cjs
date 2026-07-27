@@ -136,8 +136,18 @@ async function run() {
 			'notifications.use',
 			grant.endsAtMs + 1,
 		),
+		true,
+		'Core notifications must remain available after a premium grant expires.',
+	);
+	assert.equal(
+		await hasAccountCapability(
+			eligibleAccountId,
+			freeSubscription,
+			'property_intelligence.use',
+			grant.endsAtMs + 1,
+		),
 		false,
-		'Expired grants must stop contributing to server-side capabilities.',
+		'Expired grants must stop contributing premium server-side capabilities.',
 	);
 
 	const auditSnapshot = await db
@@ -235,11 +245,11 @@ async function run() {
 		await hasAccountCapability(
 			eligibleAccountId,
 			freeSubscription,
-			'notifications.use',
+			'property_intelligence.use',
 			startsAtMs + 2,
 		),
 		false,
-		'Revoked grants must not contribute to server-side capabilities.',
+		'Revoked grants must not contribute premium server-side capabilities.',
 	);
 
 	console.log('Entitlement grant issuance emulator tests passed.');
