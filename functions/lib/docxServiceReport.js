@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractDocxServiceReport = exports.parseDocxServiceReportHtml = void 0;
+exports.extractDocxServiceReport = exports.parseDocxServiceReportHtml = exports.parseServiceReportLayout = void 0;
 const mammoth_1 = __importDefault(require("mammoth"));
 const decodeHtml = (value) => value
     .replace(/&amp;/g, '&')
@@ -25,6 +25,32 @@ const slug = (value) => value
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 48) || 'item';
+const normalizeExtractedText = (value) => value
+    .replace(/\bfi\s+lter\b/gi, 'filter')
+    .replace(/([a-z])\s+fi\s+([a-z])/gi, '$1fi$2')
+    .replace(/\bfi\s+([a-z])/gi, 'fi$1')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+const expandRepeatedStatusRow = (row, areaColumn, statusColumn) => {
+    const statuses = String(row[statusColumn] || '')
+        .split('\n')
+        .map((value) => value.trim())
+        .filter(Boolean);
+    if (statuses.length <= 1)
+        return [row];
+    const areas = String(row[areaColumn] || '')
+        .split('\n')
+        .map((value) => value.trim())
+        .filter(Boolean);
+    return statuses.map((status, index) => {
+        const next = [...row];
+        next[statusColumn] = status;
+        next[areaColumn] = index === 0
+            ? areas[0] || ''
+            : areas.slice(index).join(' ');
+        return next;
+    });
+};
 const extractTables = (html) => Array.from(html.matchAll(/<table>([\s\S]*?)<\/table>/gi)).map((tableMatch) => Array.from(tableMatch[1].matchAll(/<tr>([\s\S]*?)<\/tr>/gi)).map((rowMatch) => Array.from(rowMatch[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)).map((cellMatch) => textFromHtml(cellMatch[1]))));
 const getLabeledValue = (tables, label) => {
     const normalizedLabel = label.toLowerCase();
@@ -37,6 +63,9 @@ const getLabeledValue = (tables, label) => {
     }
     return '';
 };
+const getRawLabeledValue = (rawText, label) => rawText
+    .match(new RegExp(`(?:^|\\n)${label.replace(/\s+/g, '\\s+')}\\s*:\\s*([^\\n]*)`, 'i'))?.[1]
+    ?.trim() || '';
 const EQUIPMENT_RULES = [
     { pattern: /water heater/i, assetType: 'Water Heater', assetVariant: 'Tankless Gas' },
     { pattern: /hvac/i, assetType: 'HVAC' },
@@ -59,9 +88,7 @@ const priorityFromStatus = (statusLevel) => {
         return 'High';
     return 'Medium';
 };
-const parseDocxServiceReportHtml = (html) => {
-    const tables = extractTables(html);
-    const rawText = textFromHtml(html.replace(/<img[^>]*>/gi, ''));
+const parseServiceReportLayout = ({ tables, rawText, }) => {
     const title = rawText.match(/(?:^|\n)([^\n]*MAINTENANCE REPORT)(?:\n|$)/i)?.[1]?.trim();
     const completedWork = [];
     const observations = [];
@@ -73,18 +100,20 @@ const parseDocxServiceReportHtml = (html) => {
         const notesColumn = header.findIndex((cell) => cell.includes('notes'));
         if (taskColumn >= 0 && statusColumn >= 0) {
             for (const row of table.slice(1)) {
-                if (/complete/i.test(row[statusColumn] || '') && row[taskColumn]) {
-                    completedWork.push(row[taskColumn].trim());
+                const statusText = row[statusColumn] || '';
+                if (/complete/i.test(statusText) && row[taskColumn]) {
+                    const misplacedTaskText = statusText.replace(/\s*complete\b.*$/i, '').trim();
+                    completedWork.push(normalizeExtractedText([row[taskColumn], misplacedTaskText].filter(Boolean).join(' ')));
                 }
             }
         }
         if (areaColumn >= 0 && statusColumn >= 0) {
-            for (const row of table.slice(1)) {
-                const area = row[areaColumn]?.trim();
+            for (const row of table.slice(1).flatMap((item) => expandRepeatedStatusRow(item, areaColumn, statusColumn))) {
+                const area = normalizeExtractedText(row[areaColumn] || '');
                 if (!area)
                     continue;
-                const status = row[statusColumn]?.trim() || 'Status not recorded';
-                const notes = row[notesColumn]?.trim();
+                const status = normalizeExtractedText(row[statusColumn] || '') || 'Status not recorded';
+                const notes = normalizeExtractedText(row[notesColumn] || '');
                 const statusLevel = Number(status.match(/^[1-5]/)?.[0] || 0) || undefined;
                 observations.push({
                     id: `observation-${slug(area)}`,
@@ -120,7 +149,10 @@ const parseDocxServiceReportHtml = (html) => {
                 : 'The service report records an issue that may require follow-up.',
         });
     }
-    const futureFollowUps = tables.flatMap((table) => table.flatMap((row) => row.filter((cell) => /service|replace|repair/i.test(cell))));
+    const futureFollowUps = [
+        ...tables.flatMap((table) => table.flatMap((row) => row.filter((cell) => /service|replace|repair/i.test(cell)))),
+        ...rawText.split('\n').filter((line) => /service|replace|repair/i.test(line)),
+    ];
     for (const followUp of futureFollowUps) {
         const match = followUp.match(/(?:^|:\s*)(Service|Replace|Repair)\s+([^\n(.]+)/i);
         if (!match)
@@ -166,10 +198,10 @@ const parseDocxServiceReportHtml = (html) => {
     }
     return {
         ...(title ? { title } : {}),
-        technicianName: getLabeledValue(tables, 'technician name') || undefined,
-        visitDate: getLabeledValue(tables, 'visit date') || undefined,
-        visitTime: getLabeledValue(tables, 'visit time') || undefined,
-        propertyAddress: getLabeledValue(tables, 'home address') || undefined,
+        technicianName: getLabeledValue(tables, 'technician name') || getRawLabeledValue(rawText, 'technician name') || undefined,
+        visitDate: getLabeledValue(tables, 'visit date') || getRawLabeledValue(rawText, 'visit date') || undefined,
+        visitTime: getLabeledValue(tables, 'visit time') || getRawLabeledValue(rawText, 'visit time') || undefined,
+        propertyAddress: getLabeledValue(tables, 'home address') || getRawLabeledValue(rawText, 'home address') || undefined,
         completedWork: Array.from(new Set(completedWork)),
         observations,
         suggestedTasks: Array.from(taskByTitle.values()),
@@ -177,6 +209,11 @@ const parseDocxServiceReportHtml = (html) => {
         rawText,
     };
 };
+exports.parseServiceReportLayout = parseServiceReportLayout;
+const parseDocxServiceReportHtml = (html) => (0, exports.parseServiceReportLayout)({
+    tables: extractTables(html),
+    rawText: textFromHtml(html.replace(/<img[^>]*>/gi, '')),
+});
 exports.parseDocxServiceReportHtml = parseDocxServiceReportHtml;
 const extractDocxServiceReport = async (buffer) => {
     const result = await mammoth_1.default.convertToHtml({ buffer }, { convertImage: mammoth_1.default.images.imgElement(() => Promise.resolve({ src: '' })) });

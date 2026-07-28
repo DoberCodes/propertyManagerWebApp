@@ -73,13 +73,14 @@ Property documents are the canonical source documents for acquisition. Uploads s
 Additional links should come from reviewed Property Memory changes. If acquisition finds that a document appears to describe an existing asset, task, contractor, part, warranty, cost, or Maintenance Event, the review experience should propose that connection and let the user confirm it.
 
 Suggested details are generated from document metadata, lightweight image OCR
-for uploaded image files, backend PDF text extraction for supported text-based
-PDF invoices or receipts, and backend DOCX text and table extraction for
-structured maintenance service reports. Maintley does not perform AI
+for uploaded image files, backend layout-aware extraction for supported
+text-based PDFs, and backend DOCX text and table extraction for structured
+maintenance service reports. Digital PDF and DOCX service reports share the
+same deterministic visit interpreter after format-specific extraction. Maintley does not perform AI
 extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
 this phase.
 
-Structured DOCX service reports may propose a dated Maintenance Event,
+Structured PDF or DOCX service reports may propose a dated Maintenance Event,
 recommended tasks, and equipment reconciliation. Positive and negative status
 checks remain attributed visit observations within the Maintenance Event.
 Inspection areas such as rooms or general structural checks must not be turned
@@ -87,7 +88,14 @@ into equipment records. Only controlled maintainable asset types may be offered
 for matching or creation, and every proposed task or equipment record requires
 review.
 
-PDF invoice acquisition runs after the canonical Property Document is saved.
+PDF acquisition runs after the canonical Property Document is saved. Maintley
+first uses the PDF's embedded text layer and page coordinates to preserve lines
+and recognized tables. Service-report layouts are routed through the shared
+visit interpreter; other readable PDFs continue through document-specific field
+extraction. The legacy byte-stream decoder remains a compatibility fallback when
+the layout extractor cannot open a file. Image-only PDFs still require the
+future rendered-page OCR fallback.
+
 PDF uploads may move through `processing`, `pending_review`, or `failed`
 acquisition states. The PDF remains the source document; any extracted text or
 future rendered page images are derived processing artifacts only.
