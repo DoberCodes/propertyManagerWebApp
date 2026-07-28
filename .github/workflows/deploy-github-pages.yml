@@ -148,8 +148,17 @@ jobs:
       - name: Install functions dependencies
         run: yarn --cwd functions install --frozen-lockfile
 
+      - name: Check entitlement lock synchronization
+        run: yarn check:entitlement-locks
+
+      - name: Validate Functions deploy package
+        run: yarn validate:functions-package
+
       - name: Build functions
         run: yarn --cwd functions build
+
+      - name: DOCX service report acquisition tests
+        run: yarn --cwd functions test:docx-acquisition
 
       - name: Property setup activation tests
         run: yarn --cwd functions test:setup-plan
