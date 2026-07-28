@@ -732,6 +732,14 @@ overdue
 
 The due date remains the authoritative source for overdue calculations.
 
+Task timing has three explicit modes:
+
+- `scheduled`: the task has a calendar due date and can become due soon or overdue.
+- `asap`: the task has no calendar date but should be addressed as soon as capacity allows.
+- `unscheduled`: the task remains visible, but its timing has not been decided and it does not receive date-based reminders.
+
+The optional `scheduleMode` field preserves this distinction. For backward compatibility, an older task with no `scheduleMode` and no due date is interpreted as `asap`, matching the behavior users saw before this field existed. New document-derived recommendations without a stated date default to `unscheduled`; Maintley should not infer urgency from missing information.
+
 New development should avoid persisting:
 
 - overdue

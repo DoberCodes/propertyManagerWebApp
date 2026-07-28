@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'Redux/store/store';
 import { setCurrentUser } from 'Redux/Slices/userSlice';
 import { Task } from 'types/Task.types';
+import { getTaskTimingLabel } from 'tasks/taskSchedule';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import {
 	useGetAllMaintenanceHistoryForUserQuery,
@@ -1213,7 +1214,7 @@ export const DashboardTab = () => {
 		const due = new Date(task.dueDate);
 		const now = new Date();
 		if (Number.isNaN(due.getTime())) {
-			return 'No due date';
+			return getTaskTimingLabel(task);
 		}
 
 		const diffMs = due.getTime() - now.getTime();

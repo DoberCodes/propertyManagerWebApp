@@ -22,6 +22,19 @@ export const isPdfPropertyDocument = (
 	return mimeType.includes('pdf') || fileName.endsWith('.pdf');
 };
 
+export const isDocxPropertyDocument = (
+	document?: Pick<PropertyDocument, 'type' | 'fileName' | 'name'> | null,
+) => {
+	if (!document) return false;
+	const mimeType = String(document.type || '').toLowerCase();
+	const fileName = String(document.fileName || document.name || '').toLowerCase();
+	return mimeType.includes('wordprocessingml') || fileName.endsWith('.docx');
+};
+
+export const isProcessablePropertyDocument = (
+	document?: Pick<PropertyDocument, 'type' | 'fileName' | 'name'> | null,
+) => isPdfPropertyDocument(document) || isDocxPropertyDocument(document);
+
 export const processPropertyDocumentAcquisition = async ({
 	propertyId,
 	documentId,

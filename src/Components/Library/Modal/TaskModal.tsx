@@ -27,6 +27,7 @@ import {
 	TaskNotification,
 	TaskFinancials,
 	CostBreakdown,
+	TaskScheduleMode,
 } from '../../../types/Task.types';
 import {
 	getDefaultTaskNotifications,
@@ -65,6 +66,7 @@ import {
 	type TaskAssigneeOption,
 } from '../../../tasks/taskAssignment';
 import { useTaskAssigneeOptions } from '../../../tasks/useTaskAssigneeOptions';
+import { getTaskScheduleMode, normalizeTaskSchedule } from '../../../tasks/taskSchedule';
 
 const LINKED_DEVICE_NOTES_START = '--- Linked Equipment Details ---';
 const LINKED_DEVICE_NOTES_END = '--- End Linked Equipment Details ---';
@@ -452,6 +454,7 @@ const MoreOptionsToggle = styled.button<{ $active?: boolean }>`
 interface TaskFormData {
 	title: string;
 	dueDate: string;
+	scheduleMode?: TaskScheduleMode;
 	status: string;
 	requiresWorkOrder?: boolean;
 	category?: string;
@@ -550,6 +553,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		() => ({
 			title: '',
 			dueDate: new Date().toISOString().split('T')[0],
+			scheduleMode: 'scheduled',
 			status: 'Initiated',
 			requiresWorkOrder: false,
 			category: '',
@@ -818,6 +822,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			setFormState({
 				title: editingTask.title || '',
 				dueDate: editingTask.dueDate ? editingTask.dueDate.split('T')[0] : '',
+				scheduleMode: getTaskScheduleMode(editingTask),
 				status: editingTask.status || 'Initiated',
 				requiresWorkOrder: Boolean((editingTask as any).requiresWorkOrder),
 				category: editingTask.category || '',
@@ -852,6 +857,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			setFormState({
 				title: foundTask.title || '',
 				dueDate: foundTask.dueDate ? foundTask.dueDate.split('T')[0] : '',
+				scheduleMode: getTaskScheduleMode(foundTask),
 				status: foundTask.status || 'Initiated',
 				requiresWorkOrder: Boolean((foundTask as any).requiresWorkOrder),
 				category: foundTask.category || '',
@@ -887,7 +893,13 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				...defaultForm,
 				...initialTask,
 				title: initialTask.title || defaultForm.title,
-				dueDate: initialTask.dueDate || defaultForm.dueDate,
+				dueDate:
+					initialTask.scheduleMode && initialTask.scheduleMode !== 'scheduled'
+						? ''
+						: initialTask.dueDate || defaultForm.dueDate,
+				scheduleMode:
+					initialTask.scheduleMode ||
+					(initialTask.dueDate ? 'scheduled' : defaultForm.scheduleMode),
 				status: initialTask.status || defaultForm.status,
 				notes: initialTask.notes || defaultForm.notes,
 				category: initialTask.category || defaultForm.category,
@@ -1200,7 +1212,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	};
 
 	const isCreateMode = !isEditing;
-	const isAsap = !formState.dueDate;
+	const scheduleMode = formState.scheduleMode || getTaskScheduleMode(formState);
 	const requiresPropertySelection = propertyOptions.length > 0 && !propertyId;
 	const missingRequiredFields = useMemo(() => {
 		const missing: string[] = [];
@@ -1380,7 +1392,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				}
 				let updatesRaw: any = {
 					...formState,
-					dueDate: formState.dueDate?.trim() || '',
+					...normalizeTaskSchedule(formState),
 					notes: mergedNotes,
 					financials: sanitizedFinancials,
 				};
@@ -1441,7 +1453,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			} else {
 				let newTaskRaw: any = {
 					...formState,
-					dueDate: formState.dueDate?.trim() || '',
+					...normalizeTaskSchedule(formState),
 					notes: mergedNotes,
 					financials: sanitizedFinancials,
 					propertyId: formState.propertyId || propertyId || '',
@@ -1594,8 +1606,12 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									<>
 										<SummaryTitle>Create the maintenance task first, then add optional automation if needed.</SummaryTitle>
 										<SummaryMeta>
-											<SummaryPill $tone={isAsap ? 'success' : 'neutral'}>
-												{isAsap ? 'ASAP task' : 'Scheduled task'}
+											<SummaryPill $tone={scheduleMode === 'asap' ? 'success' : 'neutral'}>
+												{scheduleMode === 'asap'
+													? 'ASAP task'
+													: scheduleMode === 'unscheduled'
+														? 'Not scheduled'
+														: 'Scheduled task'}
 											</SummaryPill>
 										</SummaryMeta>
 										<RequiredList>
@@ -1679,10 +1695,11 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 								<DueDateModeGroup>
 									<DueDateModeButton
 										type='button'
-										$active={!isAsap}
+										$active={scheduleMode === 'scheduled'}
 										onClick={() =>
 											setFormState((prev) => ({
 												...prev,
+												scheduleMode: 'scheduled',
 												dueDate: prev.dueDate || new Date().toISOString().split('T')[0],
 											}))
 										}>
@@ -1690,19 +1707,36 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 									</DueDateModeButton>
 									<DueDateModeButton
 										type='button'
-										$active={isAsap}
+										$active={scheduleMode === 'asap'}
 										onClick={() =>
 											setFormState((prev) => ({
 												...prev,
+												scheduleMode: 'asap',
 												dueDate: '',
 											}))
 										}>
 										ASAP
 									</DueDateModeButton>
+									<DueDateModeButton
+										type='button'
+										$active={scheduleMode === 'unscheduled'}
+										onClick={() =>
+											setFormState((prev) => ({
+												...prev,
+												scheduleMode: 'unscheduled',
+												dueDate: '',
+											}))
+										}>
+										No date set
+									</DueDateModeButton>
 								</DueDateModeGroup>
-								{isAsap ? (
+								{scheduleMode === 'asap' ? (
 									<HelperBox>
-										This task will be created without a due date and can be addressed as soon as capacity allows.
+										This task has no calendar date, but should be addressed as soon as capacity allows.
+									</HelperBox>
+								) : scheduleMode === 'unscheduled' ? (
+									<HelperBox>
+										No timing has been set. This task will stay visible without becoming overdue or receiving date-based reminders.
 									</HelperBox>
 								) : (
 									<>
@@ -1710,7 +1744,13 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 											type='date'
 											name='dueDate'
 											value={formState.dueDate}
-											onChange={onChange}
+											onChange={(event) => {
+												if (!event.target.value) {
+													setFormState((prev) => ({ ...prev, dueDate: '', scheduleMode: 'unscheduled' }));
+													return;
+												}
+												onChange(event);
+											}}
 										/>
 										<FieldHint>
 											Pick a target date when this maintenance task should be completed.

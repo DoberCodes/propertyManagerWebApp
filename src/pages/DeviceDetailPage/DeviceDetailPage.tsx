@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getTaskTimingLabel } from '../../tasks/taskSchedule';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -1956,7 +1957,7 @@ export const DeviceDetailPage: React.FC = () => {
 												</MobileDetailHeader>
 												<MobileDetailMeta>
 													<div>Assigned to: {getTaskAssigneeDisplayName(task)}</div>
-													<div>Due: {task.dueDate ? formatDate(task.dueDate) : 'No due date set'}</div>
+											<div>Due: {task.dueDate ? formatDate(task.dueDate) : getTaskTimingLabel(task)}</div>
 													<div>Priority: {task.priority || 'Low'}</div>
 												</MobileDetailMeta>
 												{roleCapabilities.canManageTasks && (

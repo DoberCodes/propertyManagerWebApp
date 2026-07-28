@@ -112,6 +112,7 @@ import {
 	buildTaskTimeBuckets,
 	TaskTimeBucketId,
 } from '../../tasks/taskTimeBuckets';
+import { getTaskTimingLabel } from '../../tasks/taskSchedule';
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
@@ -223,7 +224,8 @@ export const TasksPage = () => {
 		today: false,
 		'this-week': false,
 		upcoming: false,
-		'no-due-date': false,
+		asap: false,
+		unscheduled: false,
 	});
 	// track the property id for the task we're assigning so the modal can fetch contractors immediately
 	const [assigningTaskPropertyId, setAssigningTaskPropertyId] =
@@ -736,8 +738,8 @@ export const TasksPage = () => {
 		return { kind, actions };
 	};
 
-	const formatRelativeDue = (value?: string) => {
-		if (!value) return 'No due date set';
+	const formatRelativeDue = (value?: string, scheduleMode?: any) => {
+		if (!value) return getTaskTimingLabel({ dueDate: value, scheduleMode });
 		const target = new Date(value).getTime();
 		if (Number.isNaN(target)) return 'No due date set';
 		const diffMs = target - Date.now();
@@ -800,8 +802,8 @@ export const TasksPage = () => {
 	const getAssigneeLabel = (task: any) =>
 		getTaskAssigneeDisplayName(task);
 
-	const formatDueDate = (dueDate?: string) => {
-		if (!dueDate) return 'ASAP';
+	const formatDueDate = (dueDate?: string, scheduleMode?: any) => {
+		if (!dueDate) return getTaskTimingLabel({ dueDate, scheduleMode });
 		const parsed = new Date(dueDate);
 		if (Number.isNaN(parsed.getTime())) return dueDate;
 		return parsed.toLocaleDateString('en-US', {
@@ -903,7 +905,7 @@ export const TasksPage = () => {
 						{task.title || 'Untitled task'}
 					</TaskDecisionTitle>
 					<TaskDecisionMeta $danger={isOverdue}>
-						{formatRelativeDue(task.dueDate)}
+						{formatRelativeDue(task.dueDate, task.scheduleMode)}
 						{task.priority ? ` - ${task.priority} priority` : ''}
 					</TaskDecisionMeta>
 					<TaskDecisionMeta>
@@ -1142,7 +1144,7 @@ export const TasksPage = () => {
 						</TaskHeroTitle>
 						<TaskHeroMeta>
 							{nextStepTask
-								? `${formatRelativeDue(nextStepTask.dueDate)} - ${nextStepTask.priority || 'Low'} priority - ${getTaskPropertyLabel(nextStepTask)}`
+								? `${formatRelativeDue(nextStepTask.dueDate, nextStepTask.scheduleMode)} - ${nextStepTask.priority || 'Low'} priority - ${getTaskPropertyLabel(nextStepTask)}`
 								: 'Open maintenance will appear here when it is ready to review.'}
 						</TaskHeroMeta>
 						{nextStepTask && (
@@ -1312,7 +1314,7 @@ export const TasksPage = () => {
 										<MobileMetaValue>
 											<div>{assigneeText}</div>
 											<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
-												{task.priority || 'Low'} priority · {formatDueDate(task.dueDate)}
+												{task.priority || 'Low'} priority · {formatDueDate(task.dueDate, task.scheduleMode)}
 											</div>
 										</MobileMetaValue>
 									</MobileMetaItem>

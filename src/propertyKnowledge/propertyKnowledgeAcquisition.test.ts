@@ -127,6 +127,65 @@ describe('property knowledge acquisition', () => {
 		).toBe('WH-250');
 	});
 
+	it('keeps reviewed service-report task and equipment candidates separate', () => {
+		const suggestion = {
+			id: 'knowledge-docx-1',
+			sourceDocumentId: 'docx-1',
+			propertyId: 'property-1',
+			documentType: 'inspection_report' as const,
+			extractionMethod: 'docx_text' as const,
+			extractedFields: [],
+			suggestedTasks: [{
+				id: 'task-water-heater',
+				title: 'Service on demand water heater',
+				description: 'Corrosion on pipes.',
+				priority: 'Medium' as const,
+				relatedAssetType: 'Water Heater',
+				sourceText: 'Next Step: Service on demand water heater',
+			}],
+			suggestedEquipment: [{
+				id: 'equipment-water-heater',
+				label: 'Water Heater',
+				assetType: 'Water Heater',
+				sourceText: 'Water heater: 3 - Notable Issue',
+			}],
+			status: 'pending' as const,
+			createdAt: '2026-07-24T15:00:00.000Z',
+		};
+
+		const accepted = acceptKnowledgeSuggestion(suggestion, {
+			acceptedByUser: 'user-1',
+			taskValues: {
+				'task-water-heater': {
+					title: 'Schedule tankless water heater service',
+					accepted: true,
+					matchedDeviceId: 'system-1',
+				},
+			},
+			equipmentValues: {
+				'equipment-water-heater': {
+					accepted: true,
+					matchedDeviceId: 'system-1',
+				},
+			},
+		});
+		const result = applyAcceptedKnowledgeSuggestion({
+			suggestion: accepted,
+			property: baseProperty,
+			systems: [baseSystem],
+			acceptedByUser: 'user-1',
+		});
+
+		expect(result.taskSuggestions).toHaveLength(1);
+		expect(result.taskSuggestions[0]).toMatchObject({
+			userEditableTitle: 'Schedule tankless water heater service',
+			matchedDeviceId: 'system-1',
+		});
+		expect(result.equipmentSuggestions).toHaveLength(1);
+		expect(result.equipmentSuggestions[0].matchedDeviceId).toBe('system-1');
+		expect(result.maintenanceHistorySuggestion).toBeUndefined();
+	});
+
 	it('rejects a suggestion without deleting it', () => {
 		const suggestion = createPendingKnowledgeSuggestion({
 			document: baseDocument,

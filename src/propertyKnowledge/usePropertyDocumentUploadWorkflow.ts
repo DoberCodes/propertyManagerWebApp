@@ -14,7 +14,7 @@ import type { PropertyKnowledgeSuggestion } from '../types/PropertyKnowledge.typ
 import { canUsePropertyKnowledgeAcquisition } from '../utils/subscriptionUtils';
 import {
 	preparePropertyMemoryDocumentUploads,
-	startPdfDocumentKnowledgeProcessing,
+	startPropertyDocumentKnowledgeProcessing,
 	type PropertyMemoryDocumentUploadContext,
 } from './propertyDocumentUploads';
 import type { ProcessPropertyDocumentAcquisitionResponse } from './propertyKnowledgeProcessing';
@@ -42,7 +42,7 @@ type UploadPropertyDocumentsInput = {
 type UploadPropertyDocumentsResult = {
 	documents: PropertyDocument[];
 	knowledgeSuggestions: PropertyKnowledgeSuggestion[];
-	pdfDocuments: PropertyDocument[];
+	processableDocuments: PropertyDocument[];
 	totalSuggestedDetails: number;
 	canUseDocumentReview: boolean;
 };
@@ -65,15 +65,21 @@ const getKnowledgeSuggestionCount = (
 		: 0) +
 	(Array.isArray(suggestion?.suggestedParts)
 		? suggestion.suggestedParts.length
+		: 0) +
+	(Array.isArray(suggestion?.suggestedTasks)
+		? suggestion.suggestedTasks.length
+		: 0) +
+	(Array.isArray(suggestion?.suggestedEquipment)
+		? suggestion.suggestedEquipment.length
 		: 0);
 
 const getUploadFeedbackMessage = ({
 	totalSuggestedDetails,
-	pdfCount,
+	processableDocumentCount,
 	canUseDocumentReview,
 }: {
 	totalSuggestedDetails: number;
-	pdfCount: number;
+	processableDocumentCount: number;
 	canUseDocumentReview: boolean;
 }): string => {
 	if (!canUseDocumentReview) {
@@ -84,8 +90,8 @@ const getUploadFeedbackMessage = ({
 		return `Documents uploaded. Maintley found ${totalSuggestedDetails} suggested detail${totalSuggestedDetails === 1 ? '' : 's'} to review.`;
 	}
 
-	if (pdfCount > 0) {
-		return 'Documents uploaded. Maintley is reviewing PDF details in the background.';
+	if (processableDocumentCount > 0) {
+		return 'Documents uploaded. Maintley is reviewing document details in the background.';
 	}
 
 	return 'Documents uploaded to property documents.';
@@ -122,7 +128,7 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				return {
 					documents: [],
 					knowledgeSuggestions: [],
-					pdfDocuments: [],
+					processableDocuments: [],
 					totalSuggestedDetails: 0,
 					canUseDocumentReview,
 				};
@@ -133,7 +139,7 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				getExistingKnowledgeSuggestions(property);
 			const savedDocuments: PropertyDocument[] = [];
 			const knowledgeSuggestions: PropertyKnowledgeSuggestion[] = [];
-			const pdfDocuments: PropertyDocument[] = [];
+			const processableDocuments: PropertyDocument[] = [];
 
 			for (const batch of uploadBatches) {
 				const result = await preparePropertyMemoryDocumentUploads({
@@ -148,7 +154,7 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				});
 				savedDocuments.push(...result.documents);
 				knowledgeSuggestions.push(...result.knowledgeSuggestions);
-				pdfDocuments.push(...result.pdfDocuments);
+				processableDocuments.push(...result.processableDocuments);
 			}
 
 			await updateProperty({
@@ -162,9 +168,9 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				},
 			}).unwrap();
 
-			startPdfDocumentKnowledgeProcessing({
+			startPropertyDocumentKnowledgeProcessing({
 				propertyId: resolvedPropertyId,
-				documents: canUseDocumentReview ? pdfDocuments : [],
+				documents: canUseDocumentReview ? processableDocuments : [],
 				onProcessed: (result, document) => {
 					dispatch(apiSlice.util.invalidateTags(['Properties']));
 					onProcessed?.(result, document);
@@ -184,7 +190,7 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				feedback.notify(
 					getUploadFeedbackMessage({
 						totalSuggestedDetails,
-						pdfCount: pdfDocuments.length,
+						processableDocumentCount: processableDocuments.length,
 						canUseDocumentReview,
 					}),
 				);
@@ -193,7 +199,7 @@ export const usePropertyDocumentUploadWorkflow = () => {
 			return {
 				documents: savedDocuments,
 				knowledgeSuggestions,
-				pdfDocuments,
+				processableDocuments,
 				totalSuggestedDetails,
 				canUseDocumentReview,
 			};

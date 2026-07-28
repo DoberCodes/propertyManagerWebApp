@@ -39,6 +39,7 @@ export type TaskStatus =
 	| 'Hold';
 
 export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
+export type TaskScheduleMode = 'scheduled' | 'asap' | 'unscheduled';
 
 // Task notification types
 export type TaskNotificationType = 'reminder' | 'overdue';
@@ -89,6 +90,7 @@ export interface Task {
 	devices?: string[]; // Optional: device IDs related to this task
 	title: string;
 	dueDate: string;
+	scheduleMode?: TaskScheduleMode;
 	status:
 		| 'Initiated'
 		| 'Pending'
@@ -131,6 +133,8 @@ export interface Task {
 	completionNotes?: string;
 	financials?: TaskFinancials;
 	maintenanceGroupId?: string;
+	sourceDocumentId?: string;
+	sourceKnowledgeSuggestionId?: string;
 	createdAt?: string;
 	updatedAt?: string;
 }
@@ -146,6 +150,7 @@ export interface CompletionFile {
 export interface TaskFormData {
 	title: string;
 	dueDate: string;
+	scheduleMode?: TaskScheduleMode;
 	status: TaskStatus;
 	requiresWorkOrder?: boolean;
 	notes: string;
@@ -195,6 +200,7 @@ export interface TaskHandlers {
 export interface TaskData {
 	title: string;
 	dueDate: string;
+	scheduleMode?: TaskScheduleMode;
 	status: ReduxTaskStatus;
 	assignee?: string;
 	notes: string;

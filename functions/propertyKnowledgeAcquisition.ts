@@ -10,6 +10,7 @@ import {
 	SubscriptionEntitlementLike,
 	hasAccountCapability,
 } from './subscriptionEntitlements';
+import { extractDocxServiceReport } from './docxServiceReport';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -151,6 +152,13 @@ const assertCanProcessProperty = async (
 const isPdfDocument = (document: PropertyDocumentRecord) =>
 	toString(document.type).toLowerCase().includes('pdf') ||
 	toString(document.fileName || document.name).toLowerCase().endsWith('.pdf');
+
+const isDocxDocument = (document: PropertyDocumentRecord) =>
+	toString(document.type).toLowerCase().includes('wordprocessingml') ||
+	toString(document.fileName || document.name).toLowerCase().endsWith('.docx');
+
+const isProcessableDocument = (document: PropertyDocumentRecord) =>
+	isPdfDocument(document) || isDocxDocument(document);
 
 const updateDocumentInList = (
 	documents: PropertyDocumentRecord[],
@@ -815,6 +823,7 @@ const FIELD_META: Record<string, { label: string; targetEntity: string; targetFi
 	invoiceDate: { label: 'Invoice date', targetEntity: 'maintenanceHistory', targetField: 'invoiceDate' },
 	maintenanceEventDate: { label: 'Maintenance date', targetEntity: 'maintenanceHistory', targetField: 'date' },
 	maintenanceEventDescription: { label: 'Maintenance description', targetEntity: 'maintenanceHistory', targetField: 'description' },
+	performedByName: { label: 'Performed by', targetEntity: 'maintenanceHistory', targetField: 'performedByName' },
 	servicePerformed: { label: 'Service performed', targetEntity: 'maintenanceHistory', targetField: 'servicePerformed' },
 	partsReplaced: { label: 'Parts and supplies', targetEntity: 'maintenanceHistory', targetField: 'partsReplaced' },
 	totalCost: { label: 'Total cost', targetEntity: 'maintenanceHistory', targetField: 'totalCost' },
@@ -982,12 +991,18 @@ const getPendingSuggestionForDocument = (
 
 const getSuggestionFieldCount = (suggestion?: Record<string, unknown>) => {
 	const fields = suggestion?.extractedFields;
-	return Array.isArray(fields) ? fields.length : 0;
+	const tasks = suggestion?.suggestedTasks;
+	const equipment = suggestion?.suggestedEquipment;
+	return (
+		(Array.isArray(fields) ? fields.length : 0) +
+		(Array.isArray(tasks) ? tasks.length : 0) +
+		(Array.isArray(equipment) ? equipment.length : 0)
+	);
 };
 
 const shouldBackgroundProcessDocument = (document: PropertyDocumentRecord) =>
 	toString(document.id) &&
-	isPdfDocument(document) &&
+	isProcessableDocument(document) &&
 	toString(document.storagePath) &&
 	toString(document.acquisitionStatus) === 'processing';
 
@@ -1071,10 +1086,10 @@ const loadDocumentForProcessing = async ({
 	if (!document) {
 		throw new functions.https.HttpsError('not-found', 'Document not found.');
 	}
-	if (!isPdfDocument(document)) {
+	if (!isProcessableDocument(document)) {
 		throw new functions.https.HttpsError(
 			'invalid-argument',
-			'Only PDF documents are supported by this processor.',
+			'Only PDF and DOCX documents are supported by this processor.',
 		);
 	}
 	if (!toString(document.storagePath)) {
@@ -1139,13 +1154,31 @@ const processPdfDocumentAcquisition = async ({
 	});
 
 	try {
-		const [pdfBuffer] = await admin.storage().bucket().file(storagePath).download();
-		if (pdfBuffer.length > MAX_PDF_BYTES) {
-			throw new Error('PDF is larger than the current 10MB processing limit.');
+		const [documentBuffer] = await admin.storage().bucket().file(storagePath).download();
+		if (documentBuffer.length > MAX_PDF_BYTES) {
+			throw new Error('Document is larger than the current 10MB processing limit.');
 		}
 
-		const extractedText = extractTextFromPdfBuffer(pdfBuffer);
-		const extractedFields = extractFieldsFromPdfText(extractedText);
+		const docxReport = isDocxDocument(document)
+			? await extractDocxServiceReport(documentBuffer)
+			: undefined;
+		const extractedText = docxReport?.rawText || extractTextFromPdfBuffer(documentBuffer);
+		const extractedFields = docxReport
+			? (() => {
+					const fields: ExtractedField[] = [];
+					createField(fields, 'maintenanceEventDate', docxReport.visitDate || '', 'Visit details', 'high', 'The report clearly labels the visit date.');
+					createField(fields, 'maintenanceEventDescription', docxReport.title || 'Property maintenance visit', 'Report title', 'high', 'The report clearly identifies the maintenance visit.');
+					createField(fields, 'performedByName', docxReport.technicianName || '', 'Visit details', 'high', 'The report clearly labels the technician who performed the visit.');
+					const completedWork = docxReport.completedWork.length
+						? `Completed work:\n${docxReport.completedWork.map((item) => `- ${item}`).join('\n')}`
+						: '';
+					const observations = docxReport.observations.length
+						? `Inspection observations:\n${docxReport.observations.map((item) => `- ${item.area}: ${item.status}${item.notes ? ` - ${item.notes}` : ''}`).join('\n')}`
+						: '';
+					createField(fields, 'servicePerformed', [completedWork, observations].filter(Boolean).join('\n\n'), 'Maintenance tasks and status checks', 'high', 'The report records completed work and dated inspection observations.');
+					return fields;
+			  })()
+			: extractFieldsFromPdfText(extractedText);
 		const propertyConfirmation = buildPropertyConfirmationFromPdfText(
 			extractedText,
 			propertyData.address,
@@ -1185,8 +1218,9 @@ const processPdfDocumentAcquisition = async ({
 					acquisitionStatus: 'failed',
 					acquisitionCompletedAt: completedAt,
 					acquisitionWorkerCompletedAt: completedAt,
-					acquisitionError:
-						'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
+					acquisitionError: isDocxDocument(document)
+						? 'Maintley could not find useful structured text in this Word document.'
+						: 'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
 				};
 				transaction.update(propertyRef, {
 					documents: updateDocumentInList(
@@ -1211,7 +1245,7 @@ const processPdfDocumentAcquisition = async ({
 				return {
 					success: false,
 					suggestionCount: 0,
-					message: 'No readable PDF text found.',
+					message: 'No readable document text found.',
 				};
 			});
 			if (!failureResult.success) {
@@ -1240,8 +1274,17 @@ const processPdfDocumentAcquisition = async ({
 				toString(document.links?.assetIds?.[0]) ||
 				undefined,
 			documentType: classifyDocumentType(document),
-			extractionMethod: 'pdf_text',
+			extractionMethod: docxReport ? 'docx_text' : 'pdf_text',
 			extractedFields,
+			...(docxReport?.suggestedTasks.length
+				? { suggestedTasks: docxReport.suggestedTasks }
+				: {}),
+			...(docxReport?.suggestedEquipment.length
+				? { suggestedEquipment: docxReport.suggestedEquipment }
+				: {}),
+			...(docxReport?.observations.length
+				? { visitObservations: docxReport.observations }
+				: {}),
 			confidence:
 				extractedFields.reduce((sum, field) => sum + field.confidence, 0) /
 				extractedFields.length,
@@ -1340,7 +1383,10 @@ const processPdfDocumentAcquisition = async ({
 				didWrite: true,
 				propertyData: latestData,
 				document: latestDocument,
-				suggestionCount: extractedFields.length,
+				suggestionCount:
+					extractedFields.length +
+					(docxReport?.suggestedTasks.length || 0) +
+					(docxReport?.suggestedEquipment.length || 0),
 				suggestionId: toString(suggestion.id),
 			};
 		});
@@ -1398,7 +1444,7 @@ const processPdfDocumentAcquisition = async ({
 				acquisitionWorkerCompletedAt: completedAt,
 				acquisitionError:
 					error?.message ||
-					'Maintley could not review this PDF. Please try again later.',
+					'Maintley could not review this document. Please try again later.',
 			};
 			transaction.update(propertyRef, {
 				documents: updateDocumentInList(
@@ -1433,10 +1479,10 @@ const processPdfDocumentAcquisition = async ({
 			push: true,
 			errorMessage:
 				error?.message ||
-				'Maintley could not review this PDF. Please try again later.',
+				'Maintley could not review this document. Please try again later.',
 		});
 
-		console.error('PDF property knowledge acquisition failed:', error);
+		console.error('Property knowledge acquisition failed:', error);
 		throw error;
 	}
 };
@@ -1476,7 +1522,7 @@ export const processPropertyDocumentAcquisition = functions
 			}
 			throw new functions.https.HttpsError(
 				'internal',
-				error?.message || 'Could not review this PDF.',
+				error?.message || 'Could not review this document.',
 			);
 		}
 	});
@@ -1505,7 +1551,7 @@ export const processPropertyDocumentAcquisitionRequests = functions
 				});
 			} catch (error) {
 				console.error(
-					`Background PDF acquisition failed for property ${context.params.propertyId}, document ${documentId}:`,
+					`Background document acquisition failed for property ${context.params.propertyId}, document ${documentId}:`,
 					error,
 				);
 			}
