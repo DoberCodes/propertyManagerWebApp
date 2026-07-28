@@ -35,6 +35,19 @@ export const isProcessablePropertyDocument = (
 	document?: Pick<PropertyDocument, 'type' | 'fileName' | 'name'> | null,
 ) => isPdfPropertyDocument(document) || isDocxPropertyDocument(document);
 
+export const isPropertyDocumentKnowledgeScanEligible = (
+	document?: Pick<
+		PropertyDocument,
+		'category' | 'documentType' | 'type' | 'fileName' | 'name'
+	> | null,
+) => {
+	if (!document) return false;
+	const category = String(document.category || '').toLowerCase();
+	const documentType = String(document.documentType || '').toLowerCase();
+	return !['manual', 'warranty'].includes(category) &&
+		!['manual', 'warranty'].includes(documentType);
+};
+
 export const processPropertyDocumentAcquisition = async ({
 	propertyId,
 	documentId,

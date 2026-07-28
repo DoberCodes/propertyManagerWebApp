@@ -38,6 +38,7 @@ import {
 import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
 import {
 	isProcessablePropertyDocument,
+	isPropertyDocumentKnowledgeScanEligible,
 	processPropertyDocumentAcquisition,
 } from 'propertyKnowledge/propertyKnowledgeProcessing';
 import { RoleCapabilities } from 'utils/permissions';
@@ -447,6 +448,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			onReviewSuggestedDetails?.(existingPending.id);
 			return;
 		}
+		if (!isPropertyDocumentKnowledgeScanEligible(document)) return;
 
 		if (isProcessablePropertyDocument(document)) {
 			setIsSaving(true);
@@ -708,16 +710,15 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						);
 						const reviewedKnowledgeStatus =
 							getDocumentKnowledgeStatusText(latestKnowledgeSuggestion);
-						const acquisitionStatusText =
-							isPropertyDocument && file.id
-								? getDocumentAcquisitionStatusText(
-										propertyDocuments.find((item) => item.id === file.id),
-								  )
-								: '';
 						const sourcePropertyDocument =
 							isPropertyDocument && file.id
 								? propertyDocuments.find((item) => item.id === file.id)
 								: undefined;
+						const isKnowledgeScanEligible =
+							isPropertyDocumentKnowledgeScanEligible(sourcePropertyDocument);
+						const acquisitionStatusText = isKnowledgeScanEligible
+							? getDocumentAcquisitionStatusText(sourcePropertyDocument)
+							: '';
 						const isAcquisitionRetryable =
 							sourcePropertyDocument?.acquisitionStatus === 'failed' ||
 							isDocumentAcquisitionStale(sourcePropertyDocument);
@@ -758,7 +759,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 												isDocumentAcquisitionStale(sourcePropertyDocument)
 											}>
 											{acquisitionStatusText}{' '}
-											{isAcquisitionRetryable &&
+											{isKnowledgeScanEligible &&
+												isAcquisitionRetryable &&
 												canManageDocuments &&
 												canUseDocumentReview && (
 													<DocumentInlineAction
@@ -804,8 +806,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									)}
 								{isPropertyDocument && canManageDocuments && (
 									<DocumentActions>
-										{!latestKnowledgeSuggestion ||
-										getKnowledgeSuggestionCount(latestKnowledgeSuggestion) === 0 ? (
+										{isKnowledgeScanEligible &&
+										(!latestKnowledgeSuggestion ||
+										getKnowledgeSuggestionCount(latestKnowledgeSuggestion) === 0) ? (
 											<DocumentActionButton
 												type='button'
 												onClick={() =>

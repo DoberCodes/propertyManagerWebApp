@@ -164,6 +164,13 @@ const isDocxDocument = (document: PropertyDocumentRecord) =>
 const isProcessableDocument = (document: PropertyDocumentRecord) =>
 	isPdfDocument(document) || isDocxDocument(document);
 
+const isKnowledgeScanEligibleDocument = (document: PropertyDocumentRecord) => {
+	const category = toString(document.category).toLowerCase();
+	const documentType = toString(document.documentType).toLowerCase();
+	return !['manual', 'warranty'].includes(category) &&
+		!['manual', 'warranty'].includes(documentType);
+};
+
 const updateDocumentInList = (
 	documents: PropertyDocumentRecord[],
 	documentId: string,
@@ -1007,6 +1014,7 @@ const getSuggestionFieldCount = (suggestion?: Record<string, unknown>) => {
 const shouldBackgroundProcessDocument = (document: PropertyDocumentRecord) =>
 	toString(document.id) &&
 	isProcessableDocument(document) &&
+	isKnowledgeScanEligibleDocument(document) &&
 	toString(document.storagePath) &&
 	toString(document.acquisitionStatus) === 'processing';
 
@@ -1094,6 +1102,12 @@ const loadDocumentForProcessing = async ({
 		throw new functions.https.HttpsError(
 			'invalid-argument',
 			'Only PDF and DOCX documents are supported by this processor.',
+		);
+	}
+	if (!isKnowledgeScanEligibleDocument(document)) {
+		throw new functions.https.HttpsError(
+			'failed-precondition',
+			'Manuals and warranties are stored with the property but are not scanned for suggested details yet.',
 		);
 	}
 	if (!toString(document.storagePath)) {
@@ -1585,4 +1599,5 @@ export const processPropertyDocumentAcquisitionRequests = functions
 export const __test = {
 	buildPropertyConfirmationFromPdfText,
 	extractFieldsFromPdfText,
+	isKnowledgeScanEligibleDocument,
 };

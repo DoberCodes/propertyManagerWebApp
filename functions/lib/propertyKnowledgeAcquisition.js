@@ -101,6 +101,12 @@ const isPdfDocument = (document) => toString(document.type).toLowerCase().includ
 const isDocxDocument = (document) => toString(document.type).toLowerCase().includes('wordprocessingml') ||
     toString(document.fileName || document.name).toLowerCase().endsWith('.docx');
 const isProcessableDocument = (document) => isPdfDocument(document) || isDocxDocument(document);
+const isKnowledgeScanEligibleDocument = (document) => {
+    const category = toString(document.category).toLowerCase();
+    const documentType = toString(document.documentType).toLowerCase();
+    return !['manual', 'warranty'].includes(category) &&
+        !['manual', 'warranty'].includes(documentType);
+};
 const updateDocumentInList = (documents, documentId, updates) => documents.map((document) => toString(document.id) === documentId
     ? stripUndefinedDeep({ ...document, ...updates })
     : document);
@@ -739,6 +745,7 @@ const getSuggestionFieldCount = (suggestion) => {
 };
 const shouldBackgroundProcessDocument = (document) => toString(document.id) &&
     isProcessableDocument(document) &&
+    isKnowledgeScanEligibleDocument(document) &&
     toString(document.storagePath) &&
     toString(document.acquisitionStatus) === 'processing';
 const hasDocumentChangedForProcessing = (before, after) => {
@@ -792,6 +799,9 @@ const loadDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy,
     }
     if (!isProcessableDocument(document)) {
         throw new functions.https.HttpsError('invalid-argument', 'Only PDF and DOCX documents are supported by this processor.');
+    }
+    if (!isKnowledgeScanEligibleDocument(document)) {
+        throw new functions.https.HttpsError('failed-precondition', 'Manuals and warranties are stored with the property but are not scanned for suggested details yet.');
     }
     if (!toString(document.storagePath)) {
         throw new functions.https.HttpsError('failed-precondition', 'This document does not have a storage path.');
@@ -1168,4 +1178,5 @@ exports.processPropertyDocumentAcquisitionRequests = functions
 exports.__test = {
     buildPropertyConfirmationFromPdfText,
     extractFieldsFromPdfText,
+    isKnowledgeScanEligibleDocument,
 };

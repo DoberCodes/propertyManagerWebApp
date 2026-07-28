@@ -17,6 +17,9 @@ Plan availability:
   Property, and Portfolio plans.
 * Free users may see a preview or upgrade prompt, but upload workflows should
   save the source document without starting Property Knowledge Acquisition.
+* Manuals and warranties are stored and linked as Property Documents, but do
+  not enter Property Knowledge Acquisition until purpose-built extraction is
+  available for those document types.
 
 ```text
 Document / source
@@ -72,13 +75,19 @@ Property documents are the canonical source documents for acquisition. Uploads s
 
 Additional links should come from reviewed Property Memory changes. If acquisition finds that a document appears to describe an existing asset, task, contractor, part, warranty, cost, or Maintenance Event, the review experience should propose that connection and let the user confirm it.
 
-Suggested details are generated from document metadata, lightweight image OCR
+For eligible document categories, suggested details are generated from document metadata, lightweight image OCR
 for uploaded image files, backend layout-aware extraction for supported
 text-based PDFs, and backend DOCX text and table extraction for structured
 maintenance service reports. Digital PDF and DOCX service reports share the
 same deterministic visit interpreter after format-specific extraction. Maintley does not perform AI
 extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
 this phase.
+
+Manual and warranty uploads remain separate from this general acquisition path.
+The document card does not offer **Check for suggested details**, **Scan again**,
+or processing retry actions for those categories. This restriction is enforced
+by both the upload workflow and the backend callable. Existing suggestions are
+retained for review history and may still be rejected by the user.
 
 Structured PDF or DOCX service reports may propose a dated Maintenance Event,
 recommended tasks, and equipment reconciliation. Positive and negative status
