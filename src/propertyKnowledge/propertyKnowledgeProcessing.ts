@@ -4,6 +4,7 @@ import type { PropertyDocument } from '../types/Property.types';
 type ProcessPropertyDocumentAcquisitionRequest = {
 	propertyId: string;
 	documentId: string;
+	allowRestrictedDocumentType?: boolean;
 };
 
 export type ProcessPropertyDocumentAcquisitionResponse = {
@@ -51,10 +52,15 @@ export const isPropertyDocumentKnowledgeScanEligible = (
 export const processPropertyDocumentAcquisition = async ({
 	propertyId,
 	documentId,
+	allowRestrictedDocumentType,
 }: ProcessPropertyDocumentAcquisitionRequest) => {
 	const result = await callFirebaseFunction<
 		ProcessPropertyDocumentAcquisitionRequest,
 		ProcessPropertyDocumentAcquisitionResponse
-	>('processPropertyDocumentAcquisition', { propertyId, documentId });
+	>('processPropertyDocumentAcquisition', {
+		propertyId,
+		documentId,
+		...(allowRestrictedDocumentType ? { allowRestrictedDocumentType: true } : {}),
+	});
 	return result.data;
 };

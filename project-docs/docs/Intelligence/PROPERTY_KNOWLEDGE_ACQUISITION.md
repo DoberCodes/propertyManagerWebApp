@@ -89,6 +89,15 @@ or processing retry actions for those categories. This restriction is enforced
 by both the upload workflow and the backend callable. Existing suggestions are
 retained for review history and may still be rejected by the user.
 
+Maintley Owner and Maintley Admin may use a small **Test scan - Maintley only**
+action on stored PDF or DOCX manuals and warranties. The action requires a
+warning confirmation and sends an explicit restricted-document override. The
+backend verifies the caller's server-managed `maintley_role`, normal property
+access, and the property's document-processing entitlement before running.
+Customer account owners and administrators do not receive this authority. Test
+scan results remain pending suggestions and identify the internal actor and role
+in document-acquisition event metadata.
+
 Structured PDF or DOCX service reports may propose a dated Maintenance Event,
 recommended tasks, and equipment reconciliation. Positive and negative status
 checks remain attributed visit observations within the Maintenance Event.

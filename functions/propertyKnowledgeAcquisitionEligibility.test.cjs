@@ -31,3 +31,12 @@ test('backend allows other supported document categories', () => {
     true,
   );
 });
+
+test('restricted scan authority is limited to Maintley Owner and Admin roles', () => {
+  assert.equal(__test.isMaintleyRestrictedScanRole('owner'), true);
+  assert.equal(__test.isMaintleyRestrictedScanRole('admin'), true);
+  assert.equal(__test.isMaintleyRestrictedScanRole('maintley_owner'), true);
+  assert.equal(__test.isMaintleyRestrictedScanRole('account_owner'), false);
+  assert.equal(__test.isMaintleyRestrictedScanRole('property_owner'), false);
+  assert.equal(__test.isMaintleyRestrictedScanRole('support'), false);
+});
