@@ -15,7 +15,7 @@ import {
 	markDocumentWithKnowledgeSuggestion,
 } from './propertyKnowledgeAcquisition';
 import { savePropertyMemoryRecordsToCollections } from './propertyMemoryRecordService';
-import { isPdfPropertyDocument } from './propertyKnowledgeProcessing';
+import { isProcessablePropertyDocument } from './propertyKnowledgeProcessing';
 import type { ProcessPropertyDocumentAcquisitionResponse } from './propertyKnowledgeProcessing';
 
 type PropertyMemoryDocumentUploadInput = {
@@ -32,7 +32,7 @@ type PropertyMemoryDocumentUploadInput = {
 type PropertyMemoryDocumentUploadResult = {
 	documents: PropertyDocument[];
 	knowledgeSuggestions: PropertyKnowledgeSuggestion[];
-	pdfDocuments: PropertyDocument[];
+	processableDocuments: PropertyDocument[];
 };
 
 export type PropertyMemoryDocumentUploadContext = PropertyDocumentLinks & {
@@ -49,7 +49,7 @@ type StartPdfDocumentKnowledgeProcessingInput = {
 	onError?: (error: unknown, document: PropertyDocument) => void;
 };
 
-export const markPdfDocumentAsProcessing = (
+export const markPropertyDocumentAsProcessing = (
 	document: PropertyDocument,
 	nowIso = new Date().toISOString(),
 ): PropertyDocument => ({
@@ -120,7 +120,7 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	const knowledgeSuggestions = (
 		await Promise.all(
 			contextualDocuments.map((document, index) =>
-				!enableKnowledgeAcquisition || isPdfPropertyDocument(document)
+				!enableKnowledgeAcquisition || isProcessablePropertyDocument(document)
 					? Promise.resolve(null)
 					: createPendingKnowledgeSuggestionFromFile({
 							file: files[index],
@@ -136,9 +136,9 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	);
 
 	const documents = contextualDocuments.map((document) => {
-		if (isPdfPropertyDocument(document)) {
+		if (isProcessablePropertyDocument(document)) {
 			return enableKnowledgeAcquisition
-				? markPdfDocumentAsProcessing(document)
+				? markPropertyDocumentAsProcessing(document)
 				: document;
 		}
 		const suggestion = knowledgeSuggestions.find(
@@ -158,15 +158,15 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	return {
 		documents,
 		knowledgeSuggestions,
-		pdfDocuments: documents.filter(isPdfPropertyDocument),
+		processableDocuments: documents.filter(isProcessablePropertyDocument),
 	};
 };
 
-export const startPdfDocumentKnowledgeProcessing = ({
+export const startPropertyDocumentKnowledgeProcessing = ({
 	documents,
 }: StartPdfDocumentKnowledgeProcessingInput) => {
 	documents.forEach((document) => {
-		if (!document.id || !isPdfPropertyDocument(document)) return;
+		if (!document.id || !isProcessablePropertyDocument(document)) return;
 		// Persistent document-review lifecycle notifications are backend-owned.
 	});
 };

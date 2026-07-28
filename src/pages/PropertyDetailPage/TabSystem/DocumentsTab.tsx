@@ -37,7 +37,7 @@ import {
 } from 'propertyKnowledge/propertyMemoryRecordService';
 import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
 import {
-	isPdfPropertyDocument,
+	isProcessablePropertyDocument,
 	processPropertyDocumentAcquisition,
 } from 'propertyKnowledge/propertyKnowledgeProcessing';
 import { RoleCapabilities } from 'utils/permissions';
@@ -197,12 +197,12 @@ const getDocumentKnowledgeStatusText = (
 const getDocumentAcquisitionStatusText = (document?: PropertyDocument) => {
 	if (document?.acquisitionStatus === 'processing') {
 		if (isDocumentAcquisitionStale(document)) {
-			return 'Maintley could not finish reviewing this PDF. You can try again.';
+			return 'Maintley could not finish reviewing this document. You can try again.';
 		}
-		return 'Maintley is reviewing this PDF for suggested details.';
+		return 'Maintley is reviewing this document for suggested details.';
 	}
 	if (document?.acquisitionStatus === 'failed') {
-		return document.acquisitionError || 'Maintley could not review this PDF yet.';
+		return document.acquisitionError || 'Maintley could not review this document yet.';
 	}
 	return '';
 };
@@ -397,7 +397,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 	const markPdfReviewFailed = async (
 		documentId: string,
-		message = 'Maintley could not finish reviewing this PDF. You can try again.',
+		message = 'Maintley could not finish reviewing this document. You can try again.',
 		documentsToUpdate = propertyDocuments,
 	) => {
 		if (!property?.id) return;
@@ -448,10 +448,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			return;
 		}
 
-		if (isPdfPropertyDocument(document)) {
+		if (isProcessablePropertyDocument(document)) {
 			setIsSaving(true);
 			try {
-				feedback.notify('Maintley is reviewing this PDF for suggested details.');
+				feedback.notify('Maintley is reviewing this document for suggested details.');
 				const result = await processPropertyDocumentAcquisition({
 					propertyId: property.id,
 					documentId: document.id,
@@ -463,11 +463,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					feedback.notify(result.message);
 				}
 			} catch (error) {
-				console.error('Error processing PDF document:', error);
+				console.error('Error processing document:', error);
 				const message =
 					error instanceof Error
 						? error.message
-						: 'Could not review this PDF.';
+						: 'Could not review this document.';
 				feedback.notify(message);
 				dispatch(apiSlice.util.invalidateTags(['Properties']));
 			} finally {
@@ -554,11 +554,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 							document.id,
 							error instanceof Error
 								? error.message
-								: 'Maintley could not finish reviewing this PDF. You can try again.',
+								: 'Maintley could not finish reviewing this document. You can try again.',
 							[...propertyDocuments, ...savedDocuments],
 						);
 					} catch (statusError) {
-						console.error('Error marking PDF review as failed:', statusError);
+						console.error('Error marking document review as failed:', statusError);
 					}
 				},
 			});
@@ -662,7 +662,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 				<div>
 					<SectionHeader>Files & Documents ({allDocuments.length})</SectionHeader>
 					<SectionLead>
-						Review every file attached across this property, including manuals, warranties, equipment records, and maintenance documentation.
+						Keep manuals, warranties, invoices, inspection reports, and service documents organized with this property.
 					</SectionLead>
 				</div>
 				{canManageDocuments && (

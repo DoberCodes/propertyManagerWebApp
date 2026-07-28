@@ -1,6 +1,7 @@
 import { Task, TaskStatus } from '../types/Task.types';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
 import { filterDateRange } from './tableFilters';
+import { getTaskScheduleMode } from '../tasks/taskSchedule';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DUE_SOON_SORT_DAYS = 14;
@@ -20,6 +21,7 @@ const getTodayDate = (): Date => {
 type TaskDueSortInput = {
 	dueDate?: string;
 	status?: string;
+	scheduleMode?: Task['scheduleMode'];
 };
 
 /**
@@ -68,7 +70,7 @@ export const matchesDateRangeOrIsOverdue = (
 
 /**
  * Orders actionable tasks by homeowner urgency:
- * overdue, due today, ASAP/no date, due soon, then later work.
+ * overdue, due today, ASAP, due soon, later work, then unscheduled work.
  */
 export const getTaskDueUrgencyRank = (
 	task: TaskDueSortInput,
@@ -77,7 +79,7 @@ export const getTaskDueUrgencyRank = (
 	if (displayStatus.isOverdue) return 0;
 
 	const dueDate = parseTaskDueDate(task.dueDate);
-	if (!dueDate) return 2;
+	if (!dueDate) return getTaskScheduleMode(task) === 'unscheduled' ? 5 : 2;
 
 	const today = getTodayDate();
 	const daysUntilDue = Math.ceil(

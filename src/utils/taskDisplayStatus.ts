@@ -1,4 +1,5 @@
 import { COLORS } from 'constants/colors';
+import { TaskScheduleMode } from '../types/Task.types';
 
 export type TaskDisplayStatus =
 	| 'Open'
@@ -10,6 +11,7 @@ export type TaskDisplayStatus =
 export interface TaskDisplayStatusInput {
 	status?: string;
 	dueDate?: string;
+	scheduleMode?: TaskScheduleMode;
 }
 
 export interface TaskDisplayStatusDetails {

@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { MaintenanceRequestItem } from '../../Redux/Slices/maintenanceRequestsSlice';
 import { TeamMember } from '../../types/Team.types';
 import { TaskData } from '../../types/Task.types';
+import { normalizeTaskSchedule } from '../../tasks/taskSchedule';
 import {
 	GenericModal,
 	FormGroup,
@@ -50,6 +51,7 @@ export const ConvertRequestToTaskModal: React.FC<
 	const [taskData, setTaskData] = useState<TaskData>({
 		title: request.title,
 		dueDate: getDefaultDueDate(request.priority),
+		scheduleMode: 'scheduled',
 		status: 'Initiated',
 		assignee: '',
 		notes: `Maintenance Request Details:
@@ -71,6 +73,7 @@ Submitted by: ${request.submittedByName} on ${
 			setTaskData({
 				title: request.title,
 				dueDate: getDefaultDueDate(request.priority),
+				scheduleMode: 'scheduled',
 				status: 'Initiated',
 				assignee: '',
 				notes: `Maintenance Request Details:
@@ -90,7 +93,7 @@ Submitted by: ${request.submittedByName} on ${
 
 	const handleFormSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		onConvert(taskData);
+		onConvert({ ...taskData, ...normalizeTaskSchedule(taskData) });
 		onClose();
 	};
 
@@ -148,32 +151,35 @@ Submitted by: ${request.submittedByName} on ${
 				<FormRow>
 					<FormGroup>
 						<Label>Due Timing</Label>
+						<Select
+							value={taskData.scheduleMode || 'scheduled'}
+							onChange={(e) => {
+								const scheduleMode = e.target.value as NonNullable<TaskData['scheduleMode']>;
+								setTaskData((prev) => ({
+									...prev,
+									scheduleMode,
+									dueDate: scheduleMode === 'scheduled'
+										? prev.dueDate || getDefaultDueDate(request.priority)
+										: '',
+								}));
+							}}>
+							<option value='scheduled'>Due date</option>
+							<option value='asap'>ASAP</option>
+							<option value='unscheduled'>Not scheduled</option>
+						</Select>
 						<Input
 							type='date'
 							value={taskData.dueDate}
-							onChange={(e) =>
-								setTaskData({ ...taskData, dueDate: e.target.value })
-							}
+							onChange={(e) => setTaskData({ ...taskData, dueDate: e.target.value, scheduleMode: 'scheduled' })}
 							min={new Date().toISOString().split('T')[0]}
-							disabled={!taskData.dueDate}
+							disabled={taskData.scheduleMode !== 'scheduled'}
 						/>
-						<AsapToggle>
-							<input
-								type='checkbox'
-								checked={!taskData.dueDate}
-								onChange={(e) =>
-									setTaskData((prev) => ({
-										...prev,
-										dueDate: e.target.checked ? '' : getDefaultDueDate(request.priority),
-									}))
-								}
-							/>
-							Set as ASAP (no due date)
-						</AsapToggle>
 						<Helper>
-							{taskData.dueDate
+							{taskData.scheduleMode === 'scheduled'
 								? `Suggested from ${request.priority.toLowerCase()} request priority`
-								: 'Maintenance task will be created without a due date'}
+								: taskData.scheduleMode === 'asap'
+									? 'This task should be addressed soon without a calendar date.'
+									: 'This task will remain visible until timing is decided.'}
 						</Helper>
 					</FormGroup>
 
@@ -346,16 +352,6 @@ const Helper = styled.div`
 	font-size: 12px;
 	color: #666;
 	font-style: italic;
-`;
-
-const AsapToggle = styled.label`
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	margin-top: 8px;
-	font-size: 13px;
-	color: #4b5563;
-	cursor: pointer;
 `;
 
 const InfoBox = styled.div`

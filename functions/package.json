@@ -13,6 +13,7 @@
 		"test:setup-plan": "node --test activatePropertySetupMaintenancePlan.test.cjs",
 		"test:recurring-task": "npm run build && node --test manageRecurringTask.test.cjs",
 		"test:maintenance-history-containment": "npm run build && node --test legacyMaintenancePromotion.test.cjs",
+		"test:docx-acquisition": "npm run build && node --test docxServiceReport.test.cjs",
 		"test:access-codes": "npm run build && node --test complimentaryAccessCodes.test.cjs",
 		"test:manual-occupancy": "npm run build && node --test manageManualOccupancy.test.cjs",
 		"test:billing-disclosure": "npm run build && node --test stripeBillingDisclosure.test.cjs stripeSubscriptionSelection.test.cjs grantAwareCheckout.test.cjs",
@@ -33,6 +34,7 @@
 		"dotenv": "^17.2.3",
 		"firebase-admin": "^12.0.0",
 		"firebase-functions": "^7.0.5",
+		"mammoth": "1.10.0",
 		"resend": "^4.7.0",
 		"stripe": "^14.17.0"
 	},

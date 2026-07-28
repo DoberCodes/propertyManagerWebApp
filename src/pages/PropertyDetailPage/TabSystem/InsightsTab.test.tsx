@@ -444,7 +444,7 @@ describe('InsightsTab', () => {
 		await user.click(screen.getByRole('tab', { name: /suggested details/i }));
 
 		expect(
-			screen.getByText("Your property's memory is ready to grow."),
+			screen.getByText('Turn property documents into useful records.'),
 		).toBeInTheDocument();
 		expect(screen.queryByText('HVAC Invoice.png')).not.toBeInTheDocument();
 		expect(screen.queryByDisplayValue('Trane')).not.toBeInTheDocument();

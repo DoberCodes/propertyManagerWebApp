@@ -73,18 +73,29 @@ Property documents are the canonical source documents for acquisition. Uploads s
 Additional links should come from reviewed Property Memory changes. If acquisition finds that a document appears to describe an existing asset, task, contractor, part, warranty, cost, or Maintenance Event, the review experience should propose that connection and let the user confirm it.
 
 Suggested details are generated from document metadata, lightweight image OCR
-for uploaded image files, and backend PDF text extraction for supported
-text-based PDF invoices or receipts. Maintley does not perform AI extraction,
-rendered-page OCR for scanned PDFs, or manual-specific parsing in this phase.
+for uploaded image files, backend PDF text extraction for supported text-based
+PDF invoices or receipts, and backend DOCX text and table extraction for
+structured maintenance service reports. Maintley does not perform AI
+extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
+this phase.
+
+Structured DOCX service reports may propose a dated Maintenance Event,
+recommended tasks, and equipment reconciliation. Positive and negative status
+checks remain attributed visit observations within the Maintenance Event.
+Inspection areas such as rooms or general structural checks must not be turned
+into equipment records. Only controlled maintainable asset types may be offered
+for matching or creation, and every proposed task or equipment record requires
+review.
 
 PDF invoice acquisition runs after the canonical Property Document is saved.
 PDF uploads may move through `processing`, `pending_review`, or `failed`
 acquisition states. The PDF remains the source document; any extracted text or
 future rendered page images are derived processing artifacts only.
 
-PDF processing is backend-triggered from the saved property document state. The
-frontend marks the PDF document as `processing`; the backend worker detects that
-state and performs extraction in the background. This prevents the browser from
+PDF and DOCX processing are backend-triggered from the saved property document
+state. The frontend marks the supported document as `processing`; the backend
+worker detects that state and performs extraction in the background. This
+prevents the browser from
 owning the processing lifecycle after upload.
 
 Manual retry uses the callable processor directly instead of first writing a new
@@ -108,7 +119,7 @@ These events drive in-app notifications and Android push delivery. Upload
 screens should not directly create separate persistent notifications for each
 document review state.
 
-The callable processor remains available for explicit retry. If PDF processing
+The callable processor remains available for explicit retry. If document processing
 cannot be started or completed, the backend should move the document out of
 `processing` with a homeowner-friendly retry message when needed.
 
