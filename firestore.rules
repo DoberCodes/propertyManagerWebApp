@@ -1053,6 +1053,20 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Personal-assistant credentials, verifiers, usage counters, and API audits
+    // are available only through trusted Cloud Functions.
+    match /personalAssistantCredentials/{credentialId} {
+      allow read, write: if false;
+    }
+
+    match /personalAssistantRateLimits/{rateLimitId} {
+      allow read, write: if false;
+    }
+
+    match /personalAssistantAccessAudits/{auditId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

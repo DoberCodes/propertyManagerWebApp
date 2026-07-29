@@ -140,3 +140,7 @@ Object.defineProperty(exports, "cleanupClosedFeedbackAttachments", { enumerable:
 var maintleyTeamAdmin_1 = require("./maintleyTeamAdmin");
 Object.defineProperty(exports, "adminPortalListMaintleyTeam", { enumerable: true, get: function () { return maintleyTeamAdmin_1.adminPortalListMaintleyTeam; } });
 Object.defineProperty(exports, "adminPortalMutateMaintleyTeam", { enumerable: true, get: function () { return maintleyTeamAdmin_1.adminPortalMutateMaintleyTeam; } });
+var personalAssistantCredentials_1 = require("./personalAssistantCredentials");
+Object.defineProperty(exports, "managePersonalAssistantCredentials", { enumerable: true, get: function () { return personalAssistantCredentials_1.managePersonalAssistantCredentials; } });
+var personalAssistantApi_1 = require("./personalAssistantApi");
+Object.defineProperty(exports, "personalAssistantApi", { enumerable: true, get: function () { return personalAssistantApi_1.personalAssistantApi; } });

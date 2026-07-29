@@ -538,6 +538,16 @@ grant the GitHub deploy service account:
 Secret Manager Secret Accessor
 ```
 
+### Personal Assistant API secret
+
+Before deploying `managePersonalAssistantCredentials` or `personalAssistantApi`, set a high-entropy HMAC pepper:
+
+```text
+firebase functions:secrets:set PERSONAL_ASSISTANT_TOKEN_PEPPER
+```
+
+Use at least 32 random bytes and do not reuse or commit the value. Deploy both Functions together. Changing this secret invalidates every existing personal-assistant token, so normal credential rotation should use Settings instead.
+
 For least privilege, grant this on the specific secrets used by deployed
 Functions, such as `STRIPE_WEBHOOK_SECRET`. A project-level grant is simpler
 but broader.

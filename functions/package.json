@@ -16,6 +16,7 @@
 		"test:docx-acquisition": "npm run build && node --test docxServiceReport.test.cjs",
 		"test:pdf-acquisition": "npm run build && node --test pdfDocumentExtraction.test.cjs",
 		"test:document-acquisition-eligibility": "npm run build && node --test propertyKnowledgeAcquisitionEligibility.test.cjs",
+		"test:personal-assistant-credentials": "npm run build && node --test personalAssistantCredentialCore.test.cjs",
 		"test:access-codes": "npm run build && node --test complimentaryAccessCodes.test.cjs",
 		"test:manual-occupancy": "npm run build && node --test manageManualOccupancy.test.cjs",
 		"test:billing-disclosure": "npm run build && node --test stripeBillingDisclosure.test.cjs stripeSubscriptionSelection.test.cjs grantAwareCheckout.test.cjs",

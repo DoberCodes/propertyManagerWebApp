@@ -29,3 +29,17 @@ export const hasMaintleyAdminAccess = (maintleyRole: MaintleyRoleValue): boolean
 		isAdminRole(roleRecord.value)
 	);
 };
+
+const roleFromValue = (maintleyRole: MaintleyRoleValue): string => {
+	if (typeof maintleyRole === 'string') {
+		return maintleyRole.trim().toLowerCase().replace(/[\s-]+/g, '_');
+	}
+	if (!maintleyRole || typeof maintleyRole !== 'object') return '';
+	const roleRecord = maintleyRole as Record<string, unknown>;
+	return roleFromValue(
+		(roleRecord.role || roleRecord.maintley_role || roleRecord.value) as MaintleyRoleValue,
+	);
+};
+
+export const isMaintleyOwner = (maintleyRole: MaintleyRoleValue): boolean =>
+	['owner', 'maintley_owner', 'platform_owner'].includes(roleFromValue(maintleyRole));
