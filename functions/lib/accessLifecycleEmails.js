@@ -44,6 +44,7 @@ const emailService_1 = require("./emailService");
 const maintleyEventEngine_1 = require("./maintleyEventEngine");
 const entitlementGrants_1 = require("./entitlementGrants");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
+const accessLifecycleBilling_1 = require("./accessLifecycleBilling");
 const adminEntitlementGrantPolicy_1 = require("./adminEntitlementGrantPolicy");
 const adminPortal_1 = require("./adminPortal");
 if (!admin.apps.length)
@@ -352,31 +353,20 @@ const getProgressCounts = async (accountId) => {
     }, 0);
     return { properties, equipment, documents, recurringTasks };
 };
-const hasConfirmedPaidAccess = (subscription, nowMs) => {
-    const normalizedSubscription = asRecord(subscription);
-    const result = (0, entitlements_1.resolveAccountEntitlements)({
-        subscription: normalizedSubscription,
-        grants: [],
-        fallbackPlanId: 'homeowner',
-        mode: 'compatibility',
-        allowLegacyPlanWithoutStatus: true,
-        featureFlags: subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS,
-        nowMs,
-    });
-    return (String(normalizedSubscription.status || '').trim().toLowerCase() === 'active' &&
-        (0, entitlements_1.hasCapability)(result, 'recurring_tasks.use') &&
-        (0, entitlements_1.isSubscriptionCurrentlyEntitled)(normalizedSubscription, nowMs));
-};
 const markDelivery = async (deliveryRef, data) => {
     await deliveryRef.set({
         ...data,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 };
-const claimDelivery = async (deliveryRef, base, nowMs) => db.runTransaction(async (transaction) => {
+const claimDelivery = async (deliveryRef, base, nowMs, allowSuppressedPaidConversionRecovery = false) => db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(deliveryRef);
     const existing = snapshot.exists ? snapshot.data() || {} : {};
-    if (existing.status === 'sent' || existing.status === 'skipped')
+    if (existing.status === 'sent')
+        return false;
+    const isRecovery = allowSuppressedPaidConversionRecovery &&
+        (0, accessLifecycleBilling_1.isRecoverablePaidConversionSuppression)(existing);
+    if (existing.status === 'skipped' && !isRecovery)
         return false;
     if (existing.status === 'processing' &&
         Number(existing.leaseExpiresAtMs || 0) > nowMs) {
@@ -388,6 +378,12 @@ const claimDelivery = async (deliveryRef, base, nowMs) => db.runTransaction(asyn
         attempts: Number(existing.attempts || 0) + 1,
         leaseExpiresAtMs: nowMs + DELIVERY_LEASE_MS,
         lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...(isRecovery
+            ? {
+                recoveredFromOutcome: 'suppressed_paid_conversion',
+                recoveryRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }
+            : {}),
         createdAt: existing.createdAt || admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
@@ -480,7 +476,7 @@ const publishLifecycleNotice = async (milestone, accountId, ownerId, grantId, en
         inApp: true,
     });
 };
-const processMilestone = async (accountRef, grant, milestone, nowMs) => {
+const processMilestone = async (accountRef, grant, milestone, nowMs, options = {}) => {
     const grantId = String(grant.grantId || entitlementGrants_1.HOMEOWNER_PLUS_TRIAL_GRANT_ID);
     const accountId = String(grant.accountId || accountRef.id);
     const programId = String(grant.programId || '');
@@ -500,8 +496,12 @@ const processMilestone = async (accountRef, grant, milestone, nowMs) => {
         targetAtMs,
     };
     const existing = await deliveryRef.get();
-    if (existing.exists &&
-        ['sent', 'skipped'].includes(String(existing.data()?.status || ''))) {
+    const recoverSuppressedPaidConversion = options.allowSuppressedPaidConversionRecovery === true &&
+        (0, accessLifecycleBilling_1.isRecoverablePaidConversionSuppression)(existing.data());
+    if (existing.exists && String(existing.data()?.status || '') === 'sent') {
+        return 'skipped';
+    }
+    if (existing.exists && String(existing.data()?.status || '') === 'skipped' && !recoverSuppressedPaidConversion) {
         return 'skipped';
     }
     if (String(grant.state || '').trim().toLowerCase() !== 'active') {
@@ -533,7 +533,7 @@ const processMilestone = async (accountRef, grant, milestone, nowMs) => {
         return 'skipped';
     }
     const subscription = context.account.subscription || context.owner.subscription;
-    if (hasConfirmedPaidAccess(subscription, nowMs)) {
+    if ((0, accessLifecycleBilling_1.hasConfirmedPaidSubscription)(subscription, nowMs)) {
         await markDelivery(deliveryRef, {
             ...base,
             status: 'skipped',
@@ -552,7 +552,7 @@ const processMilestone = async (accountRef, grant, milestone, nowMs) => {
         });
         return 'skipped';
     }
-    if (!(await claimDelivery(deliveryRef, base, nowMs)))
+    if (!(await claimDelivery(deliveryRef, base, nowMs, recoverSuppressedPaidConversion)))
         return 'deferred';
     try {
         const timeZone = normalizeTimeZone(context.account.timeZone || context.owner.timeZone);
@@ -778,7 +778,9 @@ exports.sendAdminAccessLifecycleEmail = functions
     if ((await sentAuditRef.get()).exists) {
         return { success: true, outcome: 'replayed', requestId };
     }
-    const outcome = await processMilestone(accountRef, grant, milestone, Date.now());
+    const outcome = await processMilestone(accountRef, grant, milestone, Date.now(), {
+        allowSuppressedPaidConversionRecovery: true,
+    });
     const action = outcome === 'sent' ? 'access_email.sent' : 'admin_action.replayed';
     const effectiveRequestId = outcome === 'sent' ? requestId : `${requestId}:replay`;
     const eventId = (0, entitlements_1.getAdminAuditEventId)(action, effectiveRequestId);

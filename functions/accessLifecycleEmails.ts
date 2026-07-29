@@ -4,9 +4,6 @@ import { defineSecret } from 'firebase-functions/params';
 import {
 	getAdminAuditEventId,
 	getComplimentaryTransitionIssues,
-	hasCapability,
-	isSubscriptionCurrentlyEntitled,
-	resolveAccountEntitlements,
 } from '@maintley/entitlements';
 import {
 	EMAIL_BRAND,
@@ -21,6 +18,10 @@ import {
 	HOMEOWNER_PLUS_TRIAL_PROGRAM_ID,
 } from './entitlementGrants';
 import { ENTITLEMENT_FEATURE_FLAGS } from './subscriptionEntitlements';
+import {
+	hasConfirmedPaidSubscription,
+	isRecoverablePaidConversionSuppression,
+} from './accessLifecycleBilling';
 import {
 	isMaintleyOwnerGrantRole,
 } from './adminEntitlementGrantPolicy';
@@ -468,24 +469,6 @@ const getProgressCounts = async (accountId: string): Promise<ProgressCounts> => 
 	return { properties, equipment, documents, recurringTasks };
 };
 
-const hasConfirmedPaidAccess = (subscription: unknown, nowMs: number): boolean => {
-	const normalizedSubscription = asRecord(subscription);
-	const result = resolveAccountEntitlements({
-		subscription: normalizedSubscription,
-		grants: [],
-		fallbackPlanId: 'homeowner',
-		mode: 'compatibility',
-		allowLegacyPlanWithoutStatus: true,
-		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
-		nowMs,
-	});
-	return (
-		String(normalizedSubscription.status || '').trim().toLowerCase() === 'active' &&
-		hasCapability(result, 'recurring_tasks.use') &&
-		isSubscriptionCurrentlyEntitled(normalizedSubscription, nowMs)
-	);
-};
-
 const markDelivery = async (
 	deliveryRef: admin.firestore.DocumentReference,
 	data: Record<string, unknown>,
@@ -503,11 +486,16 @@ const claimDelivery = async (
 	deliveryRef: admin.firestore.DocumentReference,
 	base: Record<string, unknown>,
 	nowMs: number,
+	allowSuppressedPaidConversionRecovery = false,
 ): Promise<boolean> =>
 	db.runTransaction(async (transaction) => {
 		const snapshot = await transaction.get(deliveryRef);
 		const existing = snapshot.exists ? snapshot.data() || {} : {};
-		if (existing.status === 'sent' || existing.status === 'skipped') return false;
+		if (existing.status === 'sent') return false;
+		const isRecovery =
+			allowSuppressedPaidConversionRecovery &&
+			isRecoverablePaidConversionSuppression(existing);
+		if (existing.status === 'skipped' && !isRecovery) return false;
 		if (
 			existing.status === 'processing' &&
 			Number(existing.leaseExpiresAtMs || 0) > nowMs
@@ -522,6 +510,12 @@ const claimDelivery = async (
 				attempts: Number(existing.attempts || 0) + 1,
 				leaseExpiresAtMs: nowMs + DELIVERY_LEASE_MS,
 				lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+				...(isRecovery
+					? {
+						recoveredFromOutcome: 'suppressed_paid_conversion',
+						recoveryRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
+					}
+					: {}),
 				createdAt:
 					existing.createdAt || admin.firestore.FieldValue.serverTimestamp(),
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -638,6 +632,7 @@ const processMilestone = async (
 	grant: GrantRecord,
 	milestone: AccessLifecycleMilestone,
 	nowMs: number,
+	options: { allowSuppressedPaidConversionRecovery?: boolean } = {},
 ): Promise<'sent' | 'skipped' | 'deferred'> => {
 	const grantId = String(grant.grantId || HOMEOWNER_PLUS_TRIAL_GRANT_ID);
 	const accountId = String(grant.accountId || accountRef.id);
@@ -659,10 +654,13 @@ const processMilestone = async (
 	};
 
 	const existing = await deliveryRef.get();
-	if (
-		existing.exists &&
-		['sent', 'skipped'].includes(String(existing.data()?.status || ''))
-	) {
+	const recoverSuppressedPaidConversion =
+		options.allowSuppressedPaidConversionRecovery === true &&
+		isRecoverablePaidConversionSuppression(existing.data());
+	if (existing.exists && String(existing.data()?.status || '') === 'sent') {
+		return 'skipped';
+	}
+	if (existing.exists && String(existing.data()?.status || '') === 'skipped' && !recoverSuppressedPaidConversion) {
 		return 'skipped';
 	}
 	if (String(grant.state || '').trim().toLowerCase() !== 'active') {
@@ -695,7 +693,7 @@ const processMilestone = async (
 		return 'skipped';
 	}
 	const subscription = context.account.subscription || context.owner.subscription;
-	if (hasConfirmedPaidAccess(subscription, nowMs)) {
+	if (hasConfirmedPaidSubscription(subscription, nowMs)) {
 		await markDelivery(deliveryRef, {
 			...base,
 			status: 'skipped',
@@ -714,7 +712,7 @@ const processMilestone = async (
 		});
 		return 'skipped';
 	}
-	if (!(await claimDelivery(deliveryRef, base, nowMs))) return 'deferred';
+	if (!(await claimDelivery(deliveryRef, base, nowMs, recoverSuppressedPaidConversion))) return 'deferred';
 
 	try {
 		const timeZone = normalizeTimeZone(
@@ -1007,7 +1005,9 @@ export const sendAdminAccessLifecycleEmail = functions
 			if ((await sentAuditRef.get()).exists) {
 				return { success: true, outcome: 'replayed', requestId };
 			}
-			const outcome = await processMilestone(accountRef, grant, milestone, Date.now());
+			const outcome = await processMilestone(accountRef, grant, milestone, Date.now(), {
+				allowSuppressedPaidConversionRecovery: true,
+			});
 			const action = outcome === 'sent' ? 'access_email.sent' : 'admin_action.replayed';
 			const effectiveRequestId = outcome === 'sent' ? requestId : `${requestId}:replay`;
 			const eventId = getAdminAuditEventId(action, effectiveRequestId);
