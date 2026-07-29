@@ -160,6 +160,9 @@ jobs:
       - name: DOCX service report acquisition tests
         run: yarn --cwd functions test:docx-acquisition
 
+      - name: PDF document acquisition tests
+        run: yarn --cwd functions test:pdf-acquisition
+
       - name: Property setup activation tests
         run: yarn --cwd functions test:setup-plan
 
