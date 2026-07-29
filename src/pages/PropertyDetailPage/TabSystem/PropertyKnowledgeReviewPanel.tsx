@@ -87,6 +87,13 @@ const PART_CATEGORY_OPTIONS: PartKnowledgeCategory[] = [
 ];
 
 const EMPTY_TASKS: any[] = [];
+const EQUIPMENT_SKIP_REASONS = [
+	'Not equipment',
+	'Not part of this property',
+	'Duplicate suggestion',
+	'Incorrect information',
+	'Other',
+];
 
 const getKnowledgeSuggestionCount = (suggestion?: PropertyKnowledgeSuggestion) =>
 	(suggestion?.extractedFields.length || 0) +
@@ -580,10 +587,10 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		Record<string, { name: string; category: string; accepted: boolean }>
 	>({});
 	const [knowledgeTaskValues, setKnowledgeTaskValues] = useState<
-		Record<string, { title: string; description: string; accepted: boolean; matchedDeviceId?: string; matchedTaskId?: string; scheduleMode: TaskScheduleMode; dueDate: string }>
+		Record<string, { title: string; description: string; accepted: boolean; matchedDeviceId?: string; pendingEquipmentSuggestionId?: string; matchedTaskId?: string; scheduleMode: TaskScheduleMode; dueDate: string }>
 	>({});
 	const [knowledgeEquipmentValues, setKnowledgeEquipmentValues] = useState<
-		Record<string, { accepted: boolean; matchedDeviceId?: string }>
+		Record<string, { accepted: boolean; matchedDeviceId?: string; skipReason?: string }>
 	>({});
 	const [targetChoices, setTargetChoices] = useState<TargetChoices>({
 		contractorMode: 'create',
@@ -1109,8 +1116,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 				]),
 			),
 		);
-		setKnowledgeEquipmentValues(
-			Object.fromEntries(
+		const nextEquipmentValues = Object.fromEntries(
 				(selectedSuggestion.suggestedEquipment || []).map((equipment) => {
 					const matchingDevice =
 						propertyDevices.find(
@@ -1121,14 +1127,14 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					return [
 						equipment.id,
 						{
-							accepted:
-								equipment.reviewStatus === 'accepted' || Boolean(equipment.matchedDeviceId || matchingDevice?.id),
+							accepted: equipment.reviewStatus !== 'rejected',
 							matchedDeviceId: equipment.matchedDeviceId || matchingDevice?.id,
+							skipReason: equipment.skipReason,
 						},
 					];
 				}),
-			),
-		);
+			);
+		setKnowledgeEquipmentValues(nextEquipmentValues);
 		setKnowledgeTaskValues(
 			Object.fromEntries(
 				(selectedSuggestion.suggestedTasks || []).map((task) => {
@@ -1142,6 +1148,9 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						const active = !['Completed', 'Rejected'].includes(String(candidate.status));
 						return sameProperty && active && normalizeLookupValue(candidate.title) === normalizeLookupValue(task.userEditableTitle || task.title);
 					});
+					const pendingEquipment = (selectedSuggestion.suggestedEquipment || []).find(
+						(equipment) => normalizeAssetType(equipment.assetType) === normalizeAssetType(task.relatedAssetType),
+					);
 					return [
 						task.id,
 						{
@@ -1149,6 +1158,10 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 							description: task.userEditableDescription || task.description,
 							accepted: task.reviewStatus !== 'rejected',
 							matchedDeviceId: task.matchedDeviceId || matchingDevice?.id,
+							pendingEquipmentSuggestionId:
+								!matchingDevice && pendingEquipment && nextEquipmentValues[pendingEquipment.id]?.accepted !== false
+									? pendingEquipment.id
+									: undefined,
 							matchedTaskId: matchingOpenTask?.id,
 							scheduleMode: task.scheduleMode || (task.dueDate ? 'scheduled' : 'unscheduled'),
 							dueDate: task.dueDate || '',
@@ -1610,19 +1623,23 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					<div>
 						<KnowledgePartTitle>{equipment.label}</KnowledgePartTitle>
 						<KnowledgeDestinationText>
-							{values?.matchedDeviceId ? 'Match existing equipment' : 'Add missing equipment'}
+							{!accepted
+								? `Skipped${values?.skipReason ? `: ${values.skipReason}` : ''}`
+								: values?.matchedDeviceId
+									? 'Match existing equipment'
+									: 'Add new equipment'}
 						</KnowledgeDestinationText>
 					</div>
 					<FieldDecisionGroup>
 						<button type='button' aria-pressed={accepted} onClick={() =>
 							setKnowledgeEquipmentValues((current) => ({
 								...current,
-								[equipment.id]: { ...current[equipment.id], accepted: true },
-							}))}>Keep</button>
+								[equipment.id]: { ...current[equipment.id], accepted: true, skipReason: undefined },
+							}))}>{values?.matchedDeviceId ? 'Use match' : 'Add new'}</button>
 						<button type='button' aria-pressed={!accepted} onClick={() =>
 							setKnowledgeEquipmentValues((current) => ({
 								...current,
-								[equipment.id]: { ...current[equipment.id], accepted: false },
+								[equipment.id]: { ...current[equipment.id], accepted: false, skipReason: current[equipment.id]?.skipReason || '' },
 							}))}>Skip</button>
 					</FieldDecisionGroup>
 				</MemoryChangeRowHeader>
@@ -1634,8 +1651,9 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						setKnowledgeEquipmentValues((current) => ({
 							...current,
 							[equipment.id]: {
-								accepted: current[equipment.id]?.accepted !== false,
+								accepted: true,
 								matchedDeviceId: event.target.value || undefined,
+								skipReason: undefined,
 							},
 						}))
 					}>
@@ -1646,6 +1664,18 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						</option>
 					))}
 				</FormSelect>
+				{!accepted && (
+					<FormSelect
+						aria-label={`${equipment.label} skip reason`}
+						value={values?.skipReason || ''}
+						onChange={(event) => setKnowledgeEquipmentValues((current) => ({
+							...current,
+							[equipment.id]: { ...current[equipment.id], accepted: false, skipReason: event.target.value },
+						}))}>
+						<option value=''>Select why this was skipped</option>
+						{EQUIPMENT_SKIP_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
+					</FormSelect>
+				)}
 				<KnowledgeConfidenceRow>
 					<KnowledgeConfidence $level={getConfidenceLevel(equipment)}>
 						{getConfidenceLabel(equipment)}
@@ -1663,6 +1693,11 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		const matchingOpenTasks = allTasks.filter((candidate: any) =>
 			String(candidate.propertyId || candidate.property) === String(property.id) &&
 			!['Completed', 'Rejected'].includes(String(candidate.status)),
+		);
+		const pendingEquipmentOptions = (selectedSuggestion?.suggestedEquipment || []).filter(
+			(equipment) =>
+				knowledgeEquipmentValues[equipment.id]?.accepted !== false &&
+				!knowledgeEquipmentValues[equipment.id]?.matchedDeviceId,
 		);
 		return (
 			<ReviewCandidateCard key={task.id} $accepted={accepted}>
@@ -1718,14 +1753,23 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 				<FormSelect
 					aria-label='Related equipment'
 					disabled={!accepted}
-					value={values?.matchedDeviceId || ''}
+					value={values?.pendingEquipmentSuggestionId ? `pending:${values.pendingEquipmentSuggestionId}` : values?.matchedDeviceId || ''}
 					onChange={(event) => setKnowledgeTaskValues((current) => ({
 						...current,
-						[task.id]: { ...current[task.id], matchedDeviceId: event.target.value || undefined },
+						[task.id]: {
+							...current[task.id],
+							matchedDeviceId: event.target.value && !event.target.value.startsWith('pending:') ? event.target.value : undefined,
+							pendingEquipmentSuggestionId: event.target.value.startsWith('pending:') ? event.target.value.slice('pending:'.length) : undefined,
+						},
 					}))}>
-					<option value=''>No existing equipment selected</option>
+					<option value=''>No equipment selected</option>
 					{propertyDevices.map((device) => (
 						<option key={device.id} value={device.id}>{device.type || device.assetType}</option>
+					))}
+					{pendingEquipmentOptions.map((equipment) => (
+						<option key={`pending-${equipment.id}`} value={`pending:${equipment.id}`}>
+							{equipment.label} — will be added
+						</option>
 					))}
 				</FormSelect>
 				<FormSelect
@@ -1925,6 +1969,15 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			feedback.notify('Confirm this document belongs to this property before saving.');
 			return;
 		}
+		const skippedEquipmentWithoutReason = (selectedSuggestion.suggestedEquipment || []).find(
+			(equipment) =>
+				knowledgeEquipmentValues[equipment.id]?.accepted === false &&
+				!knowledgeEquipmentValues[equipment.id]?.skipReason,
+		);
+		if (skippedEquipmentWithoutReason) {
+			feedback.notify(`Select why ${skippedEquipmentWithoutReason.label} is being skipped.`);
+			return;
+		}
 		const acceptedAt = new Date().toISOString();
 		const acceptedByUser = getAcceptedByUserId();
 		const suggestionReadyForReview: PropertyKnowledgeSuggestion =
@@ -1979,6 +2032,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			);
 
 			const equipmentIdsByType = new Map<string, string>();
+			const equipmentIdsBySuggestion = new Map<string, string>();
 			propertyDevices.forEach((device) => {
 				equipmentIdsByType.set(
 					normalizeAssetType(device.assetType || device.type),
@@ -1999,6 +2053,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					if (equipmentMatchId) {
 						linkedEquipmentIds.add(String(equipmentMatchId));
 						equipmentIdsByType.set(normalizeAssetType(equipment.assetType), String(equipmentMatchId));
+						equipmentIdsBySuggestion.set(equipment.id, String(equipmentMatchId));
 						continue;
 					}
 					const definition = getAssetDefinition(equipment.assetType);
@@ -2037,6 +2092,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 							normalizeAssetType(equipment.assetType),
 							String(created.id),
 						);
+						equipmentIdsBySuggestion.set(equipment.id, String(created.id));
 					}
 				}
 			}
@@ -2056,6 +2112,9 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					}
 					const matchedDeviceId =
 						taskValues?.matchedDeviceId ||
+						(taskValues?.pendingEquipmentSuggestionId
+							? equipmentIdsBySuggestion.get(taskValues.pendingEquipmentSuggestionId)
+							: undefined) ||
 						(task.relatedAssetType
 							? equipmentIdsByType.get(normalizeAssetType(task.relatedAssetType))
 							: undefined);

@@ -9,6 +9,16 @@ import type {
 	PropertyKnowledgeProvenance,
 	PropertyKnowledgeSuggestion,
 } from './PropertyKnowledge.types';
+import type {
+	PropertyClassification,
+	PropertyTypeInput,
+} from '../utils/propertyTaxonomy';
+
+export type {
+	PropertyClassification,
+	PropertyType,
+	PropertyTypeInput,
+} from '../utils/propertyTaxonomy';
 
 export type PropertySetupAssistantItemStatus =
 	| 'present'
@@ -110,7 +120,8 @@ export interface Property {
 	viewers?: string[]; // Read-only access
 	accessSnapshots?: Record<string, PropertyAccessSnapshot>;
 	address?: string;
-	propertyType?: 'Single Family' | 'Multi-Family' | 'Commercial';
+	propertyType?: PropertyTypeInput;
+	propertyClassification?: PropertyClassification;
 	bedrooms?: number;
 	bathrooms?: number;
 	units?: Array<{ name: string; occupants?: any[]; deviceIds?: string[] }>; // For multi-family properties
@@ -307,5 +318,3 @@ export interface Device {
 
 // Backward-compatible alias while the codebase transitions from Device to Asset terminology.
 export type Asset = Device;
-
-export type PropertyType = 'Single Family' | 'Multi-Family' | 'Commercial';

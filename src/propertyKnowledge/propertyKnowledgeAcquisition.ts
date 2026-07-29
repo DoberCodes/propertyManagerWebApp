@@ -57,7 +57,7 @@ type ReviewKnowledgeSuggestionInput = {
 	>;
 	equipmentValues?: Record<
 		string,
-		{ accepted?: boolean; matchedDeviceId?: string }
+		{ accepted?: boolean; matchedDeviceId?: string; skipReason?: string }
 	>;
 };
 
@@ -1871,6 +1871,9 @@ export const acceptKnowledgeSuggestion = (
 		...equipment,
 		...(equipmentValues[equipment.id]?.matchedDeviceId
 			? { matchedDeviceId: equipmentValues[equipment.id]?.matchedDeviceId }
+			: {}),
+		...(equipmentValues[equipment.id]?.accepted === false && equipmentValues[equipment.id]?.skipReason
+			? { skipReason: equipmentValues[equipment.id]?.skipReason }
 			: {}),
 		reviewStatus:
 			equipmentValues[equipment.id]?.accepted === false ? 'rejected' : 'accepted',

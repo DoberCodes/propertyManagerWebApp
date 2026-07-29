@@ -73,7 +73,7 @@ const HomeownerPropertyWrapper: React.FC = () => {
 
 	const handleSaveProperty = async (formData: any) => {
 		try {
-			const effectivePropertyType = 'Single Family';
+			const effectivePropertyType = 'residential';
 			const normalizedGroupId =
 				typeof formData.groupId === 'string' && formData.groupId.trim().length > 0
 					? formData.groupId.trim()
@@ -83,6 +83,7 @@ const HomeownerPropertyWrapper: React.FC = () => {
 			await createProperty({
 				...formData,
 				propertyType: effectivePropertyType,
+				propertyClassification: formData.propertyClassification || 'single_family',
 				coOwners: formData.coOwners || [],
 				administrators: formData.administrators || [],
 				viewers: formData.viewers || [],

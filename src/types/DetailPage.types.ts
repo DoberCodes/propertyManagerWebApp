@@ -3,7 +3,7 @@
  * Generic types for reusable components and hooks
  */
 
-import { Property } from './Property.types';
+import { Property, PropertyTypeInput } from './Property.types';
 import { Task } from './Task.types';
 import { MaintenanceRequestItem } from './MaintenanceRequest.types';
 
@@ -64,7 +64,7 @@ export interface UseDetailPageDataParams {
 	propertySlug: string;
 	entityName?: string;
 	entityType: 'property' | 'unit' | 'suite';
-	propertyType?: 'Multi-Family' | 'Commercial' | 'Single-Family';
+	propertyType?: PropertyTypeInput;
 }
 
 // Info card data for rendering entity details

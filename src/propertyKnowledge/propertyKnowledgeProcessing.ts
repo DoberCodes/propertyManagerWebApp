@@ -49,6 +49,33 @@ export const isPropertyDocumentKnowledgeScanEligible = (
 		!['manual', 'warranty'].includes(documentType);
 };
 
+export type PropertyDocumentScanAction = 'check' | 'rescan' | null;
+
+export const getPropertyDocumentScanAction = ({
+	document,
+	hasSuggestion,
+	suggestionCount,
+	suggestionStatus,
+	isRetryable,
+}: {
+	document?: Pick<
+		PropertyDocument,
+		'category' | 'documentType' | 'type' | 'fileName' | 'name'
+	> | null;
+	hasSuggestion: boolean;
+	suggestionCount: number;
+	suggestionStatus?: string;
+	isRetryable: boolean;
+}): PropertyDocumentScanAction => {
+	if (
+		!isPropertyDocumentKnowledgeScanEligible(document) ||
+		isRetryable ||
+		suggestionStatus === 'pending'
+	) return null;
+	if (hasSuggestion && isProcessablePropertyDocument(document)) return 'rescan';
+	return !hasSuggestion || suggestionCount === 0 ? 'check' : null;
+};
+
 export const processPropertyDocumentAcquisition = async ({
 	propertyId,
 	documentId,

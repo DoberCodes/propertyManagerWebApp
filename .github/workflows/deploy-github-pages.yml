@@ -165,7 +165,6 @@ jobs:
 
       - name: Document acquisition eligibility tests
         run: yarn --cwd functions test:document-acquisition-eligibility
-
       - name: Property setup activation tests
         run: yarn --cwd functions test:setup-plan
 

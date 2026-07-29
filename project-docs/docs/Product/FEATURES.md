@@ -64,17 +64,24 @@ Current capabilities:
 * Associate tenants with properties.
 * Track property type classifications.
 
-Homeowner mode keeps property setup focused on the user's home and does not
-display rental classification controls. Property-operator mode may classify a
-property as a rental. If an existing rental property later uses homeowner mode,
-Maintley preserves the saved classification without exposing an inapplicable
-homeowner control.
+Homeowner plans keep property setup focused on personal and family homes. They
+may choose a residential classification but cannot create Multi-unit or
+Commercial properties or newly enable rental management. Property and Portfolio
+plans unlock those business workflows. After a downgrade, existing restricted
+records remain visible and ordinary descriptive edits remain available, while
+the restricted broad type and rental setting stay locked.
 
 Supported property types:
 
-* Single Family
-* Multi-Family
+* Residential
+* Multi-unit
 * Commercial
+
+Residential classifications are Single-family home, Condo, Townhome, and
+Apartment. Multi-unit and Commercial use their own building classifications.
+Classification describes the physical property; `isRental` independently
+controls rental-management behavior. A residential Apartment classification
+does not activate resident or business workflows.
 
 ---
 
@@ -449,8 +456,9 @@ Current capabilities:
 * Mobile-optimized navigation.
 * Google Play distribution for Android users.
 * Progressive Web App support for browser-based installation where supported.
-* Native update support. In-app update prompts open Maintley's Google Play
-  listing so Android users can update through the Play Store.
+* Native update metadata support remains available, but the automatic in-app
+  update prompt is temporarily disabled until Maintley can verify that the
+  advertised release is actually available to the user through Google Play.
 
 The Android application shares the same core functionality and data model as the web application.
 

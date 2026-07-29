@@ -91,6 +91,10 @@ import { TabSystem } from './TabSystem';
 import { TaskFinancials, TaskFormData } from '../../types/Task.types';
 import { MaintenanceHistoryDraftData } from '../../types/PropertyDetailPage.types';
 import { PropertyDialog } from '../../Components/PropertiesTab/PropertyDialog';
+import {
+	getDefaultPropertyClassification,
+	normalizePropertyType,
+} from '../../utils/propertyTaxonomy';
 import { PropertySetupAssistant } from '../../Components/PropertySetupAssistant/PropertySetupAssistant';
 import {
 	PropertyScanActionType,
@@ -628,9 +632,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			return;
 		}
 
-		const effectivePropertyType = isHomeowner
-			? 'Single Family'
-			: formData.propertyType;
+		const effectivePropertyType = formData.propertyType;
 		const normalizedGroupId =
 			typeof formData.groupId === 'string' && formData.groupId.trim().length > 0
 				? formData.groupId.trim()
@@ -650,6 +652,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			owner: formData.owner,
 			address: formData.address,
 			propertyType: effectivePropertyType,
+			propertyClassification: formData.propertyClassification,
 			bedrooms: formData.bedrooms,
 			bathrooms: formData.bathrooms,
 			notes: formData.notes,
@@ -1724,11 +1727,10 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 							photo: property.image,
 							owner: (property as any).owner || '',
 							address: (property as any).address || '',
-							propertyType:
-								((property as any).propertyType as
-									| 'Single Family'
-									| 'Multi-Family'
-									| 'Commercial') || 'Single Family',
+							propertyType: normalizePropertyType((property as any).propertyType),
+							propertyClassification:
+								(property as any).propertyClassification ||
+								getDefaultPropertyClassification((property as any).propertyType),
 							bedrooms: (property as any).bedrooms || 0,
 							bathrooms: (property as any).bathrooms || 0,
 							notes: (property as any).notes || '',

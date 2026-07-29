@@ -136,10 +136,21 @@ Best for:
 
 ### Notes
 
+Property taxonomy access follows this plan boundary:
+
+| Capability | Free | Homeowner+ | Property | Portfolio |
+| ---------- | ---- | ---------- | -------- | --------- |
+| Residential properties and home classifications | Yes | Yes | Yes | Yes |
+| Multi-unit and Commercial property types | No | No | Yes | Yes |
+| Enable rental management | No | No | Yes | Yes |
+
 * Property Groups are intended for multi-property workflows.
 * Free is optimized around one home.
 * Homeowner+ supports up to five personal or family homes without enabling
   resident, team, or other business workflows.
+* After a downgrade, existing business property and rental records stay visible.
+  Their restricted settings become read-only while safe descriptive edits remain
+  available.
 * Future property limits may evolve based on usage patterns.
 
 ---

@@ -80,7 +80,20 @@ import { PROPERTY_IMAGE_PLACEHOLDER } from '../../utils/propertyImagePlaceholder
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
-import { PropertyAccessSnapshot } from '../../types/Property.types';
+import {
+	PropertyAccessSnapshot,
+	PropertyClassification,
+	PropertyType,
+} from '../../types/Property.types';
+import {
+	getDefaultPropertyClassification,
+	getPropertyClassificationLabel,
+	getPropertyClassificationOptions,
+	getPropertyTypeLabel,
+	isResidentialProperty,
+	normalizePropertyType,
+	PROPERTY_TYPE_OPTIONS,
+} from '../../utils/propertyTaxonomy';
 import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -90,7 +103,8 @@ export interface PropertyFormData {
 	name: string;
 	owner: string;
 	address: string;
-	propertyType: 'Single Family' | 'Multi-Family' | 'Commercial';
+	propertyType: PropertyType;
+	propertyClassification?: PropertyClassification;
 	isRental?: boolean;
 	bedrooms?: number | null;
 	bathrooms?: number | null;
@@ -246,7 +260,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		name: '',
 		owner: '',
 		address: '',
-		propertyType: 'Single Family',
+		propertyType: 'residential',
+		propertyClassification: 'single_family',
 		isRental: false,
 		bedrooms: 0,
 		bathrooms: 0,
@@ -298,6 +313,10 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		!duplicateNameUnchanged,
 	);
 	const steps = isOnboardingHomeCreateFlow ? ONBOARDING_HOME_STEPS : STEPS;
+	const initialPropertyType = normalizePropertyType(initialData?.propertyType);
+	const hasRetainedBusinessType = forceSingleFamily && Boolean(initialData) && !isResidentialProperty(initialPropertyType);
+	const hasRetainedRental = forceSingleFamily && initialData?.isRental === true;
+	const propertyTypeLocked = forceSingleFamily && (!initialData || hasRetainedBusinessType);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -305,9 +324,13 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}
 
 		if (initialData) {
+			const normalizedInitialType = normalizePropertyType(initialData.propertyType);
 			setFormData({
 				...initialData,
-				propertyType: forceSingleFamily ? 'Single Family' : initialData.propertyType,
+				propertyType: normalizedInitialType,
+				propertyClassification:
+					initialData.propertyClassification ||
+					getDefaultPropertyClassification(normalizedInitialType),
 				isRental: initialData.isRental ?? false,
 				groupId: initialData.groupId ?? selectedGroupId ?? null,
 				coOwners: initialData.coOwners || [],
@@ -324,7 +347,8 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 					? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
 					: '',
 				address: '',
-				propertyType: 'Single Family',
+				propertyType: 'residential',
+				propertyClassification: 'single_family',
 				isRental: false,
 				bedrooms: 0,
 				bathrooms: 0,
@@ -617,16 +641,19 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			setStepIndex(basicsStepIndex >= 0 ? basicsStepIndex : 0);
 			return;
 		}
+		if (!formData.propertyClassification) {
+			const detailsStepIndex = steps.findIndex((step) => step.key === 'details');
+			setStepIndex(detailsStepIndex >= 0 ? detailsStepIndex : 0);
+			return;
+		}
 		setIsSubmitting(true);
 		setSaveProgress(null);
 		try {
 			await onSave({
 				...formData,
 				accessSnapshots: buildAccessSnapshots(),
-				propertyType: forceSingleFamily ? 'Single Family' : formData.propertyType,
-				isRental: forceSingleFamily
-					? initialData?.isRental ?? false
-					: !!formData.isRental,
+				propertyType: hasRetainedBusinessType ? initialPropertyType : formData.propertyType,
+				isRental: hasRetainedRental ? true : forceSingleFamily ? false : !!formData.isRental,
 			}, setSaveProgress);
 			onClose();
 		} catch (error) {
@@ -789,14 +816,28 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								<Label>{recordTitleLabel} Type</Label>
 								<SelectField
 									value={formData.propertyType}
-									disabled={forceSingleFamily}
+									disabled
 									onChange={(e) =>
 										handleInputChange(
 											'propertyType',
 											e.target.value as PropertyFormData['propertyType'],
 										)
 									}>
-									<option value='Single Family'>Single Family</option>
+									<option value='residential'>Residential</option>
+								</SelectField>
+							</FormField>
+						)}
+						{isOnboardingHomeCreateFlow && (
+							<FormField>
+								<Label>Home style</Label>
+								<SelectField
+									value={formData.propertyClassification || ''}
+									onChange={(e) =>
+										handleInputChange('propertyClassification', e.target.value as PropertyClassification)
+									}>
+									{getPropertyClassificationOptions('residential').map((option) => (
+										<option key={option.value} value={option.value}>{option.label}</option>
+									))}
 								</SelectField>
 							</FormField>
 						)}
@@ -910,6 +951,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		}
 
 		if (stepKey === 'details') {
+			const classificationOptions = getPropertyClassificationOptions(formData.propertyType);
 			return (
 				<WizardPanel>
 					<WizardPanelHeader>
@@ -925,25 +967,36 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								<Label>{recordTitleLabel} Type</Label>
 								<SelectField
 									value={formData.propertyType}
-									disabled={forceSingleFamily}
-									onChange={(e) =>
-										handleInputChange(
-											'propertyType',
-											e.target.value as PropertyFormData['propertyType'],
-										)
-									}>
-									<option value='Single Family'>Single Family</option>
-									{!forceSingleFamily && (
-										<option value='Multi-Family'>
-											Multi-Family
-										</option>
-									)}
-									{!forceSingleFamily && (
-										<option value='Commercial'>
-											Commercial
-										</option>
-									)}
+									disabled={propertyTypeLocked}
+									onChange={(e) => {
+										const propertyType = e.target.value as PropertyType;
+										setFormData((current) => ({
+											...current,
+											propertyType,
+											propertyClassification: getDefaultPropertyClassification(propertyType),
+										}));
+									}}>
+									{PROPERTY_TYPE_OPTIONS.filter((option) => !forceSingleFamily || option.value === initialPropertyType).map((option) => (
+										<option key={option.value} value={option.value}>{option.label}</option>
+									))}
 								</SelectField>
+								{hasRetainedBusinessType && (
+									<ValidationMessage>This property remains visible after your plan change. Upgrade to change its broad type.</ValidationMessage>
+								)}
+							</FormField>
+							<FormField>
+								<Label>{isResidentialProperty(formData.propertyType) ? 'Home style' : 'Building type'}</Label>
+								<SelectField
+									value={formData.propertyClassification || ''}
+									onChange={(e) => handleInputChange('propertyClassification', e.target.value as PropertyClassification)}>
+									<option value=''>Select a classification</option>
+									{classificationOptions.map((option) => (
+										<option key={option.value} value={option.value}>{option.label}</option>
+									))}
+								</SelectField>
+								{!formData.propertyClassification && (
+									<ValidationMessage>Choose the classification that best describes this property.</ValidationMessage>
+								)}
 							</FormField>
 							<FormField>
 								<Label>Owner</Label>
@@ -955,7 +1008,7 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								/>
 							</FormField>
 						</FormRow>
-						{formData.propertyType !== 'Commercial' && (
+						{isResidentialProperty(formData.propertyType) && (
 							<FormRow>
 								<FormField>
 									<Label>Bedrooms</Label>
@@ -986,17 +1039,21 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								</FormField>
 							</FormRow>
 						)}
-						{!forceSingleFamily && (
+						{(!forceSingleFamily || hasRetainedRental) && (
 							<FormField>
 								<Label>Rental Settings</Label>
 								<label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#475569' }}>
 									<input
 										type='checkbox'
 										checked={!!formData.isRental}
+										disabled={forceSingleFamily}
 										onChange={(e) => handleInputChange('isRental', e.target.checked)}
 									/>
 									Yes, this {recordLowerLabel} is a rental
 								</label>
+								{hasRetainedRental && (
+									<ValidationMessage>Rental records remain visible after your plan change. Upgrade to change rental management settings.</ValidationMessage>
+								)}
 							</FormField>
 						)}
 						{isDuplicate && (
@@ -1120,7 +1177,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			[`${recordTitleLabel} Photo`, formData.photo ? <img src={formData.photo} alt={`${recordTitleLabel} preview`} /> : 'No photo'],
 			[`${recordTitleLabel} Name`, formData.name || 'Not set'],
 			['Address', formData.address || 'Not set'],
-			[`${recordTitleLabel} Type`, formData.propertyType],
+			[`${recordTitleLabel} Type`, getPropertyTypeLabel(formData.propertyType)],
+			[
+				isResidentialProperty(formData.propertyType) ? 'Home Style' : 'Building Type',
+				getPropertyClassificationLabel(formData.propertyClassification) || 'Not classified',
+			],
 			['Owner', formData.owner || 'Not set'],
 			['Bedrooms / Bathrooms', `${formData.bedrooms ?? 0} / ${formData.bathrooms ?? 0}`],
 			...(!forceSingleFamily

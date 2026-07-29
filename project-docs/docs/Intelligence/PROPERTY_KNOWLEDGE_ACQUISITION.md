@@ -97,7 +97,6 @@ access, and the property's document-processing entitlement before running.
 Customer account owners and administrators do not receive this authority. Test
 scan results remain pending suggestions and identify the internal actor and role
 in document-acquisition event metadata.
-
 Structured PDF or DOCX service reports may propose a dated Maintenance Event,
 recommended tasks, and equipment reconciliation. Positive and negative status
 checks remain attributed visit observations within the Maintenance Event.
@@ -128,6 +127,13 @@ Manual retry uses the callable processor directly instead of first writing a new
 `processing` state. The backend writes only the final acquisition outcome for
 that retry, which keeps the property document from receiving unnecessary status
 updates during repeated review attempts.
+
+After a PDF or DOCX review is applied or rejected, document managers with
+document-review access may choose **Scan again** from the document card. A
+rescan creates a new pending review while preserving earlier applied or rejected
+suggestions for provenance. Maintley does not offer a rescan while another
+review for that document is pending, and rescanning never changes Property
+Memory without a new approval.
 
 The active property detail view listens to collection-backed property document
 and suggestion records, then merges any embedded compatibility records. Document
@@ -187,6 +193,15 @@ The review hierarchy should be object-first:
 Objects and sections should default to accepted. Field-level keep/skip controls
 belong inside expanded details so the default review feels like approving a
 Property Memory merge, not answering a long list of database-field questions.
+
+Equipment reconciliation should follow the same low-friction default. When one
+clear existing equipment record matches, the review should preselect that
+record. When no clear match exists, the suggested new equipment record should
+default to approved. Skipping equipment is an intentional exception and should
+retain a short reviewer-selected reason with the reviewed suggestion. Tasks in
+the same review may select approved equipment that will be created during the
+save; the apply flow creates equipment first and resolves that selection to the
+new equipment ID before creating or linking the task.
 
 If Maintley finds a likely matching record, the review should explain why the
 match was suggested and allow the reviewer to update the existing record or mark

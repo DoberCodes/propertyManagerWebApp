@@ -560,6 +560,18 @@ export const canManageTenants = (subscription: SubscriptionData): boolean => {
 	return subscriptionHasCapability(subscription, 'residents.manage');
 };
 
+export const canUseBusinessPropertyTypes = (
+	subscription: SubscriptionData,
+): boolean =>
+	hasActiveSubscriptionOrGrant(subscription) &&
+	subscriptionHasCapability(subscription, 'property_types.business');
+
+export const canUseRentalManagement = (
+	subscription: SubscriptionData,
+): boolean =>
+	hasActiveSubscriptionOrGrant(subscription) &&
+	subscriptionHasCapability(subscription, 'rental_management.use');
+
 /**
  * Check if subscription plan allows viewing reports
  */
