@@ -35,6 +35,26 @@ export const isProcessablePropertyDocument = (
 	document?: Pick<PropertyDocument, 'type' | 'fileName' | 'name'> | null,
 ) => isPdfPropertyDocument(document) || isDocxPropertyDocument(document);
 
+export type PropertyDocumentScanAction = 'check' | 'rescan' | null;
+
+export const getPropertyDocumentScanAction = ({
+	document,
+	hasSuggestion,
+	suggestionCount,
+	suggestionStatus,
+	isRetryable,
+}: {
+	document?: Pick<PropertyDocument, 'type' | 'fileName' | 'name'> | null;
+	hasSuggestion: boolean;
+	suggestionCount: number;
+	suggestionStatus?: string;
+	isRetryable: boolean;
+}): PropertyDocumentScanAction => {
+	if (isRetryable || suggestionStatus === 'pending') return null;
+	if (hasSuggestion && isProcessablePropertyDocument(document)) return 'rescan';
+	return !hasSuggestion || suggestionCount === 0 ? 'check' : null;
+};
+
 export const processPropertyDocumentAcquisition = async ({
 	propertyId,
 	documentId,

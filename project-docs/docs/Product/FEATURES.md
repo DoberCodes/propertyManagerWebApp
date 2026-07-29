@@ -449,8 +449,9 @@ Current capabilities:
 * Mobile-optimized navigation.
 * Google Play distribution for Android users.
 * Progressive Web App support for browser-based installation where supported.
-* Native update support. In-app update prompts open Maintley's Google Play
-  listing so Android users can update through the Play Store.
+* Native update metadata support remains available, but the automatic in-app
+  update prompt is temporarily disabled until Maintley can verify that the
+  advertised release is actually available to the user through Google Play.
 
 The Android application shares the same core functionality and data model as the web application.
 
