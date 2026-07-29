@@ -1102,3 +1102,6 @@ When permissions and subscriptions intersect:
 * Subscriptions determine capabilities.
 
 These responsibilities should remain separate.
+# Personal assistant credentials
+
+Personal-assistant setup requires the server-managed Maintley Owner role; customer account ownership does not grant access. Credential, rate-limit, and API audit collections deny all direct client reads and writes. Only the Owner-gated callable manages credentials, and every API request is independently constrained by its stored property allowlist and read scopes.

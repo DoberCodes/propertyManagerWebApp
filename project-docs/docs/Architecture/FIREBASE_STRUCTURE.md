@@ -330,6 +330,9 @@ Primary collections:
 * admin_users (function-managed)
 * admin_sessions (function-managed)
 * admin_audit_logs (server-written high-value administrative and program decisions)
+* personalAssistantCredentials (function-managed token verifiers, scopes, and property allowlists)
+* personalAssistantRateLimits (short-lived server-written request counters)
+* personalAssistantAccessAudits (server-written minimized API access records)
 
 The first-property Homeowner+ trial uses a Firestore property-create trigger.
 Account bootstrap marks only eligible new Free owner accounts; the trigger then
@@ -352,6 +355,8 @@ Admin portal collection notes:
   * `createdAt` / `updatedAt` (timestamps)
 * `admin_sessions` stores hashed session tokens and expiry metadata.
 * Both collections are function-managed and denied to direct client reads/writes in Firestore rules.
+
+Personal Assistant API collections are also denied to every direct client. The Owner-gated credential callable and the read-only HTTPS API are their only supported access boundaries.
 
 Temporarily hidden but still supported:
 

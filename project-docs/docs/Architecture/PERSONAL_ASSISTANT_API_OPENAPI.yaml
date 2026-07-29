@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info:
+  title: Maintley Personal Assistant Read API
+  version: 1.0.0
+  description: Private server-to-server, read-only API for an explicitly authorized Maintley Owner credential.
+servers:
+  - url: https://us-central1-mypropertymanager-cda42.cloudfunctions.net/personalAssistantApi
+security:
+  - bearerAuth: []
+paths:
+  /v1/properties:
+    get:
+      summary: List allowed properties
+      responses: { '200': { $ref: '#/components/responses/ListResponse' }, '401': { $ref: '#/components/responses/Error' } }
+  /v1/properties/{propertyId}:
+    get:
+      summary: Read an allowed property
+      parameters: [ { $ref: '#/components/parameters/PropertyId' } ]
+      responses: { '200': { $ref: '#/components/responses/ItemResponse' }, '404': { $ref: '#/components/responses/Error' } }
+  /v1/properties/{propertyId}/equipment:
+    get: { summary: List equipment, parameters: [ { $ref: '#/components/parameters/PropertyId' } ], responses: { '200': { $ref: '#/components/responses/ListResponse' } } }
+  /v1/properties/{propertyId}/tasks:
+    get: { summary: List tasks, parameters: [ { $ref: '#/components/parameters/PropertyId' } ], responses: { '200': { $ref: '#/components/responses/ListResponse' } } }
+  /v1/properties/{propertyId}/maintenance-events:
+    get: { summary: List canonical and compatible legacy maintenance records, parameters: [ { $ref: '#/components/parameters/PropertyId' } ], responses: { '200': { $ref: '#/components/responses/ListResponse' } } }
+  /v1/properties/{propertyId}/insights:
+    get: { summary: List explainable Intelligence findings, parameters: [ { $ref: '#/components/parameters/PropertyId' } ], responses: { '200': { $ref: '#/components/responses/ListResponse' } } }
+  /v1/properties/{propertyId}/documents:
+    get: { summary: List document metadata without file URLs or content, parameters: [ { $ref: '#/components/parameters/PropertyId' } ], responses: { '200': { $ref: '#/components/responses/ListResponse' } } }
+  /v1/upcoming:
+    get:
+      summary: List upcoming incomplete tasks across allowed properties
+      parameters:
+        - { name: dueBefore, in: query, schema: { type: string, format: date-time } }
+        - { $ref: '#/components/parameters/Limit' }
+      responses: { '200': { $ref: '#/components/responses/ListResponse' } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: Maintley PAT }
+  parameters:
+    PropertyId: { name: propertyId, in: path, required: true, schema: { type: string } }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+    Cursor: { name: cursor, in: query, schema: { type: string } }
+  responses:
+    ItemResponse:
+      description: One stable public resource
+      content: { application/json: { schema: { type: object, required: [data, requestId], properties: { data: { type: object }, requestId: { type: string } } } } }
+    ListResponse:
+      description: A bounded page of stable public resources
+      content: { application/json: { schema: { type: object, required: [data, requestId], properties: { data: { type: array, items: { type: object } }, nextCursor: { type: string, nullable: true }, requestId: { type: string } } } } }
+    Error:
+      description: Stable API error
+      content: { application/json: { schema: { type: object, properties: { error: { type: object, required: [code, message, requestId], properties: { code: { type: string }, message: { type: string }, requestId: { type: string } } } } } } }

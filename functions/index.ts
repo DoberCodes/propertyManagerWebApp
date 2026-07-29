@@ -122,3 +122,5 @@ export {
 	adminPortalListMaintleyTeam,
 	adminPortalMutateMaintleyTeam,
 } from './maintleyTeamAdmin';
+export { managePersonalAssistantCredentials } from './personalAssistantCredentials';
+export { personalAssistantApi } from './personalAssistantApi';

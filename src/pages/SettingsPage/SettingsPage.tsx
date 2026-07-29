@@ -27,6 +27,8 @@ import { Title, SettingsLayout, CategorySidebar, CategoryNavButton, CategoryCont
 import { AccountManagement } from './AccountManagement';
 import { FamilyManagement } from './FamilyManagement';
 import { shouldBypassOnboarding } from 'utils/userAccount';
+import { isMaintleyOwner } from 'utils/maintleyRole';
+import { PersonalAssistantSettings } from './PersonalAssistantSettings';
 
 export const SettingsPage: React.FC = () => {
 	type SettingsCategoryKey =
@@ -36,6 +38,7 @@ export const SettingsPage: React.FC = () => {
 		| 'notifications'
 		| 'getting-started'
 		| 'experience'
+		| 'personal-assistant'
 		| 'legal';
 
 	const navigate = useNavigate();
@@ -57,6 +60,7 @@ export const SettingsPage: React.FC = () => {
 		(currentUser.isAccountOwner === true ||
 			!currentUser.accountId ||
 			currentUser.accountId === currentUser.id);
+	const canManagePersonalAssistant = isMaintleyOwner(currentUser?.maintley_role);
 
 
 	// API mutations
@@ -163,12 +167,17 @@ export const SettingsPage: React.FC = () => {
 				visible: !isTenant,
 			},
 			{
+				key: 'personal-assistant' as SettingsCategoryKey,
+				label: 'Personal Assistant',
+				visible: canManagePersonalAssistant,
+			},
+			{
 				key: 'legal' as SettingsCategoryKey,
 				label: 'Legal',
 				visible: true,
 			},
 		],
-		[canManageFamilyRoles, canManageWorkspaceMode, canUseOnboarding, isTenant],
+		[canManageFamilyRoles, canManagePersonalAssistant, canManageWorkspaceMode, canUseOnboarding, isTenant],
 	);
 
 	const visibleCategories = useMemo(
@@ -548,6 +557,10 @@ export const SettingsPage: React.FC = () => {
 								currentUser={currentUser}
 								defaultCollapsed={false}
 							/>
+						)}
+
+						{activeCategory === 'personal-assistant' && canManagePersonalAssistant && (
+							<PersonalAssistantSettings />
 						)}
 
 

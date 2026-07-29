@@ -1253,6 +1253,15 @@ async function run() {
 		);
 		await assertFails(ownerDb.doc('maintleyEvents/event-owned').delete());
 
+		for (const protectedCollection of [
+			'personalAssistantCredentials',
+			'personalAssistantRateLimits',
+			'personalAssistantAccessAudits',
+		]) {
+			await assertFails(ownerDb.doc(`${protectedCollection}/client-attempt`).get());
+			await assertFails(ownerDb.doc(`${protectedCollection}/client-attempt`).set({ ownerUserId: ownerUid }));
+		}
+
 		console.log('Firestore rules permission boundary tests passed.');
 	} finally {
 		await env.cleanup();

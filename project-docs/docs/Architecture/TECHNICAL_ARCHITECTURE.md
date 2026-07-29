@@ -836,6 +836,12 @@ These commands support validation, deployment, and testing workflows.
 
 ---
 
+## Personal Assistant read boundary
+
+Maintley exposes a private `/v1` HTTPS read API for the Maintley Owner's trusted server-side assistant. The boundary authenticates HMAC-verified bearer credentials, applies explicit scopes and property allowlists, and maps Firestore records into stable public response models. It never returns raw Firestore documents or file content and does not permit property-data writes. See `PERSONAL_ASSISTANT_API.md` for the operational contract.
+
+---
+
 # Current Technical Priorities
 
 Current technical priorities include:
