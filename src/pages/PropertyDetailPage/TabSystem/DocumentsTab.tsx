@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
@@ -16,7 +16,7 @@ import {
 import { FileUploader } from 'Components/Library/FileUploader';
 import { useUpdatePropertyMutation } from 'Redux/API/propertySlice';
 import { apiSlice } from 'Redux/API/apiSlice';
-import type { AppDispatch } from 'Redux/store/store';
+import type { AppDispatch, RootState } from 'Redux/store/store';
 import {
 	Device,
 	PropertyDocument,
@@ -39,9 +39,11 @@ import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRec
 import {
 	getPropertyDocumentScanAction,
 	isProcessablePropertyDocument,
+	isPropertyDocumentKnowledgeScanEligible,
 	processPropertyDocumentAcquisition,
 } from 'propertyKnowledge/propertyKnowledgeProcessing';
 import { RoleCapabilities } from 'utils/permissions';
+import { hasMaintleyAdminAccess } from 'utils/maintleyRole';
 import {
 	deletePropertyDocumentFile,
 } from 'utils/propertyDocumentUpload';
@@ -233,6 +235,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 }) => {
 	const feedback = useAppFeedback();
 	const dispatch = useDispatch<AppDispatch>();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const navigate = useNavigate();
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -251,6 +254,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const lastOpenUploadTokenRef = useRef(0);
 	const canManageDocuments =
 		permissions?.canManageDocuments ?? permissions?.canManageProperties ?? false;
+	const canTestRestrictedDocumentScan = hasMaintleyAdminAccess(
+		currentUser?.maintley_role,
+	);
 	const { canUseDocumentReview, uploadPropertyDocuments } =
 		usePropertyDocumentUploadWorkflow();
 	const {
@@ -427,7 +433,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		}).unwrap();
 	};
 
-	const handleReviewDocumentKnowledge = async (documentId?: string) => {
+	const handleReviewDocumentKnowledge = async (
+		documentId?: string,
+		allowRestrictedDocumentType = false,
+	) => {
 		if (!property?.id || !documentId || isSaving) return;
 		if (!canUseDocumentReview) {
 			feedback.notify('Suggested details from documents are available with Homeowner+.');
@@ -448,6 +457,16 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			onReviewSuggestedDetails?.(existingPending.id);
 			return;
 		}
+		if (
+			!isPropertyDocumentKnowledgeScanEligible(document) &&
+			!allowRestrictedDocumentType
+		) return;
+		if (
+			allowRestrictedDocumentType &&
+			!window.confirm(
+				'Test scanning this manual or warranty? This internal feature is experimental and may produce inaccurate suggestions. Nothing will be saved without review.',
+			)
+		) return;
 
 		if (isProcessablePropertyDocument(document)) {
 			setIsSaving(true);
@@ -456,6 +475,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 				const result = await processPropertyDocumentAcquisition({
 					propertyId: property.id,
 					documentId: document.id,
+					allowRestrictedDocumentType,
 				});
 				dispatch(apiSlice.util.invalidateTags(['Properties']));
 				if (result.success && result.suggestionId) {
@@ -709,16 +729,21 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						);
 						const reviewedKnowledgeStatus =
 							getDocumentKnowledgeStatusText(latestKnowledgeSuggestion);
-						const acquisitionStatusText =
-							isPropertyDocument && file.id
-								? getDocumentAcquisitionStatusText(
-										propertyDocuments.find((item) => item.id === file.id),
-								  )
-								: '';
 						const sourcePropertyDocument =
 							isPropertyDocument && file.id
 								? propertyDocuments.find((item) => item.id === file.id)
 								: undefined;
+						const isKnowledgeScanEligible =
+							isPropertyDocumentKnowledgeScanEligible(sourcePropertyDocument);
+						const canOfferInternalTestScan =
+							!isKnowledgeScanEligible &&
+							canTestRestrictedDocumentScan &&
+							canUseDocumentReview &&
+							isProcessablePropertyDocument(sourcePropertyDocument) &&
+							latestKnowledgeSuggestion?.status !== 'pending';
+						const acquisitionStatusText = isKnowledgeScanEligible
+							? getDocumentAcquisitionStatusText(sourcePropertyDocument)
+							: '';
 						const isAcquisitionRetryable =
 							sourcePropertyDocument?.acquisitionStatus === 'failed' ||
 							isDocumentAcquisitionStale(sourcePropertyDocument);
@@ -766,7 +791,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 												isDocumentAcquisitionStale(sourcePropertyDocument)
 											}>
 											{acquisitionStatusText}{' '}
-											{isAcquisitionRetryable &&
+											{isKnowledgeScanEligible &&
+												isAcquisitionRetryable &&
 												canManageDocuments &&
 												canUseDocumentReview && (
 													<DocumentInlineAction
@@ -812,6 +838,17 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									)}
 								{isPropertyDocument && canManageDocuments && (
 									<DocumentActions>
+										{canOfferInternalTestScan && (
+											<DocumentActionButton
+												type='button'
+												title='Maintley Owner and Admin only. Results may be inaccurate.'
+												onClick={() =>
+													handleReviewDocumentKnowledge(file.id, true)
+												}
+												disabled={isSaving}>
+												Test scan (Maintley only)
+											</DocumentActionButton>
+										)}
 										{documentScanAction ? (
 											<DocumentActionButton
 												type='button'

@@ -248,6 +248,17 @@ Support and Operations are employment classifications and do not independently
 grant access to the admin portal. Additional portal permissions remain an
 explicit, server-managed decision.
 
+## Internal manual and warranty scan testing
+
+General Property Knowledge Acquisition does not scan documents categorized as
+manuals or warranties. A Maintley Owner or Maintley Admin who also has normal
+access to the property may explicitly test the restricted scan path from the
+customer application. The Cloud Function verifies the server-managed
+`maintley_role`; customer account ownership, property ownership, and customer
+administrator roles do not grant this override. The override does not bypass
+plan entitlements, produces reviewable suggestions only, and records the
+internal actor and role in acquisition event metadata.
+
 ## User activity timestamps
 
 `lastActiveAt` records customer application activity, not administrator

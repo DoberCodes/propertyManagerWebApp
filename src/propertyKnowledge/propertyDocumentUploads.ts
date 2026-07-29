@@ -15,7 +15,10 @@ import {
 	markDocumentWithKnowledgeSuggestion,
 } from './propertyKnowledgeAcquisition';
 import { savePropertyMemoryRecordsToCollections } from './propertyMemoryRecordService';
-import { isProcessablePropertyDocument } from './propertyKnowledgeProcessing';
+import {
+	isProcessablePropertyDocument,
+	isPropertyDocumentKnowledgeScanEligible,
+} from './propertyKnowledgeProcessing';
 import type { ProcessPropertyDocumentAcquisitionResponse } from './propertyKnowledgeProcessing';
 
 type PropertyMemoryDocumentUploadInput = {
@@ -120,7 +123,9 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	const knowledgeSuggestions = (
 		await Promise.all(
 			contextualDocuments.map((document, index) =>
-				!enableKnowledgeAcquisition || isProcessablePropertyDocument(document)
+				!enableKnowledgeAcquisition ||
+				!isPropertyDocumentKnowledgeScanEligible(document) ||
+				isProcessablePropertyDocument(document)
 					? Promise.resolve(null)
 					: createPendingKnowledgeSuggestionFromFile({
 							file: files[index],
@@ -136,7 +141,10 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	);
 
 	const documents = contextualDocuments.map((document) => {
-		if (isProcessablePropertyDocument(document)) {
+		if (
+			isPropertyDocumentKnowledgeScanEligible(document) &&
+			isProcessablePropertyDocument(document)
+		) {
 			return enableKnowledgeAcquisition
 				? markPropertyDocumentAsProcessing(document)
 				: document;
@@ -158,7 +166,11 @@ export const preparePropertyMemoryDocumentUploads = async ({
 	return {
 		documents,
 		knowledgeSuggestions,
-		processableDocuments: documents.filter(isProcessablePropertyDocument),
+		processableDocuments: documents.filter(
+			(document) =>
+				isPropertyDocumentKnowledgeScanEligible(document) &&
+				isProcessablePropertyDocument(document),
+		),
 	};
 };
 
@@ -166,7 +178,11 @@ export const startPropertyDocumentKnowledgeProcessing = ({
 	documents,
 }: StartPdfDocumentKnowledgeProcessingInput) => {
 	documents.forEach((document) => {
-		if (!document.id || !isProcessablePropertyDocument(document)) return;
+		if (
+			!document.id ||
+			!isPropertyDocumentKnowledgeScanEligible(document) ||
+			!isProcessablePropertyDocument(document)
+		) return;
 		// Persistent document-review lifecycle notifications are backend-owned.
 	});
 };

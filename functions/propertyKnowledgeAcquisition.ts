@@ -30,6 +30,7 @@ const PROPERTY_KNOWLEDGE_SUGGESTIONS_COLLECTION = 'propertyKnowledgeSuggestions'
 type ProcessDocumentRequest = {
 	propertyId?: string;
 	documentId?: string;
+	allowRestrictedDocumentType?: boolean;
 };
 
 type PropertyDocumentRecord = {
@@ -58,6 +59,10 @@ type ProcessPdfDocumentAcquisitionInput = {
 	propertyId: string;
 	documentId: string;
 	triggeredBy: 'background' | 'manual';
+	internalOverride?: {
+		actorUserId: string;
+		maintleyRole: string;
+	};
 };
 
 type ProcessPdfDocumentAcquisitionResult = {
@@ -89,6 +94,38 @@ type PropertyConfirmation = {
 };
 
 const toString = (value: unknown): string => String(value || '').trim();
+
+const normalizeMaintleyRole = (value: unknown): string => {
+	if (typeof value === 'string') {
+		return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+	}
+	if (!value || typeof value !== 'object') return '';
+	const record = value as Record<string, unknown>;
+	return normalizeMaintleyRole(
+		record.role || record.maintley_role || record.value,
+	);
+};
+
+const isMaintleyRestrictedScanRole = (value: unknown): boolean =>
+	['owner', 'admin', 'maintley_owner', 'platform_owner'].includes(
+		normalizeMaintleyRole(value),
+	);
+
+const resolveInternalDocumentScanOverride = async (
+	uid: string,
+	requested: boolean,
+) => {
+	if (!requested) return undefined;
+	const userSnapshot = await db.collection('users').doc(uid).get();
+	const maintleyRole = normalizeMaintleyRole(userSnapshot.data()?.maintley_role);
+	if (!isMaintleyRestrictedScanRole(maintleyRole)) {
+		throw new functions.https.HttpsError(
+			'permission-denied',
+			'Only Maintley Owner or Admin may test scanning for manuals and warranties.',
+		);
+	}
+	return { actorUserId: uid, maintleyRole };
+};
 
 const stripUndefinedDeep = (value: unknown): unknown => {
 	if (Array.isArray(value)) {
@@ -163,6 +200,13 @@ const isDocxDocument = (document: PropertyDocumentRecord) =>
 
 const isProcessableDocument = (document: PropertyDocumentRecord) =>
 	isPdfDocument(document) || isDocxDocument(document);
+
+const isKnowledgeScanEligibleDocument = (document: PropertyDocumentRecord) => {
+	const category = toString(document.category).toLowerCase();
+	const documentType = toString(document.documentType).toLowerCase();
+	return !['manual', 'warranty'].includes(category) &&
+		!['manual', 'warranty'].includes(documentType);
+};
 
 const updateDocumentInList = (
 	documents: PropertyDocumentRecord[],
@@ -911,6 +955,7 @@ const publishDocumentAcquisitionEvent = async ({
 	message,
 	push,
 	errorMessage,
+	internalOverride,
 }: {
 	propertyId: string;
 	propertyData: Record<string, unknown>;
@@ -924,6 +969,7 @@ const publishDocumentAcquisitionEvent = async ({
 	message: string;
 	push?: boolean;
 	errorMessage?: string;
+	internalOverride?: ProcessPdfDocumentAcquisitionInput['internalOverride'];
 }) => {
 	const userId =
 		toString(document.uploadedBy) ||
@@ -967,6 +1013,9 @@ const publishDocumentAcquisitionEvent = async ({
 			suggestionId,
 			suggestionCount,
 			errorMessage,
+			internalRestrictedScan: Boolean(internalOverride),
+			internalRestrictedScanActorUserId: internalOverride?.actorUserId,
+			internalRestrictedScanMaintleyRole: internalOverride?.maintleyRole,
 		},
 	});
 };
@@ -1007,6 +1056,7 @@ const getSuggestionFieldCount = (suggestion?: Record<string, unknown>) => {
 const shouldBackgroundProcessDocument = (document: PropertyDocumentRecord) =>
 	toString(document.id) &&
 	isProcessableDocument(document) &&
+	isKnowledgeScanEligibleDocument(document) &&
 	toString(document.storagePath) &&
 	toString(document.acquisitionStatus) === 'processing';
 
@@ -1053,10 +1103,12 @@ const loadDocumentForProcessing = async ({
 	propertyRef,
 	documentId,
 	triggeredBy,
+	allowRestrictedDocumentType = false,
 }: {
 	propertyRef: FirebaseFirestore.DocumentReference;
 	documentId: string;
 	triggeredBy: ProcessPdfDocumentAcquisitionInput['triggeredBy'];
+	allowRestrictedDocumentType?: boolean;
 }) => {
 	const snapshot = await propertyRef.get();
 	if (!snapshot.exists) {
@@ -1096,6 +1148,12 @@ const loadDocumentForProcessing = async ({
 			'Only PDF and DOCX documents are supported by this processor.',
 		);
 	}
+	if (!isKnowledgeScanEligibleDocument(document) && !allowRestrictedDocumentType) {
+		throw new functions.https.HttpsError(
+			'failed-precondition',
+			'Manuals and warranties are stored with the property but are not scanned for suggested details yet.',
+		);
+	}
 	if (!toString(document.storagePath)) {
 		throw new functions.https.HttpsError(
 			'failed-precondition',
@@ -1124,12 +1182,14 @@ const processPdfDocumentAcquisition = async ({
 	propertyId,
 	documentId,
 	triggeredBy,
+	internalOverride,
 }: ProcessPdfDocumentAcquisitionInput): Promise<ProcessPdfDocumentAcquisitionResult> => {
 	const propertyRef = db.collection('properties').doc(propertyId);
 	const loaded = await loadDocumentForProcessing({
 		propertyRef,
 		documentId,
 		triggeredBy,
+		allowRestrictedDocumentType: Boolean(internalOverride),
 	});
 
 	if (!loaded) {
@@ -1155,6 +1215,7 @@ const processPdfDocumentAcquisition = async ({
 		title: 'Document review started',
 		message: 'Maintley is reviewing this document.',
 		push: false,
+		internalOverride,
 	});
 
 	try {
@@ -1284,6 +1345,7 @@ const processPdfDocumentAcquisition = async ({
 					message: 'Maintley could not review this document yet.',
 					push: true,
 					errorMessage: failureResult.message,
+					internalOverride,
 				});
 			}
 			return failureResult;
@@ -1428,6 +1490,7 @@ const processPdfDocumentAcquisition = async ({
 				title: 'Suggested details ready',
 				message: `Maintley found ${finalizeResult.suggestionCount} suggested detail${finalizeResult.suggestionCount === 1 ? '' : 's'} in ${toString(finalizeResult.document.fileName || finalizeResult.document.name) || 'this document'}.`,
 				push: true,
+				internalOverride,
 			});
 		}
 
@@ -1504,6 +1567,7 @@ const processPdfDocumentAcquisition = async ({
 			errorMessage:
 				error?.message ||
 				'Maintley could not review this document. Please try again later.',
+			internalOverride,
 		});
 
 		console.error('Property knowledge acquisition failed:', error);
@@ -1533,12 +1597,17 @@ export const processPropertyDocumentAcquisition = functions
 
 		const propertyData = propertySnapshot.data() || {};
 		await assertCanProcessProperty(propertyData, uid);
+		const internalOverride = await resolveInternalDocumentScanOverride(
+			uid,
+			data?.allowRestrictedDocumentType === true,
+		);
 
 		try {
 			return await processPdfDocumentAcquisition({
 				propertyId,
 				documentId,
 				triggeredBy: 'manual',
+				internalOverride,
 			});
 		} catch (error: any) {
 			if (error instanceof functions.https.HttpsError) {
@@ -1585,4 +1654,6 @@ export const processPropertyDocumentAcquisitionRequests = functions
 export const __test = {
 	buildPropertyConfirmationFromPdfText,
 	extractFieldsFromPdfText,
+	isKnowledgeScanEligibleDocument,
+	isMaintleyRestrictedScanRole,
 };
