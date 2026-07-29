@@ -111,6 +111,13 @@ Manual retry uses the callable processor directly instead of first writing a new
 that retry, which keeps the property document from receiving unnecessary status
 updates during repeated review attempts.
 
+After a PDF or DOCX review is applied or rejected, document managers with
+document-review access may choose **Scan again** from the document card. A
+rescan creates a new pending review while preserving earlier applied or rejected
+suggestions for provenance. Maintley does not offer a rescan while another
+review for that document is pending, and rescanning never changes Property
+Memory without a new approval.
+
 The active property detail view listens to collection-backed property document
 and suggestion records, then merges any embedded compatibility records. Document
 acquisition status changes written by the backend, such as `pending_review` or

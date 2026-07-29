@@ -37,6 +37,7 @@ import {
 } from 'propertyKnowledge/propertyMemoryRecordService';
 import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
 import {
+	getPropertyDocumentScanAction,
 	isProcessablePropertyDocument,
 	processPropertyDocumentAcquisition,
 } from 'propertyKnowledge/propertyKnowledgeProcessing';
@@ -721,6 +722,13 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						const isAcquisitionRetryable =
 							sourcePropertyDocument?.acquisitionStatus === 'failed' ||
 							isDocumentAcquisitionStale(sourcePropertyDocument);
+						const documentScanAction = getPropertyDocumentScanAction({
+							document: sourcePropertyDocument,
+							hasSuggestion: Boolean(latestKnowledgeSuggestion),
+							suggestionCount,
+							suggestionStatus: latestKnowledgeSuggestion?.status,
+							isRetryable: isAcquisitionRetryable,
+						});
 						return (
 							<DocumentCard key={key}>
 								<DocumentTitleRow>
@@ -804,8 +812,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									)}
 								{isPropertyDocument && canManageDocuments && (
 									<DocumentActions>
-										{!latestKnowledgeSuggestion ||
-										getKnowledgeSuggestionCount(latestKnowledgeSuggestion) === 0 ? (
+										{documentScanAction ? (
 											<DocumentActionButton
 												type='button'
 												onClick={() =>
@@ -819,7 +826,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 														!isDocumentAcquisitionStale(sourcePropertyDocument))
 												}>
 												{canUseDocumentReview
-													? 'Check for suggested details'
+													? documentScanAction === 'rescan'
+														? 'Scan again'
+														: 'Check for suggested details'
 													: 'Review with Homeowner+'}
 											</DocumentActionButton>
 										) : null}
