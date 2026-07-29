@@ -210,6 +210,10 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: node scripts/testEmailTemplates.cjs
 
+      - name: Access lifecycle billing classification tests
+        if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
+        run: yarn --cwd functions test:access-lifecycle-billing
+
       - name: Maintley Event lifecycle delivery tests
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         run: node scripts/testMaintleyEventEngine.cjs

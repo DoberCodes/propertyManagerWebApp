@@ -248,6 +248,14 @@ account. Later milestones
 supersede unseen earlier messages rather than sending a stale sequence. Paid
 conversion and terminal grant states suppress obsolete delivery immediately.
 
+Paid conversion suppression requires authoritative Stripe subscription evidence:
+an eligible paid base plan, an entitled billing status, and a non-empty Stripe
+subscription ID. Product capabilities and internal entitlement grants are not
+proof of payment. An authorized admin send may recover a delivery previously
+skipped specifically as `suppressed_paid_conversion` when current billing data
+does not confirm paid access. Sent deliveries and all other terminal skip reasons
+remain protected from replay.
+
 Milestones are evaluated against UTC instants and rendered in the account or
 owner time zone, with `America/New_York` retained only as the current fallback
 for accounts that do not yet store a configured zone.
