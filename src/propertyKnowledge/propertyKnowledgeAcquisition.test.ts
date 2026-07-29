@@ -186,6 +186,47 @@ describe('property knowledge acquisition', () => {
 		expect(result.maintenanceHistorySuggestion).toBeUndefined();
 	});
 
+	it('keeps the reason when an equipment suggestion is intentionally skipped', () => {
+		const suggestion = {
+			id: 'knowledge-docx-skip',
+			sourceDocumentId: 'docx-skip',
+			propertyId: 'property-1',
+			documentType: 'inspection_report' as const,
+			extractionMethod: 'docx_text' as const,
+			extractedFields: [],
+			suggestedEquipment: [{
+				id: 'equipment-range-hood',
+				label: 'Range Hood',
+				assetType: 'Range Hood',
+				sourceText: 'Clean range hood filter',
+			}],
+			status: 'pending' as const,
+			createdAt: '2026-07-24T15:00:00.000Z',
+		};
+
+		const accepted = acceptKnowledgeSuggestion(suggestion, {
+			acceptedByUser: 'user-1',
+			equipmentValues: {
+				'equipment-range-hood': {
+					accepted: false,
+					skipReason: 'Not part of this property',
+				},
+			},
+		});
+		const result = applyAcceptedKnowledgeSuggestion({
+			suggestion: accepted,
+			property: baseProperty,
+			systems: [baseSystem],
+			acceptedByUser: 'user-1',
+		});
+
+		expect(accepted.suggestedEquipment?.[0]).toMatchObject({
+			reviewStatus: 'rejected',
+			skipReason: 'Not part of this property',
+		});
+		expect(result.equipmentSuggestions).toHaveLength(0);
+	});
+
 	it('rejects a suggestion without deleting it', () => {
 		const suggestion = createPendingKnowledgeSuggestion({
 			document: baseDocument,

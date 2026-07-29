@@ -170,6 +170,15 @@ Objects and sections should default to accepted. Field-level keep/skip controls
 belong inside expanded details so the default review feels like approving a
 Property Memory merge, not answering a long list of database-field questions.
 
+Equipment reconciliation should follow the same low-friction default. When one
+clear existing equipment record matches, the review should preselect that
+record. When no clear match exists, the suggested new equipment record should
+default to approved. Skipping equipment is an intentional exception and should
+retain a short reviewer-selected reason with the reviewed suggestion. Tasks in
+the same review may select approved equipment that will be created during the
+save; the apply flow creates equipment first and resolves that selection to the
+new equipment ID before creating or linking the task.
+
 If Maintley finds a likely matching record, the review should explain why the
 match was suggested and allow the reviewer to update the existing record or mark
 it as not the same. This prevents duplicate work records when the same invoice is

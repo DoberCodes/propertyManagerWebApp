@@ -28,10 +28,6 @@ import { recordCurrentUserActivity } from './services/userActivityService';
 
 const USER_ACTIVITY_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
-const UpdateNotification = React.lazy(
-	() => import('./Components/Library/UpdateNotification/UpdateNotification'),
-);
-
 type SystemBarType = 'StatusBar' | 'NavigationBar';
 
 interface SystemBarsPlugin {
@@ -414,9 +410,6 @@ export const App = () => {
 					/>
 				)}
 				<RouterComponent />
-				<React.Suspense fallback={null}>
-					<UpdateNotification />
-				</React.Suspense>
 			</AppFeedbackProvider>
 		</DataFetchProvider>
 	);

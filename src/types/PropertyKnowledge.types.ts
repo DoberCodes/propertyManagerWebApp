@@ -158,6 +158,7 @@ export interface PropertyKnowledgeEquipmentSuggestion {
 	confidence?: number;
 	confidenceLevel?: PropertyKnowledgeConfidenceLevel;
 	confidenceReason?: string;
+	skipReason?: string;
 	reviewStatus?: PropertyKnowledgeReviewStatus;
 }
 
