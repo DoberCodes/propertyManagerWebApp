@@ -32,7 +32,7 @@ export type ServiceReportObservation = {
 	actionable: boolean;
 };
 
-export type ParsedDocxServiceReport = {
+export type ParsedServiceReport = {
 	title?: string;
 	technicianName?: string;
 	visitDate?: string;
@@ -44,6 +44,8 @@ export type ParsedDocxServiceReport = {
 	suggestedEquipment: ServiceReportEquipmentCandidate[];
 	rawText: string;
 };
+
+export type ParsedDocxServiceReport = ParsedServiceReport;
 
 const decodeHtml = (value: string) =>
 	value
@@ -73,6 +75,34 @@ const slug = (value: string) =>
 		.replace(/^-|-$/g, '')
 		.slice(0, 48) || 'item';
 
+const normalizeExtractedText = (value: string) =>
+	value
+		.replace(/\bfi\s+lter\b/gi, 'filter')
+		.replace(/([a-z])\s+fi\s+([a-z])/gi, '$1fi$2')
+		.replace(/\bfi\s+([a-z])/gi, 'fi$1')
+		.replace(/[ \t]+/g, ' ')
+		.trim();
+
+const expandRepeatedStatusRow = (row: string[], areaColumn: number, statusColumn: number) => {
+	const statuses = String(row[statusColumn] || '')
+		.split('\n')
+		.map((value) => value.trim())
+		.filter(Boolean);
+	if (statuses.length <= 1) return [row];
+	const areas = String(row[areaColumn] || '')
+		.split('\n')
+		.map((value) => value.trim())
+		.filter(Boolean);
+	return statuses.map((status, index) => {
+		const next = [...row];
+		next[statusColumn] = status;
+		next[areaColumn] = index === 0
+			? areas[0] || ''
+			: areas.slice(index).join(' ');
+		return next;
+	});
+};
+
 const extractTables = (html: string) =>
 	Array.from(html.matchAll(/<table>([\s\S]*?)<\/table>/gi)).map((tableMatch) =>
 		Array.from(tableMatch[1].matchAll(/<tr>([\s\S]*?)<\/tr>/gi)).map((rowMatch) =>
@@ -93,6 +123,11 @@ const getLabeledValue = (tables: string[][][], label: string) => {
 	}
 	return '';
 };
+
+const getRawLabeledValue = (rawText: string, label: string) =>
+	rawText
+		.match(new RegExp(`(?:^|\\n)${label.replace(/\s+/g, '\\s+')}\\s*:\\s*([^\\n]*)`, 'i'))?.[1]
+		?.trim() || '';
 
 const EQUIPMENT_RULES: Array<{
 	pattern: RegExp;
@@ -122,9 +157,13 @@ const priorityFromStatus = (statusLevel?: number): ServiceReportTaskCandidate['p
 	return 'Medium';
 };
 
-export const parseDocxServiceReportHtml = (html: string): ParsedDocxServiceReport => {
-	const tables = extractTables(html);
-	const rawText = textFromHtml(html.replace(/<img[^>]*>/gi, ''));
+export const parseServiceReportLayout = ({
+	tables,
+	rawText,
+}: {
+	tables: string[][][];
+	rawText: string;
+}): ParsedServiceReport => {
 	const title = rawText.match(/(?:^|\n)([^\n]*MAINTENANCE REPORT)(?:\n|$)/i)?.[1]?.trim();
 	const completedWork: string[] = [];
 	const observations: ServiceReportObservation[] = [];
@@ -138,18 +177,22 @@ export const parseDocxServiceReportHtml = (html: string): ParsedDocxServiceRepor
 
 		if (taskColumn >= 0 && statusColumn >= 0) {
 			for (const row of table.slice(1)) {
-				if (/complete/i.test(row[statusColumn] || '') && row[taskColumn]) {
-					completedWork.push(row[taskColumn].trim());
+				const statusText = row[statusColumn] || '';
+				if (/complete/i.test(statusText) && row[taskColumn]) {
+					const misplacedTaskText = statusText.replace(/\s*complete\b.*$/i, '').trim();
+					completedWork.push(normalizeExtractedText(
+						[row[taskColumn], misplacedTaskText].filter(Boolean).join(' '),
+					));
 				}
 			}
 		}
 
 		if (areaColumn >= 0 && statusColumn >= 0) {
-			for (const row of table.slice(1)) {
-				const area = row[areaColumn]?.trim();
+			for (const row of table.slice(1).flatMap((item) => expandRepeatedStatusRow(item, areaColumn, statusColumn))) {
+				const area = normalizeExtractedText(row[areaColumn] || '');
 				if (!area) continue;
-				const status = row[statusColumn]?.trim() || 'Status not recorded';
-				const notes = row[notesColumn]?.trim();
+				const status = normalizeExtractedText(row[statusColumn] || '') || 'Status not recorded';
+				const notes = normalizeExtractedText(row[notesColumn] || '');
 				const statusLevel = Number(status.match(/^[1-5]/)?.[0] || 0) || undefined;
 				observations.push({
 					id: `observation-${slug(area)}`,
@@ -187,9 +230,12 @@ export const parseDocxServiceReportHtml = (html: string): ParsedDocxServiceRepor
 		});
 	}
 
-	const futureFollowUps = tables.flatMap((table) =>
-		table.flatMap((row) => row.filter((cell) => /service|replace|repair/i.test(cell))),
-	);
+	const futureFollowUps = [
+		...tables.flatMap((table) =>
+			table.flatMap((row) => row.filter((cell) => /service|replace|repair/i.test(cell))),
+		),
+		...rawText.split('\n').filter((line) => /service|replace|repair/i.test(line)),
+	];
 	for (const followUp of futureFollowUps) {
 		const match = followUp.match(/(?:^|:\s*)(Service|Replace|Repair)\s+([^\n(.]+)/i);
 		if (!match) continue;
@@ -234,10 +280,10 @@ export const parseDocxServiceReportHtml = (html: string): ParsedDocxServiceRepor
 
 	return {
 		...(title ? { title } : {}),
-		technicianName: getLabeledValue(tables, 'technician name') || undefined,
-		visitDate: getLabeledValue(tables, 'visit date') || undefined,
-		visitTime: getLabeledValue(tables, 'visit time') || undefined,
-		propertyAddress: getLabeledValue(tables, 'home address') || undefined,
+		technicianName: getLabeledValue(tables, 'technician name') || getRawLabeledValue(rawText, 'technician name') || undefined,
+		visitDate: getLabeledValue(tables, 'visit date') || getRawLabeledValue(rawText, 'visit date') || undefined,
+		visitTime: getLabeledValue(tables, 'visit time') || getRawLabeledValue(rawText, 'visit time') || undefined,
+		propertyAddress: getLabeledValue(tables, 'home address') || getRawLabeledValue(rawText, 'home address') || undefined,
 		completedWork: Array.from(new Set(completedWork)),
 		observations,
 		suggestedTasks: Array.from(taskByTitle.values()),
@@ -245,6 +291,12 @@ export const parseDocxServiceReportHtml = (html: string): ParsedDocxServiceRepor
 		rawText,
 	};
 };
+
+export const parseDocxServiceReportHtml = (html: string): ParsedDocxServiceReport =>
+	parseServiceReportLayout({
+		tables: extractTables(html),
+		rawText: textFromHtml(html.replace(/<img[^>]*>/gi, '')),
+	});
 
 export const extractDocxServiceReport = async (buffer: Buffer) => {
 	const result = await mammoth.convertToHtml(
