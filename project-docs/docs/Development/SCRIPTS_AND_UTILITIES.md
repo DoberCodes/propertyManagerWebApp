@@ -1064,6 +1064,10 @@ Publishes Firestore `appConfig/version`. The Publish App Version GitHub Action
 uses this after the Google Play release is ready, so Android update prompts send
 users to the Play Store listing.
 
+The client-side update prompt is temporarily not mounted. Version publishing
+and metadata remain available for a future prompt that verifies Google Play
+availability before notifying users.
+
 Risk:
 
 Medium
