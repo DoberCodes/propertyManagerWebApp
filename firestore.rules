@@ -150,7 +150,9 @@ service cloud.firestore {
                 ? plan == 'portfolio'
                 : (capabilityId == 'recurring_tasks.use'
 				  ? ['homeowner', 'homeowner_plus', 'property', 'portfolio'].hasAny([plan])
-                  : false)))));
+                  : (capabilityId == 'property_types.business' || capabilityId == 'rental_management.use'
+				    ? ['property', 'portfolio'].hasAny([plan])
+                    : false))))));
     }
 
     function clientInitialSubscriptionIsSafe(data) {
@@ -414,6 +416,57 @@ service cloud.firestore {
         hasActiveManagedInvitePlan(accountId);
     }
 
+    function canUseBusinessPropertyTypes(accountId) {
+      return planHasCapability(baseEntitledPlanForAccount(accountId), 'property_types.business') ||
+        hasActiveProjectedBundle(accountId, 'property') ||
+        hasActiveProjectedBundle(accountId, 'portfolio');
+    }
+
+    function canUseRentalManagement(accountId) {
+      return planHasCapability(baseEntitledPlanForAccount(accountId), 'rental_management.use') ||
+        hasActiveProjectedBundle(accountId, 'property') ||
+        hasActiveProjectedBundle(accountId, 'portfolio');
+    }
+
+    function normalizedPropertyType(data) {
+      return !('propertyType' in data) ||
+        ['residential', 'Single Family', 'Single-Family'].hasAny([data.propertyType])
+        ? 'residential'
+        : (['multi_unit', 'Multi-Family'].hasAny([data.propertyType]) ? 'multi_unit' : data.propertyType);
+    }
+
+    function propertyCreateRespectsTaxonomyPlan(accountId) {
+      return (
+        normalizedPropertyType(request.resource.data) == 'residential' ||
+        canUseBusinessPropertyTypes(accountId)
+      ) && (
+        !(('isRental' in request.resource.data) && request.resource.data.isRental == true) ||
+        canUseRentalManagement(accountId)
+      ) && propertyClassificationMatchesType(request.resource.data);
+    }
+
+    function propertyClassificationMatchesType(data) {
+      return !('propertyClassification' in data) ||
+        (normalizedPropertyType(data) == 'residential' &&
+          ['single_family', 'condo', 'townhome', 'apartment'].hasAny([data.propertyClassification])) ||
+        (normalizedPropertyType(data) == 'multi_unit' &&
+          ['duplex', 'triplex', 'fourplex', 'apartment_building', 'other_multi_unit'].hasAny([data.propertyClassification])) ||
+        (normalizedPropertyType(data) == 'commercial' &&
+          ['commercial_suite', 'standalone_commercial', 'multi_tenant_commercial', 'mixed_use', 'industrial_warehouse', 'other_commercial'].hasAny([data.propertyClassification]));
+    }
+
+    function propertyUpdateRespectsTaxonomyPlan(accountId) {
+      return propertyClassificationMatchesType(request.resource.data) &&
+        (canUseBusinessPropertyTypes(accountId) ||
+        (
+          normalizedPropertyType(request.resource.data) == normalizedPropertyType(resource.data) &&
+          (
+            !(('isRental' in request.resource.data) && request.resource.data.isRental == true) ||
+            (('isRental' in resource.data) && resource.data.isRental == true)
+          )
+        ));
+    }
+
     function unitWriteRespectsResidentPlan(accountId) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['occupants']) ||
         hasActiveManagedInvitePlan(accountId);
@@ -586,12 +639,14 @@ service cloud.firestore {
         canManageAccount(request.resource.data.accountId) &&
         hasCorePlanForResources(request.resource.data.accountId) &&
         propertyCreateRespectsResidentPlan(request.resource.data.accountId) &&
+		propertyCreateRespectsTaxonomyPlan(request.resource.data.accountId) &&
         currentPropertyCount(request.resource.data.accountId) < maxPropertiesForAccount(request.resource.data.accountId) &&
         hasPropertyCounterCreateIncrement(request.resource.data.accountId);
       allow update: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         canManageAccount(resource.data.accountId) &&
-        propertyWriteRespectsResidentPlan(resource.data.accountId);
+		propertyWriteRespectsResidentPlan(resource.data.accountId) &&
+		propertyUpdateRespectsTaxonomyPlan(resource.data.accountId);
       allow delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         canManageAccount(resource.data.accountId) &&

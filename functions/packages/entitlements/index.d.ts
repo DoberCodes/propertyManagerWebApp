@@ -34,7 +34,9 @@ export type CapabilityId =
 	| 'recurring_tasks.use'
 	| 'notifications.use'
 	| 'property_intelligence.use'
-	| 'property_knowledge.acquire';
+	| 'property_knowledge.acquire'
+	| 'property_types.business'
+	| 'rental_management.use';
 
 export type LimitId =
 	| 'properties'

@@ -82,7 +82,8 @@ describe('PropertyDialog', () => {
 
 		await waitFor(() => expect(onSave).toHaveBeenCalled());
 		const savedArg = (onSave as jest.Mock).mock.calls[0][0];
-		expect(savedArg.propertyType).toBe('Single Family');
+		expect(savedArg.propertyType).toBe('residential');
+		expect(savedArg.propertyClassification).toBe('single_family');
 		expect(savedArg.isRental).toBe(false);
 		expect(savedArg.openSetupAfterCreate).toBe(false);
 	});
@@ -103,7 +104,8 @@ describe('PropertyDialog', () => {
 						name: 'Existing Home',
 						owner: 'Homeowner',
 						address: '123 Main Street',
-						propertyType: 'Single Family',
+						propertyType: 'residential',
+						propertyClassification: 'single_family',
 						isRental: true,
 						bedrooms: 3,
 						bathrooms: 2,
@@ -113,8 +115,9 @@ describe('PropertyDialog', () => {
 			</Provider>,
 		);
 
-		expect(screen.queryByText('Rental Settings')).not.toBeInTheDocument();
 		await user.click(screen.getByRole('button', { name: /^next$/i }));
+		expect(screen.getByText('Rental Settings')).toBeInTheDocument();
+		expect(screen.getByRole('checkbox', { name: /is a rental/i })).toBeDisabled();
 		await user.click(screen.getByRole('button', { name: /^next$/i }));
 		await user.click(screen.getByRole('button', { name: /^next$/i }));
 		expect(screen.queryByText('Rental Home')).not.toBeInTheDocument();

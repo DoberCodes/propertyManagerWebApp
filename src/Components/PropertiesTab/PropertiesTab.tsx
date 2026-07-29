@@ -58,6 +58,8 @@ import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice
 import {
 	canAddProperty,
 	canPropertyGroups,
+	canUseBusinessPropertyTypes,
+	canUseRentalManagement,
 	getEffectiveSubscriptionPlanId,
 	getMaxPropertiesForPlan,
 	getRemainingPropertySlots,
@@ -65,6 +67,13 @@ import {
 	isIntentionalFreeAccountSubscription,
 	isTrialExpired,
 } from '../../utils/subscriptionUtils';
+import {
+	getDefaultPropertyClassification,
+	isMultiUnitProperty,
+	isResidentialProperty,
+	normalizePropertyType,
+	PropertyType,
+} from '../../utils/propertyTaxonomy';
 import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 import {
 	filterPropertyGroupsByRole,
@@ -577,7 +586,7 @@ export const Properties = () => {
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 	const [sortBy, setSortBy] = useState<'name' | 'recent' | 'updated'>('name');
 	const [filterBy, setFilterBy] = useState<'all' | 'rental' | 'residential'>('all');
-	const [filterPropertyType, setFilterPropertyType] = useState<'all' | 'Single Family' | 'Multi-Family' | 'Commercial'>('all');
+	const [filterPropertyType, setFilterPropertyType] = useState<'all' | PropertyType>('all');
 	const [filterMinBedrooms, setFilterMinBedrooms] = useState<number>(0);
 	const [filterLocation, setFilterLocation] = useState<string>('');
 	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -587,7 +596,7 @@ export const Properties = () => {
 	const [draftFilterBy, setDraftFilterBy] =
 		useState<'all' | 'rental' | 'residential'>('all');
 	const [draftPropertyType, setDraftPropertyType] =
-		useState<'all' | 'Single Family' | 'Multi-Family' | 'Commercial'>('all');
+		useState<'all' | PropertyType>('all');
 	const [draftMinBedrooms, setDraftMinBedrooms] = useState<number>(0);
 	const [draftLocation, setDraftLocation] = useState<string>('');
 	const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
@@ -704,7 +713,7 @@ export const Properties = () => {
 					.filter((property: Property) => {
 						if (filterBy === 'rental' && !property.isRental) return false;
 						if (filterBy === 'residential' && property.isRental) return false;
-						if (filterPropertyType !== 'all' && property.propertyType !== filterPropertyType) return false;
+						if (filterPropertyType !== 'all' && normalizePropertyType(property.propertyType) !== filterPropertyType) return false;
 						if (filterMinBedrooms > 0 && (property.bedrooms ?? 0) < filterMinBedrooms) return false;
 						const locationQuery = filterLocation.trim().toLowerCase();
 						if (locationQuery) {
@@ -894,7 +903,10 @@ export const Properties = () => {
 			photo: propertyToDuplicate.image,
 			owner: propertyToDuplicate.owner || '',
 			address: propertyToDuplicate.address || '',
-			propertyType: propertyToDuplicate.propertyType || 'Single Family',
+			propertyType: normalizePropertyType(propertyToDuplicate.propertyType),
+			propertyClassification:
+				propertyToDuplicate.propertyClassification ||
+				getDefaultPropertyClassification(propertyToDuplicate.propertyType),
 			bedrooms: propertyToDuplicate.bedrooms ?? 0,
 			bathrooms: propertyToDuplicate.bathrooms ?? 0,
 			notes: propertyToDuplicate.notes || '',
@@ -1128,6 +1140,17 @@ export const Properties = () => {
 	const handleDuplicatePropertyClick = (groupId: string, property: any) => {
 		if (!currentUser?.subscription) {
 			feedback.notify('Unable to verify subscription. Please contact support.');
+			return;
+		}
+		if (
+			(!isResidentialProperty(property.propertyType) &&
+				!canUseBusinessPropertyTypes(currentUser.subscription)) ||
+			(property.isRental && !canUseRentalManagement(currentUser.subscription))
+		) {
+			feedback.notify(
+				'This property remains available to review and edit, but your current plan cannot create another property with its business settings.',
+			);
+			setOpenDropdown(null);
 			return;
 		}
 
@@ -1986,12 +2009,11 @@ export const Properties = () => {
 			return 'Rental';
 		}
 
-		if (property.propertyType === 'Commercial') {
+		if (normalizePropertyType(property.propertyType) === 'commercial') {
 			return 'Commercial';
 		}
-
-		if (property.propertyType === 'Multi-Family') {
-			return 'Portfolio';
+		if (isMultiUnitProperty(property.propertyType)) {
+			return 'Multi-unit';
 		}
 
 		return 'Primary Home';
@@ -2191,9 +2213,7 @@ export const Properties = () => {
 			throw new Error('Duplicate property name must be changed');
 		}
 
-		const effectivePropertyType = isHomeowner
-			? 'Single Family'
-			: formData.propertyType;
+		const effectivePropertyType = formData.propertyType;
 		const normalizedGroupId =
 			typeof formData.groupId === 'string' && formData.groupId.trim().length > 0
 				? formData.groupId.trim()
@@ -2216,6 +2236,7 @@ export const Properties = () => {
 					owner: formData.owner,
 					address: formData.address,
 					propertyType: effectivePropertyType,
+					propertyClassification: formData.propertyClassification,
 					bedrooms: formData.bedrooms,
 					bathrooms: formData.bathrooms,
 					notes: formData.notes,
@@ -2318,6 +2339,7 @@ export const Properties = () => {
 				owner: formData.owner,
 				address: normalizedAddress,
 				propertyType: effectivePropertyType,
+				propertyClassification: formData.propertyClassification,
 				bedrooms: formData.bedrooms,
 				bathrooms: formData.bathrooms,
 				notes: formData.notes,
@@ -2683,9 +2705,9 @@ export const Properties = () => {
 								setDraftPropertyType(event.target.value as typeof draftPropertyType)
 							}>
 							<option value='all'>All types</option>
-							<option value='Single Family'>Single Family</option>
-							<option value='Multi-Family'>Multi-Family</option>
-							<option value='Commercial'>Commercial</option>
+							<option value='residential'>Residential</option>
+							<option value='multi_unit'>Multi-unit</option>
+							<option value='commercial'>Commercial</option>
 						</PropertyFilterSelect>
 					</PropertyFilterField>
 					<PropertyFilterField>
@@ -2778,9 +2800,9 @@ export const Properties = () => {
 									setDraftPropertyType(e.target.value as typeof draftPropertyType)
 								}>
 								<option value='all'>All types</option>
-								<option value='Single Family'>Single Family</option>
-								<option value='Multi-Family'>Multi-Family</option>
-								<option value='Commercial'>Commercial</option>
+								<option value='residential'>Residential</option>
+								<option value='multi_unit'>Multi-unit</option>
+								<option value='commercial'>Commercial</option>
 							</PropertyFilterSelect>
 						</PropertyFilterField>
 						<PropertyFilterField>
@@ -2878,8 +2900,10 @@ export const Properties = () => {
 								photo: selectedPropertyForEdit.image,
 								owner: selectedPropertyForEdit.owner || '',
 								address: selectedPropertyForEdit.address || '',
-								propertyType:
-									selectedPropertyForEdit.propertyType || 'Single Family',
+								propertyType: normalizePropertyType(selectedPropertyForEdit.propertyType),
+								propertyClassification:
+									selectedPropertyForEdit.propertyClassification ||
+									getDefaultPropertyClassification(selectedPropertyForEdit.propertyType),
 								bedrooms: selectedPropertyForEdit.bedrooms || 0,
 								bathrooms: selectedPropertyForEdit.bathrooms || 0,
 								notes: selectedPropertyForEdit.notes || '',

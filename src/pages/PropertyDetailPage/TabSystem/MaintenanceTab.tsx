@@ -70,6 +70,7 @@ import { RoleCapabilities } from 'utils/permissions';
 import { COLORS } from '../../../constants/colors';
 import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
 import { useGetMaintenanceEventRevisionsByPropertyQuery } from '../../../Redux/API/maintenanceSlice';
+import { isMultiUnitProperty } from '../../../utils/propertyTaxonomy';
 
 const maintenanceEventTypeLabels: Record<string, string> = {
 	task_completed: 'Task Completed',
@@ -840,7 +841,7 @@ export const MaintenanceTab = ({
 
 		// Apply unit filter separately (only for Multi-Family properties)
 		if (
-			property?.propertyType === 'Multi-Family' &&
+			isMultiUnitProperty(property?.propertyType) &&
 			filters.unit &&
 			filters.unit !== 'all'
 		) {
