@@ -1,5 +1,6 @@
 import { calculateCostTotal } from '../utils/financialUtils';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../maintenanceHistory/maintenanceHistoryAdapter';
+import { isResidentialProperty } from '../utils/propertyTaxonomy';
 
 export type ReportType =
 	| 'tasks'
@@ -56,9 +57,7 @@ export const FINANCIAL_COLUMN_KEYS = new Set([
 ]);
 
 export const isSingleFamilyProperty = (propertyType?: string): boolean => {
-	if (!propertyType) return false;
-	const normalized = String(propertyType).toLowerCase().replace(/[-_]/g, ' ').trim();
-	return normalized.includes('single');
+	return Boolean(propertyType) && isResidentialProperty(propertyType);
 };
 
 export const getActiveAccountId = (user: any): string =>

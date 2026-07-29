@@ -41,6 +41,8 @@ const CAPABILITY_IDS = Object.freeze([
 	'notifications.use',
 	'property_intelligence.use',
 	'property_knowledge.acquire',
+	'property_types.business',
+	'rental_management.use',
 ]);
 
 const LIMIT_IDS = Object.freeze([
@@ -228,6 +230,8 @@ const PROPERTY_CAPABILITIES = [
 	'residents.manage',
 	'residents.view',
 	'property_groups.manage',
+	'property_types.business',
+	'rental_management.use',
 ];
 
 const PORTFOLIO_CAPABILITIES = [

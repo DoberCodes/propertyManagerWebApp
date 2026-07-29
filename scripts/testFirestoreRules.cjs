@@ -196,6 +196,11 @@ async function seedFirestore(env) {
 				accountId: downgradedOwnerUid,
 				userId: downgradedOwnerUid,
 				title: `Retained property ${propertyNumber}`,
+				...(propertyNumber === 1 && {
+					propertyType: 'commercial',
+					propertyClassification: 'commercial_suite',
+					isRental: true,
+				}),
 			});
 		}
 		await db.doc('teamMembers/downgraded-existing-member').set({
@@ -656,6 +661,16 @@ async function run() {
 				.doc('properties/homeowner-plus-property-5')
 				.update({ tenants: ['resident-user'] }),
 		);
+		await assertFails(
+			homeownerPlusDb
+				.doc('properties/homeowner-plus-property-5')
+				.update({ propertyType: 'multi_unit', propertyClassification: 'duplex' }),
+		);
+		await assertFails(
+			homeownerPlusDb
+				.doc('properties/homeowner-plus-property-5')
+				.update({ isRental: true }),
+		);
 
 		await assertSucceeds(
 			maintenanceLeadDb.doc('tasks/task-existing').get(),
@@ -731,13 +746,33 @@ async function run() {
 		await assertSucceeds(
 			portfolioGrantOwnerDb
 				.doc(`properties/${portfolioGrantOwnerUid}-property`)
-				.update({ tenants: [{ firstName: 'Manual', lastName: 'Occupant' }] }),
+				.update({
+					tenants: [{ firstName: 'Manual', lastName: 'Occupant' }],
+					propertyType: 'multi_unit',
+					propertyClassification: 'duplex',
+					isRental: true,
+				}),
+		);
+		await assertFails(
+			portfolioGrantOwnerDb
+				.doc(`properties/${portfolioGrantOwnerUid}-property`)
+				.update({ propertyClassification: 'condo' }),
 		);
 		await assertSucceeds(
 			downgradedOwnerDb.doc(`properties/${downgradedOwnerUid}-property-1`).get(),
 		);
 		await assertSucceeds(
 			downgradedOwnerDb.doc(`properties/${downgradedOwnerUid}-property-2`).get(),
+		);
+		await assertSucceeds(
+			downgradedOwnerDb
+				.doc(`properties/${downgradedOwnerUid}-property-1`)
+				.update({ title: 'Retained commercial property updated' }),
+		);
+		await assertFails(
+			downgradedOwnerDb
+				.doc(`properties/${downgradedOwnerUid}-property-1`)
+				.update({ propertyType: 'residential', propertyClassification: 'condo' }),
 		);
 		const blockedDowngradeExpansion = downgradedOwnerDb.batch();
 		blockedDowngradeExpansion.set(

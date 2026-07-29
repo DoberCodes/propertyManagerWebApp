@@ -375,6 +375,7 @@ Typical fields:
 * name
 * address
 * propertyType
+* propertyClassification
 * photoUrl
 * notes
 * createdAt
@@ -389,6 +390,13 @@ Optional fields may include:
 * occupancy information
 
 Properties should store descriptive information rather than operational history.
+
+`propertyType` uses the canonical values `residential`, `multi_unit`, and
+`commercial`. `propertyClassification` refines the physical form within that
+broad type. `isRental` is independent behavioral state and is not inferred from
+either taxonomy field. Legacy values are normalized at application boundaries;
+the ADR 0033 migration writes canonical values without guessing an unknown
+Multi-unit or Commercial classification.
 
 Operational history belongs in Maintenance Events.
 

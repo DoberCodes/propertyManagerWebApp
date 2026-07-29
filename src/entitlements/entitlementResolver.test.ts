@@ -6,7 +6,6 @@ import {
 	PLAN_PRESETS,
 	getEntitlementLimit,
 	hasCapability,
-	isPlanEnabled,
 	getAdminAuditEventId,
 	getComplimentaryTransitionIssues,
 	isFirstPropertyTrialEligible,
@@ -83,6 +82,17 @@ describe('centralized entitlement resolver', () => {
 				'unknown_limit' as Parameters<typeof getEntitlementLimit>[1],
 			),
 		).toBe(0);
+	});
+
+	it('reserves business property types and rental management for operator plans', () => {
+		for (const planId of ['homeowner', 'homeowner_plus'] as const) {
+			expect(hasCapability(PLAN_PRESETS[planId], 'property_types.business')).toBe(false);
+			expect(hasCapability(PLAN_PRESETS[planId], 'rental_management.use')).toBe(false);
+		}
+		for (const planId of ['property', 'portfolio'] as const) {
+			expect(hasCapability(PLAN_PRESETS[planId], 'property_types.business')).toBe(true);
+			expect(hasCapability(PLAN_PRESETS[planId], 'rental_management.use')).toBe(true);
+		}
 	});
 
 	it('preserves current active, trial, expired, pending, and scheduled behavior', () => {

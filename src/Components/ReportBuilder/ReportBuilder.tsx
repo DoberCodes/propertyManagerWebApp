@@ -142,6 +142,10 @@ import {
 	normalizeMaintenanceHistoryReportRows,
 	normalizeTaskReportRows,
 } from '../../reporting/reportDataAdapters';
+import {
+	isCommercialProperty,
+	isMultiUnitProperty,
+} from '../../utils/propertyTaxonomy';
 
 // Alias Library components to match local naming convention
 const FormGroup = LibraryFormGroup;
@@ -760,20 +764,18 @@ export const ReportBuilder: React.FC = () => {
 
 	const hasMultiFamilyProperties = useMemo(() => {
 		if (isHomeowner) return false;
-		return scopedProperties.some((property: any) => {
-			const ptype = String(property.propertyType || '').toLowerCase();
-			return ptype.includes('multi');
-		});
+		return scopedProperties.some((property: any) =>
+			isMultiUnitProperty(property.propertyType),
+		);
 	}, [scopedProperties, isHomeowner]);
 
 	const hasCommercialSuites = useMemo(() => {
 		if (isHomeowner) return false;
 		return scopedProperties.some((property: any) => {
-			const ptype = String(property.propertyType || '').toLowerCase();
 			const hasSuitesFlag = !!property.hasSuites;
 			const hasSuitesArray =
 				Array.isArray(property.suites) && property.suites.length > 0;
-			return ptype.includes('commercial') && (hasSuitesFlag || hasSuitesArray);
+			return isCommercialProperty(property.propertyType) && (hasSuitesFlag || hasSuitesArray);
 		});
 	}, [scopedProperties, isHomeowner]);
 

@@ -1,5 +1,10 @@
 import { PropertyDetailSectionProps } from '../../types/PropertyDetailPage.types';
 import {
+	getPropertyClassificationLabel,
+	getPropertyTypeLabel,
+	isResidentialProperty,
+} from '../../utils/propertyTaxonomy';
+import {
 	InfoCard,
 	InfoGrid,
 	InfoLabel,
@@ -62,8 +67,12 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 					<InfoLabel>{props.homeownerMode ? 'Home Type' : 'Property Type'}</InfoLabel>
 
 					<InfoValue>
-						{props.property?.propertyType || 'Single Family'}
+						{getPropertyTypeLabel(props.property?.propertyType)}
 					</InfoValue>
+				</InfoCard>
+				<InfoCard>
+					<InfoLabel>{isResidentialProperty(props.property?.propertyType) ? 'Home Style' : 'Building Type'}</InfoLabel>
+					<InfoValue>{getPropertyClassificationLabel(props.property?.propertyClassification) || 'Not classified'}</InfoValue>
 				</InfoCard>
 				<InfoCard>
 					<InfoLabel>Owner{getAllOwners().length > 1 ? 's' : ''}</InfoLabel>
@@ -79,8 +88,7 @@ export const PropertyDetailSection = (props: PropertyDetailSectionProps) => {
 
 					<InfoValue>{props.property?.address}</InfoValue>
 				</InfoCard>
-				{props.property?.propertyType !== 'Commercial' &&
-					props.property?.propertyType !== 'Multi-Family' && (
+				{isResidentialProperty(props.property?.propertyType) && (
 						<>
 							<InfoCard>
 								<InfoLabel>Bedrooms</InfoLabel>
