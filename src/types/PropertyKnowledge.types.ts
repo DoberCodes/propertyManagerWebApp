@@ -18,7 +18,8 @@ export type PropertyKnowledgeExtractionMethod =
 	| 'metadata_placeholder'
 	| 'image_ocr'
 	| 'pdf_text'
-	| 'pdf_rendered_ocr';
+	| 'pdf_rendered_ocr'
+	| 'docx_text';
 
 export type PropertyKnowledgeConfidenceLevel = 'high' | 'medium' | 'low';
 
@@ -66,6 +67,7 @@ export type PropertyKnowledgeFieldKey =
 	| 'currency'
 	| 'maintenanceEventDate'
 	| 'maintenanceEventDescription'
+	| 'performedByName'
 	| 'maintenanceType'
 	| 'servicePerformed'
 	| 'recommendedMaintenanceInterval'
@@ -128,6 +130,47 @@ export interface ExtractedPartSuggestion {
 	provenance?: PropertyKnowledgeProvenance;
 }
 
+export interface PropertyKnowledgeTaskSuggestion {
+	id: string;
+	title: string;
+	description: string;
+	priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+	scheduleMode?: 'scheduled' | 'asap' | 'unscheduled';
+	dueDate?: string;
+	relatedAssetType?: string;
+	matchedDeviceId?: string;
+	sourceText: string;
+	confidence?: number;
+	confidenceLevel?: PropertyKnowledgeConfidenceLevel;
+	confidenceReason?: string;
+	userEditableTitle?: string;
+	userEditableDescription?: string;
+	reviewStatus?: PropertyKnowledgeReviewStatus;
+}
+
+export interface PropertyKnowledgeEquipmentSuggestion {
+	id: string;
+	label: string;
+	assetType: string;
+	assetVariant?: string;
+	matchedDeviceId?: string;
+	sourceText: string;
+	confidence?: number;
+	confidenceLevel?: PropertyKnowledgeConfidenceLevel;
+	confidenceReason?: string;
+	skipReason?: string;
+	reviewStatus?: PropertyKnowledgeReviewStatus;
+}
+
+export interface PropertyKnowledgeVisitObservation {
+	id: string;
+	area: string;
+	status: string;
+	statusLevel?: number;
+	notes?: string;
+	actionable: boolean;
+}
+
 export type PropertyKnowledgePropertyConfirmationStatus =
 	| 'needs_confirmation'
 	| 'confirmed';
@@ -154,6 +197,9 @@ export interface PropertyKnowledgeSuggestion {
 	extractionMethod: PropertyKnowledgeExtractionMethod;
 	extractedFields: ExtractedKnowledgeField[];
 	suggestedParts?: ExtractedPartSuggestion[];
+	suggestedTasks?: PropertyKnowledgeTaskSuggestion[];
+	suggestedEquipment?: PropertyKnowledgeEquipmentSuggestion[];
+	visitObservations?: PropertyKnowledgeVisitObservation[];
 	confidence?: number;
 	status: PropertyKnowledgeSuggestionStatus;
 	createdAt: string;

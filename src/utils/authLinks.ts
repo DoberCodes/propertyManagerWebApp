@@ -1,5 +1,6 @@
 import { Browser } from '@capacitor/browser';
 import { auth } from '../config/firebase';
+import { STRIPE_CUSTOMER_PORTAL_URL } from '../constants/stripe';
 import { isNativeApp } from './platform';
 
 const sanitizeBaseUrl = (raw: string): string => raw.replace(/\/+$/, '');
@@ -61,6 +62,9 @@ export const getAccountManagementUrl = (): string =>
 export const getSubscriptionManagementUrl = (): string =>
 	`${getPublicWebBaseUrl()}/#/${auth.currentUser ? 'paywall' : 'login'}`;
 
+export const getCustomerBillingPortalUrl = (): string =>
+	STRIPE_CUSTOMER_PORTAL_URL;
+
 export const openRegistrationInBrowser = async (): Promise<void> => {
 	const url = getRegistrationUrl();
 	if (isNativeApp()) {
@@ -82,5 +86,17 @@ export const openSubscriptionManagementInBrowser = async (): Promise<void> => {
 
 	if (typeof window !== 'undefined') {
 		window.location.href = url;
+	}
+};
+
+export const openCustomerBillingPortal = async (): Promise<void> => {
+	const url = getCustomerBillingPortalUrl();
+	if (isNativeApp()) {
+		await Browser.open({ url });
+		return;
+	}
+
+	if (typeof window !== 'undefined') {
+		window.open(url, '_blank', 'noopener,noreferrer');
 	}
 };

@@ -1,6 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebaseStorage';
-import { assertStorageQuotaForFiles } from './storageQuota';
 import { signalStorageUsageUpdated } from './storageUsageEvents';
 
 const MAX_PROFILE_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB
@@ -27,11 +26,10 @@ export const uploadUserProfileImage = async (
 	if (!isValidUserProfileImageFile(file)) {
 		throw new Error('Invalid image. Please use an image under 8MB.');
 	}
-	await assertStorageQuotaForFiles(file, { accountId: userId });
-
 	const fileName = buildFileName(file);
 	const folder = `user-profile-images/${userId}`;
-	const storageRef = ref(storage, `${folder}/${fileName}`);
+	const storagePath = `${folder}/${fileName}`;
+	const storageRef = ref(storage, storagePath);
 
 	await uploadBytes(storageRef, file, { contentType: file.type });
 	const downloadUrl = await getDownloadURL(storageRef);

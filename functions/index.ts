@@ -43,11 +43,37 @@ export { acceptFamilyInvite } from './acceptFamilyInvite';
 export { updateFamilyMemberRole } from './updateFamilyMemberRole';
 export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
+export { recordUserActivity } from './recordUserActivity';
+export {
+	finalizeFirstPropertyTrial,
+	issueHomeownerPlusTrialOnFirstProperty,
+} from './entitlementGrants';
+export { activatePropertySetupMaintenancePlan } from './activatePropertySetupMaintenancePlan';
+export { manageRecurringTask } from './manageRecurringTask';
+export { manageManualOccupancy } from './manageManualOccupancy';
+export {
+	reserveStorageUpload,
+	getStorageQuotaStatus,
+	finalizeStorageQuotaUsage,
+	releaseStorageQuotaUsage,
+} from './storageQuota';
+export {
+	previewComplimentaryAccessCode,
+	redeemComplimentaryAccessCode,
+} from './complimentaryAccessCodes';
+export {
+	sendAccessLifecycleActivationOnGrantCreate,
+	sendAccessLifecycleEmails,
+	sendAccessLifecycleEmailTest,
+	sendAdminAccessLifecycleEmail,
+	sendAdminOperationalUserEmail,
+} from './accessLifecycleEmails';
 export {
 	createMaintenanceEvent,
 	createMaintenanceEventsBatch,
 	updateMaintenanceEvent,
 	deleteMaintenanceEvent,
+	correctMaintenanceHistoryRecord,
 	notifyTaskCompletion,
 } from './maintenanceEvents';
 export {
@@ -76,9 +102,13 @@ export {
 	listAdminPortalUsers,
 	listAdminPortalAuditLogs,
 	getAdminPortalUserTroubleshootingDetails,
+	adminPortalPreviewEntitlementGrant,
+	adminPortalMutateEntitlementGrant,
 	adminPortalManageUserSubscription,
 	adminPortalRefreshUserSubscriptionFromStripe,
 	adminPortalApplyUserBillingActions,
+	adminPortalCreateComplimentaryAccessCode,
+	adminPortalListComplimentaryAccessCodes,
 	adminPortalCreateBillingCoupon,
 	adminPortalListBillingCoupons,
 	adminPortalCreateCheckoutLinkWithCoupon,
@@ -88,8 +118,9 @@ export {
 	deleteFeedbackAdminParentTicket,
 } from './adminPortal';
 export { cleanupClosedFeedbackAttachments } from './cleanupClosedFeedbackAttachments';
-// Temporarily disabled due to missing utils/taskNotificationScheduler module
-// export {
-// 	scheduledTaskNotifications,
-// 	triggerTaskNotifications,
-// } from './src/taskNotifications';
+export {
+	adminPortalListMaintleyTeam,
+	adminPortalMutateMaintleyTeam,
+} from './maintleyTeamAdmin';
+export { managePersonalAssistantCredentials } from './personalAssistantCredentials';
+export { personalAssistantApi } from './personalAssistantApi';

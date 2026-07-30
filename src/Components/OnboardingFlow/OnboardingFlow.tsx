@@ -1,1324 +1,296 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronUp } from '@fortawesome/free-solid-svg-icons';
-import { RootState } from '../../Redux/store/store';
 import styled from 'styled-components';
-import { COLORS } from '../../constants/colors';
+import { RootState } from '../../Redux/store/store';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import {
-	selectIsHomeowner,
 	selectCanAccessProperties,
+	selectIsHomeowner,
 } from '../../Redux/selectors/permissionSelectors';
-import { getPropertySetupProgress } from '../../utils/propertySetupAssistant';
-import { canUseSuggestedMaintenancePackages } from '../../utils/subscriptionUtils';
+import { COLORS } from '../../constants/colors';
 
-const OnboardingOverlay = styled.div`
+const Overlay = styled.div`
 	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: rgba(0, 0, 0, 0.8);
+	inset: 0;
 	z-index: 11000;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	padding: 20px;
-	overflow-x: hidden;
+	background: rgba(15, 23, 42, 0.72);
 
-	@media (max-width: 768px) {
-		padding: 8px;
+	@media (max-width: 640px) {
+		align-items: flex-end;
+		padding: 10px;
 	}
 `;
 
-const OnboardingModal = styled.div`
-	background: ${COLORS.bgWhite};
-	border-radius: 16px;
-	padding: 40px;
-	max-width: 600px;
-	width: 100%;
-	max-height: 90vh;
+const Panel = styled.section`
+	width: min(520px, 100%);
+	max-height: calc(100dvh - 20px);
 	overflow-y: auto;
-	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	padding: 32px;
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 18px;
+	background: ${COLORS.bgWhite};
+	box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
 
-	@media (max-width: 768px) {
-		border-radius: 14px;
-		padding: 18px 16px;
-		max-height: calc(100dvh - 16px);
-		overflow-y: auto;
+	@media (max-width: 640px) {
+		padding: 22px 18px;
+		border-radius: 16px;
 	}
 `;
 
-const OnboardingHeader = styled.div`
-	text-align: center;
-	margin-bottom: 32px;
+const Eyebrow = styled.p`
+	margin: 0 0 8px;
+	color: ${COLORS.primary};
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+`;
 
-	h1 {
-		font-size: 28px;
-		font-weight: 700;
+const Title = styled.h1`
+	margin: 0;
+	color: ${COLORS.textPrimary};
+	font-size: clamp(24px, 5vw, 32px);
+	line-height: 1.15;
+`;
+
+const Description = styled.p`
+	margin: 14px 0 0;
+	color: ${COLORS.textSecondary};
+	font-size: 16px;
+	line-height: 1.55;
+`;
+
+const Outcome = styled.div`
+	margin-top: 20px;
+	padding: 14px 16px;
+	border: 1px solid ${COLORS.primaryLight};
+	border-radius: 12px;
+	background: rgba(0, 158, 113, 0.08);
+	color: ${COLORS.textPrimary};
+	font-size: 14px;
+	line-height: 1.5;
+
+	strong {
+		display: block;
+		margin-bottom: 3px;
 		color: ${COLORS.primary};
-		margin: 0 0 8px 0;
-	}
-
-	p {
-		font-size: 16px;
-		color: ${COLORS.textSecondary};
-		margin: 0;
-	}
-
-	@media (max-width: 768px) {
-		margin-bottom: 14px;
-
-		h1 {
-			font-size: 22px;
-			margin: 0 0 6px 0;
-		}
-
-		p {
-			font-size: 13px;
-		}
 	}
 `;
 
-const StepIndicator = styled.div`
+const Actions = styled.div`
 	display: flex;
-	justify-content: center;
-	margin-bottom: 32px;
-	gap: 8px;
+	align-items: center;
+	gap: 12px;
+	margin-top: 24px;
 
-	@media (max-width: 768px) {
-		margin-bottom: 14px;
-		gap: 6px;
-	}
-`;
-
-const StepDotBase = styled.div<{ $active: boolean; $completed: boolean }>`
-	width: 12px;
-	height: 12px;
-	border-radius: 50%;
-	background: ${({ $active, $completed }) => {
-		if ($completed) return COLORS.success;
-		if ($active) return COLORS.primary;
-		return COLORS.gray200;
-	}};
-	transition: all 0.3s ease;
-`;
-
-const StepDot: React.FC<{ active: boolean; completed: boolean }> = ({
-	active,
-	completed,
-}) => {
-	return <StepDotBase $active={active} $completed={completed} />;
-};
-
-const StepContent = styled.div`
-	text-align: center;
-	margin-bottom: 32px;
-
-	h2 {
-		font-size: 24px;
-		font-weight: 600;
-		color: ${COLORS.textPrimary};
-		margin: 0 0 16px 0;
-	}
-
-	p {
-		font-size: 16px;
-		color: ${COLORS.textSecondary};
-		line-height: 1.6;
-		margin: 0 0 24px 0;
-	}
-
-	.feature-list {
-		text-align: left;
-		max-width: 400px;
-		margin: 0 auto;
-
-		ul {
-			list-style: none;
-			padding: 0;
-			margin: 0;
-
-			li {
-				display: flex;
-				align-items: center;
-				margin-bottom: 12px;
-				font-size: 16px;
-				color: ${COLORS.gray600};
-
-				&:before {
-					content: '✓';
-					color: ${COLORS.success};
-					font-weight: bold;
-					margin-right: 12px;
-					font-size: 18px;
-				}
-			}
-		}
-	}
-
-	@media (max-width: 768px) {
-		margin-bottom: 14px;
-
-		h2 {
-			font-size: 20px;
-			margin: 0 0 10px 0;
-		}
-
-		p {
-			font-size: 14px;
-			line-height: 1.45;
-			margin: 0 0 12px 0;
-		}
-	}
-`;
-
-const ActionButtons = styled.div`
-	display: flex;
-	gap: 16px;
-	justify-content: center;
-
-	@media (max-width: 768px) {
+	@media (max-width: 640px) {
 		flex-direction: column;
 		align-items: stretch;
-
-		button {
-			width: 100%;
-		}
 	}
 `;
 
 const PrimaryButton = styled.button`
+	min-height: 44px;
+	padding: 11px 20px;
+	border: none;
+	border-radius: 9px;
 	background: ${COLORS.gradientPrimary};
 	color: ${COLORS.white};
-	border: none;
-	padding: 12px 28px;
-	border-radius: 8px;
-	font-size: 16px;
-	font-weight: 700;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	box-shadow: 0 4px 12px rgba(4, 120, 87, 0.25);
-
-	&:hover {
-		background: ${COLORS.gradientPrimary};
-		transform: translateY(-2px);
-		box-shadow: 0 8px 20px rgba(4, 120, 87, 0.3);
-	}
-
-	&:active {
-		transform: translateY(0);
-	}
-`;
-
-const SkipButton = styled.button`
-	background: transparent;
-	color: ${COLORS.textSecondary};
-	border: none;
-	padding: 8px 16px;
-	border-radius: 6px;
-	font-size: 14px;
-	cursor: pointer;
-	text-decoration: underline;
-	transition: color 0.2s ease;
-
-	&:hover {
-		color: ${COLORS.gray600};
-	}
-`;
-
-// Celebration Modal
-const CelebrationModal = styled.div`
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: rgba(0, 0, 0, 0.9);
-	z-index: 11001;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 20px;
-	overflow-x: hidden;
-	animation: fadeIn 0.5s ease;
-
-	@media (max-width: 768px) {
-		align-items: center;
-		padding: max(10px, calc(8px + env(safe-area-inset-top))) 10px
-			max(10px, calc(8px + env(safe-area-inset-bottom)));
-	}
-`;
-
-const CelebrationContent = styled.div`
-	background: ${COLORS.bgWhite};
-	border-radius: 20px;
-	padding: 60px 40px;
-	max-width: 500px;
-	width: 100%;
-	max-height: min(92vh, calc(100dvh - 20px));
-	overflow-y: auto;
-	overflow-x: hidden;
-	text-align: center;
-	box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
-	animation: bounceIn 0.6s ease;
-
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
-
-	@keyframes bounceIn {
-		0% {
-			transform: scale(0.3);
-			opacity: 0;
-		}
-		50% {
-			transform: scale(1.05);
-		}
-		70% {
-			transform: scale(0.9);
-		}
-		100% {
-			transform: scale(1);
-			opacity: 1;
-		}
-	}
-
-	@media (max-width: 768px) {
-		border-radius: 14px;
-		padding: 22px 16px 18px;
-		max-width: 100%;
-		max-height: calc(100dvh - 20px);
-	}
-
-	@media (max-width: 480px) {
-		padding: 18px 14px 14px;
-	}
-`;
-
-const CelebrationIcon = styled.div`
-	font-size: 80px;
-	margin-bottom: 24px;
-	animation: celebrate 1s ease infinite alternate;
-	color: ${COLORS.success};
-
-	@keyframes celebrate {
-		from {
-			transform: scale(1);
-		}
-		to {
-			transform: scale(1.1);
-		}
-	}
-
-	@media (max-width: 768px) {
-		font-size: 54px;
-		margin-bottom: 12px;
-	}
-`;
-
-const CelebrationTitle = styled.h1`
-	font-size: 32px;
-	font-weight: 700;
-	color: ${COLORS.primary};
-	margin: 0 0 16px 0;
-
-	@media (max-width: 768px) {
-		font-size: 24px;
-		line-height: 1.2;
-		margin: 0 0 10px 0;
-	}
-`;
-
-const CelebrationMessage = styled.p`
-	font-size: 18px;
-	color: #64748b;
-	line-height: 1.6;
-	margin: 0 0 32px 0;
-
-	@media (max-width: 768px) {
-		font-size: 14px;
-		line-height: 1.45;
-		margin: 0 0 14px 0;
-	}
-`;
-
-const CelebrationActions = styled.div`
-	display: flex;
-	justify-content: center;
-	gap: 16px;
-
-	@media (max-width: 768px) {
-		width: 100%;
-		gap: 10px;
-
-		button {
-			width: 100%;
-			padding: 11px 14px;
-			font-size: 15px;
-		}
-	}
-`;
-
-const MinimizedWaitingModal = styled.div`
-	position: fixed;
-	bottom: 20px;
-	right: 20px;
-	background: transparent;
-	z-index: 11000;
-	pointer-events: none;
-
-	@media (max-width: 1024px) {
-		bottom: max(16px, calc(12px + env(safe-area-inset-bottom)));
-		right: 16px;
-	}
-`;
-
-const MinimizedWaitingContent = styled.div`
-	pointer-events: auto;
-`;
-
-const MinimizedWaitingText = styled.div`
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	padding: 0;
-	margin: -1px;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	white-space: nowrap;
-	border: 0;
-`;
-
-const MinimizedWaitingActions = styled.div`
-	display: block;
-`;
-
-const MinimizedWaitingButton = styled.button`
-	display: inline-flex;
-	align-items: center;
-	background: ${COLORS.primary};
-	justify-content: center;
-	color: #0f172a;
-	border: 1px solid #cbd5e1;
-	width: 42px;
-	height: 42px;
-	border-radius: 999px;
-	font-size: 13px;
-	font-weight: 700;
-	letter-spacing: 0.01em;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	box-shadow: 0 8px 22px rgba(15, 23, 42, 0.2);
-
-	&:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 12px 24px rgba(15, 23, 42, 0.24);
-	}
-
-	.indicator {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 20px;
-		height: 20px;
-		border-radius: 50%;
-		background: ${COLORS.primary};
-		color: ${COLORS.white};
-		font-size: 11px;
-		font-weight: 800;
-		line-height: 1;
-	}
-
-	@media (max-width: 768px) {
-		width: 40px;
-		height: 40px;
-	}
-`;
-
-// Role selection
-const RoleGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 12px;
-	margin-top: 24px;
-
-	@media (max-width: 768px) {
-		grid-template-columns: 1fr;
-		margin-top: 12px;
-	}
-`;
-
-const RoleCard = styled.button<{ $selected?: boolean }>`
-	padding: 18px 16px;
-	border-radius: 12px;
-	border: 2px solid ${(p) => (p.$selected ? COLORS.primaryHover : COLORS.gray200)};
-	background: ${(p) => (p.$selected ? COLORS.primaryLight : COLORS.bgLight)};
-	cursor: pointer;
-	text-align: left;
-	transition: all 0.2s ease;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-
-	&:hover {
-		border-color: ${COLORS.primaryHover};
-		background: ${COLORS.primaryLight};
-		transform: translateY(-1px);
-	}
-
-	@media (max-width: 768px) {
-		padding: 12px 12px;
-		gap: 4px;
-	}
-`;
-
-const RoleCardEmoji = styled.div`
-	font-size: 26px;
-	margin-bottom: 2px;
-`;
-
-const RoleCardLabel = styled.div`
 	font-size: 15px;
-	font-weight: 700;
-	color: ${COLORS.textPrimary};
+	font-weight: 750;
+	cursor: pointer;
+
+	:hover:not(:disabled) {
+		filter: brightness(0.96);
+	}
+
+	:disabled {
+		opacity: 0.6;
+		cursor: wait;
+	}
 `;
 
-const RoleCardDesc = styled.div`
-	font-size: 12px;
+const SecondaryButton = styled.button`
+	min-height: 44px;
+	padding: 10px 16px;
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 9px;
+	background: ${COLORS.bgWhite};
 	color: ${COLORS.textSecondary};
-	line-height: 1.4;
+	font-size: 14px;
+	font-weight: 650;
+	cursor: pointer;
+
+	:hover {
+		background: ${COLORS.bgLight};
+	}
 `;
 
-// Payoff preview card
-const PayoffPreview = styled.div`
-	background: linear-gradient(
-		135deg,
-		rgba(0, 158, 113, 0.14) 0%,
-		rgba(4, 120, 87, 0.08) 100%
-	);
+const WaitingCard = styled.aside`
+	position: fixed;
+	right: 18px;
+	bottom: 18px;
+	z-index: 10990;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	max-width: min(420px, calc(100vw - 24px));
+	padding: 12px 14px;
 	border: 1px solid ${COLORS.primaryLight};
 	border-radius: 12px;
-	padding: 18px;
-	margin-top: 20px;
-	text-align: left;
-
-	@media (max-width: 768px) {
-		padding: 12px;
-		margin-top: 12px;
-	}
-`;
-
-const PayoffPreviewTitle = styled.div`
-	font-size: 12px;
-	font-weight: 800;
-	text-transform: uppercase;
-	letter-spacing: 0.07em;
-	color: ${COLORS.primary};
-	margin-bottom: 12px;
-`;
-
-const PayoffItems = styled.div`
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-`;
-
-const PayoffItem = styled.div`
-	display: flex;
-	align-items: flex-start;
-	gap: 10px;
-	font-size: 14px;
-	color: ${COLORS.textPrimary};
-
-	.icon {
-		font-size: 16px;
-		margin-top: 1px;
-		flex-shrink: 0;
-	}
-
-	.text strong {
-		display: block;
-		font-weight: 700;
-		color: ${COLORS.textPrimary};
-	}
-
-	.text span {
-		font-size: 12px;
-		color: ${COLORS.textSecondary};
-	}
-`;
-
-const BridgeStatement = styled.div`
-	margin-top: 14px;
-	padding: 10px 12px;
-	border-radius: 8px;
-	background: ${COLORS.bgLight};
-	border: 1px solid ${COLORS.gray200};
+	background: ${COLORS.bgWhite};
+	box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+	color: ${COLORS.textSecondary};
 	font-size: 13px;
-	font-weight: 600;
-	color: ${COLORS.gray700};
-	text-align: left;
-
-	@media (max-width: 768px) {
-		margin-top: 10px;
-		font-size: 12px;
-		padding: 8px 10px;
-	}
-`;
-
-const VisualPayoffGrid = styled.div`
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 10px;
-	margin-top: 16px;
 
 	@media (max-width: 640px) {
-		grid-template-columns: 1fr;
+		left: 12px;
+		right: 12px;
+		bottom: 76px;
+		align-items: stretch;
+		flex-direction: column;
 	}
 `;
-
-const VisualPayoffCard = styled.div`
-	background: ${COLORS.bgWhite};
-	border: 1px solid ${COLORS.successLight};
-	border-radius: 10px;
-	padding: 12px;
-	text-align: left;
-	box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
-
-	.header {
-		font-size: 12px;
-		font-weight: 800;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: ${COLORS.primary};
-		margin-bottom: 8px;
-	}
-
-	.title {
-		font-size: 13px;
-		font-weight: 700;
-		color: ${COLORS.textPrimary};
-		margin-bottom: 5px;
-	}
-
-	.meta {
-		font-size: 12px;
-		color: ${COLORS.textSecondary};
-		line-height: 1.35;
-	}
-`;
-
-// Enhanced interfaces
-interface OnboardingStep {
-	id: string;
-	type: 'instruction' | 'celebration' | 'page_guide' | 'waiting';
-	title: string;
-	description: string;
-	content?: React.ReactNode;
-	actionLabel?: string;
-	action?: () => void;
-	waitCondition?: () => boolean;
-	autoAdvance?: boolean;
-	skipLabel?: string;
-}
 
 interface OnboardingFlowProps {
 	onComplete: () => void;
 	onSkip: () => void;
 }
 
+type OnboardingStage = 'welcome' | 'waiting_for_property' | 'property_created';
+
+const getPropertyKey = (property: any): string =>
+	String(property?.slug || property?.id || '').trim();
+
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 	onComplete,
 	onSkip,
 }) => {
 	const navigate = useNavigate();
-	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-
-	// Fetch data for real-time validation
-	const { data: properties = [] } = useGetPropertiesQuery();
-
-	const [currentStepIndex, setCurrentStepIndex] = useState(0);
-	const [showCelebration, setShowCelebration] = useState(false);
-	const [userPersona, setUserPersona] = useState<'homeowner' | 'landlord' | 'manager' | null>(null);
-	const [isCompactMobile, setIsCompactMobile] = useState(
-		typeof window !== 'undefined' ? window.innerWidth <= 768 : false,
-	);
-	const [waitingModalMinimized, setWaitingModalMinimized] = useState(false);
-
-	useEffect(() => {
-		const handleResize = () => setIsCompactMobile(window.innerWidth <= 768);
-		handleResize();
-		window.addEventListener('resize', handleResize);
-		return () => window.removeEventListener('resize', handleResize);
-	}, []);
-
-	// Handle step advancement
-	const advanceToNextStep = useCallback(() => {
-		setCurrentStepIndex((prev) => prev + 1);
-	}, []);
-
-	// Determine user type and permissions (use selectors)
 	const isHomeowner = useSelector(selectIsHomeowner);
 	const canAccessProperties = useSelector(selectCanAccessProperties);
-	const isPropertyManager =
-		!!currentUser && canAccessProperties && !isHomeowner;
-	const setupAssistantLabel = isHomeowner
-		? 'Home Setup Assistant'
-		: 'Property Setup Assistant';
-	const hasSuggestedTaskAutomation = currentUser?.subscription
-		? canUseSuggestedMaintenancePackages(currentUser.subscription)
-		: false;
-	const hasSetupAssistantProgress = properties.some(
-		(property: any) =>
-			getPropertySetupProgress(property.setupAssistant).reviewed > 0 ||
-			Boolean(property.setupAssistant?.completedAt),
-	);
-
-	const toDate = (value: any): Date | null => {
-		if (!value) return null;
-		if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-		if (typeof value?.toDate === 'function') {
-			const converted = value.toDate();
-			return converted instanceof Date && !Number.isNaN(converted.getTime())
-				? converted
-				: null;
-		}
-		if (typeof value === 'string' || typeof value === 'number') {
-			const converted = new Date(value);
-			return Number.isNaN(converted.getTime()) ? null : converted;
-		}
-		if (typeof value?.seconds === 'number') {
-			const converted = new Date(value.seconds * 1000);
-			return Number.isNaN(converted.getTime()) ? null : converted;
-		}
-		if (typeof value?._seconds === 'number') {
-			const converted = new Date(value._seconds * 1000);
-			return Number.isNaN(converted.getTime()) ? null : converted;
-		}
-		return null;
-	};
-
-	const latestCreatedProperty = (properties as any[]).reduce<any | null>(
-		(currentLatest, property) => {
-			if (!property) return currentLatest;
-			if (!currentLatest) return property;
-
-			const propertyDate =
-				toDate(property.createdAt) ||
-				toDate(property.updatedAt) ||
-				toDate(property.dateCreated);
-			const currentLatestDate =
-				toDate(currentLatest.createdAt) ||
-				toDate(currentLatest.updatedAt) ||
-				toDate(currentLatest.dateCreated);
-
-			if (!propertyDate && !currentLatestDate) return property;
-			if (!propertyDate) return currentLatest;
-			if (!currentLatestDate) return property;
-
-			return propertyDate.getTime() >= currentLatestDate.getTime()
-				? property
-				: currentLatest;
-		},
-		null,
-	);
-
-	const createdPropertyAddress =
-		String(
-			latestCreatedProperty?.address ||
-			latestCreatedProperty?.title ||
-			latestCreatedProperty?.name ||
-			(isHomeowner ? 'Your home' : 'Your property'),
-		).trim() || (isHomeowner ? 'Your home' : 'Your property');
-
-	const createdPropertyMonthYear = new Intl.DateTimeFormat('en-US', {
-		month: 'long',
-		year: 'numeric',
-	}).format(
-		toDate(latestCreatedProperty?.createdAt) ||
-		toDate(latestCreatedProperty?.updatedAt) ||
-		toDate(latestCreatedProperty?.dateCreated) ||
-		new Date(),
-	);
-
-	// Enhanced step definitions with validation and celebration logic
-	const getSteps = (): OnboardingStep[] => {
-		// Persona-aware copy
-		const welcomeHeadline =
-			userPersona === 'homeowner'
-				? 'Stop letting maintenance pile up.'
-				: userPersona === 'landlord'
-					? 'Stop managing properties from memory.'
-					: userPersona === 'manager'
-						? 'Bring order to multi-property maintenance.'
-						: 'Your property maintenance, finally organized.';
-
-		const welcomeSubtext =
-			userPersona === 'homeowner'
-				? isCompactMobile
-					? 'Stay ahead of repairs with a simple system for tasks, service history, and reminders.'
-					: "We'll help you stay ahead of repairs, track every service, and never forget an important maintenance task again."
-				: userPersona === 'landlord'
-					? isCompactMobile
-						? 'Track repairs, equipment, and service records across properties in one place.'
-						: "Track equipment, repairs, contractors, and service history across all your properties in one place."
-					: userPersona === 'manager'
-						? isCompactMobile
-							? 'Manage tasks, teams, and records across your portfolio with less back-and-forth.'
-							: "Manage tasks, tenants, contractors, and maintenance records across your entire portfolio."
-						: isCompactMobile
-							? 'Track equipment, repairs, and service history so nothing falls through the cracks.'
-							: 'Track equipment, repairs, tasks, and service history in one place — so nothing falls through the cracks.';
-
-		const isHomeownerTour = userPersona === 'homeowner' || isHomeowner;
-		const recordLabel = isHomeownerTour ? 'home' : 'property';
-		const recordTitleLabel = isHomeownerTour ? 'Home' : 'Property';
-		const recordPageLabel = isHomeownerTour ? 'home record' : 'property record';
-		const setupAssistantPair = isHomeownerTour
-			? 'Home Setup Assistant + Home Quick Scan'
-			: 'Property Setup Assistant + Property Scan';
-		const paidAutomationEnabled = hasSuggestedTaskAutomation;
-
-		const steps: OnboardingStep[] = [
-			// Step 0: Role selection
-			{
-				id: 'who_are_you',
-				type: 'instruction',
-				title: 'First — how are you using Maintley?',
-				description: 'Pick your role so we can keep this relevant and fast.',
-				content: (
-					<RoleGrid>
-						{[
-							{ id: 'homeowner' as const, emoji: '🏡', label: 'Homeowner', desc: 'Keeping my home maintained and organized' },
-							{ id: 'landlord' as const, emoji: '🏘️', label: 'Landlord / Investor', desc: 'Managing 1–5 rental or investment properties' },
-							{ id: 'manager' as const, emoji: '🏢', label: 'Property Manager', desc: 'Managing portfolios and teams' },
-						].map((role) => (
-							<RoleCard
-								key={role.id}
-								type="button"
-								$selected={userPersona === role.id}
-								onClick={() => setUserPersona(role.id)}>
-								<RoleCardEmoji>{role.emoji}</RoleCardEmoji>
-								<RoleCardLabel>{role.label}</RoleCardLabel>
-								<RoleCardDesc>{role.desc}</RoleCardDesc>
-							</RoleCard>
-						))}
-					</RoleGrid>
-				),
-				actionLabel: userPersona ? 'Continue →' : undefined,
-				action: () => advanceToNextStep(),
-				skipLabel: 'Skip',
-			},
-
-			// Step 1: Welcome
-			{
-				id: 'welcome_beta',
-				type: 'instruction',
-				title: welcomeHeadline,
-				description: welcomeSubtext,
-				content: (
-					<PayoffPreview>
-						<PayoffPreviewTitle>What you'll have by the end of setup</PayoffPreviewTitle>
-						<PayoffItems>
-							<PayoffItem>
-								<span className="icon">🏠</span>
-								<div className="text">
-									<strong>Your {recordLabel}, fully profiled</strong>
-									<span>All key info and history in one place</span>
-								</div>
-							</PayoffItem>
-							<PayoffItem>
-								<span className="icon">✅</span>
-								<div className="text">
-									<strong>
-										{paidAutomationEnabled
-											? 'Your first maintenance task live'
-											: 'Your first maintenance next step identified'}
-									</strong>
-									<span>
-										{paidAutomationEnabled
-											? 'With reminders so nothing gets forgotten'
-											: 'Maintley shows what is worth reviewing first'}
-									</span>
-								</div>
-							</PayoffItem>
-							<PayoffItem>
-								<span className="icon">📋</span>
-								<div className="text">
-									<strong>The foundation of your service history</strong>
-									<span>Every future repair adds to a record you'll actually use</span>
-								</div>
-							</PayoffItem>
-							{isCompactMobile && (
-								<PayoffItem>
-									<span className="icon">🧠</span>
-									<div className="text">
-										<strong>{setupAssistantPair}</strong>
-										<span>Maintley reviews the record and highlights what is worth attention</span>
-									</div>
-								</PayoffItem>
-							)}
-						</PayoffItems>
-					</PayoffPreview>
-				),
-				actionLabel: "Let's get started →",
-				action: () => advanceToNextStep(),
-				skipLabel: 'Skip Tour',
-			},
-
-			// Step 2: Create Property (with waiting)
-			{
-				id: 'create_property_instruction',
-				type: 'instruction',
-				title: `Add your first ${recordLabel}.`,
-				description:
-					`This takes about 2 minutes and starts your long-term maintenance record. I'll open the add-${recordLabel} dialog for you.`,
-				content: (
-					<div style={{ textAlign: 'left', marginTop: '20px' }}>
-						<p style={{ marginBottom: '12px', fontWeight: '600', color: '#0f172a', fontSize: '14px' }}>
-							You only need:
-						</p>
-						<ul style={{ paddingLeft: '20px', margin: '0', color: '#475569', fontSize: '14px', lineHeight: isCompactMobile ? '1.55' : '2' }}>
-							<li>{recordTitleLabel} address</li>
-							<li>{recordTitleLabel} type</li>
-							{!isCompactMobile && <li>Optional details (year built, square footage)</li>}
-						</ul>
-
-						<BridgeStatement style={{ marginTop: '14px' }}>
-							Clear takeaway: this becomes the single place for future repairs, tasks, and service history.
-						</BridgeStatement>
-					</div>
-				),
-				actionLabel: isHomeownerTour ? 'Add My Home →' : 'Add My Property →',
-				action: () => {
-					setWaitingModalMinimized(true);
-					navigate('/properties?openCreate=onboarding');
-					setCurrentStepIndex(currentStepIndex + 1);
-				},
-				skipLabel: 'Skip This Step',
-			},
-
-			// Step 3: Wait for Property Creation
-			{
-				id: 'wait_property_creation',
-				type: 'waiting',
-				title: `Go ahead and add your ${recordLabel}.`,
-				description:
-					"Take your time. I'll stay in the background and pop back in once it's ready.",
-				waitCondition: () => properties.length > 0,
-				autoAdvance: true,
-			},
-
-			// Step 4: Property Created Celebration
-			{
-				id: 'property_celebration',
-				type: 'celebration',
-				title: `Your first ${recordLabel} is live. 🎉`,
-				description:
-					`You now have a permanent ${recordPageLabel} for every repair and service record.`,
-				content: (
-					<VisualPayoffGrid>
-						<VisualPayoffCard>
-							<div className='header'>Record</div>
-							<div className='title'>{createdPropertyAddress} profile created</div>
-							<div className='meta'>History starts now and grows with every completed job.</div>
-						</VisualPayoffCard>
-						<VisualPayoffCard>
-							<div className='header'>Timeline</div>
-							<div className='title'>{createdPropertyMonthYear}: {recordTitleLabel} added</div>
-							<div className='meta'>Next entries appear automatically as work gets logged.</div>
-						</VisualPayoffCard>
-						<VisualPayoffCard>
-							<div className='header'>Payoff</div>
-							<div className='title'>Ready for one complete history</div>
-							<div className='meta'>Everything is ready to be attached here as future services and repairs happen.</div>
-						</VisualPayoffCard>
-					</VisualPayoffGrid>
-				),
-			},
-		];
-
-		// Navigation and detail page guidance
-		steps.push(
-			{
-				id: 'click_property_instruction',
-				type: 'waiting',
-				title: `Now that your ${recordLabel} is set up, open it.`,
-				description:
-					'This is where equipment, tasks, and maintenance history come together.',
-				waitCondition: () => location.pathname.includes('/property/'),
-				autoAdvance: true,
-			},
-			{
-				id: 'property_detail_page_guide',
-				type: 'page_guide',
-				title: isHomeownerTour ? 'Your Home Record' : 'Your Property Command Center',
-				description:
-					`Everything for this ${recordLabel} lives here: tasks, equipment, contractors, and history.`,
-				content: (
-					<BridgeStatement>
-						We are moving from setup to the equipment, tasks, and history inside this {recordPageLabel}.
-					</BridgeStatement>
-				),
-				actionLabel: 'Got it →',
-				action: () => {
-					setCurrentStepIndex(currentStepIndex + 1);
-				},
-			},
-		);
-
-		// Property setup assistant steps
-		steps.push(
-			{
-				id: 'wait_setup_assistant',
-				type: 'waiting',
-				title: `${setupAssistantLabel}.`,
-				description:
-					`Review a few items, then save your first ${setupAssistantLabel.toLowerCase()} progress to continue.`,
-				waitCondition: () => hasSetupAssistantProgress,
-				autoAdvance: true,
-				skipLabel: 'Skip Tour',
-			},
-		);
-
-		if (isPropertyManager) {
-			steps.push({
-				id: 'advanced_features_manager',
-				type: 'instruction',
-				title: 'Built for teams too.',
-				description: 'As your portfolio grows, maintenance history and accountability stay intact.',
-				content: (
-					<div style={{ textAlign: 'left', marginTop: '20px' }}>
-						<div style={{ marginBottom: '18px' }}>
-							<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700' }}>
-								👥 Team Management
-							</h4>
-							<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-								Invite team members, assign tasks, and keep shared records. Everyone works from the same source of truth.
-							</p>
-						</div>
-						<div style={{ marginBottom: '18px' }}>
-							<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700' }}>
-								🏘️ Tenant Access
-							</h4>
-							<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-								Give tenants limited access to submit maintenance requests directly. Faster communication, automatic documentation.
-							</p>
-						</div>
-						<div>
-							<h4 style={{ color: '#0f172a', margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700' }}>
-								🏢 Property-Level Management
-							</h4>
-							<p style={{ margin: '0 0 0 28px', fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-								Manage equipment, tasks, and history from a single property record.
-							</p>
-						</div>
-					</div>
-				),
-				actionLabel: 'Got it →',
-				action: () => {
-					setCurrentStepIndex(currentStepIndex + 1);
-				},
-			});
-		}
-
-		steps.push({
-			id: 'homeowner_complete',
-			type: 'instruction',
-			title: isHomeownerTour
-				? "You're already ahead on home maintenance."
-				: "You're already ahead of most property owners.",
-			description:
-				`Your ${recordLabel} setup has started. Maintley can now connect equipment, tasks, and future maintenance history.`,
-			content: (
-				<>
-					<PayoffPreview>
-						<PayoffPreviewTitle>What's waiting for you</PayoffPreviewTitle>
-						<PayoffItems>
-							<PayoffItem>
-								<span className="icon">✅</span>
-								<div className="text">
-									<strong>Your {recordLabel} setup is underway</strong>
-									<span>
-										{hasSuggestedTaskAutomation
-											? 'Equipment and suggested tasks now have a starting point'
-											: `Equipment and core ${recordLabel} details now have a starting point`}
-									</span>
-								</div>
-							</PayoffItem>
-							<PayoffItem>
-								<span className="icon">🏠</span>
-								<div className="text">
-									<strong>Your {recordLabel} dashboard is ready</strong>
-									<span>Review equipment, tasks, and history as you go</span>
-								</div>
-							</PayoffItem>
-							{!isCompactMobile && (
-								<PayoffItem>
-									<span className="icon">🛡️</span>
-									<div className="text">
-										<strong>Your maintenance record has started</strong>
-										<span>Every completed task adds to a history you'll actually use</span>
-									</div>
-								</PayoffItem>
-							)}
-						</PayoffItems>
-					</PayoffPreview>
-					{!isCompactMobile && (
-						<VisualPayoffGrid>
-							<VisualPayoffCard>
-								<div className='header'>Next</div>
-								<div className='title'>Review starter tasks</div>
-								<div className='meta'>Adjust due dates, assignments, and notes as needed.</div>
-							</VisualPayoffCard>
-							<VisualPayoffCard>
-								<div className='header'>Later</div>
-								<div className='title'>Complete maintenance tasks</div>
-								<div className='meta'>Finished work becomes property history.</div>
-							</VisualPayoffCard>
-							<VisualPayoffCard>
-								<div className='header'>Anytime</div>
-								<div className='title'>Export clear maintenance history</div>
-								<div className='meta'>Useful for claims, taxes, resale, and team handoff.</div>
-							</VisualPayoffCard>
-						</VisualPayoffGrid>
-					)}
-				</>
-			),
-			actionLabel: 'Finish Tour',
-			action: () => {
-				onComplete();
-			},
-		});
-
-		return steps;
-	};
-
-	const steps = getSteps();
-	const currentStep = steps[currentStepIndex];
-	const currentStepId = currentStep?.id;
-	const currentStepType = currentStep?.type;
-	const currentStepAutoAdvance = currentStep?.autoAdvance;
-	const currentStepWaitCondition = currentStep?.waitCondition;
-
-	// Check if we've completed all steps
-	useEffect(() => {
-		if (currentStepIndex >= steps.length) {
-			onComplete();
-		}
-	}, [currentStepIndex, steps.length, onComplete]);
-
-	// Handle step skipping
-	const skipOnboarding = () => {
-		onSkip();
-	};
-
-	// Check for auto-advancement conditions
-	useEffect(() => {
-		if (currentStepAutoAdvance && currentStepWaitCondition) {
-			if (currentStepWaitCondition()) {
-				advanceToNextStep();
-			}
-		}
-	}, [
-		properties,
-		hasSetupAssistantProgress,
-		location.pathname,
-		currentStepId,
-		currentStepAutoAdvance,
-		currentStepWaitCondition,
-		advanceToNextStep,
-	]);
-
-	// Handle celebration steps
-	useEffect(() => {
-		const shouldShowCelebration = currentStepType === 'celebration';
-		setShowCelebration((previous) =>
-			previous === shouldShowCelebration ? previous : shouldShowCelebration,
-		);
-	}, [currentStepType]);
+	const { data: properties = [], isLoading } = useGetPropertiesQuery();
+	const initialPropertyCount = useRef<number | null>(null);
+	const initialPropertyKeys = useRef<Set<string> | null>(null);
+	const [stage, setStage] = useState<OnboardingStage>('welcome');
 
 	useEffect(() => {
-		if (currentStep?.type !== 'waiting') {
-			setWaitingModalMinimized(false);
+		if (!isLoading && initialPropertyCount.current === null) {
+			initialPropertyCount.current = properties.length;
+			initialPropertyKeys.current = new Set(properties.map(getPropertyKey));
 		}
-	}, [currentStep?.type]);
+	}, [isLoading, properties]);
 
-	// Render different modal types
-	if (showCelebration) {
-		return (
-			<CelebrationModal>
-				<CelebrationContent>
-					<CelebrationIcon>✅</CelebrationIcon>
-					<CelebrationTitle>{currentStep.title}</CelebrationTitle>
-					<CelebrationMessage>{currentStep.description}</CelebrationMessage>
-					{currentStep.content}
-
-					<CelebrationActions style={{ marginTop: '20px' }}>
-						<PrimaryButton onClick={advanceToNextStep}>Keep going →</PrimaryButton>
-					</CelebrationActions>
-				</CelebrationContent>
-			</CelebrationModal>
-		);
-	}
-
-	// Handle waiting steps
-	if (currentStep?.type === 'waiting') {
+	useEffect(() => {
 		if (
-			waitingModalMinimized &&
-			(currentStep.id === 'wait_property_creation' ||
-				currentStep.id === 'wait_setup_assistant')
+			stage === 'waiting_for_property' &&
+			initialPropertyCount.current !== null &&
+			properties.length > initialPropertyCount.current
 		) {
-			const minimizedWaitingMessage =
-				currentStep.id === 'wait_setup_assistant'
-					? `I will check back after you save your first ${setupAssistantLabel.toLowerCase()} progress.`
-					: `Listening for your ${isHomeowner ? 'home' : 'property'} to be created. I will pop back in when it is ready.`;
-
-			return (
-				<MinimizedWaitingModal>
-					<MinimizedWaitingContent>
-						<MinimizedWaitingText>
-							{minimizedWaitingMessage}
-						</MinimizedWaitingText>
-						<MinimizedWaitingActions>
-							<MinimizedWaitingButton
-								onClick={() => setWaitingModalMinimized(false)}
-								aria-label={minimizedWaitingMessage}>
-								<span className='indicator' style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: COLORS.white }}>
-									<FontAwesomeIcon icon={faChevronUp} size='lg' aria-hidden='true' style={{ color: COLORS.white, background: 'transparent' }} />
-								</span>
-							</MinimizedWaitingButton>
-						</MinimizedWaitingActions>
-					</MinimizedWaitingContent>
-				</MinimizedWaitingModal>
-			);
+			setStage('property_created');
 		}
+	}, [properties.length, stage]);
 
+	const newestProperty = useMemo(
+		() =>
+			properties.find(
+				(property) => !initialPropertyKeys.current?.has(getPropertyKey(property)),
+			) || properties[properties.length - 1],
+		[properties],
+	);
+	const hasExistingProperty = !isLoading && properties.length > 0;
+	const recordLabel = isHomeowner ? 'home' : 'property';
+	const recordTitle = isHomeowner ? 'Home' : 'Property';
+	const isPropertyManager = Boolean(currentUser && canAccessProperties && !isHomeowner);
+
+	const beginPropertyCreation = () => {
+		setStage('waiting_for_property');
+		navigate('/properties?openCreate=onboarding');
+	};
+
+	const finishAtToday = () => {
+		onComplete();
+		navigate('/dashboard');
+	};
+
+	const continueSetup = () => {
+		const propertyKey = getPropertyKey(newestProperty);
+		onComplete();
+		navigate(propertyKey ? `/property/${propertyKey}?setup=1` : '/properties');
+	};
+
+	if (stage === 'waiting_for_property') {
 		return (
-			<OnboardingOverlay>
-				<OnboardingModal>
-					<OnboardingHeader>
-						<h1>Your maintenance system is taking shape.</h1>
-						<p>
-							{currentStepIndex + 1} of {steps.length} steps complete
-						</p>
-					</OnboardingHeader>
-
-					<StepIndicator>
-						{steps.map((_, index) => (
-							<StepDot
-								key={index}
-								active={index === currentStepIndex}
-								completed={index < currentStepIndex}
-							/>
-						))}
-					</StepIndicator>
-
-					<StepContent>
-						<h2>{currentStep.title}</h2>
-						<p>{currentStep.description}</p>
-						{currentStep.content}
-					</StepContent>
-
-					<ActionButtons>
-						{currentStep.id === 'wait_setup_assistant' && hasSetupAssistantProgress ? (
-							<>
-								<PrimaryButton onClick={advanceToNextStep}>
-									Continue
-								</PrimaryButton>
-								<SkipButton onClick={skipOnboarding}>
-									{currentStep.skipLabel || 'Skip Tour'}
-								</SkipButton>
-							</>
-						) : currentStep.id === 'wait_setup_assistant' ? (
-							<>
-								<PrimaryButton onClick={() => setWaitingModalMinimized(true)}>
-									Ok
-								</PrimaryButton>
-								<SkipButton onClick={skipOnboarding}>
-									{currentStep.skipLabel || 'Skip Tour'}
-								</SkipButton>
-							</>
-						) : currentStep.id === 'wait_property_creation' ? (
-							<>
-								<PrimaryButton onClick={() => setWaitingModalMinimized(true)}>
-									Ok
-								</PrimaryButton>
-								<SkipButton onClick={skipOnboarding}>
-									{currentStep.skipLabel || 'Skip Tour'}
-								</SkipButton>
-							</>
-						) : (
-							<SkipButton onClick={skipOnboarding}>
-								{currentStep.skipLabel || 'Skip Tour'}
-							</SkipButton>
-						)}
-					</ActionButtons>
-				</OnboardingModal>
-			</OnboardingOverlay>
+			<WaitingCard aria-live='polite'>
+				<span>Create your {recordLabel} when you are ready. Maintley will confirm when it is saved.</span>
+				<PrimaryButton type='button' onClick={beginPropertyCreation}>
+					Add {recordTitle}
+				</PrimaryButton>
+				<SecondaryButton type='button' onClick={onSkip}>
+					Finish later
+				</SecondaryButton>
+			</WaitingCard>
 		);
 	}
 
-	// If we've completed all steps, don't render anything
-	if (!currentStep) {
-		return null;
+	if (stage === 'property_created') {
+		return (
+			<Overlay>
+				<Panel aria-labelledby='onboarding-success-title'>
+					<Eyebrow>{recordTitle} created</Eyebrow>
+					<Title id='onboarding-success-title'>Your maintenance record is ready.</Title>
+					<Description>
+						Repairs, equipment, documents, and completed work now have one place to build over time.
+					</Description>
+					<Outcome>
+						<strong>Recommended next step</strong>
+						Add the basics you already know. You can leave setup at any time and return later.
+					</Outcome>
+					<Actions>
+						<PrimaryButton type='button' onClick={continueSetup}>Continue setup</PrimaryButton>
+						<SecondaryButton type='button' onClick={finishAtToday}>Go to Today</SecondaryButton>
+					</Actions>
+				</Panel>
+			</Overlay>
+		);
 	}
 
-	// Main instruction modal
 	return (
-		<OnboardingOverlay>
-			<OnboardingModal>
-				<OnboardingHeader>
-					<h1>
-						{currentStepIndex <= 1
-							? 'Welcome to Maintley'
-							: 'Your maintenance system is taking shape.'}
-					</h1>
-					<p>
-						{currentStepIndex <= 1
-							? 'A few quick questions to get you set up right.'
-							: `${currentStepIndex + 1} of ${steps.length} steps complete`}
-					</p>
-				</OnboardingHeader>
-
-				<StepIndicator>
-					{steps.map((_, index) => (
-						<StepDot
-							key={index}
-							active={index === currentStepIndex}
-							completed={index < currentStepIndex}
-						/>
-					))}
-				</StepIndicator>
-
-				<StepContent>
-					<h2>{currentStep.title}</h2>
-					<p>{currentStep.description}</p>
-					{currentStep.content}
-				</StepContent>
-
-				<ActionButtons>
-					{currentStep.actionLabel && (
-						<PrimaryButton onClick={currentStep.action}>
-							{currentStep.actionLabel}
-						</PrimaryButton>
-					)}
-					<SkipButton onClick={skipOnboarding}>
-						{currentStepIndex === steps.length - 1
-							? ''
-							: currentStep.skipLabel || 'Skip Tour'}
-					</SkipButton>
-				</ActionButtons>
-			</OnboardingModal>
-		</OnboardingOverlay>
+		<Overlay>
+			<Panel aria-labelledby='onboarding-title'>
+				<Eyebrow>Welcome to Maintley</Eyebrow>
+				<Title id='onboarding-title'>
+					{hasExistingProperty
+						? `Your ${recordLabel} record is ready to use.`
+						: isPropertyManager
+							? 'Bring property maintenance into one clear record.'
+							: 'Stay ahead of home maintenance.'}
+				</Title>
+				<Description>
+					{hasExistingProperty
+						? 'Start with what needs attention, then add details as maintenance happens.'
+						: `Add your first ${recordLabel} to begin preserving tasks, equipment, and service history.`}
+				</Description>
+				<Outcome>
+					<strong>Built to grow with the property</strong>
+					You only need the basic property information to begin. Everything else can be added when it becomes useful.
+				</Outcome>
+				<Actions>
+					<PrimaryButton
+						type='button'
+						disabled={isLoading}
+						onClick={hasExistingProperty ? finishAtToday : beginPropertyCreation}>
+						{isLoading ? 'Loading...' : hasExistingProperty ? 'Go to Today' : `Add My ${recordTitle}`}
+					</PrimaryButton>
+					<SecondaryButton type='button' onClick={onSkip}>Explore on my own</SecondaryButton>
+				</Actions>
+			</Panel>
+		</Overlay>
 	);
 };

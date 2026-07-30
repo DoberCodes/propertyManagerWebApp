@@ -302,6 +302,8 @@ Primary collections:
 
 * users
 * familyAccounts
+  * entitlementGrants (server-written temporary and permanent access grants)
+  * accessLifecycleDeliveries (server-written message idempotency and outcomes)
 * accountMemberships
 * properties
 * propertyGroups
@@ -327,6 +329,16 @@ Primary collections:
 * feedback
 * admin_users (function-managed)
 * admin_sessions (function-managed)
+* admin_audit_logs (server-written high-value administrative and program decisions)
+* personalAssistantCredentials (function-managed token verifiers, scopes, and property allowlists)
+* personalAssistantRateLimits (short-lived server-written request counters)
+* personalAssistantAccessAudits (server-written minimized API access records)
+
+The first-property Homeowner+ trial uses a Firestore property-create trigger.
+Account bootstrap marks only eligible new Free owner accounts; the trigger then
+creates one deterministic generic grant, updates the derived account access
+projection, consumes eligibility, and appends an immutable audit event in one
+transaction. All issuance flags default off.
 
 Admin portal collection notes:
 
@@ -343,6 +355,8 @@ Admin portal collection notes:
   * `createdAt` / `updatedAt` (timestamps)
 * `admin_sessions` stores hashed session tokens and expiry metadata.
 * Both collections are function-managed and denied to direct client reads/writes in Firestore rules.
+
+Personal Assistant API collections are also denied to every direct client. The Owner-gated credential callable and the read-only HTTPS API are their only supported access boundaries.
 
 Temporarily hidden but still supported:
 
@@ -370,7 +384,7 @@ Examples:
 * Recommendations
 * Dashboard Insights
 * Setup Progress
-* Property Health
+* Maintley Intelligence readiness
 * Attention Center summaries
 
 These features derive information from existing records and should not become authoritative sources of data.
@@ -517,6 +531,25 @@ Examples:
 * sendTaskReminderEmails
 * sendTeamMemberTaskReports
 * sendSeasonalGuidanceEmails
+* sendAccessLifecycleEmails
+* sendAccessLifecycleActivationOnGrantCreate
+* previewComplimentaryAccessCode
+* redeemComplimentaryAccessCode
+* manageManualOccupancy
+* reserveStorageUpload
+* getStorageQuotaStatus
+
+Access lifecycle delivery uses an hourly UTC dispatcher plus a grant-create
+activation trigger. Both are independently disabled by
+`ENABLE_ACCESS_LIFECYCLE_COMMUNICATION`. Key lifecycle milestones also publish
+in-app Maintley Events. Provider attempts and outcomes remain operational data,
+separate from immutable admin decision audit records.
+
+Complimentary access programs, code verifiers, redemption attempts, storage
+upload reservations, grant records, and lifecycle delivery state are
+server-written and client-inaccessible. Storage finalize/delete triggers keep
+the trusted account usage projection synchronized; Storage rules can require a
+live path- and size-bound reservation while preserving read and delete access.
 
 ---
 

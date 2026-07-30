@@ -1,7 +1,11 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { PropertyDialog, PropertyFormData } from './PropertyDialog';
+import {
+	PropertyDialog,
+	PropertyFormData,
+	PropertySaveProgress,
+} from './PropertyDialog';
 import {
 	getPropertyImageSrc,
 	isPropertyImageFallback,
@@ -28,7 +32,10 @@ import {
 import { useRecentlyViewed } from '../../Hooks/useRecentlyViewed';
 import { useFavorites } from '../../Hooks/useFavorites';
 import { RootState } from '../../Redux/store/store';
-import { setCurrentUser } from '../../Redux/Slices/userSlice';
+import {
+	setCurrentUser,
+	updateEntitlementProjection,
+} from '../../Redux/Slices/userSlice';
 import {
 	selectCanAccessProperties,
 	selectIsHomeowner,
@@ -51,12 +58,22 @@ import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice
 import {
 	canAddProperty,
 	canPropertyGroups,
+	canUseBusinessPropertyTypes,
+	canUseRentalManagement,
 	getEffectiveSubscriptionPlanId,
 	getMaxPropertiesForPlan,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
+	isIntentionalFreeAccountSubscription,
 	isTrialExpired,
 } from '../../utils/subscriptionUtils';
+import {
+	getDefaultPropertyClassification,
+	isMultiUnitProperty,
+	isResidentialProperty,
+	normalizePropertyType,
+	PropertyType,
+} from '../../utils/propertyTaxonomy';
 import { LockedFeatureCallout } from '../Library/LockedFeatureCallout';
 import {
 	filterPropertyGroupsByRole,
@@ -67,6 +84,8 @@ import { canDeleteProperty, getRoleCapabilities } from '../../utils/permissions'
 import { TeamMember } from '../../Redux/Slices/teamSlice';
 import { USER_ROLES } from '../../constants/roles';
 import { COLORS } from '../../constants/colors';
+import { finalizeFirstPropertyTrial } from '../../services/entitlementGrantService';
+import { isHomeownerPlusTrialEnabled } from '../../entitlements/planAvailability';
 import {
 	Wrapper,
 	TopActions,
@@ -567,7 +586,7 @@ export const Properties = () => {
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 	const [sortBy, setSortBy] = useState<'name' | 'recent' | 'updated'>('name');
 	const [filterBy, setFilterBy] = useState<'all' | 'rental' | 'residential'>('all');
-	const [filterPropertyType, setFilterPropertyType] = useState<'all' | 'Single Family' | 'Multi-Family' | 'Commercial'>('all');
+	const [filterPropertyType, setFilterPropertyType] = useState<'all' | PropertyType>('all');
 	const [filterMinBedrooms, setFilterMinBedrooms] = useState<number>(0);
 	const [filterLocation, setFilterLocation] = useState<string>('');
 	const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -577,7 +596,7 @@ export const Properties = () => {
 	const [draftFilterBy, setDraftFilterBy] =
 		useState<'all' | 'rental' | 'residential'>('all');
 	const [draftPropertyType, setDraftPropertyType] =
-		useState<'all' | 'Single Family' | 'Multi-Family' | 'Commercial'>('all');
+		useState<'all' | PropertyType>('all');
 	const [draftMinBedrooms, setDraftMinBedrooms] = useState<number>(0);
 	const [draftLocation, setDraftLocation] = useState<string>('');
 	const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
@@ -694,7 +713,7 @@ export const Properties = () => {
 					.filter((property: Property) => {
 						if (filterBy === 'rental' && !property.isRental) return false;
 						if (filterBy === 'residential' && property.isRental) return false;
-						if (filterPropertyType !== 'all' && property.propertyType !== filterPropertyType) return false;
+						if (filterPropertyType !== 'all' && normalizePropertyType(property.propertyType) !== filterPropertyType) return false;
 						if (filterMinBedrooms > 0 && (property.bedrooms ?? 0) < filterMinBedrooms) return false;
 						const locationQuery = filterLocation.trim().toLowerCase();
 						if (locationQuery) {
@@ -884,15 +903,14 @@ export const Properties = () => {
 			photo: propertyToDuplicate.image,
 			owner: propertyToDuplicate.owner || '',
 			address: propertyToDuplicate.address || '',
-			propertyType: propertyToDuplicate.propertyType || 'Single Family',
-			units: [],
-			hasSuites: false,
-			suites: [],
+			propertyType: normalizePropertyType(propertyToDuplicate.propertyType),
+			propertyClassification:
+				propertyToDuplicate.propertyClassification ||
+				getDefaultPropertyClassification(propertyToDuplicate.propertyType),
 			bedrooms: propertyToDuplicate.bedrooms ?? 0,
 			bathrooms: propertyToDuplicate.bathrooms ?? 0,
 			notes: propertyToDuplicate.notes || '',
 			isRental: propertyToDuplicate.isRental ?? false,
-			maintenanceHistory: [],
 			groupId:
 				selectedGroupForDialog ||
 				propertyToDuplicate.groupId ||
@@ -1122,6 +1140,17 @@ export const Properties = () => {
 	const handleDuplicatePropertyClick = (groupId: string, property: any) => {
 		if (!currentUser?.subscription) {
 			feedback.notify('Unable to verify subscription. Please contact support.');
+			return;
+		}
+		if (
+			(!isResidentialProperty(property.propertyType) &&
+				!canUseBusinessPropertyTypes(currentUser.subscription)) ||
+			(property.isRental && !canUseRentalManagement(currentUser.subscription))
+		) {
+			feedback.notify(
+				'This property remains available to review and edit, but your current plan cannot create another property with its business settings.',
+			);
+			setOpenDropdown(null);
 			return;
 		}
 
@@ -1770,40 +1799,10 @@ export const Properties = () => {
 		setSelectedPropertyForEdit(null);
 	};
 
-	const getTenantUnitRoute = useCallback(
+	const getTenantPropertyRoute = useCallback(
 		(property: Property): string | null => {
-			// Units are temporarily hidden from the app flow; tenant cards should open
-			// the property page until unit-level surfaces return.
+			// Resident access is property-scoped.
 			return property.slug ? `/property/${property.slug}` : null;
-
-			/*
-			if (!isUserTenant) {
-				return null;
-			}
-
-			const assignment = getTenantAssignmentForProperty(property, currentUser.email);
-			if (!assignment?.unit && !assignment?.unitId) {
-				return null;
-			}
-
-			const units = (((property as any).units as Array<any>) || []).filter(Boolean);
-			const matchedUnit = units.find(
-				(unit) =>
-					(assignment.unitId && unit?.id === assignment.unitId) ||
-					(assignment.unit && (unit?.id === assignment.unit || unit?.name === assignment.unit)),
-			);
-
-			const unitName =
-				typeof matchedUnit?.name === 'string' && matchedUnit.name.trim().length > 0
-					? matchedUnit.name
-					: assignment.unit;
-
-			if (!unitName) {
-				return null;
-			}
-
-			return `/property/${property.slug}/unit/${encodeURIComponent(unitName)}`;
-			*/
 		},
 		[],
 	);
@@ -1838,7 +1837,7 @@ export const Properties = () => {
 
 	const singlePropertyRoute =
 		singleVisibleProperty && !hasRemainingCapacity
-			? getTenantUnitRoute(singleVisibleProperty) ||
+			? getTenantPropertyRoute(singleVisibleProperty) ||
 			`/property/${singleVisibleProperty.slug}`
 			: null;
 
@@ -2010,12 +2009,11 @@ export const Properties = () => {
 			return 'Rental';
 		}
 
-		if (property.propertyType === 'Commercial') {
+		if (normalizePropertyType(property.propertyType) === 'commercial') {
 			return 'Commercial';
 		}
-
-		if (property.propertyType === 'Multi-Family') {
-			return 'Portfolio';
+		if (isMultiUnitProperty(property.propertyType)) {
+			return 'Multi-unit';
 		}
 
 		return 'Primary Home';
@@ -2108,7 +2106,6 @@ export const Properties = () => {
 				location: {
 					propertyId: newProperty.id,
 				},
-				maintenanceHistory: [],
 			});
 
 			const createdDevice = await createDevice(clonedDevice).unwrap();
@@ -2194,7 +2191,10 @@ export const Properties = () => {
 		return copiedTaskCount;
 	};
 
-	const handleSaveProperty = async (formData: any) => {
+	const handleSaveProperty = async (
+		formData: any,
+		reportProgress?: (progress: PropertySaveProgress) => void,
+	) => {
 		const normalizedName = String(formData.name || '').trim();
 		const normalizedAddress = String(formData.address || '').trim();
 		const buildPropertySlug = (value: string) =>
@@ -2213,9 +2213,7 @@ export const Properties = () => {
 			throw new Error('Duplicate property name must be changed');
 		}
 
-		const effectivePropertyType = isHomeowner
-			? 'Single Family'
-			: formData.propertyType;
+		const effectivePropertyType = formData.propertyType;
 		const normalizedGroupId =
 			typeof formData.groupId === 'string' && formData.groupId.trim().length > 0
 				? formData.groupId.trim()
@@ -2238,19 +2236,11 @@ export const Properties = () => {
 					owner: formData.owner,
 					address: formData.address,
 					propertyType: effectivePropertyType,
-					hasSuites:
-						effectivePropertyType === 'Commercial'
-							? false
-							: undefined,
-					suites:
-						effectivePropertyType === 'Commercial'
-							? []
-							: undefined,
+					propertyClassification: formData.propertyClassification,
 					bedrooms: formData.bedrooms,
 					bathrooms: formData.bathrooms,
 					notes: formData.notes,
 					isRental: !!formData.isRental,
-					taskHistory: formData.maintenanceHistory || [],
 					...sharingData,
 				};
 				const sanitizedUpdates = Object.fromEntries(
@@ -2299,6 +2289,12 @@ export const Properties = () => {
 			}
 		} else {
 			// Add new property
+			const shouldFinalizeFirstPropertyTrial =
+				totalProperties === 0 &&
+				isHomeownerPlusTrialEnabled() &&
+				isIntentionalFreeAccountSubscription(currentUser?.subscription) &&
+				!isTeamMemberAccount &&
+				currentUser?.isAccountOwner !== false;
 			const slug = buildPropertySlug(normalizedName);
 			if (!normalizedName || !slug) {
 				feedback.notify('Please add a property name before saving.');
@@ -2343,23 +2339,43 @@ export const Properties = () => {
 				owner: formData.owner,
 				address: normalizedAddress,
 				propertyType: effectivePropertyType,
+				propertyClassification: formData.propertyClassification,
 				bedrooms: formData.bedrooms,
 				bathrooms: formData.bathrooms,
 				notes: formData.notes,
 				isRental: !!formData.isRental,
-				taskHistory: formData.maintenanceHistory || [],
 				...sharingData,
 			};
-
-			if (effectivePropertyType === 'Commercial') {
-				newPropertyData.hasSuites = false;
-				newPropertyData.suites = [];
-			}
 
 			try {
 				const result = await createProperty(newPropertyData);
 
 				if ('data' in result) {
+					let firstPropertyTrialActivationFailed = false;
+					if (shouldFinalizeFirstPropertyTrial) {
+						reportProgress?.({
+							title: 'Activating Homeowner+...',
+							text: `Your ${isHomeowner ? 'home' : 'property'} is saved. We are preparing the 30-day Homeowner+ access used by the setup assistant.`,
+						});
+						try {
+							const activation = await finalizeFirstPropertyTrial(result.data.id);
+							if (activation.effectiveEntitlementProjection) {
+								dispatch(
+									updateEntitlementProjection({
+										accountId: activation.accountId,
+										projection: activation.effectiveEntitlementProjection as any,
+									}),
+								);
+							}
+						} catch (activationError) {
+							firstPropertyTrialActivationFailed = true;
+							console.error(
+								'Property was created but Homeowner+ activation did not finish:',
+								activationError,
+							);
+						}
+					}
+
 					try {
 						await applyDashboardVisibilityPreference(
 							result.data.id,
@@ -2425,12 +2441,20 @@ export const Properties = () => {
 								? `Duplicated ${formData.name} with ${copiedDetails.join(' and ')}.`
 								: `Duplicated ${formData.name}.`,
 						);
-					} else if (formData.openSetupAfterCreate !== false) {
+					} else if (
+						formData.openSetupAfterCreate !== false &&
+						!firstPropertyTrialActivationFailed
+					) {
 						feedback.notify(
 							`${formData.name} was created. Opening ${isHomeowner ? 'home' : 'property'} setup.`,
 							'success',
 						);
 						navigate(`/property/${result.data.slug}?setup=1`);
+					} else if (firstPropertyTrialActivationFailed) {
+						feedback.notify(
+							`${formData.name} was created, but Homeowner+ access is still activating. Open setup after the access notice appears.`,
+						);
+						navigate(`/property/${result.data.slug}`);
 					} else {
 						feedback.notify(`${formData.name} was created.`, 'success');
 					}
@@ -2681,9 +2705,9 @@ export const Properties = () => {
 								setDraftPropertyType(event.target.value as typeof draftPropertyType)
 							}>
 							<option value='all'>All types</option>
-							<option value='Single Family'>Single Family</option>
-							<option value='Multi-Family'>Multi-Family</option>
-							<option value='Commercial'>Commercial</option>
+							<option value='residential'>Residential</option>
+							<option value='multi_unit'>Multi-unit</option>
+							<option value='commercial'>Commercial</option>
 						</PropertyFilterSelect>
 					</PropertyFilterField>
 					<PropertyFilterField>
@@ -2776,9 +2800,9 @@ export const Properties = () => {
 									setDraftPropertyType(e.target.value as typeof draftPropertyType)
 								}>
 								<option value='all'>All types</option>
-								<option value='Single Family'>Single Family</option>
-								<option value='Multi-Family'>Multi-Family</option>
-								<option value='Commercial'>Commercial</option>
+								<option value='residential'>Residential</option>
+								<option value='multi_unit'>Multi-unit</option>
+								<option value='commercial'>Commercial</option>
 							</PropertyFilterSelect>
 						</PropertyFilterField>
 						<PropertyFilterField>
@@ -2876,21 +2900,14 @@ export const Properties = () => {
 								photo: selectedPropertyForEdit.image,
 								owner: selectedPropertyForEdit.owner || '',
 								address: selectedPropertyForEdit.address || '',
-								propertyType:
-									selectedPropertyForEdit.propertyType || 'Single Family',
-								units: (selectedPropertyForEdit.units || []).map((u: any) =>
-									typeof u === 'string' ? u : u.name,
-								),
-								hasSuites: selectedPropertyForEdit.hasSuites ?? false,
-								suites: (selectedPropertyForEdit.suites || []).map((s: any) =>
-									typeof s === 'string' ? s : s.name,
-								),
+								propertyType: normalizePropertyType(selectedPropertyForEdit.propertyType),
+								propertyClassification:
+									selectedPropertyForEdit.propertyClassification ||
+									getDefaultPropertyClassification(selectedPropertyForEdit.propertyType),
 								bedrooms: selectedPropertyForEdit.bedrooms || 0,
 								bathrooms: selectedPropertyForEdit.bathrooms || 0,
 								notes: selectedPropertyForEdit.notes || '',
 								isRental: selectedPropertyForEdit.isRental ?? false,
-								maintenanceHistory:
-									selectedPropertyForEdit.maintenanceHistory || [],
 								coOwners: selectedPropertyForEdit.coOwners || [],
 								administrators: selectedPropertyForEdit.administrators || [],
 								viewers: selectedPropertyForEdit.viewers || [],
@@ -3026,7 +3043,7 @@ export const Properties = () => {
 										const propertyImageSrc = getPropertyImageSrc(property.image);
 										const isFallbackImage = isPropertyImageFallback(property.image);
 										const propertyRoute =
-											getTenantUnitRoute(property) ||
+											getTenantPropertyRoute(property) ||
 											`/property/${property.slug}`;
 										const openProperty = () => {
 											addRecentlyViewed({

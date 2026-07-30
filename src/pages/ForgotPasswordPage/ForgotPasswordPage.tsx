@@ -1,4 +1,3 @@
-import React from 'react';
 import { ForgotPasswordCard } from '../../Components/ForgotPasswordCard/ForgotPasswordCard';
 import { Wrapper } from '../LoginPage/LoginPage.styles';
 

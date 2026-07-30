@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -58,6 +58,13 @@ const formatLimit = (
 	unlimited = false,
 ) => unlimited && value >= 999 ? 'Unlimited' : `${value} ${value === 1 ? singular : plural}`;
 
+const comparisonValues = <T,>(
+	free: T,
+	homeownerPlus: T,
+	property: T,
+	portfolio: T,
+): T[] => [free, homeownerPlus, property, portfolio];
+
 const quickComparisonRows = [
 	{
 		label: 'Properties included',
@@ -68,39 +75,39 @@ const quickComparisonRows = [
 		values: paidPlans.map((plan) => formatLimit(plan.maxDevices, 'record', 'records', true)),
 	},
 	{
-		label: 'File limit',
-		values: paidPlans.map((plan) => formatLimit(plan.maxFiles, 'file')),
+		label: 'File count',
+		values: paidPlans.map(() => 'No file-count limit'),
 	},
 	{
 		label: 'Storage limit',
 		values: paidPlans.map((plan) => `${plan.maxStorageGb} GB`),
 	},
-	{ label: 'Storage usage display', values: [true, true, true, true] },
-	{ label: 'Property setup assistant', values: [true, true, true, true] },
-	{ label: 'Maintenance history tracking', values: [true, true, true, true] },
-	{ label: 'Manual tasks', values: [true, true, true, true] },
-	{ label: 'Task assignment', values: [true, true, true, true] },
-	{ label: 'Basic record gap check', values: [true, true, true, true] },
-	{ label: 'Maintley Intelligence guidance', values: ['Record gaps', 'Personalized guidance', 'Property guidance', 'Portfolio guidance'] },
-	{ label: 'Property Insight observations', values: [false, true, true, true] },
-	{ label: 'Suggested maintenance actions', values: ['Record gaps only', 'Generate tasks', 'Generate tasks', 'Generate tasks'] },
-	{ label: 'Recurring maintenance scheduling', values: [false, true, true, true] },
-	{ label: 'Task reminder emails', values: [false, true, true, true] },
-	{ label: 'Push notifications', values: [false, true, true, true] },
-	{ label: 'Document & photo storage', values: [true, true, true, true] },
-	{ label: 'Advanced search & retrieval', values: [false, true, true, true] },
-	{ label: 'Raw data export', values: [true, true, true, true] },
-	{ label: 'Warranty information', values: [true, true, true, true] },
-	{ label: 'Linked parts & supplies', values: [false, true, true, true] },
-	{ label: 'Family members', values: ['3', '3', '3', '3'] },
-	{ label: 'Contractor directory', values: [true, true, true, true] },
-	{ label: 'Team collaboration', values: [false, false, 'Simple', true] },
-	{ label: 'Resident maintenance requests', values: [false, false, true, true] },
-	{ label: 'Role-based access', values: [false, false, false, true] },
-	{ label: 'Property groups', values: [false, false, true, true] },
-	{ label: 'Portfolio reporting', values: [false, false, false, true] },
-	{ label: 'Advanced analytics', values: [false, false, false, true] },
-	{ label: 'Priority support', values: [false, false, false, true] },
+	{ label: 'Storage usage display', values: comparisonValues(true, true, true, true) },
+	{ label: 'Property setup assistant', values: comparisonValues(true, true, true, true) },
+	{ label: 'Maintenance history tracking', values: comparisonValues(true, true, true, true) },
+	{ label: 'Manual tasks', values: comparisonValues(true, true, true, true) },
+	{ label: 'Task assignment', values: comparisonValues(true, true, true, true) },
+	{ label: 'Basic record gap check', values: comparisonValues(true, true, true, true) },
+	{ label: 'Maintley Intelligence guidance', values: comparisonValues('Lightweight record check', 'Home guidance', 'Lightweight record check', 'Portfolio guidance') },
+	{ label: 'Property Insight observations', values: comparisonValues(false, true, false, true) },
+	{ label: 'Suggested maintenance actions', values: comparisonValues('Generate tasks', 'Generate tasks', 'Generate tasks', 'Generate tasks') },
+	{ label: 'Recurring maintenance scheduling', values: comparisonValues(true, true, true, true) },
+	{ label: 'Task reminder emails', values: comparisonValues(true, true, true, true) },
+	{ label: 'Push notifications', values: comparisonValues(true, true, true, true) },
+	{ label: 'Document & photo storage', values: comparisonValues(true, true, true, true) },
+	{ label: 'Advanced search & retrieval', values: comparisonValues(false, true, true, true) },
+	{ label: 'Raw data export', values: comparisonValues(true, true, true, true) },
+	{ label: 'Warranty information', values: comparisonValues(true, true, true, true) },
+	{ label: 'Linked parts & supplies', values: comparisonValues(false, true, true, true) },
+	{ label: 'Family members', values: comparisonValues('3', '3', '3', '3') },
+	{ label: 'Contractor directory', values: comparisonValues(true, true, true, true) },
+	{ label: 'Team collaboration', values: comparisonValues<boolean | string>(false, false, 'Simple', true) },
+	{ label: 'Resident maintenance requests', values: comparisonValues(false, false, true, true) },
+	{ label: 'Role-based access', values: comparisonValues(false, false, false, true) },
+	{ label: 'Property groups', values: comparisonValues(false, true, true, true) },
+	{ label: 'Portfolio reporting', values: comparisonValues(false, false, false, true) },
+	{ label: 'Advanced analytics', values: comparisonValues(false, false, false, true) },
+	{ label: 'Priority support', values: comparisonValues(false, false, false, true) },
 ];
 
 const PricingSectionComponent = () => {
@@ -153,9 +160,9 @@ const PricingSectionComponent = () => {
 						<PricingCard key={plan.id} className={plan.id === 'homeowner_plus' ? 'popular' : ''}>
 							{plan.id === 'homeowner_plus' && <PricingBadge>Most Popular</PricingBadge>}
 							<PricingPlan>
-								{index < 2 && <FontAwesomeIcon icon={faHouse} />}
-								{index === 2 && <FontAwesomeIcon icon={faBuilding} />}
-								{index === 3 && <FontAwesomeIcon icon={faBuildingUser} />}
+								{index <= 2 && <FontAwesomeIcon icon={faHouse} />}
+								{index === 3 && <FontAwesomeIcon icon={faBuilding} />}
+								{index === 4 && <FontAwesomeIcon icon={faBuildingUser} />}
 								<span>{plan.name}</span>
 							</PricingPlan>
 							<PricingPrice>${plan.priceMonthly}</PricingPrice>

@@ -40,6 +40,8 @@ const zlib = __importStar(require("zlib"));
 const accountAuthz_1 = require("./accountAuthz");
 const maintleyEventEngine_1 = require("./maintleyEventEngine");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
+const docxServiceReport_1 = require("./docxServiceReport");
+const pdfDocumentExtraction_1 = require("./pdfDocumentExtraction");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -49,6 +51,26 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024;
 const PROPERTY_DOCUMENTS_COLLECTION = 'propertyDocuments';
 const PROPERTY_KNOWLEDGE_SUGGESTIONS_COLLECTION = 'propertyKnowledgeSuggestions';
 const toString = (value) => String(value || '').trim();
+const normalizeMaintleyRole = (value) => {
+    if (typeof value === 'string') {
+        return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+    }
+    if (!value || typeof value !== 'object')
+        return '';
+    const record = value;
+    return normalizeMaintleyRole(record.role || record.maintley_role || record.value);
+};
+const isMaintleyRestrictedScanRole = (value) => ['owner', 'admin', 'maintley_owner', 'platform_owner'].includes(normalizeMaintleyRole(value));
+const resolveInternalDocumentScanOverride = async (uid, requested) => {
+    if (!requested)
+        return undefined;
+    const userSnapshot = await db.collection('users').doc(uid).get();
+    const maintleyRole = normalizeMaintleyRole(userSnapshot.data()?.maintley_role);
+    if (!isMaintleyRestrictedScanRole(maintleyRole)) {
+        throw new functions.https.HttpsError('permission-denied', 'Only Maintley Owner or Admin may test scanning for manuals and warranties.');
+    }
+    return { actorUserId: uid, maintleyRole };
+};
 const stripUndefinedDeep = (value) => {
     if (Array.isArray(value)) {
         return value
@@ -96,6 +118,15 @@ const assertCanProcessProperty = async (propertyData, uid) => {
 };
 const isPdfDocument = (document) => toString(document.type).toLowerCase().includes('pdf') ||
     toString(document.fileName || document.name).toLowerCase().endsWith('.pdf');
+const isDocxDocument = (document) => toString(document.type).toLowerCase().includes('wordprocessingml') ||
+    toString(document.fileName || document.name).toLowerCase().endsWith('.docx');
+const isProcessableDocument = (document) => isPdfDocument(document) || isDocxDocument(document);
+const isKnowledgeScanEligibleDocument = (document) => {
+    const category = toString(document.category).toLowerCase();
+    const documentType = toString(document.documentType).toLowerCase();
+    return !['manual', 'warranty'].includes(category) &&
+        !['manual', 'warranty'].includes(documentType);
+};
 const updateDocumentInList = (documents, documentId, updates) => documents.map((document) => toString(document.id) === documentId
     ? stripUndefinedDeep({ ...document, ...updates })
     : document);
@@ -134,7 +165,7 @@ const assertCanUsePropertyKnowledgeAcquisitionForProperty = async (propertyData)
     const accountId = getPropertyAccountId(propertyData);
     const ownerId = toString(propertyData.userId);
     const subscription = await loadAccountSubscription(accountId, ownerId);
-    if ((0, subscriptionEntitlements_1.canUsePropertyKnowledgeAcquisition)(subscription)) {
+    if (await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId || ownerId, subscription, 'property_knowledge.acquire')) {
         return;
     }
     throw new functions.https.HttpsError('permission-denied', 'Suggested details from documents are available with Homeowner+.');
@@ -607,6 +638,7 @@ const FIELD_META = {
     invoiceDate: { label: 'Invoice date', targetEntity: 'maintenanceHistory', targetField: 'invoiceDate' },
     maintenanceEventDate: { label: 'Maintenance date', targetEntity: 'maintenanceHistory', targetField: 'date' },
     maintenanceEventDescription: { label: 'Maintenance description', targetEntity: 'maintenanceHistory', targetField: 'description' },
+    performedByName: { label: 'Performed by', targetEntity: 'maintenanceHistory', targetField: 'performedByName' },
     servicePerformed: { label: 'Service performed', targetEntity: 'maintenanceHistory', targetField: 'servicePerformed' },
     partsReplaced: { label: 'Parts and supplies', targetEntity: 'maintenanceHistory', targetField: 'partsReplaced' },
     totalCost: { label: 'Total cost', targetEntity: 'maintenanceHistory', targetField: 'totalCost' },
@@ -663,7 +695,7 @@ const extractFieldsFromPdfText = (text) => {
     return fields;
 };
 const createSuggestionId = (documentId, createdAt) => `knowledge-${documentId}-${new Date(createdAt).getTime()}`.replace(/[^a-zA-Z0-9_-]/g, '-');
-const publishDocumentAcquisitionEvent = async ({ propertyId, propertyData, document, suggestionId, suggestionCount, nowIso, type, status, title, message, push, errorMessage, }) => {
+const publishDocumentAcquisitionEvent = async ({ propertyId, propertyData, document, suggestionId, suggestionCount, nowIso, type, status, title, message, push, errorMessage, internalOverride, }) => {
     const userId = toString(document.uploadedBy) ||
         toString(propertyData.userId) ||
         toString(propertyData.accountId);
@@ -701,6 +733,9 @@ const publishDocumentAcquisitionEvent = async ({ propertyId, propertyData, docum
             suggestionId,
             suggestionCount,
             errorMessage,
+            internalRestrictedScan: Boolean(internalOverride),
+            internalRestrictedScanActorUserId: internalOverride?.actorUserId,
+            internalRestrictedScanMaintleyRole: internalOverride?.maintleyRole,
         },
     });
 };
@@ -725,10 +760,15 @@ const getPendingSuggestionForDocument = (suggestions, documentId) => suggestions
     toString(suggestion.status) === 'pending');
 const getSuggestionFieldCount = (suggestion) => {
     const fields = suggestion?.extractedFields;
-    return Array.isArray(fields) ? fields.length : 0;
+    const tasks = suggestion?.suggestedTasks;
+    const equipment = suggestion?.suggestedEquipment;
+    return ((Array.isArray(fields) ? fields.length : 0) +
+        (Array.isArray(tasks) ? tasks.length : 0) +
+        (Array.isArray(equipment) ? equipment.length : 0));
 };
 const shouldBackgroundProcessDocument = (document) => toString(document.id) &&
-    isPdfDocument(document) &&
+    isProcessableDocument(document) &&
+    isKnowledgeScanEligibleDocument(document) &&
     toString(document.storagePath) &&
     toString(document.acquisitionStatus) === 'processing';
 const hasDocumentChangedForProcessing = (before, after) => {
@@ -754,7 +794,7 @@ const getProcessableDocumentIds = (beforeDocuments, afterDocuments) => {
         .map((document) => toString(document.id))
         .filter(Boolean);
 };
-const loadDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy, }) => {
+const loadDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy, allowRestrictedDocumentType = false, }) => {
     const snapshot = await propertyRef.get();
     if (!snapshot.exists) {
         throw new functions.https.HttpsError('not-found', 'Property not found.');
@@ -780,8 +820,11 @@ const loadDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy,
     if (!document) {
         throw new functions.https.HttpsError('not-found', 'Document not found.');
     }
-    if (!isPdfDocument(document)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Only PDF documents are supported by this processor.');
+    if (!isProcessableDocument(document)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Only PDF and DOCX documents are supported by this processor.');
+    }
+    if (!isKnowledgeScanEligibleDocument(document) && !allowRestrictedDocumentType) {
+        throw new functions.https.HttpsError('failed-precondition', 'Manuals and warranties are stored with the property but are not scanned for suggested details yet.');
     }
     if (!toString(document.storagePath)) {
         throw new functions.https.HttpsError('failed-precondition', 'This document does not have a storage path.');
@@ -798,12 +841,13 @@ const loadDocumentForProcessing = async ({ propertyRef, documentId, triggeredBy,
             : [...documents, document],
     };
 };
-const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggeredBy, }) => {
+const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggeredBy, internalOverride, }) => {
     const propertyRef = db.collection('properties').doc(propertyId);
     const loaded = await loadDocumentForProcessing({
         propertyRef,
         documentId,
         triggeredBy,
+        allowRestrictedDocumentType: Boolean(internalOverride),
     });
     if (!loaded) {
         return {
@@ -826,14 +870,52 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
         title: 'Document review started',
         message: 'Maintley is reviewing this document.',
         push: false,
+        internalOverride,
     });
     try {
-        const [pdfBuffer] = await admin.storage().bucket().file(storagePath).download();
-        if (pdfBuffer.length > MAX_PDF_BYTES) {
-            throw new Error('PDF is larger than the current 10MB processing limit.');
+        const [documentBuffer] = await admin.storage().bucket().file(storagePath).download();
+        if (documentBuffer.length > MAX_PDF_BYTES) {
+            throw new Error('Document is larger than the current 10MB processing limit.');
         }
-        const extractedText = extractTextFromPdfBuffer(pdfBuffer);
-        const extractedFields = extractFieldsFromPdfText(extractedText);
+        const docxReport = isDocxDocument(document)
+            ? await (0, docxServiceReport_1.extractDocxServiceReport)(documentBuffer)
+            : undefined;
+        let pdfDocument;
+        if (!docxReport) {
+            try {
+                pdfDocument = await (0, pdfDocumentExtraction_1.extractPdfDocument)(documentBuffer);
+            }
+            catch (error) {
+                console.warn('Layout-aware PDF extraction failed; using compatibility extraction.', error);
+            }
+        }
+        const extractedText = docxReport?.rawText ||
+            (pdfDocument?.hasUsableText ? pdfDocument.rawText : '') ||
+            extractTextFromPdfBuffer(documentBuffer);
+        const isServiceReport = /maintenance report|status checks|maintenance tasks/i.test(extractedText);
+        const serviceReport = docxReport ||
+            (pdfDocument?.hasUsableText && isServiceReport
+                ? (0, docxServiceReport_1.parseServiceReportLayout)({
+                    rawText: pdfDocument.rawText,
+                    tables: pdfDocument.tables,
+                })
+                : undefined);
+        const extractedFields = serviceReport
+            ? (() => {
+                const fields = [];
+                createField(fields, 'maintenanceEventDate', serviceReport.visitDate || '', 'Visit details', 'high', 'The report clearly labels the visit date.');
+                createField(fields, 'maintenanceEventDescription', serviceReport.title || 'Property maintenance visit', 'Report title', 'high', 'The report clearly identifies the maintenance visit.');
+                createField(fields, 'performedByName', serviceReport.technicianName || '', 'Visit details', 'high', 'The report clearly labels the technician who performed the visit.');
+                const completedWork = serviceReport.completedWork.length
+                    ? `Completed work:\n${serviceReport.completedWork.map((item) => `- ${item}`).join('\n')}`
+                    : '';
+                const observations = serviceReport.observations.length
+                    ? `Inspection observations:\n${serviceReport.observations.map((item) => `- ${item.area}: ${item.status}${item.notes ? ` - ${item.notes}` : ''}`).join('\n')}`
+                    : '';
+                createField(fields, 'servicePerformed', [completedWork, observations].filter(Boolean).join('\n\n'), 'Maintenance tasks and status checks', 'high', 'The report records completed work and dated inspection observations.');
+                return fields;
+            })()
+            : extractFieldsFromPdfText(extractedText);
         const propertyConfirmation = buildPropertyConfirmationFromPdfText(extractedText, propertyData.address);
         const completedAt = new Date().toISOString();
         if (!extractedText || extractedFields.length === 0) {
@@ -860,7 +942,9 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                     acquisitionStatus: 'failed',
                     acquisitionCompletedAt: completedAt,
                     acquisitionWorkerCompletedAt: completedAt,
-                    acquisitionError: 'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
+                    acquisitionError: isDocxDocument(document)
+                        ? 'Maintley could not find useful structured text in this Word document.'
+                        : 'Maintley could not read useful text from this PDF yet. Scanned PDFs will need the rendered-page OCR processor.',
                 };
                 transaction.update(propertyRef, {
                     documents: updateDocumentInList(latestDocuments, documentId, documentUpdates),
@@ -876,7 +960,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                 return {
                     success: false,
                     suggestionCount: 0,
-                    message: 'No readable PDF text found.',
+                    message: 'No readable document text found.',
                 };
             });
             if (!failureResult.success) {
@@ -891,6 +975,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                     message: 'Maintley could not review this document yet.',
                     push: true,
                     errorMessage: failureResult.message,
+                    internalOverride,
                 });
             }
             return failureResult;
@@ -903,8 +988,17 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                 toString(document.links?.assetIds?.[0]) ||
                 undefined,
             documentType: classifyDocumentType(document),
-            extractionMethod: 'pdf_text',
+            extractionMethod: docxReport ? 'docx_text' : 'pdf_text',
             extractedFields,
+            ...(serviceReport?.suggestedTasks.length
+                ? { suggestedTasks: serviceReport.suggestedTasks }
+                : {}),
+            ...(serviceReport?.suggestedEquipment.length
+                ? { suggestedEquipment: serviceReport.suggestedEquipment }
+                : {}),
+            ...(serviceReport?.observations.length
+                ? { visitObservations: serviceReport.observations }
+                : {}),
             confidence: extractedFields.reduce((sum, field) => sum + field.confidence, 0) /
                 extractedFields.length,
             propertyConfirmation,
@@ -969,7 +1063,9 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                 didWrite: true,
                 propertyData: latestData,
                 document: latestDocument,
-                suggestionCount: extractedFields.length,
+                suggestionCount: extractedFields.length +
+                    (serviceReport?.suggestedTasks.length || 0) +
+                    (serviceReport?.suggestedEquipment.length || 0),
                 suggestionId: toString(suggestion.id),
             };
         });
@@ -986,6 +1082,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                 title: 'Suggested details ready',
                 message: `Maintley found ${finalizeResult.suggestionCount} suggested detail${finalizeResult.suggestionCount === 1 ? '' : 's'} in ${toString(finalizeResult.document.fileName || finalizeResult.document.name) || 'this document'}.`,
                 push: true,
+                internalOverride,
             });
         }
         return {
@@ -1016,7 +1113,7 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
                 acquisitionCompletedAt: completedAt,
                 acquisitionWorkerCompletedAt: completedAt,
                 acquisitionError: error?.message ||
-                    'Maintley could not review this PDF. Please try again later.',
+                    'Maintley could not review this document. Please try again later.',
             };
             transaction.update(propertyRef, {
                 documents: updateDocumentInList(latestDocuments, documentId, documentUpdates),
@@ -1041,9 +1138,10 @@ const processPdfDocumentAcquisition = async ({ propertyId, documentId, triggered
             message: 'Maintley could not review this document yet.',
             push: true,
             errorMessage: error?.message ||
-                'Maintley could not review this PDF. Please try again later.',
+                'Maintley could not review this document. Please try again later.',
+            internalOverride,
         });
-        console.error('PDF property knowledge acquisition failed:', error);
+        console.error('Property knowledge acquisition failed:', error);
         throw error;
     }
 };
@@ -1064,18 +1162,20 @@ exports.processPropertyDocumentAcquisition = functions
     }
     const propertyData = propertySnapshot.data() || {};
     await assertCanProcessProperty(propertyData, uid);
+    const internalOverride = await resolveInternalDocumentScanOverride(uid, data?.allowRestrictedDocumentType === true);
     try {
         return await processPdfDocumentAcquisition({
             propertyId,
             documentId,
             triggeredBy: 'manual',
+            internalOverride,
         });
     }
     catch (error) {
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError('internal', error?.message || 'Could not review this PDF.');
+        throw new functions.https.HttpsError('internal', error?.message || 'Could not review this document.');
     }
 });
 exports.processPropertyDocumentAcquisitionRequests = functions
@@ -1101,11 +1201,13 @@ exports.processPropertyDocumentAcquisitionRequests = functions
             });
         }
         catch (error) {
-            console.error(`Background PDF acquisition failed for property ${context.params.propertyId}, document ${documentId}:`, error);
+            console.error(`Background document acquisition failed for property ${context.params.propertyId}, document ${documentId}:`, error);
         }
     }
 });
 exports.__test = {
     buildPropertyConfirmationFromPdfText,
     extractFieldsFromPdfText,
+    isKnowledgeScanEligibleDocument,
+    isMaintleyRestrictedScanRole,
 };

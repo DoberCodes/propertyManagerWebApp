@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom"
 import titleName from '../../../../Assets/TitleName.png';
 import { COLORS } from '../../../../constants/colors';
 import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
+import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
 
 
 interface MobileNavProps {
@@ -297,7 +298,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({
                     $active={activeRoute === '/dashboard'}
                     onClick={() => navigate('/dashboard')}
                     aria-current={activeRoute === '/dashboard' ? 'page' : undefined}>
-                    <MobileBottomNavLabel>Today</MobileBottomNavLabel>
+                    <MobileBottomNavLabel>{TODAY_PAGE_LABEL}</MobileBottomNavLabel>
                 </MobileBottomNavItem>
 
                 <MobileBottomNavItem

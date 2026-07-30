@@ -64,11 +64,24 @@ Current capabilities:
 * Associate tenants with properties.
 * Track property type classifications.
 
+Homeowner plans keep property setup focused on personal and family homes. They
+may choose a residential classification but cannot create Multi-unit or
+Commercial properties or newly enable rental management. Property and Portfolio
+plans unlock those business workflows. After a downgrade, existing restricted
+records remain visible and ordinary descriptive edits remain available, while
+the restricted broad type and rental setting stay locked.
+
 Supported property types:
 
-* Single Family
-* Multi-Family
+* Residential
+* Multi-unit
 * Commercial
+
+Residential classifications are Single-family home, Condo, Townhome, and
+Apartment. Multi-unit and Commercial use their own building classifications.
+Classification describes the physical property; `isRental` independently
+controls rental-management behavior. A residential Apartment classification
+does not activate resident or business workflows.
 
 ---
 
@@ -355,9 +368,12 @@ The Support Center brings together:
 * Frequently asked questions.
 * Troubleshooting and bug-report guidance.
 * A curated feed showing the latest five significant features and major user-facing updates.
-* In-depth homeowner-friendly articles covering core Maintley functions.
+* In-depth homeowner-friendly articles covering core Maintley functions and
+  account behavior.
 * Optional inline screenshots in support articles when a visual example helps explain a feature.
-* Founder notes that explain the practical thinking behind each guide.
+* Automatically derived reading times based on visible article content.
+* Related-guide links that keep connected workflows discoverable.
+* Selective founder notes when practical product context adds to the guide.
 
 Articles use stable, shareable routes:
 
@@ -381,6 +397,20 @@ Current article topics include:
 * Preparing property records for a contractor.
 * Choosing between a task and a maintenance record.
 * Preserving useful information after service work.
+* Understanding plans, trials, and complimentary access.
+* Managing Stripe billing and subscriptions.
+* Understanding what happens after a downgrade.
+* Managing team-member access and permissions.
+* Creating reports and property exports.
+* Understanding storage limits and file management.
+* Protecting and deleting an account.
+
+Each article is maintained as an individual structured content module with a
+central index. The existing article renderer owns the shared presentation so
+content organization does not create parallel page implementations.
+
+In-app Support explains how to use Maintley and how current Maintley behavior
+works. General home-maintenance education belongs on public resource pages.
 
 The Support Center shows a featured selection. The full article library is
 available through **View all articles**.
@@ -426,8 +456,9 @@ Current capabilities:
 * Mobile-optimized navigation.
 * Google Play distribution for Android users.
 * Progressive Web App support for browser-based installation where supported.
-* Native update support. In-app update prompts open Maintley's Google Play
-  listing so Android users can update through the Play Store.
+* Native update metadata support remains available, but the automatic in-app
+  update prompt is temporarily disabled until Maintley can verify that the
+  advertised release is actually available to the user through Google Play.
 
 The Android application shares the same core functionality and data model as the web application.
 

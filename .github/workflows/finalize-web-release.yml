@@ -73,18 +73,43 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Require a new immutable release
+      - name: Validate release commit identity
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          SUBJECT="$(git log -1 --format=%s HEAD)"
+          ESCAPED_VERSION="${VERSION//./\\.}"
+          if ! printf '%s\n' "$SUBJECT" | grep -Eq "^Release v${ESCAPED_VERSION} \\(#[0-9]+\\)$"; then
+            echo "::error::Deployed commit must be the Release v$VERSION pull-request merge. Found: $SUBJECT"
+            exit 1
+          fi
+
+      - name: Resolve immutable release state
+        id: release-state
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
+          DEPLOYED_SHA: ${{ inputs.deployed_sha }}
+        shell: bash
         run: |
           if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
-            echo "::error::Tag $TAG already exists. Releases are immutable."
-            exit 1
+            TAG_SHA="$(git rev-parse "$TAG^{commit}")"
+            if [ "$TAG_SHA" != "$DEPLOYED_SHA" ]; then
+              echo "::error::Tag $TAG points to $TAG_SHA instead of deployed commit $DEPLOYED_SHA."
+              exit 1
+            fi
           fi
+
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "::error::GitHub Release $TAG already exists. Releases are immutable."
-            exit 1
+            if ! git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
+              echo "::error::GitHub Release $TAG exists without a fetched matching tag."
+              exit 1
+            fi
+            echo "GitHub Release $TAG already represents deployed commit $DEPLOYED_SHA."
+            echo "should_create=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_create=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Preserve generated release metadata
@@ -99,6 +124,7 @@ jobs:
           retention-days: 30
 
       - name: Create tag and GitHub Release
+        if: steps.release-state.outputs.should_create == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}

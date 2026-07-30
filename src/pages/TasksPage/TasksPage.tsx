@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RootState } from 'Redux/store/store';
@@ -10,13 +10,8 @@ import {
 	selectIsHomeowner,
 } from 'Redux/selectors/permissionSelectors';
 import { filterTasksByRole } from '../../utils/dataFilters';
-import { ReusableTable } from '../../Components/Library/ReusableTable';
 import { useTaskHandlers } from '../PropertyDetailPage/useTaskHandlers';
 import {
-	faEdit,
-	faTrash,
-	faUserPlus,
-	faCheck,
 	faFan,
 	faSnowflake,
 	faClipboardCheck,
@@ -27,7 +22,6 @@ import {
 	faChevronDown,
 	faChevronUp,
 } from '@fortawesome/free-solid-svg-icons';
-import { Column, Action } from '../../Components/Library/ReusableTable';
 import {
 	FloatingFilterPanel,
 	TaskModal,
@@ -40,7 +34,6 @@ import {
 } from '../../Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
 import {
-	TaskGridSection,
 	TaskOverviewGrid,
 	TaskHeroCard,
 	TaskHeroEyebrow,
@@ -74,7 +67,6 @@ import {
 	TaskResultCount,
 	TaskFilterFields,
 	TaskFilterField,
-	TaskPageMetaRow,
 	AddTaskButton,
 	MobileListSection,
 	MobileTaskCard,
@@ -120,6 +112,7 @@ import {
 	buildTaskTimeBuckets,
 	TaskTimeBucketId,
 } from '../../tasks/taskTimeBuckets';
+import { getTaskTimingLabel } from '../../tasks/taskSchedule';
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
@@ -188,7 +181,6 @@ export const TasksPage = () => {
 		assigningTaskId,
 	} = taskHandlers;
 
-	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 	const [showTaskCompletionModal, setShowTaskCompletionModal] = useState(false);
 	const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 	const [searchTerm, setSearchTerm] = useState('');
@@ -232,7 +224,8 @@ export const TasksPage = () => {
 		today: false,
 		'this-week': false,
 		upcoming: false,
-		'no-due-date': false,
+		asap: false,
+		unscheduled: false,
 	});
 	// track the property id for the task we're assigning so the modal can fetch contractors immediately
 	const [assigningTaskPropertyId, setAssigningTaskPropertyId] =
@@ -460,14 +453,6 @@ export const TasksPage = () => {
 			</TaskFilterField>
 		</TaskFilterFields>
 	);
-
-	const handleSort = (key: string) => {
-		setSortState((prev) =>
-			prev.key === key
-				? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
-				: { key, direction: 'asc' },
-		);
-	};
 
 	const clearTopFilters = () => {
 		setSearchTerm('');
@@ -753,12 +738,8 @@ export const TasksPage = () => {
 		return { kind, actions };
 	};
 
-	const getTaskOperationalStatus = (task: any) => {
-		return getTaskDisplayStatus(task);
-	};
-
-	const formatRelativeDue = (value?: string) => {
-		if (!value) return 'No due date set';
+	const formatRelativeDue = (value?: string, scheduleMode?: any) => {
+		if (!value) return getTaskTimingLabel({ dueDate: value, scheduleMode });
 		const target = new Date(value).getTime();
 		if (Number.isNaN(target)) return 'No due date set';
 		const diffMs = target - Date.now();
@@ -788,242 +769,6 @@ export const TasksPage = () => {
 		return { icon: faScrewdriverWrench, color: '#475569', background: '#f1f5f9' };
 	};
 
-	const formatRelativePast = (value?: string) => {
-		if (!value) return 'No recorded activity yet';
-		const target = new Date(value).getTime();
-		if (Number.isNaN(target)) return 'No recorded activity yet';
-		const diffMs = Date.now() - target;
-		const absDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
-		if (absDays === 0) return 'Today';
-		if (absDays === 1) return '1 day ago';
-		if (absDays < 7) return `${absDays} days ago`;
-		if (absDays < 30) {
-			const weeks = Math.floor(absDays / 7);
-			return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
-		}
-		const months = Math.floor(absDays / 30);
-		return `${months} month${months === 1 ? '' : 's'} ago`;
-	};
-
-	const formatMonthYear = (value?: string) => {
-		if (!value) return null;
-		const target = new Date(value);
-		if (Number.isNaN(target.getTime())) return null;
-		return target.toLocaleDateString('en-US', {
-			month: 'short',
-			year: 'numeric',
-		});
-	};
-
-	const getContinuitySignals = (task: any) => {
-		const signals: string[] = [];
-		const recurringSince = formatMonthYear(task.createdAt || task.lastRecurrenceDate);
-
-		if (task.isRecurring) {
-			signals.push(
-				task.recurrenceFrequency
-					? `Recurring ${task.recurrenceFrequency}`
-					: 'Recurring task',
-			);
-		}
-
-		if (recurringSince && task.isRecurring) {
-			signals.push(`Recurring since ${recurringSince}`);
-		}
-
-		if (task.completionDate) {
-			signals.push(`Last completed ${formatRelativePast(task.completionDate)}`);
-		} else if (task.updatedAt) {
-			signals.push(`Last updated ${formatRelativePast(task.updatedAt)}`);
-		} else if (task.createdAt) {
-			signals.push(`Opened ${formatRelativePast(task.createdAt)}`);
-		}
-
-		if (signals.length === 0) {
-			signals.push('Awaiting first recorded maintenance event');
-		}
-
-		return signals.slice(0, 3);
-	};
-
-	// Table columns definition
-	const columns: Column[] = [
-		{
-			header: 'Task',
-			key: 'title',
-			sortable: true,
-			render: (value: string, task: any) => {
-				const iconStyle = getTaskIcon(task);
-				const overdue = isTaskOverdueForDisplay(task);
-				const priorityColor = task.priority === 'High' ? '#b91c1c' : task.priority === 'Medium' ? '#92400e' : '#475569';
-				const hasTaskNotifications = hasEnabledTaskNotifications(task);
-				return (
-					<div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 280 }}>
-						<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-							<span
-								style={{
-									display: 'inline-flex',
-									alignItems: 'center',
-									justifyContent: 'center',
-									width: 24,
-									height: 24,
-									borderRadius: 8,
-									color: iconStyle.color,
-									background: iconStyle.background,
-									flexShrink: 0,
-								}}>
-								<FontAwesomeIcon icon={iconStyle.icon} />
-							</span>
-							<strong style={{ fontSize: 14 }}>{value}</strong>
-							{hasTaskNotifications && (
-								<span
-									title='Task reminders enabled'
-									style={{
-										display: 'inline-flex',
-										alignItems: 'center',
-										justifyContent: 'center',
-										width: 22,
-										height: 22,
-										marginLeft: 'auto',
-										borderRadius: 999,
-										fontSize: 12,
-										color: '#a16207',
-										background: '#fef9c3',
-										border: '1px solid #facc15',
-									}}>
-									<FontAwesomeIcon icon={faBell} />
-								</span>
-							)}
-						</div>
-						<div style={{ fontSize: 12, color: '#64748b' }}>
-							{task.category || 'General maintenance'}
-							{task.location ? ` · ${task.location}` : ''}
-						</div>
-						<div
-							style={{
-								display: 'inline-flex',
-								alignItems: 'center',
-								gap: 5,
-								minWidth: 0,
-								fontSize: 12,
-								color: '#334155',
-								fontWeight: 700,
-							}}>
-							<FontAwesomeIcon
-								icon={faHouse}
-								style={{ color: '#64748b', flexShrink: 0 }}
-							/>
-							<span style={{ overflowWrap: 'anywhere' }}>
-								{taskPropertyLanguage.itemPrefix}: {getTaskPropertyLabel(task)}
-							</span>
-						</div>
-						<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-							<span>{getAssigneeLabel(task)}</span>
-							<span style={{ color: '#cbd5e1' }}>·</span>
-							<span style={{ color: overdue ? '#b91c1c' : '#64748b', fontWeight: overdue ? 700 : 400 }}>
-								{formatRelativeDue(task.dueDate)}
-							</span>
-							{task.priority && (
-								<>
-									<span style={{ color: '#cbd5e1' }}>·</span>
-									<span style={{ color: priorityColor, fontWeight: 600 }}>Priority: {task.priority}</span>
-								</>
-							)}
-						</div>
-						<button
-							type='button'
-							onClick={() => openTaskProfile(task)}
-							style={{
-								border: 'none',
-								background: 'transparent',
-								color: '#1d4ed8',
-								fontWeight: 600,
-								cursor: 'pointer',
-								padding: 0,
-								textAlign: 'left',
-								fontSize: 12,
-							}}>
-							Open profile
-						</button>
-					</div>
-				);
-			},
-		},
-		{
-			header: 'Maintenance Status',
-			key: 'updatedAt',
-			sortable: true,
-			render: (_value: string, task: any) => {
-				const continuitySignals = getContinuitySignals(task);
-				const recurringSummary = task.isRecurring
-					? task.recurrenceFrequency
-						? `Recurring ${task.recurrenceFrequency}`
-						: 'Recurring task active'
-					: task.completionDate
-						? 'Task has recorded maintenance history'
-						: 'First maintenance event still pending';
-				return (
-					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
-							{recurringSummary}
-						</div>
-						{continuitySignals.slice(1).map((signal, signalIndex) => (
-							<div key={`${task.id}-continuity-${signalIndex}`} style={{ fontSize: 12, color: '#64748b' }}>
-								{signal}
-							</div>
-						))}
-					</div>
-				);
-			},
-		},
-		{
-			header: 'State',
-			key: 'status',
-			sortable: true,
-			render: (_status: string, task: any) => {
-				const operational = getTaskOperationalStatus(task);
-				const activityText =
-					operational.label === 'Completed'
-						? 'Maintenance completed'
-						: operational.label === 'Overdue'
-							? 'Maintenance is overdue'
-							: operational.label === 'Due Soon'
-								? 'Maintenance is coming due soon'
-								: operational.label === 'Open'
-									? 'Ready to schedule or review'
-									: 'Upcoming maintenance';
-				return (
-					<div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-						<span
-							style={{
-								display: 'inline-flex',
-								alignItems: 'center',
-								padding: '5px 10px',
-								borderRadius: 999,
-								fontSize: 12,
-								fontWeight: 700,
-								color: operational.color,
-								background: operational.background,
-								border: `1px solid ${operational.border}`,
-								width: 'fit-content',
-							}}>
-							{operational.label}
-						</span>
-						<div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{activityText}</div>
-						<div style={{ fontSize: 12, color: operational.isOverdue ? '#b91c1c' : '#64748b', fontWeight: operational.isOverdue ? 600 : 400 }}>
-							{formatRelativeDue(task.dueDate)}
-						</div>
-					</div>
-				);
-			},
-		},
-	];
-
-	const handleEditTask = (task: any) => {
-		if (!canManageTasks) return;
-		taskHandlers.setEditingTaskId(task.id);
-		taskHandlers.setShowTaskDialog(true);
-	};
 
 	const handleAssignTask = (task: any) => {
 		if (!canManageTasks) return;
@@ -1057,8 +802,8 @@ export const TasksPage = () => {
 	const getAssigneeLabel = (task: any) =>
 		getTaskAssigneeDisplayName(task);
 
-	const formatDueDate = (dueDate?: string) => {
-		if (!dueDate) return 'ASAP';
+	const formatDueDate = (dueDate?: string, scheduleMode?: any) => {
+		if (!dueDate) return getTaskTimingLabel({ dueDate, scheduleMode });
 		const parsed = new Date(dueDate);
 		if (Number.isNaN(parsed.getTime())) return dueDate;
 		return parsed.toLocaleDateString('en-US', {
@@ -1131,39 +876,6 @@ export const TasksPage = () => {
 		};
 	}, [pendingUndo]);
 
-	const taskActions: Action[] = canManageTasks ? [
-		{
-			label: 'Refine Task',
-			icon: faEdit,
-			onClick: (task: any) => handleEditTask(task),
-		},
-		{
-			label: 'Complete and Log',
-			icon: faCheck,
-			onClick: (task: any) => {
-				handleTaskCompletion(task.id);
-			},
-			disabled: (task: any) => task.status === 'Completed',
-		},
-		{
-			label: 'Assign Owner',
-			icon: faUserPlus,
-			onClick: (task: any) => handleAssignTask(task),
-		},
-		{
-			label: 'Delete',
-			icon: faTrash,
-			onClick: (task: any) => {
-				queueUndoableAction({
-					kind: 'delete',
-					taskId: task.id,
-					taskTitle: task.title || 'Task',
-				});
-			},
-			className: 'delete',
-		},
-	] : [];
-
 	const handleTaskCompletion = (taskId: string) => {
 		setCompletingTaskId(taskId);
 		setShowTaskCompletionModal(true);
@@ -1172,7 +884,6 @@ export const TasksPage = () => {
 	const handleTaskCompletionSuccess = () => {
 		setShowTaskCompletionModal(false);
 		setCompletingTaskId(null);
-		setSelectedRows(new Set());
 	};
 
 	const renderTaskDecisionCard = (task: any) => {
@@ -1194,7 +905,7 @@ export const TasksPage = () => {
 						{task.title || 'Untitled task'}
 					</TaskDecisionTitle>
 					<TaskDecisionMeta $danger={isOverdue}>
-						{formatRelativeDue(task.dueDate)}
+						{formatRelativeDue(task.dueDate, task.scheduleMode)}
 						{task.priority ? ` - ${task.priority} priority` : ''}
 					</TaskDecisionMeta>
 					<TaskDecisionMeta>
@@ -1340,13 +1051,6 @@ export const TasksPage = () => {
 				)}
 			</TaskControlPanel>
 
-			<TaskPageMetaRow>
-				<TaskResultCount>
-					Showing {filteredTasks.length}{' '}
-					{filteredTasks.length === 1 ? 'task' : 'tasks'}
-				</TaskResultCount>
-			</TaskPageMetaRow>
-
 			<FloatingFilterPanel
 				isOpen={isFilterPanelOpen}
 				onOpen={openFilterPanel}
@@ -1440,7 +1144,7 @@ export const TasksPage = () => {
 						</TaskHeroTitle>
 						<TaskHeroMeta>
 							{nextStepTask
-								? `${formatRelativeDue(nextStepTask.dueDate)} - ${nextStepTask.priority || 'Low'} priority - ${getTaskPropertyLabel(nextStepTask)}`
+								? `${formatRelativeDue(nextStepTask.dueDate, nextStepTask.scheduleMode)} - ${nextStepTask.priority || 'Low'} priority - ${getTaskPropertyLabel(nextStepTask)}`
 								: 'Open maintenance will appear here when it is ready to review.'}
 						</TaskHeroMeta>
 						{nextStepTask && (
@@ -1501,7 +1205,7 @@ export const TasksPage = () => {
 				</TaskOverviewGrid>
 			)}
 
-			{isMobile || filteredTasks.length === 0 ? (
+			{isMobile && (
 				<MobileListSection>
 					{filteredTasks.length === 0 && (
 						<AppZeroState
@@ -1610,7 +1314,7 @@ export const TasksPage = () => {
 										<MobileMetaValue>
 											<div>{assigneeText}</div>
 											<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
-												{task.priority || 'Low'} priority · {formatDueDate(task.dueDate)}
+												{task.priority || 'Low'} priority · {formatDueDate(task.dueDate, task.scheduleMode)}
 											</div>
 										</MobileMetaValue>
 									</MobileMetaItem>
@@ -1650,80 +1354,6 @@ export const TasksPage = () => {
 						);
 					})}
 				</MobileListSection>
-			) : (
-				<>
-					{/* Task Grid Section */}
-					<TaskGridSection>
-						{filteredTasks.length === 0 ? (
-							<AppZeroState
-								kind='noTaskMatches'
-								actions={[
-									{
-										label: 'Clear Filters',
-										onClick: () => {
-											clearTopFilters();
-											setSortState({
-												key: 'dueDate',
-												direction: 'asc',
-											});
-										},
-									},
-								]}
-							/>
-						) : (
-							<ReusableTable
-							rowData={filteredTasks}
-							columns={columns}
-							actions={taskActions}
-							sortState={sortState}
-							onSort={handleSort}
-							getRowClassName={(row) =>
-								isTaskOverdueForDisplay(row as any) ? 'overdue-row' : undefined
-							}
-							emptyMessage='No tasks currently active. New maintenance tasks will appear here.'
-							onRowSelect={(selectedRows) => {
-								setSelectedRows(new Set(selectedRows));
-							}}
-							selectedRows={selectedRows}
-							onSelectAll={(_, selectedRowIds) => {
-								setSelectedRows(new Set(selectedRowIds));
-							}}
-							showCheckbox={false}
-							hideHeader={true}
-							onRowUpdate={canManageTasks ? (updatedRow) => {
-								// Prepare updates for Firebase
-								const updates: any = {};
-
-								// Update status if changed
-								if (updatedRow.status) {
-									updates.status = updatedRow.status;
-								}
-
-								// Update priority if changed
-								if (updatedRow.priority) {
-									updates.priority = updatedRow.priority;
-								}
-
-								// Handle logic for updated row, e.g., marking a task as completed
-								if (updatedRow.status === 'Completed') {
-									handleTaskCompletion(updatedRow.id);
-									return;
-								}
-
-								// Submit to Firebase if there are updates
-								if (Object.keys(updates).length > 0) {
-									updateTaskMutation({
-										id: updatedRow.id,
-										updates,
-									}).catch((error) => {
-										console.error('Failed to update task:', error);
-									});
-								}
-							} : undefined}
-						/>
-						)}
-					</TaskGridSection>
-				</>
 			)}
 			{/* Task Modals */}
 			{showTaskDialog && (canManageTasks || canCreateTasks) && (

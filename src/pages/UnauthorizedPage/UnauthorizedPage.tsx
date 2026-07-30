@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
@@ -56,7 +55,7 @@ export const UnauthorizedPage = () => {
 					You do not have permission to access this page. Your user role does
 					not grant access to this resource.
 				</Message>
-				<StyledLink to='/dashboard'>Return to Dashboard</StyledLink>
+				<StyledLink to='/dashboard'>Return to Today</StyledLink>
 			</Content>
 		</Container>
 	);

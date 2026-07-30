@@ -6,7 +6,8 @@ import {
 	getResendClient,
 	sendMaintleyEmail,
 } from './emailService';
-import { getEffectiveSubscriptionPlanId } from './subscriptionEntitlements';
+import { hasAccountCapability } from './subscriptionEntitlements';
+import { buildAppRouteUrl } from './emailLinks';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -17,12 +18,6 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-
-const PROPERTY_INSIGHTS_PLANS = new Set([
-	'homeowner_plus',
-	'property',
-	'portfolio',
-]);
 
 interface UserSubscriptionLike {
 	status?: string;
@@ -96,16 +91,10 @@ interface SendInsightResult {
 interface InsightSummary {
 	observations: RecordObservation[];
 	totalObservationCount: number;
-	completenessScore: number;
-	topOpportunities: string[];
+	detailsWorthChecking: string[];
 }
 
 const MAX_EMAIL_OBSERVATIONS = 5;
-
-const canUsePropertyInsights = (user: PropertyInsightsUser): boolean =>
-	PROPERTY_INSIGHTS_PLANS.has(
-		getEffectiveSubscriptionPlanId(user.subscription, 'homeowner'),
-	);
 
 const getDisplayName = (user: PropertyInsightsUser): string => {
 	const name = (user.firstName || user.displayName || '').trim();
@@ -302,9 +291,6 @@ const buildRecordInsightSummary = (
 ): InsightSummary => {
 	const propertyById = new Map(properties.map((property) => [property.id, property]));
 	const observationCandidates: RecordObservation[] = [];
-	let devicesWithMaintenanceRecords = 0;
-	let devicesWithCoreDetails = 0;
-
 	if (devices.length === 0) {
 		const observations: RecordObservation[] = [
 			{
@@ -317,8 +303,7 @@ const buildRecordInsightSummary = (
 		return {
 			observations,
 			totalObservationCount: observations.length,
-			completenessScore: 0,
-			topOpportunities: ['Add appliances and systems to your property record'],
+			detailsWorthChecking: ['Add equipment to your property record'],
 		};
 	}
 
@@ -336,13 +321,6 @@ const buildRecordInsightSummary = (
 		].filter(Boolean);
 		const bodyLines: string[] = [];
 		let priority: RecordObservation['priority'] = 'low';
-
-		if (hasAnyMaintenanceRecord) {
-			devicesWithMaintenanceRecords++;
-		}
-		if (missingDetails.length === 0) {
-			devicesWithCoreDetails++;
-		}
 
 		if (insightTier === 3) {
 			continue;
@@ -424,24 +402,20 @@ const buildRecordInsightSummary = (
 			? sortedObservations.slice(0, MAX_EMAIL_OBSERVATIONS)
 			: [
 					{
-						title: 'No obvious record gaps found',
-						body: 'Maintley did not find obvious documentation gaps in the appliances, systems, and maintenance history reviewed this month.',
+						title: 'No new record suggestions this month',
+						body: 'Maintley reviewed the saved equipment and maintenance history and has no new details to suggest right now.',
 						priority: 'low' as const,
 						tier: 1 as const,
 					},
 			  ];
-	const completenessScore = Math.round(
-		((devicesWithMaintenanceRecords / devices.length) * 0.55 +
-			(devicesWithCoreDetails / devices.length) * 0.35 +
-			(events.length > 0 ? 0.1 : 0)) *
-			100,
-	);
 
 	return {
 		observations,
 		totalObservationCount: sortedObservations.length || observations.length,
-		completenessScore: Math.max(0, Math.min(100, completenessScore)),
-		topOpportunities: observations.slice(0, 3).map((observation) => observation.title),
+		detailsWorthChecking: observations
+			.filter((observation) => sortedObservations.length > 0)
+			.slice(0, 3)
+			.map((observation) => observation.title),
 	};
 };
 
@@ -452,8 +426,8 @@ const getPriorityLabel = (priority: RecordObservation['priority']): string => {
 };
 
 const getPriorityColor = (priority: RecordObservation['priority']): string => {
-	if (priority === 'high') return '#0f766e';
-	if (priority === 'medium') return '#2f6f4e';
+	if (priority === 'high') return '#036151';
+	if (priority === 'medium') return '#009E71';
 	return '#667085';
 };
 
@@ -475,12 +449,12 @@ const renderObservationRows = (observations: RecordObservation[]): string =>
 		)
 		.join('');
 
-const renderTopOpportunities = (topOpportunities: string[]): string =>
-	topOpportunities.length > 0
+const renderDetailsWorthChecking = (detailsWorthChecking: string[]): string =>
+	detailsWorthChecking.length > 0
 		? `
-			<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#0f766e; margin-top:16px;">Possible record gaps to review</div>
+			<div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#047857; margin-top:16px;">Details worth checking</div>
 			<ul style="margin:8px 0 0 20px; padding:0; color:#405348; font-size:14px; line-height:1.7;">
-				${topOpportunities.map((opportunity) => `<li>${escapeHtml(opportunity)}</li>`).join('')}
+				${detailsWorthChecking.map((detail) => `<li>${escapeHtml(detail)}</li>`).join('')}
 			</ul>
 		`
 		: '';
@@ -491,8 +465,7 @@ const getPropertyInsightsHtml = ({
 	historyCount,
 	observations,
 	totalObservationCount,
-	completenessScore,
-	topOpportunities,
+	detailsWorthChecking,
 	appUrl,
 }: {
 	name: string;
@@ -500,45 +473,43 @@ const getPropertyInsightsHtml = ({
 	historyCount: number;
 	observations: RecordObservation[];
 	totalObservationCount: number;
-	completenessScore: number;
-	topOpportunities: string[];
+	detailsWorthChecking: string[];
 	appUrl: string;
 }): string => {
-	const dashboardUrl = appUrl.replace(/\/$/, '');
+	const dashboardUrl = buildAppRouteUrl('/dashboard', appUrl);
 	const hiddenObservationCount = Math.max(
 		0,
 		totalObservationCount - observations.length,
 	);
 
 	return `
-		<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#10251a;">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:34px 14px;">
+		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:34px 14px;">
 				<tr><td align="center">
-					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:20px; overflow:hidden; border:1px solid #cfe8d4; box-shadow:0 10px 30px rgba(16,37,26,0.08);">
+					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#FFFFFF; border-radius:20px; overflow:hidden; border:1px solid #3FCC7C; box-shadow:0 10px 30px rgba(31,41,55,0.08);">
 						<tr>
-							<td style="background:#0f766e; color:#ffffff; padding:30px 32px;">
+							<td style="background:#047857; color:#FFFFFF; padding:30px 32px;">
 								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800;">Maintley</div>
 								<h1 style="margin:10px 0 0 0; font-size:28px; line-height:1.2;">Property Insights</h1>
-								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#eaf8ee;">A focused review of possible record gaps in your documented property information.</p>
+								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#FFFFFF;">A focused review of possible record gaps in your documented property information.</p>
 							</td>
 						</tr>
 						<tr><td style="padding:32px;">
 							<p style="margin:0 0 22px 0; font-size:16px; line-height:1.65; color:#33443a;">Hi ${escapeHtml(name)}, Maintley reviewed your documented appliances, systems, and maintenance history for possible record gaps. These are observations about your records, not maintenance instructions.</p>
 
 							<div style="border:1px solid #dbe7dc; border-radius:18px; padding:22px; margin-bottom:24px; background:#f8fbf8;">
-								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#0f766e;">Property Record Completeness</div>
-								<div style="font-size:40px; line-height:1.05; font-weight:900; color:#10251a; margin-top:8px;">${completenessScore}%</div>
-								<div style="font-size:13px; color:#52625a; line-height:1.7; margin-top:8px;">${deviceCount} appliances/systems reviewed. ${historyCount} maintenance history records reviewed.</div>
-								${renderTopOpportunities(topOpportunities)}
+								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800; color:#047857;">Records reviewed</div>
+								<div style="font-size:15px; color:#52625a; line-height:1.7; margin-top:8px;">${deviceCount} equipment ${deviceCount === 1 ? 'record' : 'records'} and ${historyCount} maintenance ${historyCount === 1 ? 'record' : 'records'}.</div>
+								${renderDetailsWorthChecking(detailsWorthChecking)}
 							</div>
 
-							<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#0f766e; margin-bottom:12px;">Top ${observations.length} ${observations.length === 1 ? 'Insight' : 'Insights'}</div>
+							<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:900; color:#047857; margin-bottom:12px;">What Maintley found</div>
 							<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
 								${renderObservationRows(observations)}
 							</table>
 							${hiddenObservationCount > 0 ? `<p style="margin:0 0 22px 0; font-size:13px; line-height:1.6; color:#667085;">${hiddenObservationCount} additional ${hiddenObservationCount === 1 ? 'observation is' : 'observations are'} available in Maintley.</p>` : ''}
 
-							<a href="${escapeHtml(dashboardUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">View all property insights</a>
+							<a href="${escapeHtml(dashboardUrl)}" style="display:inline-block; background:#047857; color:#FFFFFF; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
 						</td></tr>
 						<tr><td style="padding:18px 32px; border-top:1px solid #e5efe7; font-size:12px; line-height:1.6; color:#667085;">Property Insights are documentation observations, not professional maintenance advice. They only reflect information recorded in Maintley. You can update email preferences anytime in Settings.</td></tr>
 					</table>
@@ -562,7 +533,14 @@ const sendPropertyInsightsForUser = async (
 		return { sent: false, skipped: true, reason: 'property_insights_not_opted_in' };
 	}
 
-	if (!canUsePropertyInsights(user)) {
+	const accountId = getAccountId(userId, user);
+	if (
+		!(await hasAccountCapability(
+			accountId,
+			user.subscription,
+			'property_intelligence.use',
+		))
+	) {
 		return { sent: false, skipped: true, reason: 'plan_not_eligible' };
 	}
 
@@ -577,7 +555,6 @@ const sendPropertyInsightsForUser = async (
 		throw new Error('Resend client is not configured');
 	}
 
-	const accountId = getAccountId(userId, user);
 	const [devices, events, properties] = await Promise.all([
 		getDocsByAccount<InsightDevice>('devices', accountId, userId),
 		getDocsByAccount<InsightEvent>('maintenanceEvents', accountId, userId),
@@ -594,8 +571,7 @@ const sendPropertyInsightsForUser = async (
 			historyCount: events.length,
 			observations: insightSummary.observations,
 			totalObservationCount: insightSummary.totalObservationCount,
-			completenessScore: insightSummary.completenessScore,
-			topOpportunities: insightSummary.topOpportunities,
+			detailsWorthChecking: insightSummary.detailsWorthChecking,
 			appUrl,
 		}),
 	});

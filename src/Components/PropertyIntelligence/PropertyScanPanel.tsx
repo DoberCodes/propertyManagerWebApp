@@ -26,6 +26,7 @@ import {
 	shouldShowPropertyScanRecommendationForPlan,
 } from '../../utils/propertyIntelligenceScan';
 import {
+	canUsePropertyInsights,
 	getEffectiveSubscriptionPlanId,
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
@@ -345,7 +346,8 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	});
 	const [savePropertyScanSnapshot] = useSavePropertyScanSnapshotMutation();
 	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	const isFreePlan = currentPlanId === 'homeowner';
+	const isFreePlan = !canUsePropertyInsights(subscription);
+	const intelligenceUpgradePlan = currentPlanId === 'property' ? 'Portfolio' : 'Homeowner+';
 	const intelligenceSourceCards = [
 		{
 			label: scanLanguage.memoryLabel,
@@ -684,12 +686,12 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						</IntelligenceDepthTitle>
 					</div>
 					<IntelligencePlanPill>
-						{isFreePlan ? 'Free layer' : 'Expanded layer'}
+						{isFreePlan ? 'Core record check' : 'Expanded layer'}
 					</IntelligencePlanPill>
 				</IntelligenceDepthHeader>
 				<IntelligenceDepthText>
 					{isFreePlan
-						? `Free Quick Scan looks for useful next steps in the ${scanLanguage.recordNoun} you have already built. Homeowner+ adds deeper sources for richer guidance.`
+						? `This lightweight record check looks for useful next steps in the ${scanLanguage.recordNoun} you have already built. ${intelligenceUpgradePlan} adds deeper sources for richer guidance.`
 						: `This Quick Scan can use saved records, Maintley Knowledge, history, seasonal context, and maintenance patterns to choose a small set of high-value next steps.`}
 				</IntelligenceDepthText>
 				<IntelligenceSourceGrid>
@@ -702,7 +704,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 							{source.active ? (
 								<SourceStatus $active>Included</SourceStatus>
 							) : (
-								<SourceStatus $active={false}>Available with Homeowner+</SourceStatus>
+								<SourceStatus $active={false}>Available with {intelligenceUpgradePlan}</SourceStatus>
 							)}
 						</IntelligenceSourceCard>
 					))}

@@ -5,17 +5,14 @@ import { RootState } from '../../../Redux/store/store';
 import { USER_ROLES } from '../../../constants/roles';
 import { COLORS } from '../../../constants/colors';
 import { RoleCapabilities } from '../../../utils/permissions';
-import { getEffectiveSubscriptionPlanId } from '../../../utils/subscriptionUtils';
 import { useSearchParams } from 'react-router-dom';
+import { selectIsHomeowner } from '../../../Redux/selectors/permissionSelectors';
 
 export interface TabsContextProps {
 	property: any;
 	currentUser: any;
 	propertyMaintenanceRequests: any[];
 	canApproveMaintenanceRequest: (role: any) => boolean;
-	unitOptions?: { label: string; value: string }[];
-	selectedUnitId?: string;
-	onSelectUnit?: (id: string) => void;
 	canViewInsights?: boolean;
 	permissions?: RoleCapabilities;
 }
@@ -38,12 +35,7 @@ export const TabController: React.FC<TabsContextProps> = ({
 	const activeTab =
 		useSelector((state: RootState) => state.app.activeTab) || 'details';
 
-	const effectivePlan = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
-	const isHomeowner =
-		effectivePlan === 'homeowner' || effectivePlan === 'homeowner_plus';
+	const isHomeowner = useSelector(selectIsHomeowner);
 	const isPropertyManager = currentUser ? !isHomeowner : true;
 	const isTenant = currentUser?.role === USER_ROLES.TENANT;
 	const isContractor = currentUser?.role === USER_ROLES.CONTRACTOR;
@@ -97,11 +89,6 @@ export const TabController: React.FC<TabsContextProps> = ({
 			value: 'insights',
 		});
 	}
-
-	// Units are temporarily hidden from the app flow while the core loop is simplified.
-	// if (!isTenant && property?.propertyType === 'Multi-Family') {
-	// 	tabsForProperty.push({ label: 'Units', value: 'units' });
-	// }
 
 	if (canViewTenantTabs) {
 		tabsForProperty.push({ label: 'Tenants', value: 'tenants' });

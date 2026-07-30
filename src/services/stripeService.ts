@@ -6,6 +6,7 @@
 import { STRIPE_PUBLIC_KEY, STRIPE_CHECKOUT_CONFIG } from '../constants/stripe';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { callFirebaseFunction } from '../config/firebaseFunctions';
+import type { User } from '../Redux/Slices/userSlice';
 
 let stripeInstance: Stripe | null = null;
 
@@ -101,7 +102,9 @@ export const createCheckoutSession = async (
 				subscriptionUpdated?: boolean;
 			}
 		>('createCheckoutSession', {
-			priceId,
+			// Current clients identify the product by stable plan and billing-cycle IDs.
+			// priceId is sent only for the time-bounded older-client compatibility path.
+			...(!planId && priceId ? { priceId } : {}),
 			...(planId ? { planId } : {}),
 			billingCycle,
 			userId,
@@ -214,9 +217,20 @@ export const getSubscriptionDetails = async (subscriptionId: string) => {
 	}
 };
 
-export const syncSubscriptionFromStripe = async () => {
+export interface StripeSubscriptionSyncResult {
+	success: boolean;
+	source?: string;
+	reason?: string;
+	conflict?: boolean;
+	subscription?: Partial<NonNullable<User['subscription']>>;
+}
+
+export const syncSubscriptionFromStripe = async (): Promise<StripeSubscriptionSyncResult> => {
 	try {
-		const result = await callFirebaseFunction<Record<string, never>, unknown>(
+		const result = await callFirebaseFunction<
+			Record<string, never>,
+			StripeSubscriptionSyncResult
+		>(
 			'syncSubscriptionFromStripe',
 			{},
 		);

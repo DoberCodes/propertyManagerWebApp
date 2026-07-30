@@ -134,6 +134,12 @@ const DetailTabButton = styled(TabButton)<{
 		`}
 `;
 
+const DetailTabCount = styled.span`
+	@media (max-width: 1024px) {
+		display: none;
+	}
+`;
+
 interface DetailPageLayoutProps {
 	title: string;
 	subtitle?: string;
@@ -216,7 +222,9 @@ export const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 									isActive={activeTab === tab.id}
 									onClick={() => onTabChange(tab.id)}>
 									{tab.label}
-									{tab.count !== undefined && ` (${tab.count})`}
+									{tab.count !== undefined && (
+										<DetailTabCount> ({tab.count})</DetailTabCount>
+									)}
 								</DetailTabButton>
 							))}
 						</DetailTabButtons>

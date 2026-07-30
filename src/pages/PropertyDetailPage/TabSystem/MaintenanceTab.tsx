@@ -19,7 +19,6 @@ import {
 	SectionLead,
 	EmptyState,
 } from './index.styles';
-import { getDeviceNameUtil } from '../PropertyDetailPage.utils';
 import {
 	FilterBar,
 	FilterConfig,
@@ -71,6 +70,7 @@ import { RoleCapabilities } from 'utils/permissions';
 import { COLORS } from '../../../constants/colors';
 import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
 import { useGetMaintenanceEventRevisionsByPropertyQuery } from '../../../Redux/API/maintenanceSlice';
+import { isMultiUnitProperty } from '../../../utils/propertyTaxonomy';
 
 const maintenanceEventTypeLabels: Record<string, string> = {
 	task_completed: 'Task Completed',
@@ -399,6 +399,9 @@ export const MaintenanceTab = ({
 	const canBulkEdit = canManageMaintenanceHistory && Boolean(onUpdateMaintenanceHistory);
 	const canDeleteHistory =
 		canManageMaintenanceHistory && Boolean(onDeleteMaintenanceHistory);
+	const isEmbeddedCompatibilityRecord = (record: any): boolean =>
+		String(record?.historySource || '').startsWith('property.') ||
+		String(record?.historySource || '') === 'device.maintenanceHistory';
 	const propertyDocuments = useMemo<PropertyDocument[]>(
 		() => (Array.isArray(property?.documents) ? property.documents : []),
 		[property?.documents],
@@ -465,7 +468,10 @@ export const MaintenanceTab = ({
 
 			const selectedRecords = Array.from(selectedRecordIds)
 				.map((id) => allRecords.find((r) => r.id === id))
-				.filter((r) => r !== undefined);
+				.filter(
+					(record) =>
+						record !== undefined && !isEmbeddedCompatibilityRecord(record),
+				);
 
 			// Update all selected records with the maintenanceGroupId
 			for (const record of selectedRecords) {
@@ -488,7 +494,8 @@ export const MaintenanceTab = ({
 		if (!canDeleteHistory || !onDeleteMaintenanceHistory) return;
 
 		const deletableRecords = records.filter(
-			(record) => !record.isLegacy && record.id,
+			(record) =>
+				!isEmbeddedCompatibilityRecord(record) && !record.isLegacy && record.id,
 		);
 		if (deletableRecords.length === 0) {
 			feedback.notify(
@@ -537,8 +544,25 @@ export const MaintenanceTab = ({
 
 	const openEditHistoryModal = (record: any) => {
 		if (!canManageMaintenanceHistory || !onUpdateMaintenanceHistory || !record?.id) return;
+		if (isEmbeddedCompatibilityRecord(record)) {
+			feedback.notify(
+				'This older embedded record is read-only until it is migrated into Maintenance History.',
+			);
+			return;
+		}
 		setEditingHistoryRecord(record);
 		setShowAddModal(true);
+	};
+
+	const requestDeleteRecord = (record: any) => {
+		if (!onDeleteMaintenanceHistory || !record?.id) return;
+		if (isEmbeddedCompatibilityRecord(record)) {
+			feedback.notify(
+				'This older embedded record is read-only until it is migrated into Maintenance History.',
+			);
+			return;
+		}
+		onDeleteMaintenanceHistory(record.id);
 	};
 
 	const handleHistoryModalSubmit = async (data: {
@@ -713,23 +737,6 @@ export const MaintenanceTab = ({
 
 	// Filter configuration for maintenance history
 	const maintenanceFilters: FilterConfig[] = [
-		// Units are temporarily hidden from the app flow.
-		// ...(property?.propertyType === 'Multi-Family'
-		// 	? [
-		// 			{
-		// 				key: 'unit',
-		// 				label: 'Unit',
-		// 				type: 'select' as const,
-		// 				options: [
-		// 					{ value: 'all', label: 'All Units' },
-		// 					...units.map((unit) => ({
-		// 						value: unit.id,
-		// 						label: unit.unitNumber || unit.address || `Unit ${unit.id}`,
-		// 					})),
-		// 				],
-		// 			},
-		// 	  ]
-		// 	: []),
 		{
 			key: 'completedBy',
 			label: 'Completed By',
@@ -790,8 +797,8 @@ export const MaintenanceTab = ({
 
 	// Combine all maintenance records for filtering
 	const allMaintenanceRecords = useMemo(
-		() => [
-			...maintenanceHistoryRecords.filter(isContinuityEvent).map((record) => ({
+		() =>
+			maintenanceHistoryRecords.filter(isContinuityEvent).map((record) => ({
 				...record,
 				revisions: revisionsByEventId.get(String(record.id)) || [],
 				correctionCount: (revisionsByEventId.get(String(record.id)) || []).filter(
@@ -804,30 +811,12 @@ export const MaintenanceTab = ({
 				completedBy: record.completedBy || record.approvedBy || record.assignee,
 				completedByName: resolveCompletedByName(record),
 				notes: record.completionNotes || record.notes,
-				isLegacy: false,
+				isLegacy: !record.isCanonicalMaintenanceEvent,
 				groupId: record.maintenanceGroupId, // Ensure groupId is included
 			})),
-			...(property.maintenanceHistory || []).map(
-				(record: any, index: number) => ({
-					id: `legacy-${index}`,
-					completionDate: record.date,
-					title: record.description,
-					linkedDevices:
-						record.deviceId !== undefined && record.deviceId !== null
-							? getDeviceNameUtil(record.deviceId, property)
-							: '-',
-					completedBy: getDeviceNameUtil(record.deviceId, property),
-					completedByName: getDeviceNameUtil(record.deviceId, property),
-					groupId: record.maintenanceGroupId || null, // Add groupId for legacy records
-					notes: '-',
-					isLegacy: true,
-				}),
-			),
-		],
 		[
 			maintenanceHistoryRecords,
 			revisionsByEventId,
-			property,
 			resolveCompletedByName,
 			getLinkedDeviceLabel,
 		],
@@ -852,7 +841,7 @@ export const MaintenanceTab = ({
 
 		// Apply unit filter separately (only for Multi-Family properties)
 		if (
-			property?.propertyType === 'Multi-Family' &&
+			isMultiUnitProperty(property?.propertyType) &&
 			filters.unit &&
 			filters.unit !== 'all'
 		) {
@@ -937,15 +926,6 @@ export const MaintenanceTab = ({
 					})),
 			});
 		}
-
-		// Units are temporarily hidden from the app flow.
-		// if (filters.unit && filters.unit !== 'all') {
-		// 	chips.push({
-		// 		key: 'unit',
-		// 		label: `Unit: ${filters.unit}`,
-		// 		onRemove: () => setFilters((prev) => ({ ...prev, unit: 'all' })),
-		// 	});
-		// }
 
 		if (filters.completionDate_start || filters.completionDate_end) {
 			chips.push({
@@ -1502,7 +1482,7 @@ export const MaintenanceTab = ({
 									}}
 									onNavigate={handleNavigation}
 									onEdit={canManageMaintenanceHistory ? openEditHistoryModal : undefined}
-									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
+									onDelete={canDeleteHistory ? requestDeleteRecord : undefined}
 									onDeleteGroup={
 										canDeleteHistory ? handleDeleteGroup : undefined
 									}
@@ -1528,7 +1508,7 @@ export const MaintenanceTab = ({
 									}}
 									onNavigate={handleNavigation}
 									onEdit={canManageMaintenanceHistory ? openEditHistoryModal : undefined}
-									onDelete={canDeleteHistory ? onDeleteMaintenanceHistory : undefined}
+									onDelete={canDeleteHistory ? requestDeleteRecord : undefined}
 									onDeleteGroup={
 										canDeleteHistory ? handleDeleteGroup : undefined
 									}

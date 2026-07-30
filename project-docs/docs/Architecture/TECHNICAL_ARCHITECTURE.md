@@ -234,7 +234,9 @@ Examples:
 * /profile
 * /tenant-profile
 
-Units and suites remain intentionally hidden from active navigation.
+Unit and Suite management routes and screens have been retired from the active
+application. Legacy readers remain where existing equipment, history, reports,
+exports, permissions, and deletion workflows require location compatibility.
 
 ---
 
@@ -440,6 +442,36 @@ See:
 
 * BILLING.md
 * MAINTLEY_PLAN_FEATURE_MATRIX.md
+
+## Shared entitlement resolver
+
+Runtime-neutral entitlement contracts and resolution live in:
+
+```text
+functions/packages/entitlements
+```
+
+The browser and Firebase Functions consume the same pure resolver through local
+package dependencies. The canonical package lives inside the Functions source
+directory so Firebase includes it in the deployment upload. It separates billing state from effective capabilities,
+supports versioned plan bundles and account-scoped additive grants, uses an
+explicit clock for expiration, and emits diagnostics for compatibility or
+default-deny outcomes.
+
+The current rollout keeps subscription compatibility while routing primary web
+and Functions feature decisions through shared capability and limit helpers.
+Direct plan-name checks are restricted to classified billing, pricing,
+presentation, analytics, and migration boundaries by repository validation.
+Server capability decisions that can be affected by complimentary access use
+the account-aware resolver. It loads the family account's authoritative billing
+state and entitlement-grant collection before evaluating background email,
+push, invite, report, property-group, and document-intelligence behavior.
+Subscription-only checks are reserved for questions that are specifically
+about Stripe-paid state, such as paid-conversion communication suppression.
+
+Internal grant issuance remains disabled by default and requires an explicit
+deployment variable. Existing grants continue to resolve even when new issuance
+is disabled.
 
 ---
 
@@ -681,7 +713,22 @@ Maintenance Event
 Notification
 ```
 
-Maintenance history views currently support both collections.
+Maintenance history views currently support both collections through:
+
+```text
+src/maintenanceHistory/maintenanceHistoryAdapter.ts
+```
+
+Property- and account-scoped RTK queries feed collection and embedded-property
+sources into this adapter. It owns the UI-facing shape, source identity,
+canonical preference, safe provenance deduplication, and ordering. Individual
+property views should consume the adapted records rather than merging legacy
+arrays independently.
+
+Equipment compatibility history is composed through the same adapter before it
+reaches equipment timelines, reports, profile and dashboard summaries, or
+Maintley Intelligence. The Intelligence engine also enforces this boundary so
+all Intelligence consumers reason over the same normalized history contract.
 
 See:
 
@@ -786,6 +833,12 @@ npm --prefix functions run test:webhook:sandbox
 ```
 
 These commands support validation, deployment, and testing workflows.
+
+---
+
+## Personal Assistant read boundary
+
+Maintley exposes a private `/v1` HTTPS read API for the Maintley Owner's trusted server-side assistant. The boundary authenticates HMAC-verified bearer credentials, applies explicit scopes and property allowlists, and maps Firestore records into stable public response models. It never returns raw Firestore documents or file content and does not permit property-data writes. See `PERSONAL_ASSISTANT_API.md` for the operational contract.
 
 ---
 

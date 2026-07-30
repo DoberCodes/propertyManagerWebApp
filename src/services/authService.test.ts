@@ -5,7 +5,6 @@ import {
 	getUserProfile,
 	signUpWithEmail,
 } from './authService';
-import * as authServiceModule from './authService';
 import { USER_ROLES } from '../constants/roles';
 import { SUBSCRIPTION_STATUS } from '../constants/subscriptions';
 

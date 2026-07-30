@@ -1,6 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../config/firebaseStorage';
-import { assertStorageQuotaForFiles, resolveStorageAccountId } from './storageQuota';
+import { prepareStorageUpload, resolveStorageAccountId } from './storageQuota';
 import { signalStorageUsageUpdated } from './storageUsageEvents';
 
 const MAX_PROPERTY_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB
@@ -27,14 +27,15 @@ export const uploadPropertyImage = async (
 	if (!isValidPropertyImageFile(file)) {
 		throw new Error('Invalid image. Please use an image under 8MB.');
 	}
-	await assertStorageQuotaForFiles(file, { propertyId });
 	const accountId = await resolveStorageAccountId(propertyId);
 
 	const fileName = buildFileName(file);
 	const folder = `properties/${accountId}`;
-	const storageRef = ref(storage, `${folder}/${fileName}`);
+	const storagePath = `${folder}/${fileName}`;
+	const storageRef = ref(storage, storagePath);
+	const uploadMetadata = await prepareStorageUpload(file, storagePath, { propertyId, accountId });
 
-	await uploadBytes(storageRef, file, { contentType: file.type });
+	await uploadBytes(storageRef, file, uploadMetadata);
 	const downloadUrl = await getDownloadURL(storageRef);
 	signalStorageUsageUpdated();
 	return downloadUrl;

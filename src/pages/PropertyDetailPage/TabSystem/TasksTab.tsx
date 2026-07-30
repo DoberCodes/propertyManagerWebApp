@@ -38,6 +38,7 @@ import {
 	getTaskDisplayStatus,
 	isTaskDueWithinDays,
 } from '../../../utils/taskDisplayStatus';
+import { getTaskTimingLabel } from '../../../tasks/taskSchedule';
 import { isTrialExpired } from '../../../utils/subscriptionUtils';
 import { isNativeApp } from '../../../utils/platform';
 import { AppZeroState, ReusableTable, TaskModal } from '../../../Components/Library';
@@ -239,8 +240,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		Array.isArray(task?.notifications) &&
 		task.notifications.length > 0;
 
-	const formatRelativeTime = (value?: string): string => {
-		if (!value) return 'No due date set';
+	const formatRelativeTime = (value?: string, scheduleMode?: any): string => {
+		if (!value) return getTaskTimingLabel({ dueDate: value, scheduleMode });
 		const target = new Date(value).getTime();
 		if (Number.isNaN(target)) return 'No due date set';
 
@@ -404,7 +405,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 							<span>Assigned To: {assignee}</span>
 							<span>•</span>
 							<span style={{ color: overdue ? '#b91c1c' : '#64748b', fontWeight: overdue ? 700 : 500 }}>
-								{formatRelativeTime(task.dueDate)}
+								{formatRelativeTime(task.dueDate, task.scheduleMode)}
 							</span>
 							{task.priority && (
 								<>
@@ -498,7 +499,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						</span>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{activityText}</div>
 						<div style={{ fontSize: 12, color: chip.isOverdue ? '#b91c1c' : '#64748b', fontWeight: chip.isOverdue ? 700 : 500 }}>
-							{formatRelativeTime(task.dueDate)}
+							{formatRelativeTime(task.dueDate, task.scheduleMode)}
 						</div>
 					</div>
 				);
@@ -645,10 +646,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	// Apply filters to tasks
 	const filteredTasks = useMemo(() => {
-		// Units are temporarily hidden from the app flow; do not apply unit scoping.
-		const unitFiltered = processedTasks;
-
-		const filtered = applyFilters(unitFiltered, filters, {
+		const filtered = applyFilters(processedTasks, filters, {
 			textFields: ['title', 'notes'],
 			selectFields: [
 				{ field: 'status', filterKey: 'status' },
@@ -1063,7 +1061,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 											{getTaskAssigneeDisplayName(task)}
 										</MobileFeedLineMuted>
 										<MobileFeedLineMuted>
-											{task.priority || 'Low'} priority • {task.dueDate || 'ASAP'}
+											{task.priority || 'Low'} priority • {getTaskTimingLabel(task)}
 										</MobileFeedLineMuted>
 										{task.isRecurring && (
 											<MobileFeedLineMuted>

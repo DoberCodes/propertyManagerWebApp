@@ -38,8 +38,10 @@ Those definitions belong in MAINTLEY_PLAN_FEATURE_MATRIX.md.
 
 Source files:
 
+* functions/packages/entitlements
 * src/constants/subscriptions.ts
 * src/utils/subscriptionUtils.ts
+* functions/subscriptionEntitlements.ts
 * functions/stripeFunctions.ts
 * src/services/stripeService.ts
 
@@ -61,6 +63,110 @@ Detailed plan limits and capabilities are defined in:
 
 MAINTLEY_PLAN_FEATURE_MATRIX.md
 
+## Entitlement foundation
+
+The web application and Firebase Functions now share the pure resolver in
+`functions/packages/entitlements`. Client and server feature helpers resolve typed
+capabilities and limits from that package. Compatibility wrappers preserve
+existing subscription records. Internal grant issuance remains independently
+launch-gated.
+
+Compatibility mode preserves existing paid-plan records while synthetic Stripe
+access is reviewed manually. Strict mode requires Stripe confirmation before a
+paid plan supplies paid access. Pending Checkout never supplies paid access.
+Unknown entitlement values emit structured default-deny diagnostics from the
+Functions boundary. Setting `ENTITLEMENT_COMPARE_MODE=true` emits structured
+stored-plan versus resolved-plan comparison events during a controlled rollout;
+it does not change the access result.
+
+Public plan flags determine whether a customer can start a new Checkout for a
+plan. They do not invalidate an already active Stripe-confirmed subscription.
+Profile and Settings surfaces continue to resolve the existing canonical plan
+while purchase surfaces honor the acquisition flag.
+
+Admin Billing lists current active Stripe coupons and complimentary access
+codes by default. Administrators may explicitly enable `Show inactive and
+expired` within either section to review historical or exhausted records.
+
+The package defines temporary and permanent grant, billing-transition,
+administrative-audit, and rollout-flag contracts. The Homeowner+ first-property
+trial is the first persisted generic grant workflow. It remains disabled unless
+both `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
+`ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` are true and
+`HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` is a valid launch boundary. Existing
+grants continue resolving when issuance is disabled. No internal trial creates
+a Stripe customer, subscription, payment method, schedule, or automatic charge.
+
+Lifecycle email and in-app delivery has its own server flag,
+`ENABLE_ACCESS_LIFECYCLE_COMMUNICATION`. Enabling grant issuance does not enable
+messages automatically, and disabling messages does not revoke a grant. The
+current internal trial always states that no payment method is connected and
+that paid continuation requires intentional Checkout. Internal delivery data
+cannot initiate billing; Stripe remains the only authority for whether a charge
+can occur.
+
+The admin customer view separates **Stripe Billing**, **Internal Access
+Grants**, and **Resolved Product Access**. Paid plan changes update an existing
+Stripe subscription first. When no Stripe subscription exists, choosing a paid
+plan creates a Checkout link and does not grant paid access until Stripe
+confirms the subscription. "Stripe trial days" can extend only an existing
+trialing Stripe subscription. Complimentary access without billing belongs in
+the separately authorized and audited internal-grant workflow; it must never be
+represented by a local paid-plan or trial edit.
+
+The web equivalents are `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
+`REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; these describe rollout
+state but do not revoke an already-issued grant.
+
+Grant-aware voluntary Checkout is independently controlled by the server-only
+`ENABLE_COMPLIMENTARY_PAID_TRANSITIONS` flag. When enabled, the highest active
+grant bundle defines whether a paid selection is equivalent, lower, or higher:
+
+* an equivalent or lower selection under temporary Checkout-required access
+  creates the Stripe subscription now and sets its first charge for the end of
+  the controlling complimentary period
+* a higher selection starts paid access immediately and converts only temporary
+  grants whose program explicitly permits Checkout conversion
+* an equivalent or lower selection already covered by permanent access is
+  rejected as redundant
+
+The client may explain this policy, but it cannot choose the timing. Functions
+load authoritative grants, derive the policy, configure Stripe, and append the
+high-value transition audit. Stripe remains authoritative for subscription
+state and whether a charge can occur. Disabling the flag prevents new
+grant-aware transitions without changing existing grants or Stripe schedules.
+
+Clients cannot create a user with a paid base plan or rewrite authoritative
+subscription fields after signup. Firestore permits only non-billable initial
+plans and narrowly scoped pending-checkout or promo-code changes. Stripe
+Functions, webhooks, and approved admin operations remain responsible for paid
+plan, billing status, period, customer, and subscription identifiers.
+
+Complimentary access codes are internal grant credentials, not Stripe coupons.
+They are independently gated by `ENABLE_COMPLIMENTARY_ACCESS_CODES`, store only
+a keyed verifier, and can use `none` or `checkout_required` continuation. They
+cannot configure automatic billing. Programs are provisioned with
+`npm --prefix functions run provision:access-code -- ...`; the plaintext code
+and matching pepper are supplied only through the operator's local environment.
+Eligible primary account holders redeem a code from Settings under Billing &
+Subscription. Maintley validates and previews the access duration and end
+behavior first; the user must then explicitly activate the complimentary
+access. Activation is not offered before a successful preview.
+
+Standard registration may also collect a complimentary code separately from
+Stripe coupons and invitation codes. Maintley first commits the Free account,
+then performs authenticated review and explicit activation before onboarding.
+An invalid or skipped code leaves the account on Free and remains retryable in
+Settings. Recipient-restricted codes require the authenticated account-owner
+email to match and be verified.
+
+The admin Billing area keeps Stripe Coupons and Complimentary Access Codes in
+separate collapsed sections. Creating a complimentary code requires one
+specific access level, duration, maximum redemptions, label, transition mode,
+and administrative reason; redemption expiration and recipient email are
+optional. The server generates the plaintext code, returns it once, stores only
+its keyed verifier, and writes the immutable high-value audit event.
+
 ---
 
 # Subscription Shape
@@ -77,6 +183,9 @@ Important fields:
 * canceledAt
 * stripeCustomerId
 * stripeSubscriptionId
+* cancelAtPeriodEnd
+* billingDisclosure
+* billingSyncIssue
 * promoCode
 * hasScheduledSubscription
 * scheduledPlan
@@ -88,6 +197,37 @@ Supported statuses:
 * cancelled
 * expired
 * past_due
+
+`billingDisclosure` is a server-written, sanitized projection of the Stripe
+subscription facts needed by Maintley's account surfaces. It may include the
+list price and interval, discount duration, current-period end, cancellation
+state, and next invoice amount and date. It must not contain a raw Stripe
+object, card details, payment-method details, or secrets.
+
+Stripe webhooks are the primary synchronization path. Authenticated application
+initialization also performs one non-blocking, account-owner synchronization as
+a recovery check when the profile has a Stripe customer. The callable verifies
+that the requested subscription belongs to the authenticated user, retrieves
+the current state from Stripe, writes the same projection to the user and
+family-account records, and returns that projection so the active client state
+can update immediately. This recovery check never creates, renews, converts, or
+charges a subscription.
+
+The initialization recovery check evaluates the Stripe customer's subscription
+set even when Firestore already contains a subscription ID. One current Stripe
+subscription (`active`, `trialing`, `past_due`, or `unpaid`) supersedes an older
+cancelled or deleted stored reference, allowing an existing configured Maintley
+plan assigned directly in Stripe to repair local state. If Stripe reports more
+than one current subscription, Maintley must not guess which subscription owns
+access. It preserves the last resolved plan, writes a
+`multiple_current_subscriptions` billing sync issue to the user and
+family-account subscription records, and requires operational review. A later
+successful single-subscription synchronization clears that issue.
+
+Account and profile billing language must use `billingDisclosure` when a Stripe
+billing relationship exists. Internal grant transition language applies only
+to internal grants; it must not be used to describe a paid or discounted Stripe
+subscription.
 
 ---
 
@@ -132,6 +272,13 @@ Expected flow:
 6. Maintley verifies that the Checkout session belongs to the signed-in user.
 7. Firestore user and family-account subscription records are synchronized.
 8. Maintley reloads the authoritative user profile and then opens the dashboard.
+
+Current clients submit a stable paid plan ID and `month` or `year` billing
+cycle. The Function selects the Stripe price from server-owned configuration;
+a client-provided price ID is not normal checkout authority. The temporary
+price-only compatibility path accepts only prices already present in that
+server catalog, emits a structured warning when used, and is scheduled for
+removal in release `2.10.0`.
 
 Checkout launch has a 30-second request timeout. A timeout or launch failure
 must replace the loading screen with actions to retry secure checkout or
@@ -204,6 +351,31 @@ Downgrades should:
 
 Existing records should remain accessible unless explicitly required otherwise.
 
+### Non-destructive downgrade contract
+
+Plan limits govern new creation and premium processing. They do not revoke
+visibility of customer records created while a higher plan was active.
+
+After a downgrade:
+
+* Existing properties, equipment, tasks, Maintenance History, and files remain
+  visible and usable.
+* Existing files remain downloadable even when storage usage exceeds the new
+  plan quota.
+* New resource creation is blocked only while current usage meets or exceeds
+  the lower limit.
+* Accepted document suggestions remain ordinary customer records.
+* Persisted point-in-time Intelligence results remain visible; new premium
+  processing stops.
+* Existing permission assignments must never widen automatically.
+* Retained team-member profiles remain editable and removable. Account managers
+  may revoke existing login access after downgrade, but cannot invite new team
+  members or change premium roles, groups, or property assignments.
+* Account cancellation and account deletion remain separate actions.
+
+Entitlements should distinguish viewing existing data from creating,
+processing, automating, inviting, or configuring new premium behavior.
+
 ---
 
 ## Cancellation Flow
@@ -216,19 +388,10 @@ Cancellation should:
 
 ## Admin Support Adjustments
 
-The admin portal includes support-only subscription actions for troubleshooting
-and account repair:
-
-* Apply billing updates for plan, trial, and coupon changes in one action.
-* Mark subscription cancelled as a separate destructive action.
-
-By default, plan and trial updates write Maintley's user subscription record and
-write one `admin_audit_logs` entry without contacting Stripe.
-
-Support staff may choose **Update Stripe subscription first** when the user
-record already has a Stripe subscription ID. In that mode, the admin action
-updates Stripe first and then syncs Maintley's subscription record from the
-Stripe result.
+The admin portal separates paid subscription repair from complimentary access.
+Stripe Billing actions operate on a real Stripe relationship. Internal Access
+Grant actions use Maintley's generic grant model and never create or modify a
+Stripe customer, subscription, invoice, payment method, or scheduled charge.
 
 Current Stripe-backed support behavior:
 
@@ -241,9 +404,16 @@ Current Stripe-backed support behavior:
   address in Stripe.
 * Cancellations set the existing Stripe subscription to cancel at period end.
 
-If the user record does not have a Stripe subscription ID, plan and trial support
-actions remain Maintley-only. Coupon codes create a Stripe Checkout link for a
-paid plan instead of manually discounting the user in Firestore.
+If the user does not have a Stripe subscription, selecting a paid plan creates
+Checkout rather than writing a local paid plan. Complimentary support, beta,
+legacy, or lifetime access must use the separately authorized Internal Access
+Grant workflow. Lifetime grants are restricted to Maintley's `owner` role.
+
+Grant changes require a preview of current and proposed access, an audit reason,
+a stable request ID, and typed confirmation. Non-owner grant managers cannot
+target their own user or account. `maintley_role: owner` is the only self-grant
+exception and refers exclusively to the owner of Maintley, never a customer
+property owner.
 
 Refresh from Stripe is the preferred support repair when Stripe already has an
 active subscription but Firebase does not show the customer as subscribed. The
@@ -300,6 +470,8 @@ Exported functions:
 * adminPortalCreateBillingCoupon
 * adminPortalListBillingCoupons
 * adminPortalCreateCheckoutLinkWithCoupon
+* adminPortalPreviewEntitlementGrant
+* adminPortalMutateEntitlementGrant
 
 Stripe webhook processing lives in:
 
@@ -334,16 +506,23 @@ Examples:
 * getRemainingDeviceSlots
 * getEffectiveSubscriptionPlanId
 
+`getEffectiveSubscriptionPlanId` delegates to the shared resolver in
+compatibility mode. Feature decisions use typed capability helpers and numeric
+limits use the shared plan presets.
+
 ---
 
 ## Firestore Rules
 
 Examples:
 
-* maxPropertiesForPlan
-* maxDevicesForPlan
+* planLimit mirror
+* planHasCapability mirror
 * property counter validation
 * device counter validation
+
+Firestore Rules cannot import the runtime package, so their narrow mirror is
+kept centralized in these two functions and covered by emulator parity tests.
 
 ---
 

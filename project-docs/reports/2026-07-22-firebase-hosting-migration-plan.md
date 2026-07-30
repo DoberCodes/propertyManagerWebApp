@@ -417,12 +417,32 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Inventory PWA scope, installation, navigation, caching, and updates.
 * [ ] Review and approve the inventories before introducing `BrowserRouter`.
 * [ ] Record baseline Lighthouse, PWA, asset, and critical-route checks.
+* [ ] Inventory current branch protections, release-prep behavior, and deployment triggers.
+* [ ] Inventory production GitHub secrets, variables, Firebase identities, and external providers by environment.
+
+## Phase 0A: Development environment and promotion model
+
+* [ ] Create or confirm the dedicated development Firebase project.
+* [ ] Link a development billing account or budget only where required by deployed services.
+* [ ] Register the development web app and Hosting site.
+* [ ] Configure separate development Auth, Firestore, Storage, Functions, Hosting, and Analytics resources.
+* [ ] Create least-privilege development and production GitHub deployment environments.
+* [ ] Create separate deployment identities and credentials for development and production.
+* [ ] Configure development Stripe test credentials and webhook destinations.
+* [ ] Configure development AI, OCR, email, and other provider credentials or explicit feature suppression.
+* [ ] Disable or redirect customer lifecycle communications in development.
+* [ ] Create synthetic development seed data; do not copy production customer data.
+* [ ] Create and protect the `beta` integration branch.
+* [ ] Require feature pull requests to target `beta` under the normal development flow.
+* [ ] Define the release PR as promotion from `beta` into `main` with prepared version files and notes.
+* [ ] Define a non-destructive post-release synchronization procedure from `main` back to `beta`.
+* [ ] Record environment ownership, cost budgets, secret rotation, and emergency access procedures.
 
 ## Hosting checklist H1: Final GitHub Pages release and migration freeze
 
 * [x] Merge the current bug fixes.
 * [x] Merge the paywall and checkout refactor.
-* [x] Deploy the final planned GitHub Pages release at version 2.8.3.
+* [x] Deploy the final planned GitHub Pages release at version 2.12.4.
 * [ ] Verify production stability.
 * [x] Record the current production build, workflow, and rollback state.
 * [x] Remove the automatic GitHub Pages deployment workflow.
@@ -434,13 +454,15 @@ The release restructuring and hosting migration share these validation gates:
 ## Hosting checklist H2: Firebase Hosting foundation
 
 * [ ] Confirm the production Firebase project and hosting site name.
+* [ ] Confirm the development Firebase project and hosting site name.
 * [ ] Initialize Firebase Hosting without changing the production domain.
-* [ ] Add the Hosting configuration and explicit project target.
+* [ ] Add Hosting configuration with explicit development and production project targets.
 * [ ] Configure public files and SPA fallback ordering.
 * [ ] Configure appropriate security and cache headers.
 * [ ] Confirm private Firebase or customer data is never cached as static content.
-* [ ] Deploy the production build to the Firebase preview `*.web.app` host.
+* [ ] Deploy the candidate build to the development Firebase `*.web.app` host.
 * [ ] Verify assets, static pages, error responses, and the React application shell.
+* [ ] Verify no preview build contains production Firebase or Analytics configuration.
 
 ## Hosting checklist H3: BrowserRouter and build behavior
 
@@ -504,13 +526,24 @@ The release restructuring and hosting migration share these validation gates:
 
 ## Hosting checklist H7: Firebase web deployment
 
-* [ ] Add a Firebase Hosting deployment job for the production web build.
-* [ ] Use a dedicated, least-privilege deployment identity.
-* [ ] Configure production environment secrets without committing credentials.
+* [ ] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
+* [ ] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
+* [ ] Keep PR previews on the stable development backend; do not deploy shared Functions or rules per PR.
+* [ ] Add stable development Hosting, Functions, Firestore rules, and Storage rules deployment after merge to `beta`.
+* [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
+* [ ] Use separate, least-privilege development and production deployment identities.
+* [ ] Configure environment-specific secrets without committing credentials.
 * [ ] Retain build validation, tests, and asset-budget checks.
-* [ ] Add preview-channel deployment where useful for pull requests.
-* [ ] Verify automatic deployment after merge to `main`.
+* [ ] Update Release Prep so the release branch promotes the approved `beta` state into `main` rather than acting as a version-only branch.
+* [ ] Gate production deployment on an exact `Release vX.Y.Z` merge and synchronized version files.
+* [ ] Generate final customer release notes from the preceding merged release boundary.
+* [ ] Create the matching Git tag and GitHub Release only after every required production deployment succeeds.
+* [ ] Make release publication idempotent and fail if an existing tag points to a different commit.
+* [ ] Keep the local Android script limited to attaching or replacing APK and AAB assets on the existing release.
+* [ ] Verify ordinary merges into `beta` cannot deploy production or create tags/releases.
 * [ ] Verify failed builds cannot replace the active production release.
+* [ ] Verify failed Functions, rules, Storage, or Hosting deployment cannot publish the release tag.
+* [ ] Verify preview channel cleanup and expiration.
 * [ ] Document deployment and rollback commands.
 
 ## Hosting checklist H8: Custom domain and DNS cutover
@@ -549,6 +582,10 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Browser refresh on representative nested routes
 * [ ] Unknown-route and authorization behavior
 * [ ] Production analytics without customer-sensitive URL data
+* [ ] Development events remain absent from production Analytics
+* [ ] Development Auth, Firestore, Storage, and Functions activity remains isolated from production
+* [ ] Release tag and GitHub Release point to the exact deployed release merge
+* [ ] Android artifacts can be attached without rewriting the release notes
 
 ## Hosting checklist H10: Observation, cleanup, and documentation
 
@@ -564,6 +601,8 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Update PWA, SEO, testing, scripts, and contributor documentation.
 * [ ] Archive superseded GitHub Pages instructions.
 * [ ] Record the completed migration date in ADR 0028.
+* [ ] Confirm branch protections enforce the `feature → beta → main release` promotion path.
+* [ ] Confirm stale preview channels are expired or removed.
 
 ## Rollback criteria
 

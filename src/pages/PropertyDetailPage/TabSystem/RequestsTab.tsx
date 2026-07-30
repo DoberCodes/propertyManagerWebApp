@@ -85,7 +85,6 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 
 	const getRequestContinuitySignals = (request: any) => {
 		const signals: string[] = [`Submitted ${formatRelativePast(request.submittedAt)}`];
-		// Units are temporarily hidden from the app flow.
 		if (request.priority) {
 			signals.push(`${request.priority} priority`);
 		}
@@ -135,7 +134,6 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					<div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
 						<span>{request.category || 'General'}</span>
 						<span>•</span>
-						{/* Units are temporarily hidden from the app flow. */}
 						<span>{request.submittedByName || 'Tenant request'}</span>
 					</div>
 					<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -230,10 +228,7 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 		planAllowsRequestTasks && (permissions?.canApproveMaintenanceRequests ?? true);
 
 	const filteredRequests = useMemo(() => {
-		// Units are temporarily hidden from the app flow; do not apply unit scoping.
-		const byUnit = propertyMaintenanceRequests;
-
-		const bySearch = byUnit.filter((req) => {
+		const bySearch = propertyMaintenanceRequests.filter((req) => {
 			const haystack = `${req.title || ''} ${req.description || ''} ${req.category || ''}`.toLowerCase();
 			return haystack.includes(search.toLowerCase());
 		});
@@ -365,23 +360,6 @@ export const RequestsTab: React.FC<RequestsTabProps> = ({
 					<FontAwesomeIcon icon={faArrowUpAZ} /> Filters
 				</div>
 				</div>
-
-			{/* Units are temporarily hidden from the app flow.
-			{unitOptions.length > 0 && (
-				<FormSelect
-					name='unitFilter'
-					value={selectedUnitId || ''}
-					onChange={(e) => onSelectUnit && onSelectUnit(e.target.value)}
-					style={{ marginBottom: '0' }}>
-					<option value=''>All units</option>
-					{unitOptions.map((u) => (
-						<option key={u.value} value={u.value}>
-							{u.label}
-						</option>
-					))}
-				</FormSelect>
-			)}
-			*/}
 
 			{activeFilterChips.length > 0 && (
 				<ActiveFilterChips>

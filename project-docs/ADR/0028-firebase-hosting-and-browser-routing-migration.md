@@ -8,6 +8,9 @@ Related ADR: `0016-maintley-progressive-web-app-support.md`
 
 Companion report: `project-docs/reports/2026-07-22-firebase-hosting-migration-plan.md`
 
+Amended: 2026-07-30 — development environment, beta branch, preview channels,
+and release-gated production deployment
+
 ## Context
 
 Maintley's web application currently deploys through GitHub Actions to GitHub
@@ -42,11 +45,17 @@ Firebase Hosting.
 
 The migration will:
 
+* establish separate development and production Firebase projects
+* use `beta` as the integration branch for feature work
+* deploy pull-request preview channels against the development Firebase project
+* deploy the stable development environment after changes merge to `beta`
 * configure Firebase Hosting for the production React build
 * replace `HashRouter` with `BrowserRouter`
 * remove hash-based application URLs
 * configure Firebase Hosting routes and SPA fallback behavior
 * deploy the web application to Firebase through GitHub Actions
+* deploy production only from an approved release merge into `main`
+* create the version tag and GitHub Release only after production deployment succeeds
 * migrate the Maintley custom domain to Firebase Hosting
 * remove the production dependency on GitHub Pages
 * allow the GitHub repository to become private
@@ -55,6 +64,18 @@ The migration will also separate the web and Android release lifecycles. Web
 releases must not require an Android build. Android releases will remain an
 explicit local operation initiated through `yarn build:signed`; GitHub Actions
 will not build, sign, or upload the Android application at this stage.
+
+Feature branches will normally target `beta`, not `main`. The release branch
+will collect the approved state of `beta`, prepare the version files and release
+notes, and open the release PR into `main`. Merging ordinary feature work must
+not deploy the production website.
+
+Pull-request preview channels will use the development Firebase configuration.
+They will share the stable development backend unless a later decision creates
+isolated per-PR Firebase projects. A pull request must not deploy Functions,
+Firestore rules, or Storage rules into the shared development project because
+concurrent pull requests could overwrite one another. Those shared backend
+resources deploy only after approved changes merge into `beta`.
 
 `HashRouter` will be removed completely. Maintley will not maintain a
 permanent compatibility layer for legacy `/#/` application URLs.
@@ -103,6 +124,21 @@ https://maintleyapp.com/dashboard
 
 Operate the hosted frontend alongside Maintley's Firebase-backed
 authentication, data, storage, messaging, and Functions architecture.
+
+### Environment isolation
+
+Keep development Auth, Firestore, Storage, Functions, Hosting, Analytics, and
+operational data separate from production. Development uses synthetic data,
+Stripe test mode, non-production provider credentials or quotas, and suppressed
+or redirected customer communications.
+
+### Release-gated production
+
+Treat a release merge into `main` as the production boundary. Production
+Hosting, Functions, Firestore rules, and Storage rules must pass their required
+validation and deployment gates before the version tag and GitHub Release are
+created. The local signed Android helper attaches artifacts to that existing
+release and does not create or redefine it.
 
 ### Repository independence
 
@@ -183,6 +219,16 @@ release. Customer-facing published-version records and production Play links
 must be updated only after the tested release is promoted to production and
 its rollout is confirmed. Release notes and version metadata should reuse the
 repository's existing release-generation conventions.
+
+The release workflow must also enforce:
+
+* feature pull requests target `beta`
+* pull-request Hosting previews use the development Firebase project
+* merges into `beta` update the stable development environment
+* only the release PR may promote the approved `beta` state into `main`
+* production deploys are triggered by the release merge, not ordinary feature merges
+* a failed production deploy cannot create a tag or GitHub Release
+* tags and GitHub Releases are idempotent and point to the exact release merge commit
 
 ## Required migration constraints
 
@@ -279,6 +325,33 @@ reset and invitation destinations, Stripe return URLs, CORS or origin checks,
 and any environment-specific allowlists. Preview and production hosts must not
 be confused in billing or authentication flows.
 
+### Isolate environment configuration and side effects
+
+Development and production must use separate GitHub environments, Firebase
+project identifiers, web app configuration, deployment identities, secrets,
+Analytics destinations, and provider configuration. Development must not send
+customer lifecycle email, use production Stripe credentials, write production
+customer data, or consume production-only API credentials by default.
+
+Preview channels may use the shared development backend, but each preview must
+receive an isolated Hosting channel and an explicit expiration or cleanup path.
+Preview URLs required for authentication must be allowlisted deliberately; a
+wildcard or unbounded trusted-origin policy is not acceptable.
+
+Production customer data must not be copied into development. Seed and migration
+validation must use synthetic or specifically approved test records.
+
+### Protect the promotion path
+
+Branch protection must require validated feature work to enter `beta` through a
+pull request. The release PR promotes the accumulated, reviewed `beta` state to
+`main`; it is not merely a version-only administrative change. After release,
+`beta` must be synchronized with `main` without rewriting shared branch history.
+
+The production workflow must verify that the target commit is the approved
+`Release vX.Y.Z` merge and that repository-controlled version files agree before
+deploying or publishing release metadata.
+
 ### Preserve rollback until validation
 
 GitHub Pages must not be disabled, its workflow removed, or the repository made
@@ -300,6 +373,9 @@ private until:
 * Frontend hosting aligned with the existing Firebase platform
 * Production hosting independent of public repository visibility
 * A clearer path for future deployment and domain improvements
+* Development analytics, data, storage, and Functions usage separated from customers
+* Reviewable web previews without publishing unfinished changes to production
+* One explicit promotion path from feature work to beta to production
 
 ### Trade-offs and risks
 
@@ -309,6 +385,9 @@ private until:
 * Incorrect rewrite ordering could hide public pages or serve the SPA for assets.
 * DNS and TLS cutover can cause temporary availability issues.
 * Deployment and rollback procedures must change.
+* A shared development backend cannot safely represent conflicting backend changes from multiple open PRs.
+* Long-lived `beta` and `main` branches require clear synchronization and protection rules.
+* Development Firebase and third-party services add configuration and cost-management work.
 
 These risks are accepted, but each is a release gate rather than optional
 follow-up work.
@@ -334,6 +413,12 @@ The current production release will be completed through the existing GitHub
 Pages process. The hosting migration will then proceed as a dedicated
 infrastructure effort before additional feature development resumes.
 
+The migration begins by creating the development Firebase project and GitHub
+environment, then introducing the protected `beta` integration branch. Preview
+Hosting and stable beta deployment are proven before production Hosting or DNS
+changes. Production release automation is enabled only after the development
+path has passed a harmless end-to-end test release.
+
 The companion migration report defines the phased implementation, validation,
 cutover, rollback, and cleanup checklist.
 
@@ -349,6 +434,12 @@ The decision is implemented when:
 * PWA installation, launch, service-worker, and offline behavior are validated.
 * The packaged Android application passes its routing and authentication checks.
 * GitHub Actions deploys the web build directly to Firebase.
+* Feature PRs receive expiring Firebase Hosting previews backed by development configuration.
+* Merges into `beta` deploy the stable development Firebase environment.
+* Development and production use separate Firebase projects, Analytics, secrets, and data.
+* Only release merges into `main` can deploy production.
+* Successful production releases automatically create the matching tag and GitHub Release.
+* The Android helper attaches artifacts to the existing release without changing its notes.
 * GitHub Pages is no longer part of production deployment or rollback.
 * The signed AAB passes internal testing and can be promoted unchanged to production.
 * Web releases complete without requiring an Android release.
@@ -371,3 +462,6 @@ The decision is implemented when:
 * Android releases are built and uploaded locally to internal testing, then the
   tested artifact is promoted deliberately to production.
 * Google Play version codes may contain gaps but may never be reused or decrease.
+* `beta` is the feature-integration branch; `main` is the production release branch.
+* Pull-request previews never create production tags, releases, or backend deployments.
+* Production release metadata is published only after successful production deployment.

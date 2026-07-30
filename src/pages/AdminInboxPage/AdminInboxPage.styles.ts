@@ -255,6 +255,9 @@ export const MobileNavLabel = styled.span`
 `;
 
 export const Card = styled.div`
+	box-sizing: border-box;
+	min-width: 0;
+	width: 100%;
 	max-width: 1100px;
 	margin: 0 auto;
 	background: #ffffff;
@@ -537,6 +540,141 @@ export const ButtonRow = styled.div`
 	}
 `;
 
+export const GrantWizardSteps = styled.ol`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+`;
+
+export const GrantWizardStep = styled.li<{ $active?: boolean; $complete?: boolean }>`
+	display: grid;
+	gap: 5px;
+	padding: 10px;
+	border: 1px solid ${({ $active, $complete }) =>
+		$active || $complete ? '#3FCC7C' : '#e5e7eb'};
+	border-radius: 8px;
+	background: ${({ $active }) => ($active ? '#ecfdf5' : '#ffffff')};
+	color: ${({ $active, $complete }) =>
+		$active || $complete ? '#065f46' : '#6b7280'};
+	font-size: 12px;
+	font-weight: 700;
+
+	@media (max-width: 480px) {
+		padding: 8px 6px;
+		text-align: center;
+	}
+`;
+
+export const GrantWizardStepNumber = styled.span`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 999px;
+	background: #d1fae5;
+	color: #047857;
+	font-size: 12px;
+
+	@media (max-width: 480px) {
+		margin: 0 auto;
+	}
+`;
+
+export const GrantWizardPanel = styled.section`
+	display: grid;
+	gap: 14px;
+`;
+
+export const GrantWizardFieldGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+
+	@media (max-width: 560px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+export const GrantWizardNotice = styled.div`
+	padding: 12px;
+	background: #f0fdf4;
+	border: 1px solid #86efac;
+	border-radius: 8px;
+	color: #14532d;
+	font-size: 13px;
+	line-height: 1.45;
+
+	p {
+		margin: 5px 0 0;
+	}
+`;
+
+export const GrantWizardReview = styled.div`
+	display: grid;
+	gap: 0;
+	border: 1px solid #d1d5db;
+	border-radius: 10px;
+	overflow: hidden;
+	background: #ffffff;
+`;
+
+export const GrantWizardReviewRow = styled.div`
+	display: grid;
+	grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
+	gap: 14px;
+	padding: 11px 12px;
+	border-bottom: 1px solid #e5e7eb;
+	font-size: 13px;
+	line-height: 1.4;
+
+	&:last-child {
+		border-bottom: 0;
+	}
+
+	strong {
+		color: #374151;
+	}
+
+	span {
+		color: #111827;
+		overflow-wrap: anywhere;
+	}
+
+	@media (max-width: 480px) {
+		grid-template-columns: 1fr;
+		gap: 3px;
+	}
+`;
+
+export const GrantWizardMeta = styled.p`
+	margin: 0;
+	color: #6b7280;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+`;
+
+export const GrantWizardActions = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding-top: 4px;
+
+	@media (max-width: 480px) {
+		align-items: stretch;
+		flex-direction: column-reverse;
+
+		& > button {
+			width: 100%;
+			min-height: 42px;
+		}
+	}
+`;
+
 // ============================================================================
 // Form Elements
 // ============================================================================
@@ -675,6 +813,59 @@ export const TicketHeader = styled.div`
 
 	@media (max-width: 480px) {
 		flex-direction: column;
+	}
+`;
+
+export const MoreActionsMenu = styled.details`
+	position: relative;
+
+	> summary {
+		list-style: none;
+		padding: 8px 12px;
+		border-radius: 8px;
+		border: 1px solid #fdba74;
+		background: #fff7ed;
+		color: #9a3412;
+		font-weight: 600;
+		cursor: pointer;
+		user-select: none;
+		text-align: center;
+	}
+
+	> summary::-webkit-details-marker {
+		display: none;
+	}
+
+	> summary::after {
+		content: ' ▾';
+	}
+
+	&[open] > summary {
+		background: #ffedd5;
+	}
+
+	&[open] > summary::after {
+		content: ' ▴';
+	}
+`;
+
+export const MoreActionsMenuContent = styled.div`
+	position: absolute;
+	right: 0;
+	top: calc(100% + 6px);
+	z-index: 20;
+	width: min(260px, 80vw);
+	padding: 8px;
+	border: 1px solid #fdba74;
+	border-radius: 10px;
+	background: #ffffff;
+	box-shadow: 0 12px 28px rgba(124, 45, 18, 0.16);
+	display: grid;
+	gap: 6px;
+
+	> button {
+		width: 100%;
+		text-align: left;
 	}
 `;
 
@@ -1090,6 +1281,7 @@ export const UserPanelWrap = styled.div`
 	margin-top: 14px;
 	display: grid;
 	gap: 16px;
+	min-width: 0;
 `;
 
 export const UserPanelToolbar = styled.div`
@@ -1122,14 +1314,23 @@ export const UserPanelToolbar = styled.div`
 `;
 
 export const UserTableWrap = styled.div`
+	min-width: 0;
+	max-width: 100%;
 	overflow-x: auto;
+	overscroll-behavior-inline: contain;
+	-webkit-overflow-scrolling: touch;
 	border: 1px solid #fed7aa;
 	border-radius: 10px;
 	background: #ffffff;
+
+	@media (max-width: 640px) {
+		display: none;
+	}
 `;
 
 export const UserTable = styled.table`
 	width: 100%;
+	min-width: 880px;
 	border-collapse: collapse;
 
 	thead {
@@ -1154,6 +1355,93 @@ export const UserTable = styled.table`
 
 	td {
 		color: #7c2d12;
+	}
+`;
+
+export const UserCardList = styled.div`
+	display: none;
+
+	@media (max-width: 640px) {
+		display: grid;
+		gap: 10px;
+	}
+`;
+
+export const UserCard = styled.article`
+	display: grid;
+	gap: 12px;
+	padding: 14px;
+	border: 1px solid #fed7aa;
+	border-radius: 10px;
+	background: #ffffff;
+`;
+
+export const UserCardHeader = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+`;
+
+export const UserCardIdentity = styled.div`
+	min-width: 0;
+	display: grid;
+	gap: 3px;
+
+	strong {
+		color: #7c2d12;
+		font-size: 14px;
+		word-break: break-word;
+	}
+
+	span {
+		color: #9a3412;
+		font-size: 12px;
+		word-break: break-word;
+	}
+`;
+
+export const UserCardMeta = styled.dl`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	margin: 0;
+
+	div {
+		display: grid;
+		gap: 2px;
+	}
+
+	dt {
+		color: #9a3412;
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	dd {
+		margin: 0;
+		color: #7c2d12;
+		font-size: 12px;
+		word-break: break-word;
+	}
+`;
+
+export const UserCardActionButton = styled.button`
+	width: 100%;
+	min-height: 40px;
+	padding: 8px 10px;
+	border: 1px solid #fdba74;
+	border-radius: 8px;
+	background: #fff7ed;
+	color: #9a3412;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+
+	:hover {
+		background: #ffedd5;
 	}
 `;
 

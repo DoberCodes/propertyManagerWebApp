@@ -4,6 +4,8 @@ import userReducer, {
 	setUserCred,
 	setAuthLoading,
 	logout,
+	updateEntitlementProjection,
+	updateSubscriptionFromStripe,
 	UserState,
 } from './userSlice';
 
@@ -100,6 +102,199 @@ describe('userSlice', () => {
 			const actual = userReducer(initialState, setUserCred(mockCred));
 
 			expect(actual.cred).toEqual(mockCred);
+		});
+
+		it('applies only the current account entitlement projection', () => {
+			const stateWithUser = userReducer(
+				initialState,
+				setCurrentUser({
+					...mockUser,
+					accountId: 'account-1',
+					subscription: {
+						status: 'active',
+						plan: 'homeowner',
+						currentPeriodStart: 0,
+						currentPeriodEnd: 1,
+					},
+				} as any),
+			);
+			const grant = {
+				grantId: 'trial-grant',
+				programId: 'homeowner_plus_first_property_trial_v1',
+				accountId: 'account-1',
+				kind: 'temporary',
+				state: 'active',
+				startsAtMs: 1,
+				endsAtMs: 2,
+				source: 'trial',
+			} as const;
+			const actual = userReducer(
+				stateWithUser,
+				updateEntitlementProjection({
+					accountId: 'account-1',
+					projection: { activeGrants: [grant] },
+				}),
+			);
+
+			expect(actual.currentUser?.subscription?.entitlementAccountId).toBe('account-1');
+			expect(actual.currentUser?.subscription?.entitlementGrants).toEqual([grant]);
+		});
+
+		it('applies a Stripe synchronization only to the matching signed-in user', () => {
+			const stateWithUser = userReducer(
+				initialState,
+				setCurrentUser({
+					...mockUser,
+					subscription: {
+						status: 'active',
+						plan: 'portfolio',
+						currentPeriodStart: 1,
+						currentPeriodEnd: 2,
+					},
+				} as any),
+			);
+			const staleResult = userReducer(
+				stateWithUser,
+				updateSubscriptionFromStripe({
+					userId: 'different-user',
+					subscription: { cancelAtPeriodEnd: true },
+				}),
+			);
+
+			expect(staleResult.currentUser?.subscription?.cancelAtPeriodEnd).toBeUndefined();
+
+			const matchingResult = userReducer(
+				staleResult,
+				updateSubscriptionFromStripe({
+					userId: 'user-123',
+					subscription: { cancelAtPeriodEnd: true },
+				}),
+			);
+
+			expect(matchingResult.currentUser?.subscription?.cancelAtPeriodEnd).toBe(true);
+		});
+
+		it('preserves resolved grants when the same-account auth profile omits its projection', () => {
+			const grant = {
+				grantId: 'portfolio-lifetime',
+				programId: 'legacy_portfolio_lifetime_v1',
+				accountId: 'account-1',
+				kind: 'permanent',
+				state: 'active',
+				bundleId: 'portfolio',
+				bundleVersion: 'v1',
+				startsAtMs: 1,
+				source: 'migration',
+			} as const;
+			const stateWithGrant = userReducer(
+				initialState,
+				setCurrentUser({
+					...mockUser,
+					accountId: 'account-1',
+					subscription: {
+						status: 'active',
+						plan: 'homeowner',
+						currentPeriodStart: 0,
+						currentPeriodEnd: 1,
+						entitlementAccountId: 'account-1',
+						entitlementGrants: [grant],
+					},
+					effectiveEntitlementProjection: { activeGrants: [grant] },
+				} as any),
+			);
+
+			const actual = userReducer(
+				stateWithGrant,
+				setCurrentUser({
+					...mockUser,
+					accountId: 'account-1',
+					subscription: {
+						status: 'active',
+						plan: 'homeowner',
+						currentPeriodStart: 0,
+						currentPeriodEnd: 1,
+					},
+				} as any),
+			);
+
+			expect(actual.currentUser?.effectiveEntitlementProjection?.activeGrants).toEqual([grant]);
+			expect(actual.currentUser?.subscription?.entitlementGrants).toEqual([grant]);
+			expect(actual.currentUser?.subscription?.entitlementAccountId).toBe('account-1');
+		});
+
+		it('accepts an explicit empty same-account projection as authoritative revocation', () => {
+			const stateWithGrant = userReducer(
+				initialState,
+				setCurrentUser({
+					...mockUser,
+					accountId: 'account-1',
+					subscription: {
+						status: 'active',
+						plan: 'homeowner',
+						currentPeriodStart: 0,
+						currentPeriodEnd: 1,
+						entitlementGrants: [{ grantId: 'old-grant', accountId: 'account-1' }],
+					},
+					effectiveEntitlementProjection: {
+						activeGrants: [{ grantId: 'old-grant', accountId: 'account-1' }],
+					},
+				} as any),
+			);
+
+			const actual = userReducer(
+				stateWithGrant,
+				setCurrentUser({
+					...mockUser,
+					accountId: 'account-1',
+					subscription: {
+						status: 'active',
+						plan: 'homeowner',
+						currentPeriodStart: 0,
+						currentPeriodEnd: 1,
+					},
+					effectiveEntitlementProjection: { activeGrants: [] },
+				} as any),
+			);
+
+			expect(actual.currentUser?.effectiveEntitlementProjection?.activeGrants).toEqual([]);
+			expect(actual.currentUser?.subscription?.entitlementGrants).toEqual([]);
+		});
+
+		it('never carries grants into a different account', () => {
+			const stateWithGrant = userReducer(
+				initialState,
+				setCurrentUser({
+					...mockUser,
+					accountId: 'account-1',
+					subscription: {
+						status: 'active',
+						plan: 'homeowner',
+						currentPeriodStart: 0,
+						currentPeriodEnd: 1,
+						entitlementGrants: [{ grantId: 'account-1-grant', accountId: 'account-1' }],
+					},
+					effectiveEntitlementProjection: {
+						activeGrants: [{ grantId: 'account-1-grant', accountId: 'account-1' }],
+					},
+				} as any),
+			);
+
+			const actual = userReducer(
+				stateWithGrant,
+				setCurrentUser({
+					...mockUser,
+					accountId: 'account-2',
+					subscription: {
+						status: 'active',
+						plan: 'homeowner',
+						currentPeriodStart: 0,
+						currentPeriodEnd: 1,
+					},
+				} as any),
+			);
+
+			expect(actual.currentUser?.effectiveEntitlementProjection).toBeUndefined();
+			expect(actual.currentUser?.subscription?.entitlementGrants).toBeUndefined();
 		});
 
 		it('should handle setAuthLoading true', () => {

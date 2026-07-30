@@ -13,7 +13,6 @@
 	"exclude": [
 		"node_modules",
 		"lib",
-		"src/taskNotifications.ts",
 		"test-*.ts",
 		"debug*.ts",
 		"manual-update.ts"

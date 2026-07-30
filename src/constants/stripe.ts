@@ -7,6 +7,12 @@
 // Stripe Public Key - from environment variables
 export const STRIPE_PUBLIC_KEY = process.env.REACT_APP_STRIPE_PUBLIC_KEY || '';
 
+// Public Stripe-hosted login for customers managing their billing details.
+// This is intentionally not a secret; Stripe verifies the customer before access.
+export const STRIPE_CUSTOMER_PORTAL_URL =
+	process.env.REACT_APP_STRIPE_CUSTOMER_PORTAL_URL ||
+	'https://billing.stripe.com/p/login/00wbJ27029Gxama5Cg5gc00';
+
 export type BillingCycle = 'month' | 'year';
 
 // Stripe Plan IDs (from Stripe Dashboard)

@@ -44,7 +44,7 @@ const renderWithStore = (ui: React.ReactElement, store?: any) =>
 	);
 
 describe('Tabs component', () => {
-	test('does not show Units for Multi-Family properties while Units are deprioritized', () => {
+	test('does not show retired Unit management for Multi-Family properties', () => {
 		renderWithStore(
 			<TabController
 				{...makeProps({ property: { propertyType: 'Multi-Family' } })}
@@ -57,7 +57,7 @@ describe('Tabs component', () => {
 		expect(screen.queryByText('Units')).not.toBeInTheDocument();
 	});
 
-	test('does not show Suites for Commercial properties (temporarily hidden)', () => {
+	test('does not show retired Suite management for Commercial properties', () => {
 		renderWithStore(
 			<TabController
 				{...makeProps({

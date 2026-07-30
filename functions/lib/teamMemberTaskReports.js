@@ -60,15 +60,6 @@ const COMPLETED_EVENT_TYPES = new Set([
     'inspection_completed',
     'recurring_maintenance_completed',
 ]);
-const TEAM_REPORT_PLANS = new Set(['property', 'portfolio']);
-const canUseTeamReports = (user) => {
-    const subscription = user.subscription;
-    if (!(0, subscriptionEntitlements_1.isSubscriptionCurrentlyEntitled)(subscription)) {
-        return false;
-    }
-    const plan = (0, subscriptionEntitlements_1.getEffectiveSubscriptionPlanId)(subscription, 'homeowner');
-    return TEAM_REPORT_PLANS.has(plan);
-};
 const getAccountId = (userId, user) => String(user.accountId || '').trim() || userId;
 const getName = (member) => {
     const name = `${member.firstName || ''} ${member.lastName || ''}`.trim();
@@ -253,12 +244,12 @@ const getTeamReportHtml = ({ member, frequency, upcomingTasks, overdueTasks, com
             ? 'Monthly'
             : 'Weekly';
     return `
-		<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#10251a;">
-			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:34px 14px;">
+		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
+			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:34px 14px;">
 				<tr><td align="center">
 					<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:20px; overflow:hidden; border:1px solid #cfe8d4;">
 						<tr>
-							<td style="background:#16a34a; color:#ffffff; padding:28px 32px;">
+							<td style="background:#047857; color:#FFFFFF; padding:28px 32px;">
 								<div style="font-size:13px; text-transform:uppercase; letter-spacing:0.08em; font-weight:800;">Maintley</div>
 								<h1 style="margin:10px 0 0 0; font-size:27px; line-height:1.2;">Team Task Update</h1>
 								<p style="margin:10px 0 0 0; font-size:15px; line-height:1.6; color:#eaf8ee;">${(0, emailService_1.escapeHtml)(frequencyLabel)} maintenance task update.</p>
@@ -282,7 +273,7 @@ const getTeamReportHtml = ({ member, frequency, upcomingTasks, overdueTasks, com
 								${renderRows(overdueTasks, propertyById, 'No overdue tasks are currently recorded.', (task) => task.dueDate)}
 							</div>
 
-							<a href="${(0, emailService_1.escapeHtml)(dashboardUrl)}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
+							<a href="${(0, emailService_1.escapeHtml)(dashboardUrl)}" style="display:inline-block; background:#047857; color:#FFFFFF; text-decoration:none; padding:13px 20px; border-radius:12px; font-size:14px; font-weight:900;">Open Maintley</a>
 						</td></tr>
 						<tr><td style="padding:18px 32px; border-top:1px solid #e5efe7; font-size:12px; line-height:1.6; color:#667085;">This report is controlled by the account owner in Maintley email preferences.</td></tr>
 					</table>
@@ -298,7 +289,8 @@ const sendTeamReportForOwner = async (userId, user, now, appUrl) => {
     }
     const accountId = getAccountId(userId, user);
     const isAccountOwner = user.isTeamMemberAccount !== true && accountId === userId;
-    if (!isAccountOwner || !canUseTeamReports(user)) {
+    const canUseTeamReports = await (0, subscriptionEntitlements_1.hasAccountCapability)(accountId, user.subscription, 'team.manage', now.getTime());
+    if (!isAccountOwner || !canUseTeamReports) {
         return [{ sent: false, skipped: true, reason: 'not_allowed' }];
     }
     const frequency = preference.frequency || 'weekly';

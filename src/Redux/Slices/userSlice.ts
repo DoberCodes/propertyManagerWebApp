@@ -1,6 +1,46 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { clearUserLocalStorage } from '../../utils/localStorageCleanup';
 import { UserRole } from 'constants/roles';
+import type { EntitlementGrant } from '@maintley/entitlements';
+
+export type WorkspaceMode = 'homeowner' | 'property_operator';
+
+export interface BillingDisclosure {
+	source: 'stripe';
+	status: string;
+	priceId: string | null;
+	productId: string | null;
+	currency: string;
+	interval: 'day' | 'week' | 'month' | 'year' | null;
+	intervalCount: number | null;
+	quantity: number;
+	listAmountMinor: number | null;
+	currentPeriodEnd: number | null;
+	cancelAtPeriodEnd: boolean;
+	discount: {
+		couponId: string;
+		name: string | null;
+		percentOff: number | null;
+		amountOffMinor: number | null;
+		currency: string | null;
+		duration: 'forever' | 'once' | 'repeating';
+		durationInMonths: number | null;
+		startsAt: number;
+		endsAt: number | null;
+	} | null;
+	nextInvoice: {
+		amountDueMinor: number;
+		currency: string;
+		dueAt: number | null;
+	} | null;
+	syncedAt: string;
+}
+
+export interface BillingSyncIssue {
+	code: 'multiple_current_subscriptions';
+	stripeSubscriptionIds: string[];
+	detectedAt: string;
+}
 
 // Family account type for shared subscriptions
 export interface FamilyAccount {
@@ -22,6 +62,9 @@ export interface FamilyAccount {
 		scheduledPlan?: string;
 		pendingCheckoutPlan?: string;
 		pendingCheckoutStartedAt?: number;
+		cancelAtPeriodEnd?: boolean;
+		billingDisclosure?: BillingDisclosure;
+		billingSyncIssue?: BillingSyncIssue | null;
 	};
 	createdAt: string;
 	updatedAt: string;
@@ -44,6 +87,8 @@ export interface User {
 	dashboardPreferences?: {
 		scope?: 'my_focus' | 'all_visible_properties';
 	};
+	workspaceMode?: WorkspaceMode;
+	hasExistingTeamMembers?: boolean;
 	pushToken?: string; // Push notification token for FCM
 	pushTokenUpdatedAt?: string; // When push token was last updated
 	pushTokens?: Array<{
@@ -76,6 +121,20 @@ export interface User {
 		scheduledPlan?: string;
 		pendingCheckoutPlan?: string;
 		pendingCheckoutStartedAt?: number;
+		cancelAtPeriodEnd?: boolean;
+		billingDisclosure?: BillingDisclosure;
+		billingSyncIssue?: BillingSyncIssue | null;
+		entitlementAccountId?: string;
+		entitlementGrants?: EntitlementGrant[];
+	};
+	effectiveEntitlementProjection?: {
+		resolverVersion?: string;
+		bundleVersions?: string[];
+		activeBundleIds?: string[];
+		bundleExpirationsMs?: Record<string, number>;
+		activeGrants?: EntitlementGrant[];
+		calculatedAt?: string;
+		nextTransitionAtMs?: number;
 	};
 	legalAgreement?: {
 		agreedToTerms: boolean;
@@ -191,6 +250,52 @@ const getLoggedUserSession = (user: User) => ({
 	user,
 });
 
+const getUserAccountId = (user: User | null | undefined): string =>
+	String(user?.accountId || '').trim() || String(user?.id || '').trim();
+
+const hasOwnEntitlementProjection = (user: User): boolean =>
+	Object.prototype.hasOwnProperty.call(user, 'effectiveEntitlementProjection');
+
+const mergeAuthenticatedUser = (
+	currentUser: User | null,
+	incomingUser: User,
+): User => {
+	const nextUser: User = {
+		...incomingUser,
+		...(incomingUser.subscription
+			? { subscription: { ...incomingUser.subscription } }
+			: {}),
+	};
+	const incomingHasProjection = hasOwnEntitlementProjection(incomingUser);
+	const sameEntitlementAccount = Boolean(
+		currentUser &&
+		currentUser.id === incomingUser.id &&
+		getUserAccountId(currentUser) === getUserAccountId(incomingUser),
+	);
+
+	if (sameEntitlementAccount && !incomingHasProjection && currentUser) {
+		if (hasOwnEntitlementProjection(currentUser)) {
+			nextUser.effectiveEntitlementProjection =
+				currentUser.effectiveEntitlementProjection;
+		}
+
+		const currentGrants = currentUser.subscription?.entitlementGrants;
+		if (nextUser.subscription && currentGrants) {
+			nextUser.subscription.entitlementAccountId = getUserAccountId(currentUser);
+			nextUser.subscription.entitlementGrants = currentGrants;
+		}
+		return nextUser;
+	}
+
+	if (incomingHasProjection && nextUser.subscription) {
+		nextUser.subscription.entitlementAccountId = getUserAccountId(incomingUser);
+		nextUser.subscription.entitlementGrants =
+			incomingUser.effectiveEntitlementProjection?.activeGrants || [];
+	}
+
+	return nextUser;
+};
+
 const userSlice = createSlice({
 	name: 'user',
 	initialState,
@@ -203,16 +308,64 @@ const userSlice = createSlice({
 		},
 		setCurrentUser: (state, action: PayloadAction<User | null>) => {
 			if (action.payload) {
-				state.currentUser = action.payload;
+				state.currentUser = mergeAuthenticatedUser(
+					state.currentUser,
+					action.payload,
+				);
 				localStorage.setItem(
 					'loggedUser',
-					JSON.stringify(getLoggedUserSession(action.payload)),
+					JSON.stringify(getLoggedUserSession(state.currentUser)),
 				);
 			} else {
 				state.currentUser = null;
 				localStorage.removeItem('loggedUser');
 			}
 			state.authLoading = false;
+		},
+		updateEntitlementProjection: (
+			state,
+			action: PayloadAction<{
+				accountId: string;
+				projection: User['effectiveEntitlementProjection'] | null;
+			}>,
+		) => {
+			if (!state.currentUser?.subscription) return;
+			const currentAccountId =
+				String(state.currentUser.accountId || '').trim() || state.currentUser.id;
+			if (currentAccountId !== action.payload.accountId) return;
+
+			const projection = action.payload.projection || undefined;
+			state.currentUser.effectiveEntitlementProjection = projection;
+			state.currentUser.subscription.entitlementAccountId = currentAccountId;
+			state.currentUser.subscription.entitlementGrants =
+				projection?.activeGrants || [];
+			localStorage.setItem(
+				'loggedUser',
+				JSON.stringify(getLoggedUserSession(state.currentUser)),
+			);
+		},
+		updateSubscriptionFromStripe: (
+			state,
+			action: PayloadAction<{
+				userId: string;
+				subscription: Partial<NonNullable<User['subscription']>>;
+			}>,
+		) => {
+			if (
+				!state.currentUser?.subscription ||
+				state.currentUser.id !== action.payload.userId
+			) {
+				return;
+			}
+
+			state.currentUser.subscription = {
+				...state.currentUser.subscription,
+				...action.payload.subscription,
+			};
+			localStorage.setItem(
+				'loggedUser',
+				JSON.stringify(getLoggedUserSession(state.currentUser)),
+			);
 		},
 		setUserCred: (state, action: PayloadAction<any>) => {
 			state.cred = action.payload;
@@ -233,6 +386,8 @@ const userSlice = createSlice({
 export const {
 	beginAuthTransition,
 	setCurrentUser,
+	updateEntitlementProjection,
+	updateSubscriptionFromStripe,
 	setUserCred,
 	setAuthLoading,
 	logout,

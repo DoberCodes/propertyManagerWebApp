@@ -36,17 +36,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.redeemTeamMemberInvitationCode = exports.revokeTeamMemberInvitationCode = exports.createTeamMemberInvitationCode = exports.validateTeamMemberInvitationCode = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
+const entitlements_1 = require("@maintley/entitlements");
 const inviteAuthz_1 = require("./inviteAuthz");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
-const normalizePlanId = (plan) => {
-    return String(plan || '').trim().toLowerCase();
-};
-const isPropertySimpleTeamPlan = (plan) => normalizePlanId(plan) === 'property';
-const assertSimpleTeamProfileAllowed = (plan, teamMemberData) => {
-    if (!isPropertySimpleTeamPlan(plan)) {
+const assertSimpleTeamProfileAllowed = (advancedTeamAllowed, teamMemberData) => {
+    if (advancedTeamAllowed) {
         return;
     }
     const role = String(teamMemberData?.role || '').trim();
@@ -212,12 +210,12 @@ exports.createTeamMemberInvitationCode = functions.https.onCall(async (data, con
     if (!teamMemberId || !teamMemberEmail || !code) {
         throw new functions.https.HttpsError('invalid-argument', 'teamMemberId, teamMemberEmail, and code are required');
     }
-    const { accountId, subscription } = await (0, inviteAuthz_1.assertInviteCapability)(context.auth.uid, 'team');
+    const { accountId, entitlements } = await (0, inviteAuthz_1.assertInviteCapability)(context.auth.uid, 'team');
     const teamMemberDoc = await db
         .collection('teamMembers')
         .doc(teamMemberId)
         .get();
-    assertSimpleTeamProfileAllowed(subscription.plan, teamMemberDoc.data());
+    assertSimpleTeamProfileAllowed((0, entitlements_1.hasCapability)(entitlements, 'team.advanced'), teamMemberDoc.data());
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const invitationCode = {
@@ -251,7 +249,9 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
     if (!teamMemberId) {
         throw new functions.https.HttpsError('invalid-argument', 'teamMemberId is required');
     }
-    const { accountId } = await (0, inviteAuthz_1.assertInviteCapability)(context.auth.uid, 'team');
+    // Revocation is relationship cleanup, so it remains available after a
+    // downgrade even though creating or regenerating access stays entitled.
+    const { accountId } = await (0, inviteAuthz_1.assertInviteAccountManager)(context.auth.uid);
     const snapshot = await db
         .collection('teamMemberInvitationCodes')
         .where('accountId', '==', accountId)
@@ -269,7 +269,14 @@ exports.revokeTeamMemberInvitationCode = functions.https.onCall(async (data, con
     });
     const teamMemberRef = db.collection('teamMembers').doc(teamMemberId);
     const teamMemberDoc = await teamMemberRef.get();
+    if (!teamMemberDoc.exists) {
+        throw new functions.https.HttpsError('not-found', 'Team member not found');
+    }
     const teamMemberData = teamMemberDoc.data() || {};
+    const teamMemberAccountId = String(teamMemberData.accountId || teamMemberData.userId || '').trim();
+    if (teamMemberAccountId !== accountId) {
+        throw new functions.https.HttpsError('permission-denied', 'Team member does not belong to this account');
+    }
     const linkedUserId = String(teamMemberData.userAccountId || teamMemberData.redeemedByUserId || '').trim();
     let shouldDeleteLinkedAccount = false;
     if (linkedUserId) {
@@ -380,7 +387,8 @@ exports.redeemTeamMemberInvitationCode = functions.https.onCall(async (data, con
             .doc(inviteData.accountId)
             .get();
         const accountOwnerSubscription = accountOwnerDoc.data()?.subscription || {};
-        assertSimpleTeamProfileAllowed(accountOwnerSubscription.plan, teamMemberProfile || undefined);
+        const entitlements = await (0, subscriptionEntitlements_1.resolveEntitlementsForAccount)(inviteData.accountId, accountOwnerSubscription);
+        assertSimpleTeamProfileAllowed((0, entitlements_1.hasCapability)(entitlements, 'team.advanced'), teamMemberProfile || undefined);
         await upsertTeamMemberAccess({
             uid: context.auth.uid,
             email: callerEmail,

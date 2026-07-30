@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 // Weather fetching disabled; external libs not required here.
 import {
 	Container,

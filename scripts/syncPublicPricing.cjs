@@ -27,15 +27,17 @@ const planCards = plans.map((plan) => `					<article class="card" data-plan-id="
 						<ul class="check-list">
 							<li>${escapeHtml(formatLimit(plan.maxProperties, 'property', 'properties'))}</li>
 							<li>${escapeHtml(formatLimit(plan.maxDevices, 'equipment record', 'equipment records', true))}</li>
-							<li>${escapeHtml(formatLimit(plan.maxFiles, 'file'))}</li>
+							<li>No file-count limit</li>
 							<li>${plan.maxStorageGb} GB storage</li>
 ${plan.highlights.map((highlight) => `\t\t\t\t\t\t\t<li>${escapeHtml(highlight)}</li>`).join('\n')}
 						</ul>
 					</article>`).join('\n');
 
+const pricingLead = 'Homeowner plans support one or several personal homes. Property and Portfolio are for landlords and property-management teams that need business coordination.';
+
 const pricingSection = `<section class="section" data-public-pricing>
 				<h2>Choose the plan that fits your home or property portfolio</h2>
-				<p class="lead">Homeowner plans support one home. Property and Portfolio are for landlords, property owners, and property-management teams that need more property capacity and coordination.</p>
+				<p class="lead">${pricingLead}</p>
 				<div class="grid">
 ${planCards}
 				</div>

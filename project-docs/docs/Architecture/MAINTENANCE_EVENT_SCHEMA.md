@@ -31,6 +31,7 @@ Implementation references:
 * functions/maintenanceEvents.ts
 * src/Redux/API/maintenanceSlice.tsx
 * src/Redux/API/taskSlice.tsx
+* src/maintenanceHistory/maintenanceHistoryAdapter.ts
 
 Canonical collection:
 
@@ -53,6 +54,7 @@ maintenanceHistory/{historyId}
 `maintenanceEvents` is the authoritative source for maintenance history.
 
 `maintenanceHistory` remains available only for compatibility with older records.
+New workflows do not write legacy collection or embedded history records.
 
 ---
 
@@ -381,7 +383,8 @@ Recommendation systems should not create parallel maintenance-history structures
 
 # Reading Strategy
 
-The application currently supports dual-read behavior.
+The application currently supports dual-read behavior through one shared,
+source-aware adapter.
 
 Sources:
 
@@ -394,11 +397,38 @@ Purpose:
 * Support migration efforts.
 * Preserve compatibility during transition periods.
 
+The adapter normalizes dates, titles, descriptions, property relationships,
+equipment relationships, source identity, and canonical status into one
+UI-facing shape. It removes duplicate query results by source identity, prefers
+a canonical event when the legacy collection uses the same ID, and honors
+explicit migration provenance.
+
+Property `taskHistory` and `maintenanceHistory` arrays are treated as aliases
+and deduplicated against each other. Similar independent records are not
+automatically merged; content similarity alone is not sufficient evidence that
+two records describe the same work.
+
+Property- and account-scoped RTK query paths both use the adapter. Property
+detail consumers do not independently merge embedded property history.
+Equipment-embedded compatibility records enter through the adapter's shared
+device-source boundary. Equipment timelines, reports, account/profile metrics,
+dashboard health, Maintenance Profiles, and Maintley Intelligence consume that
+adapted result rather than reading `devices.maintenanceHistory` directly.
+Embedded compatibility records remain visible but read-only until an approved
+controlled backfill creates their canonical Maintenance Events.
+
 New maintenance records should be written to:
 
 ```text
 maintenanceEvents
 ```
+
+The transitional history UI sends corrections and removals to
+`correctMaintenanceHistoryRecord`. Canonical events are corrected normally. A
+legacy-only record is promoted to the same deterministic event ID first, with
+`data.migration` provenance and a server-authored creation revision, and is then
+corrected or soft-deleted. Ambiguous legacy records are refused for manual
+migration review rather than being changed directly.
 
 ---
 
@@ -436,24 +466,22 @@ Review Firestore index requirements when introducing new reporting or dashboard 
 
 # Migration
 
-Migration helpers:
+Report-only migration inventory:
 
 ```bash
-npm run migrate:maintenance-events
-npm run migrate:maintenance-events:apply
+npm run audit:maintenance-history -- --confirm-project=<project-id>
 ```
 
 Implementation:
 
 ```text
-scripts/migrateMaintenanceHistoryToEvents.cjs
+scripts/inventoryMaintenanceHistory.cjs
 ```
 
-Review migration logic carefully before applying to production environments.
-
-Migration utilities exist to support legacy maintenanceHistory records.
-
-They should not be required for normal application operation.
+The inventory has no apply mode. Do not run the older
+`migrateMaintenanceHistoryToEvents.cjs --apply` path; it predates current
+provenance, revision, parity, backup, and rollback requirements. A replacement
+controlled backfill requires separate approval after inventory review.
 
 ---
 

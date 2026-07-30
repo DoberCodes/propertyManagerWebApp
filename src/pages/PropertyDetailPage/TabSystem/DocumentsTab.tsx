@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import {
@@ -16,7 +16,7 @@ import {
 import { FileUploader } from 'Components/Library/FileUploader';
 import { useUpdatePropertyMutation } from 'Redux/API/propertySlice';
 import { apiSlice } from 'Redux/API/apiSlice';
-import type { AppDispatch } from 'Redux/store/store';
+import type { AppDispatch, RootState } from 'Redux/store/store';
 import {
 	Device,
 	PropertyDocument,
@@ -37,10 +37,13 @@ import {
 } from 'propertyKnowledge/propertyMemoryRecordService';
 import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
 import {
-	isPdfPropertyDocument,
+	getPropertyDocumentScanAction,
+	isProcessablePropertyDocument,
+	isPropertyDocumentKnowledgeScanEligible,
 	processPropertyDocumentAcquisition,
 } from 'propertyKnowledge/propertyKnowledgeProcessing';
 import { RoleCapabilities } from 'utils/permissions';
+import { hasMaintleyAdminAccess } from 'utils/maintleyRole';
 import {
 	deletePropertyDocumentFile,
 } from 'utils/propertyDocumentUpload';
@@ -197,12 +200,12 @@ const getDocumentKnowledgeStatusText = (
 const getDocumentAcquisitionStatusText = (document?: PropertyDocument) => {
 	if (document?.acquisitionStatus === 'processing') {
 		if (isDocumentAcquisitionStale(document)) {
-			return 'Maintley could not finish reviewing this PDF. You can try again.';
+			return 'Maintley could not finish reviewing this document. You can try again.';
 		}
-		return 'Maintley is reviewing this PDF for suggested details.';
+		return 'Maintley is reviewing this document for suggested details.';
 	}
 	if (document?.acquisitionStatus === 'failed') {
-		return document.acquisitionError || 'Maintley could not review this PDF yet.';
+		return document.acquisitionError || 'Maintley could not review this document yet.';
 	}
 	return '';
 };
@@ -232,6 +235,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 }) => {
 	const feedback = useAppFeedback();
 	const dispatch = useDispatch<AppDispatch>();
+	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const navigate = useNavigate();
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -250,6 +254,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const lastOpenUploadTokenRef = useRef(0);
 	const canManageDocuments =
 		permissions?.canManageDocuments ?? permissions?.canManageProperties ?? false;
+	const canTestRestrictedDocumentScan = hasMaintleyAdminAccess(
+		currentUser?.maintley_role,
+	);
 	const { canUseDocumentReview, uploadPropertyDocuments } =
 		usePropertyDocumentUploadWorkflow();
 	const {
@@ -397,7 +404,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 	const markPdfReviewFailed = async (
 		documentId: string,
-		message = 'Maintley could not finish reviewing this PDF. You can try again.',
+		message = 'Maintley could not finish reviewing this document. You can try again.',
 		documentsToUpdate = propertyDocuments,
 	) => {
 		if (!property?.id) return;
@@ -426,7 +433,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		}).unwrap();
 	};
 
-	const handleReviewDocumentKnowledge = async (documentId?: string) => {
+	const handleReviewDocumentKnowledge = async (
+		documentId?: string,
+		allowRestrictedDocumentType = false,
+	) => {
 		if (!property?.id || !documentId || isSaving) return;
 		if (!canUseDocumentReview) {
 			feedback.notify('Suggested details from documents are available with Homeowner+.');
@@ -447,14 +457,25 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			onReviewSuggestedDetails?.(existingPending.id);
 			return;
 		}
+		if (
+			!isPropertyDocumentKnowledgeScanEligible(document) &&
+			!allowRestrictedDocumentType
+		) return;
+		if (
+			allowRestrictedDocumentType &&
+			!window.confirm(
+				'Test scanning this manual or warranty? This internal feature is experimental and may produce inaccurate suggestions. Nothing will be saved without review.',
+			)
+		) return;
 
-		if (isPdfPropertyDocument(document)) {
+		if (isProcessablePropertyDocument(document)) {
 			setIsSaving(true);
 			try {
-				feedback.notify('Maintley is reviewing this PDF for suggested details.');
+				feedback.notify('Maintley is reviewing this document for suggested details.');
 				const result = await processPropertyDocumentAcquisition({
 					propertyId: property.id,
 					documentId: document.id,
+					allowRestrictedDocumentType,
 				});
 				dispatch(apiSlice.util.invalidateTags(['Properties']));
 				if (result.success && result.suggestionId) {
@@ -463,11 +484,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					feedback.notify(result.message);
 				}
 			} catch (error) {
-				console.error('Error processing PDF document:', error);
+				console.error('Error processing document:', error);
 				const message =
 					error instanceof Error
 						? error.message
-						: 'Could not review this PDF.';
+						: 'Could not review this document.';
 				feedback.notify(message);
 				dispatch(apiSlice.util.invalidateTags(['Properties']));
 			} finally {
@@ -554,11 +575,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 							document.id,
 							error instanceof Error
 								? error.message
-								: 'Maintley could not finish reviewing this PDF. You can try again.',
+								: 'Maintley could not finish reviewing this document. You can try again.',
 							[...propertyDocuments, ...savedDocuments],
 						);
 					} catch (statusError) {
-						console.error('Error marking PDF review as failed:', statusError);
+						console.error('Error marking document review as failed:', statusError);
 					}
 				},
 			});
@@ -662,7 +683,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 				<div>
 					<SectionHeader>Files & Documents ({allDocuments.length})</SectionHeader>
 					<SectionLead>
-						Review every file attached across this property, including manuals, warranties, equipment records, and maintenance documentation.
+						Keep manuals, warranties, invoices, inspection reports, and service documents organized with this property.
 					</SectionLead>
 				</div>
 				{canManageDocuments && (
@@ -708,19 +729,31 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						);
 						const reviewedKnowledgeStatus =
 							getDocumentKnowledgeStatusText(latestKnowledgeSuggestion);
-						const acquisitionStatusText =
-							isPropertyDocument && file.id
-								? getDocumentAcquisitionStatusText(
-										propertyDocuments.find((item) => item.id === file.id),
-								  )
-								: '';
 						const sourcePropertyDocument =
 							isPropertyDocument && file.id
 								? propertyDocuments.find((item) => item.id === file.id)
 								: undefined;
+						const isKnowledgeScanEligible =
+							isPropertyDocumentKnowledgeScanEligible(sourcePropertyDocument);
+						const canOfferInternalTestScan =
+							!isKnowledgeScanEligible &&
+							canTestRestrictedDocumentScan &&
+							canUseDocumentReview &&
+							isProcessablePropertyDocument(sourcePropertyDocument) &&
+							latestKnowledgeSuggestion?.status !== 'pending';
+						const acquisitionStatusText = isKnowledgeScanEligible
+							? getDocumentAcquisitionStatusText(sourcePropertyDocument)
+							: '';
 						const isAcquisitionRetryable =
 							sourcePropertyDocument?.acquisitionStatus === 'failed' ||
 							isDocumentAcquisitionStale(sourcePropertyDocument);
+						const documentScanAction = getPropertyDocumentScanAction({
+							document: sourcePropertyDocument,
+							hasSuggestion: Boolean(latestKnowledgeSuggestion),
+							suggestionCount,
+							suggestionStatus: latestKnowledgeSuggestion?.status,
+							isRetryable: isAcquisitionRetryable,
+						});
 						return (
 							<DocumentCard key={key}>
 								<DocumentTitleRow>
@@ -758,7 +791,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 												isDocumentAcquisitionStale(sourcePropertyDocument)
 											}>
 											{acquisitionStatusText}{' '}
-											{isAcquisitionRetryable &&
+											{isKnowledgeScanEligible &&
+												isAcquisitionRetryable &&
 												canManageDocuments &&
 												canUseDocumentReview && (
 													<DocumentInlineAction
@@ -804,8 +838,18 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									)}
 								{isPropertyDocument && canManageDocuments && (
 									<DocumentActions>
-										{!latestKnowledgeSuggestion ||
-										getKnowledgeSuggestionCount(latestKnowledgeSuggestion) === 0 ? (
+										{canOfferInternalTestScan && (
+											<DocumentActionButton
+												type='button'
+												title='Maintley Owner and Admin only. Results may be inaccurate.'
+												onClick={() =>
+													handleReviewDocumentKnowledge(file.id, true)
+												}
+												disabled={isSaving}>
+												Test scan (Maintley only)
+											</DocumentActionButton>
+										)}
+										{documentScanAction ? (
 											<DocumentActionButton
 												type='button'
 												onClick={() =>
@@ -819,7 +863,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 														!isDocumentAcquisitionStale(sourcePropertyDocument))
 												}>
 												{canUseDocumentReview
-													? 'Check for suggested details'
+													? documentScanAction === 'rescan'
+														? 'Scan again'
+														: 'Check for suggested details'
 													: 'Review with Homeowner+'}
 											</DocumentActionButton>
 										) : null}

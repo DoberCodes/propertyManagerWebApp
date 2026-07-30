@@ -53,6 +53,60 @@ describe('permission selectors', () => {
 	});
 
 	describe('selectIsHomeowner', () => {
+		it('prefers the saved workspace mode over plan or granted access', () => {
+			expect(
+				selectIsHomeowner({
+					user: {
+						currentUser: {
+							workspaceMode: 'homeowner',
+							subscription: { plan: 'portfolio' },
+						},
+					},
+				} as any),
+			).toBe(true);
+			expect(
+				selectIsHomeowner({
+					user: {
+						currentUser: {
+							workspaceMode: 'property_operator',
+							subscription: { plan: 'homeowner_plus' },
+						},
+					},
+				} as any),
+			).toBe(false);
+		});
+
+		it('uses effective granted access as the legacy fallback', () => {
+			const nowMs = Date.now();
+			expect(
+				selectIsHomeowner({
+					user: {
+						currentUser: {
+							subscription: {
+								status: SUBSCRIPTION_STATUS.ACTIVE,
+								plan: 'homeowner',
+								entitlementAccountId: 'account-1',
+								entitlementGrants: [
+									{
+										grantId: 'portfolio-grant',
+										programId: 'portfolio-program',
+										accountId: 'account-1',
+										kind: 'permanent',
+										state: 'active',
+										bundleId: 'portfolio',
+										bundleVersion: 'v1',
+										startsAtMs: nowMs - 1000,
+										endsAtMs: null,
+										source: 'lifetime',
+									},
+								],
+							},
+						},
+					},
+				} as any),
+			).toBe(false);
+		});
+
 		it('returns true when subscription.plan is a homeowner plan', () => {
 			expect(
 				selectIsHomeowner({
@@ -151,6 +205,22 @@ describe('permission selectors', () => {
 
 			expect(selectCanAccessTeam(freeState)).toBe(false);
 			expect(selectCanAccessTeam(expiredState)).toBe(false);
+		});
+
+		it('preserves Team visibility for an owner with existing relationships after downgrade', () => {
+			const state: any = {
+				user: {
+					currentUser: {
+						hasExistingTeamMembers: true,
+						subscription: {
+							status: SUBSCRIPTION_STATUS.ACTIVE,
+							plan: 'homeowner_plus',
+						},
+					},
+				},
+			};
+			expect(selectCanAccessTeam(state)).toBe(true);
+			expect(selectCanInviteTeamMembers(state)).toBe(false);
 		});
 	});
 

@@ -277,7 +277,6 @@ const NON_BILLABLE_SIGNUP_PLANS = new Set([
 	'tenant',
 ]);
 
-const TEAM_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
 
 const isNonBillableSignupPlan = (plan: string): boolean =>
 	NON_BILLABLE_SIGNUP_PLANS.has(
@@ -551,25 +550,6 @@ export const signUpWithEmail = async (
 				promoCode,
 				teamMemberEmail: email.trim().toLowerCase(),
 			});
-		}
-
-		if (!isTeamInviteSignup) {
-			const normalizedEntitledPlan = String(subscription?.plan || 'homeowner')
-				.trim()
-				.toLowerCase();
-
-			if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedEntitledPlan)) {
-				const myTeamGroupId = `${userCredential.user.uid}_default`;
-				const myTeamGroupRef = doc(db, 'teamGroups', myTeamGroupId);
-				await setDoc(myTeamGroupRef, {
-					userId: userCredential.user.uid,
-					accountId: userCredential.user.uid,
-					name: 'My Team',
-					linkedProperties: [],
-					createdAt: serverTimestamp(),
-					updatedAt: serverTimestamp(),
-				});
-			}
 		}
 
 		const finalUser =

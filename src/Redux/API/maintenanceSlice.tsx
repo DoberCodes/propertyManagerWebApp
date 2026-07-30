@@ -5,8 +5,6 @@ import {
 	getDocs,
 	getDoc,
 	doc,
-	deleteDoc,
-	updateDoc,
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
@@ -22,6 +20,12 @@ import {
 } from '../../types/MaintenanceEvent.types';
 import { normalizeFinancialsWithTotals } from '../../utils/financialUtils';
 import { trackAnalyticsEvent } from '../../analytics/analytics';
+import {
+	AdaptedMaintenanceHistoryRecord,
+	MaintenanceHistorySourceRecord,
+	mergeMaintenanceHistorySources,
+	propertyEmbeddedHistorySources,
+} from '../../maintenanceHistory/maintenanceHistoryAdapter';
 
 const maintenanceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -53,67 +57,60 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 			providesTags: ['MaintenanceEvents'],
 		}),
 		// Maintenance endpoints
-		getMaintenanceHistoryByProperty: builder.query<MaintenanceEvent[], string>({
+		getMaintenanceHistoryByProperty: builder.query<
+			AdaptedMaintenanceHistoryRecord[],
+			string
+		>({
 			async queryFn(propertyId: string, { signal }) {
 				try {
-					if (!propertyId) {
-						return { data: [] };
-					}
+					if (!propertyId) return { data: [] };
 					const queryAuthUid = auth.currentUser?.uid || '';
 					const authContextChanged = () =>
 						queryAuthUid && auth.currentUser?.uid !== queryAuthUid;
+					const readCancelled = () => signal.aborted || Boolean(authContextChanged());
 					let accessibleAccountIds: string[] = [];
 					try {
 						accessibleAccountIds = await resolveAccessibleAccountIds();
 					} catch (accountContextError) {
-						if (signal.aborted || authContextChanged()) {
-							return { data: [] };
-						}
+						if (readCancelled()) return { data: [] };
 						console.warn(
 							'Could not resolve accessible account IDs for maintenance history query. Falling back to property-scoped reads.',
 							accountContextError,
 						);
 					}
-					const seenIds = new Set<string>();
-					const records: any[] = [];
-					const debugCounts = {
-						accountScoped: { maintenanceEvents: 0, maintenanceHistory: 0 },
-						propertyScoped: { maintenanceEvents: 0, maintenanceHistory: 0 },
-						titleFallback: { maintenanceEvents: 0, maintenanceHistory: 0 },
+					const sourceRecords: MaintenanceHistorySourceRecord[] = [];
+					const addDocuments = (
+						collectionName: 'maintenanceEvents' | 'maintenanceHistory',
+						documents: any[],
+					) => {
+						documents.forEach((recordDoc) => {
+							const record = docToData(recordDoc);
+							if (record) {
+								sourceRecords.push({
+									source: collectionName,
+									sourceId: recordDoc.id,
+									record,
+								});
+							}
+						});
 					};
 
-					// Read from both collections; maintenanceEvents is canonical, maintenanceHistory is legacy.
-					for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
+					for (const collectionName of [
+						'maintenanceEvents',
+						'maintenanceHistory',
+					] as const) {
 						for (const accountId of accessibleAccountIds) {
-							if (signal.aborted || authContextChanged()) {
-								return { data: [] };
-							}
+							if (readCancelled()) return { data: [] };
 							try {
-								const q = query(
+								const snapshot = await getDocs(query(
 									collection(db, collectionName),
 									where('accountId', '==', accountId),
 									where('propertyId', '==', propertyId),
-								);
-								const snapshot = await getDocs(q);
-								if (signal.aborted || authContextChanged()) {
-									return { data: [] };
-								}
-								snapshot.docs.forEach((d) => {
-									const data = docToData(d);
-									if (data && !seenIds.has(data.id)) {
-										if (collectionName === 'maintenanceEvents') {
-											debugCounts.accountScoped.maintenanceEvents += 1;
-										} else {
-											debugCounts.accountScoped.maintenanceHistory += 1;
-										}
-										seenIds.add(data.id);
-										records.push(data);
-									}
-								});
+								));
+								if (readCancelled()) return { data: [] };
+								addDocuments(collectionName, snapshot.docs);
 							} catch (error) {
-								if (signal.aborted || authContextChanged()) {
-									return { data: [] };
-								}
+								if (readCancelled()) return { data: [] };
 								console.warn(
 									`Maintenance history query failed for ${collectionName} (${accountId}).`,
 									error,
@@ -122,79 +119,45 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					// Secondary pass: query by propertyId without account filter.
-					// This fills gaps when account context changed but rules still allow the property read.
-					for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
-						if (signal.aborted || authContextChanged()) {
-							return { data: [] };
-						}
+					for (const collectionName of [
+						'maintenanceEvents',
+						'maintenanceHistory',
+					] as const) {
+						if (readCancelled()) return { data: [] };
 						try {
-							const propertyQuery = query(
+							const propertySnapshot = await getDocs(query(
 								collection(db, collectionName),
 								where('propertyId', '==', propertyId),
-							);
-							const propertySnapshot = await getDocs(propertyQuery);
-							if (signal.aborted || authContextChanged()) {
-								return { data: [] };
-							}
-							propertySnapshot.docs.forEach((d) => {
-								const data = docToData(d);
-								if (data && !seenIds.has(data.id)) {
-									if (collectionName === 'maintenanceEvents') {
-										debugCounts.propertyScoped.maintenanceEvents += 1;
-									} else {
-										debugCounts.propertyScoped.maintenanceHistory += 1;
-									}
-									seenIds.add(data.id);
-									records.push(data);
-								}
-							});
+							));
+							if (readCancelled()) return { data: [] };
+							addDocuments(collectionName, propertySnapshot.docs);
 						} catch {
-							// Continue to next fallback path if this query isn't allowed by rules.
+							// Continue when compatibility reads are not allowed for this account.
 						}
 					}
 
-					// Fallback by propertyTitle for old records that lack a propertyId field
-					if (signal.aborted || authContextChanged()) {
-						return { data: [] };
-					}
+					if (readCancelled()) return { data: [] };
 					const propertyDoc = await getDoc(doc(db, 'properties', propertyId));
-					if (signal.aborted || authContextChanged()) {
-						return { data: [] };
-					}
-					const propertyTitle = docToData(propertyDoc)?.title;
+					if (readCancelled()) return { data: [] };
+					const propertyData = docToData(propertyDoc);
+					const propertyTitle = propertyData?.title;
 					if (propertyTitle) {
-						for (const collectionName of ['maintenanceEvents', 'maintenanceHistory']) {
+						for (const collectionName of [
+							'maintenanceEvents',
+							'maintenanceHistory',
+						] as const) {
 							for (const accountId of accessibleAccountIds) {
-								if (signal.aborted || authContextChanged()) {
-									return { data: [] };
-								}
+								if (readCancelled()) return { data: [] };
 								try {
-									const titleQuery = query(
+									const titleSnapshot = await getDocs(query(
 										collection(db, collectionName),
 										where('accountId', '==', accountId),
 										where('propertyTitle', '==', propertyTitle),
-									);
-									const titleSnapshot = await getDocs(titleQuery);
-									if (signal.aborted || authContextChanged()) {
-										return { data: [] };
-									}
-									titleSnapshot.docs.forEach((d) => {
-										const data = docToData(d);
-										if (data && !seenIds.has(data.id)) {
-											if (collectionName === 'maintenanceEvents') {
-												debugCounts.titleFallback.maintenanceEvents += 1;
-											} else {
-												debugCounts.titleFallback.maintenanceHistory += 1;
-											}
-											seenIds.add(data.id);
-											records.push(data);
-										}
-									});
+									));
+									if (readCancelled()) return { data: [] };
+									addDocuments(collectionName, titleSnapshot.docs);
 								} catch (error) {
-									if (signal.aborted || authContextChanged()) {
-										return { data: [] };
-									}
+									if (readCancelled()) return { data: [] };
 									console.warn(
 										`Maintenance title fallback query failed for ${collectionName} (${accountId}).`,
 										error,
@@ -205,9 +168,10 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					}
 
 					return {
-						data: records.filter(
-							(record) => record.status !== 'deleted' && !record.deletedAt,
-						),
+						data: mergeMaintenanceHistorySources([
+							...sourceRecords,
+							...propertyEmbeddedHistorySources(propertyData),
+						]),
 					};
 				} catch (error: any) {
 					return { error: error.message };
@@ -371,19 +335,20 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						typeof input === 'string'
 							? 'Removed through the maintenance history interface.'
 							: input.correctionReason;
-					// Try new collection first, then fall back to legacy
-					const newDocRef = doc(db, 'maintenanceEvents', historyId);
-					const newSnap = await getDoc(newDocRef);
-					if (newSnap.exists()) {
-						await callFirebaseFunction(
-							'deleteMaintenanceEvent',
-							{
-								eventId: historyId,
-								correctionReason,
-							},
-						);
+					const canonicalSnapshot = await getDoc(
+						doc(db, 'maintenanceEvents', historyId),
+					);
+					if (canonicalSnapshot.exists()) {
+						await callFirebaseFunction('deleteMaintenanceEvent', {
+							eventId: historyId,
+							correctionReason,
+						});
 					} else {
-						await deleteDoc(doc(db, 'maintenanceHistory', historyId));
+						await callFirebaseFunction('correctMaintenanceHistoryRecord', {
+							recordId: historyId,
+							action: 'delete',
+							correctionReason,
+						});
 					}
 					return { data: undefined };
 				} catch (error: any) {
@@ -399,22 +364,19 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ id, updates }) {
 				try {
-					// Try new collection first, then fall back to legacy
-					const newDocRef = doc(db, 'maintenanceEvents', id);
-					const newSnap = await getDoc(newDocRef);
-					if (newSnap.exists()) {
-						await callFirebaseFunction(
-							'updateMaintenanceEvent',
-							{
-								eventId: id,
-								updates,
-								correctionReason: 'Corrected through the maintenance history interface.',
-							},
-						);
+					const canonicalSnapshot = await getDoc(doc(db, 'maintenanceEvents', id));
+					if (canonicalSnapshot.exists()) {
+						await callFirebaseFunction('updateMaintenanceEvent', {
+							eventId: id,
+							updates,
+							correctionReason: 'Corrected through the maintenance history interface.',
+						});
 					} else {
-						await updateDoc(doc(db, 'maintenanceHistory', id), {
-							...updates,
-							updatedAt: new Date().toISOString(),
+						await callFirebaseFunction('correctMaintenanceHistoryRecord', {
+							recordId: id,
+							action: 'update',
+							updates,
+							correctionReason: 'Corrected through the maintenance history interface.',
 						});
 					}
 					return { data: { id, ...updates } };

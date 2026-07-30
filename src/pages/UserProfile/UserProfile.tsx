@@ -11,6 +11,7 @@ import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import { useGetAllDevicesQuery } from 'Redux/API/deviceSlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from 'Redux/API/teamSlice';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 import { FileUploader } from 'Components/Library/FileUploader';
 import { uploadUserProfileImage } from 'utils/userProfileImageUpload';
 import {
@@ -93,17 +94,20 @@ import { formatDate } from 'utils/detailPageUtils';
 import COLORS from 'constants/colors';
 import { PortfolioPlanSub, PortfolioTop, PortfolioUsage, PortfolioUsageBadge, ProgressFill, ProgressTrack } from 'Components/Library/Navbar/SideNav/SideNav.styles';
 import {
-	canManageTeam,
+	getActiveGrantedPlanAccess,
+	getActiveHomeownerPlusTrial,
+	getEffectiveAccessPlanId,
 	getEffectiveSubscriptionPlanId,
-	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 } from 'utils/subscriptionUtils';
+import { getStripeBillingPresentation } from 'utils/billingDisclosure';
 import { filterPropertyGroupsByRole } from 'utils/dataFilters';
 import { TeamMember } from 'Redux/Slices/teamSlice';
 import { useStorageUsage } from 'Hooks/useStorageUsage';
 import {
 	selectIsTeamMemberAccount,
 	selectIsTenant,
+	selectCanAccessTeam,
 } from 'Redux/selectors/permissionSelectors';
 import { formatStorageBytes } from 'utils/storageQuota';
 import { isContinuityEvent } from 'utils/maintenanceEventUtils';
@@ -115,6 +119,7 @@ import {
 } from 'firebase/auth';
 import { auth } from 'config/firebase';
 import { callFirebaseFunction } from 'config/firebaseFunctions';
+import { getCustomerBillingPortalUrl } from 'utils/authLinks';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
@@ -123,6 +128,7 @@ export const UserProfile: React.FC = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateUser] = useUpdateUserMutation();
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
+	const canAccessTeam = useSelector(selectCanAccessTeam);
 	const [isEditing, setIsEditing] = useState(false);
 
 	const [formData, setFormData] = useState({
@@ -169,12 +175,18 @@ export const UserProfile: React.FC = () => {
 		isLoading: areTasksLoading,
 	} = useGetTasksQuery();
 	const {
-		data: maintenanceHistory = [],
+		data: sourceMaintenanceHistory = [],
 		isLoading: isMaintenanceHistoryLoading,
 	} = useGetAllMaintenanceHistoryForUserQuery();
-	const showTeamSection =
-		isTeamMemberAccount ||
-		(!!currentUser?.subscription && canManageTeam(currentUser.subscription));
+	const maintenanceHistory = React.useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				sourceMaintenanceHistory,
+				summarySystems,
+			),
+		[sourceMaintenanceHistory, summarySystems],
+	);
+	const showTeamSection = isTeamMemberAccount || canAccessTeam;
 	const { data: profileTeamMembers = [], isLoading: areTeamMembersLoading } =
 		useGetTeamMembersQuery(undefined, {
 			skip: !showTeamSection,
@@ -259,16 +271,7 @@ export const UserProfile: React.FC = () => {
 			}
 		});
 
-		if (completedTaskKeys.size > 0) {
-			return completedTaskKeys.size;
-		}
-
-		return summaryProperties.reduce((total, property: any) => {
-			const taskHistoryCount = Array.isArray(property.taskHistory)
-				? property.taskHistory.length
-				: 0;
-			return total + taskHistoryCount;
-		}, 0);
+		return completedTaskKeys.size;
 	}, [maintenanceHistory, summaryProperties, summaryTasks]);
 
 	const profileInitials = React.useMemo(() => {
@@ -481,16 +484,15 @@ export const UserProfile: React.FC = () => {
 			).length,
 		[filteredPropertyGroups],
 	);
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
+	const effectivePlanId = getEffectiveAccessPlanId(currentUser?.subscription);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+	const grantedAccess = getActiveGrantedPlanAccess(currentUser?.subscription);
+	const activeHomeownerPlusTrial = getActiveHomeownerPlusTrial(
+		currentUser?.subscription,
+	);
 
-	const remainingSlots = currentUser?.subscription
-		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
-		: 0;
 	const maxProperties = planDetails?.maxProperties ?? 1;
+	const remainingSlots = Math.max(0, maxProperties - totalProperties);
 	const planRecordNoun = maxProperties <= 1 ? 'home' : 'property';
 	const usagePercent = maxProperties > 0 ? (totalProperties / maxProperties) * 100 : 0;
 	const hasPropertyCapacity = maxProperties > 0;
@@ -499,7 +501,40 @@ export const UserProfile: React.FC = () => {
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
 			: `${remainingSlots} ${planRecordNoun} slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
+	const planSubtitle = `${grantedAccess ? 'Effective access' : 'Plan'}: ${planDetails?.name || 'Home'}`;
+	const grantedAccessEndsLabel = grantedAccess?.endsAtMs
+		? new Date(grantedAccess.endsAtMs).toLocaleDateString(undefined, {
+			month: 'long',
+			day: 'numeric',
+			year: 'numeric',
+		})
+		: null;
+	const accessTransition = grantedAccess?.transition;
+	const automaticTransition = accessTransition?.mode === 'automatic';
+	const firstChargeAt = accessTransition?.firstChargeAt;
+	const firstChargeMs =
+		typeof firstChargeAt === 'number'
+			? firstChargeAt
+			: typeof (firstChargeAt as any)?.toMillis === 'function'
+				? (firstChargeAt as any).toMillis()
+				: Number.NaN;
+	const firstChargeLabel = Number.isFinite(firstChargeMs)
+		? new Date(firstChargeMs).toLocaleDateString(undefined, {
+				year: 'numeric', month: 'long', day: 'numeric',
+			})
+		: null;
+	const recurringPriceLabel = Number.isFinite(Number(accessTransition?.recurringAmountMinor))
+		? new Intl.NumberFormat(undefined, {
+				style: 'currency',
+				currency: String(accessTransition?.currency || 'USD'),
+			}).format(Number(accessTransition?.recurringAmountMinor) / 100)
+		: null;
+	const hasStripeBillingRelationship = Boolean(
+		currentUser?.subscription?.stripeCustomerId || accessTransition?.stripeCustomerId,
+	);
+	const stripeBillingPresentation = getStripeBillingPresentation(
+		currentUser?.subscription?.billingDisclosure,
+	);
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'
@@ -509,7 +544,7 @@ export const UserProfile: React.FC = () => {
 			)}`
 			: 'Storage not included';
 	const storageFileLabel = storageUsage
-		? `${storageUsage.fileCount} of ${storageUsage.maxFiles} files`
+		? `${storageUsage.fileCount} files stored`
 		: '';
 
 	// Initialize form with current user data
@@ -639,7 +674,11 @@ export const UserProfile: React.FC = () => {
 				currentUser?.subscription?.status === 'past_due')) ||
 		false;
 
-	const paidPlanIds = ['homeowner_plus', 'property', 'portfolio'];
+	const paidPlanIds = [
+		'homeowner_plus',
+		'property',
+		'portfolio',
+	];
 	const currentPlanId = getEffectiveSubscriptionPlanId(
 		currentUser?.subscription,
 		'homeowner',
@@ -907,14 +946,56 @@ export const UserProfile: React.FC = () => {
 					<Section style={{ padding: '16px', border: '1px solid #E0E0E0', borderRadius: '8px', display: 'flex', flexDirection: 'column', flexWrap: 'wrap', gap: '12px' }}>
 						<PortfolioTop>
 							<FormLabel style={{ fontSize: '14px', color: '#666' }}>Plan & Usage</FormLabel>
-							<StatusPill style={{ backgroundColor: currentUser?.subscription?.status === 'active' ? COLORS.primary : COLORS.gray300, color: COLORS.bgWhite }}>
-								{planDetails?.name || 'Home Plan'}
+							<StatusPill style={{ backgroundColor: grantedAccess || currentUser?.subscription?.status === 'active' ? COLORS.primary : COLORS.gray300, color: COLORS.bgWhite }}>
+								{grantedAccess ? 'Granted' : planDetails?.name || 'Home Plan'}
 							</StatusPill>
 
 						</PortfolioTop>
 						<PortfolioPlanSub>
 							{planSubtitle}
 						</PortfolioPlanSub>
+						{grantedAccess ? (
+							<div
+								style={{
+									padding: '12px',
+									borderRadius: '8px',
+									background: '#ECFDF5',
+									border: '1px solid #A7F3D0',
+									color: '#065F46',
+								}}
+							>
+								<strong>{planDetails?.name || 'Plan'} access granted</strong>
+								<div style={{ marginTop: '4px', fontSize: '14px' }}>
+									{activeHomeownerPlusTrial
+										? `${activeHomeownerPlusTrial.daysRemaining} days remaining. Your complimentary access ends ${grantedAccessEndsLabel}. Your account returns to the Free plan afterward.`
+										: grantedAccess.kind === 'permanent'
+											? 'Maintley has granted this account permanent access.'
+											: `Maintley has granted this account access through ${grantedAccessEndsLabel || 'the scheduled end date'}.`}
+								</div>
+							</div>
+						) : null}
+						<div style={{ display: 'grid', gap: '6px', fontSize: '14px' }}>
+							<div><strong>Payment method:</strong> {hasStripeBillingRelationship ? 'Managed securely in Stripe' : 'Not connected'}</div>
+							{hasStripeBillingRelationship && stripeBillingPresentation.renewalLabel ? <div><strong>Subscription renewal:</strong> {stripeBillingPresentation.renewalLabel}</div> : null}
+							{hasStripeBillingRelationship && stripeBillingPresentation.discountLabel ? <div><strong>Stripe discount:</strong> {stripeBillingPresentation.discountLabel}</div> : null}
+							{hasStripeBillingRelationship && stripeBillingPresentation.nextInvoiceLabel ? <div><strong>Next invoice:</strong> {stripeBillingPresentation.nextInvoiceLabel}</div> : null}
+							{grantedAccess ? <div><strong>After complimentary access:</strong> {automaticTransition ? 'Continues as a paid subscription unless cancelled' : accessTransition?.mode === 'checkout_required' ? 'Paid continuation requires Checkout' : 'No automatic billing'}</div> : null}
+							{automaticTransition && firstChargeLabel ? <div><strong>First charge:</strong> {firstChargeLabel}{recurringPriceLabel ? ` at ${recurringPriceLabel} per ${accessTransition?.billingCycle || 'billing period'}` : ''}</div> : null}
+						</div>
+						<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+							{hasStripeBillingRelationship ? (
+								<ProfileActionButton
+									type='button'
+									onClick={() => window.open(getCustomerBillingPortalUrl(), '_blank', 'noopener,noreferrer')}
+								>
+									Manage payment, renewal, or cancellation
+								</ProfileActionButton>
+							) : (
+								<ProfileActionButton type='button' onClick={() => navigate('/paywall')}>
+									Review plan options
+								</ProfileActionButton>
+							)}
+						</div>
 						<ProgressTrack>
 							<ProgressFill $percent={Math.min(100, usagePercent)} />
 						</ProgressTrack>

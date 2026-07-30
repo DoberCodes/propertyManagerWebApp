@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import LandingPageComponent from './LandingPage';
@@ -11,6 +10,8 @@ describe('LandingPage public hierarchy', () => {
 			</MemoryRouter>,
 		);
 
+		// Structural order has no accessible-query equivalent because these sections are intentionally unnamed.
+		// eslint-disable-next-line testing-library/no-node-access
 		const sectionIds = Array.from(document.querySelectorAll('section'))
 			.map((section) => section.id)
 			.filter(Boolean);
@@ -30,7 +31,9 @@ describe('LandingPage public hierarchy', () => {
 			}),
 		).toBeInTheDocument();
 		expect(
-			document.querySelectorAll('img[src^="/screenshots/maintley"]'),
+			screen
+				.getAllByRole('img')
+				.filter((image) => image.getAttribute('src')?.startsWith('/screenshots/maintley')),
 		).toHaveLength(2);
 		expect(
 			screen.getByRole('img', {
@@ -83,11 +86,14 @@ describe('LandingPage public hierarchy', () => {
 			screen.getByText(/it does not certify that work was performed/i),
 		).toBeInTheDocument();
 
+		// JSON-LD is non-interactive metadata and cannot be selected by an accessible role.
+		/* eslint-disable testing-library/no-node-access */
 		const faqSchema = Array.from(
 			document.head.querySelectorAll('script[type="application/ld+json"]'),
 		)
 			.map((script) => JSON.parse(script.textContent || '{}'))
 			.find((schema) => schema['@type'] === 'FAQPage');
+		/* eslint-enable testing-library/no-node-access */
 
 		expect(faqSchema).toBeDefined();
 		expect(faqSchema.mainEntity).toHaveLength(8);

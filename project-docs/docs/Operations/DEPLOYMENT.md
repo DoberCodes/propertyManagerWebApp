@@ -285,6 +285,72 @@ The Firebase deploy workflow falls back to matching frontend secret names with
 the `PROD_REACT_APP_` prefix for Stripe price IDs when the backend-specific
 secret names are not present.
 
+## GitHub Actions rollout variables
+
+Rollout flags and non-sensitive rollout dates belong in:
+
+```text
+GitHub repository
+  > Settings
+  > Secrets and variables
+  > Actions
+  > Variables
+  > New repository variable
+```
+
+Do not add these values under **Secrets**. The workflows read them through the
+GitHub Actions `vars` context and apply safe disabled defaults when a variable
+is absent.
+
+| Repository variable | Value format | Workflow destination | Purpose |
+| --- | --- | --- | --- |
+| `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` | `true` or `false` | Web: `REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL`; Functions: `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` | Enables the Homeowner+ internal trial surfaces and issuance path. |
+| `ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` | `true` or `false` | Web: `REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE`; Functions: `ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE` | Enables internal entitlement-grant administration and server issuance. |
+| `ENABLE_COMPLIMENTARY_PAID_TRANSITIONS` | `true` or `false` | Functions: same name | Enables grant-aware Checkout timing and audited conversion. Keep false until deployed Checkout, webhook, cancellation, and first-charge validation passes. |
+| `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` | `true` or `false` | Functions: `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION` | Enables lifecycle delivery processing. |
+| `HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` | ISO 8601 timestamp, for example `2026-08-01T00:00:00-04:00` | Functions: same name | Sets the first-property trial eligibility boundary. Leave empty until a launch boundary is approved. |
+| `ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` | `true` or `false` | Web: `REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` | Routes setup-plan activation through the trusted callable after its backend deployment is verified. |
+| `ENABLE_TRUSTED_RECURRING_TASK_WRITES` | `true` or `false` | Web: `REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES` | Routes recurring-task creation, schedule edits, and next-occurrence generation through `manageRecurringTask` after the callable is deployed and verified. |
+| `ENABLE_COMPLIMENTARY_ACCESS_CODES` | `true` or `false` | Web: `REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES`; Functions: `ENABLE_COMPLIMENTARY_ACCESS_CODES` | Enables customer preview and redemption of pre-provisioned internal access-code programs. It never enables Stripe billing. |
+| `ENABLE_TRUSTED_STORAGE_QUOTA` | `true` or `false` | Web: `REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA`; Functions: `ENABLE_TRUSTED_STORAGE_QUOTA` | Routes uploads and usage displays through server quota reservations. Storage-rule enforcement is activated separately after compatible clients deploy. |
+| `STRIPE_CUSTOMER_PORTAL_URL` | Public Stripe-hosted portal URL | Web: `REACT_APP_STRIPE_CUSTOMER_PORTAL_URL` | Sends customers to Stripe's hosted billing-management login. This is a repository variable, not a secret. |
+
+`ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION` must remain `false` or absent until
+`activatePropertySetupMaintenancePlan` is deployed and authorization has been
+validated. Enable it by setting the repository variable to `true`, then run a
+new web build. Roll back by setting it to `false` and rebuilding the web app.
+
+`ENABLE_TRUSTED_RECURRING_TASK_WRITES` must remain `false` or absent until
+`manageRecurringTask` is deployed and authorization has been validated. After a
+successful observation period, remove the direct client recurrence fallback,
+make the trusted writer mandatory, tighten rules to reject every direct client
+recurrence write, and remove the rollout flag. Client entitlement checks may
+remain only for contextual interface messaging.
+
+Local development uses the destination names shown above in `.env` or
+`functions/.env`. The repository commits only `.env.example`; `.env*` files are
+ignored, and generated CI `functions/.env` files must never be committed.
+
+`COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
+Actions variable and not a normal dotenv value in production. Create it with
+`firebase functions:secrets:set COMPLIMENTARY_ACCESS_CODE_PEPPER` using at least
+32 random characters before deploying the access-code callables. `RESEND_API_KEY`
+remains the Firebase Functions secret used by lifecycle delivery. Do not copy
+either value into repository Variables.
+
+Trusted storage quota rollout has three deliberate steps: deploy the callable,
+triggers, and compatible clients while both rollout controls are disabled; set
+`ENABLE_TRUSTED_STORAGE_QUOTA=true` and validate reservations internally; then
+set `appConfig/entitlementRollout.trustedStorageQuotaRequired=true` only after
+all supported clients use reservations. The Firestore setting is server-managed
+operational configuration, not a GitHub Actions variable. Reverting it to
+`false` immediately restores the compatibility rule without deleting usage
+state or files.
+
+Account quota covers property documents and photos, equipment and maintenance
+files, and account team files. Authentication profile avatars are identity UI
+assets and are intentionally outside the property-record quota.
+
 Frontend builds run `scripts/validateFrontendEnv.cjs` before `react-scripts
 build`. Missing values or placeholder values such as `YOUR_STORAGE_BUCKET`
 block the build so production cannot publish a bundle pointed at a placeholder
@@ -294,6 +360,13 @@ During CI, these Stripe price IDs are written into a temporary
 `functions/.env` file before `firebase deploy` runs. This is required because
 Firebase Functions params are resolved from dotenv files during non-interactive
 deploys. The file is ignored by git and should not be committed.
+
+The shared `@maintley/entitlements` package is stored at
+`functions/packages/entitlements`. Firebase uploads only the configured
+Functions source directory, so local file dependencies used by Functions must
+remain inside that boundary. Run `yarn validate:functions-package` before a
+Functions deployment. The Firebase predeploy hook and GitHub Actions workflow
+also run this validation automatically.
 
 Review environment setup before deploying billing, email, or notification changes.
 
@@ -458,6 +531,16 @@ grant the GitHub deploy service account:
 ```text
 Secret Manager Secret Accessor
 ```
+
+### Personal Assistant API secret
+
+Before deploying `managePersonalAssistantCredentials` or `personalAssistantApi`, set a high-entropy HMAC pepper:
+
+```text
+firebase functions:secrets:set PERSONAL_ASSISTANT_TOKEN_PEPPER
+```
+
+Use at least 32 random bytes and do not reuse or commit the value. Deploy both Functions together. Changing this secret invalidates every existing personal-assistant token, so normal credential rotation should use Settings instead.
 
 For least privilege, grant this on the specific secrets used by deployed
 Functions, such as `STRIPE_WEBHOOK_SECRET`. A project-level grant is simpler
@@ -662,10 +745,21 @@ The workflow uses `scripts/prepareReleaseVersion.cjs` and
 feature or breaking change later lands on `main`, the same `release/next` PR is
 updated with the higher required bump.
 
+Firebase deployment jobs install both the root validation dependencies and the
+Functions deployment dependencies. Firestore and Storage emulator gates use
+the root rules-testing package, while Functions builds and callable emulator
+tests use `functions/node_modules`; neither dependency set may be omitted from
+the deployment job merely because the earlier build-check job installed it in a
+separate runner. Root dependencies are installed under Node 24 to satisfy the
+current web and Capacitor tooling engines; the job then switches to Node 20 for
+the Functions package, matching the deployed Functions runtime.
+
 If `package.json` is already ahead of the latest `v*` tag because a release was
-prepared but not tagged locally yet, new releaseable changes are bumped from the
-prepared package version. For example, a new patch change after prepared version
-`2.7.30` produces `2.7.31` rather than reusing `2.7.30`.
+prepared but not tagged locally yet, the latest merged `Release v...` commit is
+used as the release-note boundary. New releaseable changes are then bumped from
+that prepared package version. For example, a new patch change after prepared
+version `2.7.30` produces `2.7.31` rather than reusing `2.7.30` or repeating the
+changes already assigned to `2.7.30`.
 
 When the current `main` commit is the matching release-preparation merge, the
 release-note generator keeps that prepared package version. It only bumps from
@@ -754,6 +848,14 @@ https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v
 ```
 
 The signed release helper derives its repository from `GITHUB_REPOSITORY` when set, or from the authenticated GitHub repository. It should not contain hardcoded organization or download URLs.
+
+The signed Android helper does not create version tags or GitHub Releases. It
+requires the matching GitHub Release to exist, then attaches or replaces the APK
+and AAB assets without changing the customer release notes. Automatic tag and
+GitHub Release creation belongs after a successful production website deploy.
+When Firebase Hosting replaces GitHub Pages, that responsibility moves to the
+production Firebase Hosting workflow; pull requests use separate preview
+channels and must not create version tags or releases.
 
 ---
 
@@ -963,17 +1065,21 @@ Potential improvements:
 * Add smoke tests for critical post-deploy flows.
 
 
-## Future Environment Strategy
+## Approved Future Environment Strategy
 
 Maintley currently deploys directly to the production Firebase project.
 
-A separate beta environment was previously evaluated but is not currently active.
+ADR 0028 now governs an approved but not-yet-implemented migration to:
 
-Future growth may justify:
+* A dedicated development Firebase project
+* Feature integration through a protected `beta` branch
+* Expiring development Firebase Hosting previews for feature pull requests
+* Stable development deployment after merge to `beta`
+* Release promotion from `beta` into the production `main` branch
+* Production deployment, tag creation, and GitHub Release publication only after
+  the release merge passes its production gates
+* Separate development Analytics, Stripe test configuration, secrets, and
+  synthetic data
 
-- Dedicated beta Firebase project
-- Beta branch deployments
-- Separate Stripe test environment
-- Staged release process
-
-Until then, deployment remains production-only.
+Until that migration is implemented and validated, the active production-only
+deployment behavior elsewhere in this document remains authoritative.

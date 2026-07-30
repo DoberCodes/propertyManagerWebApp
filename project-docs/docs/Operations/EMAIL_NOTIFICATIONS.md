@@ -1,6 +1,6 @@
 # Email Notifications
 
-Last reviewed: 2026-06
+Last reviewed: 2026-07-24
 
 ## Purpose
 
@@ -43,6 +43,15 @@ Those responsibilities belong to:
 * PROPERTY_INTELLIGENCE.md
 * RECOMMENDATION_ENGINE.md
 * APPLIANCE_PROFILES.md
+
+Shared email presentation belongs in `functions/emailBrand.ts`. Maintley email
+surfaces use the primary palette (`#047857`, `#3FCC7C`, `#009E71`, `#036151`,
+`#1F2937`, `#FAFAF8`, and white) and the Manrope-first font stack. Semantic
+status colors may be used for a real warning or error, but must not replace the
+Maintley palette as the message's brand treatment.
+
+Application links in new lifecycle templates must use
+`functions/emailLinks.ts`. Templates must not hard-code HashRouter syntax.
 
 ---
 
@@ -199,6 +208,70 @@ emailPreferences.teamMemberReports.teamMemberIds
 ```
 
 These preferences should remain independent.
+
+---
+
+# Access Lifecycle Communications
+
+Purpose:
+
+Communicate account state, complimentary access, access expiration, and billing
+transition facts without surprising the customer.
+
+Classification:
+
+* Account state, complimentary-access, payment-status, and renewal-behavior
+  messages are operational.
+* Product education and marketing remain separate and must not be smuggled into
+  an operational message.
+
+The first implemented program is the internal Homeowner+ first-property trial.
+It has four milestones:
+
+* Activation / Day 0: congratulates the homeowner on the successfully committed
+  first property and confirms the 30-day period, absence of a payment method,
+  no automatic charge, end date, and Free fallback.
+* Day 7: factual progress using saved-record counts; it is not a certification
+  or physical inspection.
+* Day 21: explains the end date and which automation stops.
+* Day 30: confirms Free fallback and preservation of existing property memory.
+
+Activation satisfies the 30-day notice for this 30-day program. It must not be
+duplicated by a second 30-day reminder. The existing signup welcome email and
+the later grant-activation message describe different events.
+
+Each delivery uses a deterministic account-scoped provider identity based on
+account, program, grant, milestone, and template version. The stored delivery
+identifier remains scoped beneath its account. Operational state records sent,
+skipped, failed, retry, provider, and terminal outcome information under the
+account. Later milestones
+supersede unseen earlier messages rather than sending a stale sequence. Paid
+conversion and terminal grant states suppress obsolete delivery immediately.
+
+Paid conversion suppression requires authoritative Stripe subscription evidence:
+an eligible paid base plan, an entitled billing status, and a non-empty Stripe
+subscription ID. Product capabilities and internal entitlement grants are not
+proof of payment. An authorized admin send may recover a delivery previously
+skipped specifically as `suppressed_paid_conversion` when current billing data
+does not confirm paid access. Sent deliveries and all other terminal skip reasons
+remain protected from replay.
+
+Milestones are evaluated against UTC instants and rendered in the account or
+owner time zone, with `America/New_York` retained only as the current fallback
+for accounts that do not yet store a configured zone.
+
+Access lifecycle delivery is disabled unless
+`ENABLE_ACCESS_LIFECYCLE_COMMUNICATION=true`. This flag is independent of trial
+grant issuance so rollout and rollback do not revoke effective access.
+
+Key milestones also publish persistent in-app Maintley Events. Automated email
+delivery results are operational logs, not administrative decisions and not
+entries in the immutable admin audit trail. Admin-requested sends remain
+high-value audited actions. The admin user-detail page may send approved
+operational support, account, or billing/access messages. It requires a message
+preview, administrative reason, stable request ID, provider idempotency, and an
+immutable `user_email.sent` audit record. This tool is not a marketing composer;
+marketing remains subject to separate consent and preference handling.
 
 ---
 

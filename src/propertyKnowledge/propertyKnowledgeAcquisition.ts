@@ -16,6 +16,8 @@ import type {
 	PropertyKnowledgePropertyConfirmation,
 	PropertyKnowledgeSuggestion,
 	PropertyKnowledgeTargetEntity,
+	PropertyKnowledgeTaskSuggestion,
+	PropertyKnowledgeEquipmentSuggestion,
 } from '../types/PropertyKnowledge.types';
 import {
 	getAssetDefinition,
@@ -48,6 +50,14 @@ type ReviewKnowledgeSuggestionInput = {
 	partValues?: Record<
 		string,
 		{ name?: string; category?: string; accepted?: boolean }
+	>;
+	taskValues?: Record<
+		string,
+		{ title?: string; description?: string; accepted?: boolean; matchedDeviceId?: string }
+	>;
+	equipmentValues?: Record<
+		string,
+		{ accepted?: boolean; matchedDeviceId?: string; skipReason?: string }
 	>;
 };
 
@@ -85,6 +95,8 @@ type ApplyKnowledgeSuggestionResult = {
 		systemId: string;
 		items: Device['serviceItems'];
 	};
+	taskSuggestions: PropertyKnowledgeTaskSuggestion[];
+	equipmentSuggestions: PropertyKnowledgeEquipmentSuggestion[];
 	appliedSuggestion: PropertyKnowledgeSuggestion;
 };
 
@@ -277,6 +289,11 @@ const FIELD_DEFINITIONS: Record<PropertyKnowledgeFieldKey, FieldDefinition> = {
 		label: 'Maintenance description',
 		targetEntity: 'maintenanceHistory',
 		targetField: 'description',
+	},
+	performedByName: {
+		label: 'Performed by',
+		targetEntity: 'maintenanceHistory',
+		targetField: 'performedByName',
 	},
 	maintenanceType: {
 		label: 'Maintenance type',
@@ -1453,6 +1470,9 @@ const buildMaintenanceHistorySuggestion = ({
 	const servicePerformed = normalizeExtractedValue(
 		getAcceptedFieldValue(fields, 'servicePerformed'),
 	);
+	const performedByName = normalizeExtractedValue(
+		getAcceptedFieldValue(fields, 'performedByName'),
+	);
 	const partName = normalizeExtractedValue(getAcceptedFieldValue(fields, 'partName'));
 	const partNumber = normalizeExtractedValue(getAcceptedFieldValue(fields, 'partNumber'));
 	const partsReplaced = normalizeExtractedValue(getAcceptedFieldValue(fields, 'partsReplaced'));
@@ -1515,6 +1535,7 @@ const buildMaintenanceHistorySuggestion = ({
 	return {
 		title,
 		completionDate: normalizeDateValue(maintenanceDate || invoiceDate, acceptedAt),
+		...(performedByName ? { completedByName: performedByName } : {}),
 		...(completionNotes ? { completionNotes } : {}),
 		...(relatedSystemId ? { deviceIds: [relatedSystemId] } : {}),
 		...(hasFinancials
@@ -1776,6 +1797,8 @@ export const acceptKnowledgeSuggestion = (
 		fieldValues = {},
 		fieldReviewStatuses = {},
 		partValues = {},
+		taskValues = {},
+		equipmentValues = {},
 	}: ReviewKnowledgeSuggestionInput,
 ): PropertyKnowledgeSuggestion => ({
 	...suggestion,
@@ -1833,6 +1856,28 @@ export const acceptKnowledgeSuggestion = (
 			sourceText: part.sourceText,
 		},
 	})),
+	suggestedTasks: suggestion.suggestedTasks?.map((task) => ({
+		...task,
+		userEditableTitle: taskValues[task.id]?.title ?? task.userEditableTitle ?? task.title,
+		userEditableDescription:
+			taskValues[task.id]?.description ?? task.userEditableDescription ?? task.description,
+		...(taskValues[task.id]?.matchedDeviceId
+			? { matchedDeviceId: taskValues[task.id]?.matchedDeviceId }
+			: {}),
+		reviewStatus:
+			taskValues[task.id]?.accepted === false ? 'rejected' : 'accepted',
+	})),
+	suggestedEquipment: suggestion.suggestedEquipment?.map((equipment) => ({
+		...equipment,
+		...(equipmentValues[equipment.id]?.matchedDeviceId
+			? { matchedDeviceId: equipmentValues[equipment.id]?.matchedDeviceId }
+			: {}),
+		...(equipmentValues[equipment.id]?.accepted === false && equipmentValues[equipment.id]?.skipReason
+			? { skipReason: equipmentValues[equipment.id]?.skipReason }
+			: {}),
+		reviewStatus:
+			equipmentValues[equipment.id]?.accepted === false ? 'rejected' : 'accepted',
+	})),
 });
 
 export const rejectKnowledgeSuggestion = (
@@ -1865,6 +1910,8 @@ export const applyAcceptedKnowledgeSuggestion = ({
 		return {
 			propertyUpdates: {},
 			systemUpdates: [],
+			taskSuggestions: [],
+			equipmentSuggestions: [],
 			appliedSuggestion: suggestion,
 		};
 	}
@@ -1966,6 +2013,12 @@ export const applyAcceptedKnowledgeSuggestion = ({
 			id,
 			updates,
 		})),
+		taskSuggestions: (acceptedSuggestion.suggestedTasks || []).filter(
+			(task) => task.reviewStatus !== 'rejected',
+		),
+		equipmentSuggestions: (acceptedSuggestion.suggestedEquipment || []).filter(
+			(equipment) => equipment.reviewStatus !== 'rejected',
+		),
 		contractorSuggestion: buildContractorSuggestion(acceptedFields),
 		maintenanceHistorySuggestion: buildMaintenanceHistorySuggestion({
 			fields: acceptedFields,

@@ -2,10 +2,8 @@ import React, { useState, useMemo } from 'react';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-	faBan,
 	faChevronDown,
 	faChevronUp,
-	faCopy,
 	faFolderOpen,
 	faPen,
 	faPlus,
@@ -70,8 +68,6 @@ import {
 	TeamMemberCard,
 	TeamMemberIdentity,
 	TeamMemberAvatarWrap,
-	TeamMemberActions,
-	TeamMemberActionButton,
 	TeamMemberImage,
 	TeamMemberImagePlaceholder,
 	TeamMemberDetails,
@@ -83,7 +79,6 @@ import {
 	TeamMemberPropertyChip,
 	TeamMemberInviteToken,
 	TeamMemberInviteCode,
-	TeamMemberInviteCopyButton,
 	AccessPill,
 	AccessControlToggle,
 	AccessControlPanel,
@@ -136,6 +131,7 @@ import {
 	RemoveFileButton,
 	DialogFooter,
 	CancelButton,
+	DeleteMemberButton,
 	EmptyState,
 	SaveButton,
 } from './TeamPage.styles';
@@ -387,6 +383,8 @@ export default function TeamPage() {
 	// Check if user can manage team members based on subscription plan (selector)
 	const canManage = useSelector(selectCanInviteTeamMembers);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
+	const canReviewRetainedTeam =
+		!isTeamMemberAccount && currentUser?.hasExistingTeamMembers === true;
 	const isAdvancedTeamManagement =
 		!!currentUser?.subscription &&
 		canUseAdvancedTeamManagement(currentUser.subscription);
@@ -399,6 +397,8 @@ export default function TeamPage() {
 	>({});
 	const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
 	const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+	const canEditCurrentMember =
+		canManage || (Boolean(editingMember) && canReviewRetainedTeam);
 	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 	const [editingGroupName, setEditingGroupName] = useState<string>('');
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -702,7 +702,9 @@ export default function TeamPage() {
 			title: formData.title.trim(),
 			email: isEditingAcceptedMember ? editingMember!.email : formData.email,
 			phone: formData.phone,
-			role: isAdvancedTeamManagement ? formData.role : USER_ROLES.ADMIN,
+			role: isAdvancedTeamManagement
+				? formData.role
+				: editingMember?.role || USER_ROLES.ADMIN,
 			address: buildMailingAddress({
 				street: formData.address,
 				city: formData.mailingCity,
@@ -711,7 +713,9 @@ export default function TeamPage() {
 			}),
 			image: imagePreview || editingMember?.image || '',
 			notes: formData.notes,
-			linkedProperties: isAdvancedTeamManagement ? formData.linkedProperties : [],
+			linkedProperties: isAdvancedTeamManagement
+				? formData.linkedProperties
+				: editingMember?.linkedProperties || [],
 			taskHistory: editingMember?.taskHistory || [],
 			files: uploadedFiles,
 			...invitationFields,
@@ -846,23 +850,21 @@ export default function TeamPage() {
 		setShowTeamMemberDialog(true);
 	};
 
-	const handleDeleteTeamMember = async (memberId: string) => {
+	const handleDeleteTeamMember = async (memberId: string): Promise<boolean> => {
 		try {
 			const memberToDelete = groupsWithMembers
 				.flatMap((g) => g.members || [])
 				.find((m) => m?.id === memberId);
-			await deleteTeamMemberApi(memberId).unwrap();
 
-			// Revoke invitation code if it exists
-			if ((memberToDelete as any)?.invitationCodeId) {
-				try {
-					await revokeTeamMemberInvitationCode({
-						teamMemberId: memberId,
-					}).unwrap();
-				} catch (revokeError) {
-					console.error('Failed to revoke invitation code:', revokeError);
-				}
+			// Revoke linked login access before deleting the profile. The revoke
+			// function needs the team-member record to resolve the linked account.
+			if (memberToDelete && hasRevocableTeamAccess(memberToDelete)) {
+				await revokeTeamMemberInvitationCode({
+					teamMemberId: memberId,
+				}).unwrap();
 			}
+
+			await deleteTeamMemberApi(memberId).unwrap();
 
 			// Create notification for team member deletion
 			try {
@@ -885,9 +887,29 @@ export default function TeamPage() {
 			} catch (notifError) {
 				console.error('Notification failed:', notifError);
 			}
+
+			return true;
 		} catch (error) {
 			console.error('Error deleting team member:', error);
+			feedback.notify('Failed to delete team member. Please try again.');
+			return false;
 		}
+	};
+	const handleRequestDeleteTeamMember = (member: TeamMember) => {
+		setWarningDialogTitle('Delete Team Member');
+		setWarningDialogMessage(
+			`Are you sure you want to delete ${member.firstName} ${member.lastName}? This action cannot be undone.`,
+		);
+		setWarningDialogConfirmText('Delete');
+		setWarningDialogCancelText('Cancel');
+		setWarningDialogOnConfirm(() => async () => {
+			setWarningDialogOpen(false);
+			const deleted = await handleDeleteTeamMember(member.id);
+			if (deleted) {
+				setShowTeamMemberDialog(false);
+			}
+		});
+		setWarningDialogOpen(true);
 	};
 
 	const handleRevokeAccess = async (member: TeamMember) => {
@@ -1197,8 +1219,9 @@ export default function TeamPage() {
 					</TeamHeroEyebrow>
 					<TeamHeroTitle>Keep the right people connected to the right properties.</TeamHeroTitle>
 					<TeamHeroText>
-						Invite your team, assign property access, and keep contact details,
-						notes, and documents in one place.
+						{canManage
+							? 'Invite your team, assign property access, and keep contact details, notes, and documents in one place.'
+							: 'Review the team relationships retained from your previous plan and remove access when it is no longer needed.'}
 					</TeamHeroText>
 				</TeamHeroContent>
 				<TeamStatsGrid aria-label='Team summary'>
@@ -1242,11 +1265,11 @@ export default function TeamPage() {
 							? 'Team management is managed by the account holder'
 							: 'Team collaboration is locked on your current plan'
 					}
-					description={
-						isTeamMemberAccount
-							? 'Your account access is controlled by your assigned role and property access.'
-							: 'You can review current team assignments in read-only mode. Upgrade to Property to invite team members.'
-					}
+						description={
+							isTeamMemberAccount
+								? 'Your account access is controlled by your assigned role and property access.'
+								: 'You can maintain or remove existing team relationships. Upgrade to Property to invite new team members.'
+						}
 					upgradeLabel='Upgrade for Team Access'
 					showUpgradeAction={!isTeamMemberAccount}
 				/>
@@ -1327,50 +1350,13 @@ export default function TeamPage() {
 									<TeamMemberCard
 										key={member.id}
 										onClick={() =>
-											canManage && handleEditTeamMember(member, group.id)
+											(canManage || canReviewRetainedTeam) &&
+											handleEditTeamMember(member, group.id)
 										}
 										style={{
-											cursor: canManage ? 'pointer' : 'default',
-											opacity: canManage ? 1 : 0.7,
+											cursor: canManage || canReviewRetainedTeam ? 'pointer' : 'default',
+											opacity: canManage || canReviewRetainedTeam ? 1 : 0.7,
 										}}>
-										{canManage && currentUser?.email !== member.email && (
-											<TeamMemberActions>
-												{hasRevocableTeamAccess(member) && (
-													<TeamMemberActionButton
-														className='revoke'
-														aria-label='Revoke'
-														title='Revoke access'
-														onClick={(e) => {
-															e.stopPropagation();
-															handleRevokeAccess(member);
-														}}>
-														<FontAwesomeIcon icon={faBan} />
-														🚫
-													</TeamMemberActionButton>
-												)}
-												<TeamMemberActionButton
-													className='delete'
-													aria-label='Delete'
-													title='Delete team member'
-													onClick={(e) => {
-														e.stopPropagation();
-														setWarningDialogTitle('Delete Team Member');
-														setWarningDialogMessage(
-															`Are you sure you want to delete ${member.firstName} ${member.lastName}? This action cannot be undone.`,
-														);
-														setWarningDialogConfirmText('Delete');
-														setWarningDialogCancelText('Cancel');
-														setWarningDialogOnConfirm(() => () => {
-															setWarningDialogOpen(false);
-															handleDeleteTeamMember(member.id);
-														});
-														setWarningDialogOpen(true);
-													}}>
-													<FontAwesomeIcon icon={faTrash} />
-													🗑
-												</TeamMemberActionButton>
-											</TeamMemberActions>
-										)}
 										<TeamMemberIdentity>
 											<TeamMemberAvatarWrap>
 												{member.image ? (
@@ -1436,26 +1422,6 @@ export default function TeamPage() {
 												)}
 											</TeamMemberPropertyList>
 										</TeamMemberProperties>
-										{canShowInvitationToken(member) &&
-											getVisibleInvitationCode(member) && (
-												<TeamMemberInviteToken>
-													<span>Invitation token</span>
-													<TeamMemberInviteCode>
-														{getVisibleInvitationCode(member)}
-													</TeamMemberInviteCode>
-													<TeamMemberInviteCopyButton
-														type='button'
-														onClick={(event) => {
-															event.stopPropagation();
-															void handleCopyInvitationCode(
-																getVisibleInvitationCode(member),
-															);
-														}}>
-														<FontAwesomeIcon icon={faCopy} />
-														Copy token
-													</TeamMemberInviteCopyButton>
-												</TeamMemberInviteToken>
-											)}
 									</TeamMemberCard>
 								);
 							})}
@@ -1499,6 +1465,19 @@ export default function TeamPage() {
 							access, and store helpful notes or files for future reference.
 						</DialogIntro>
 
+						<fieldset
+							disabled={!canEditCurrentMember}
+							style={{
+								border: 0,
+								margin: 0,
+								padding: 0,
+								minWidth: 0,
+								minHeight: 0,
+								flex: 1,
+								display: 'flex',
+								flexDirection: 'column',
+								overflow: 'hidden',
+							}}>
 						<DialogBody>
 							<LeftColumn>
 								<CollapsibleDialogSection
@@ -1737,7 +1716,7 @@ export default function TeamPage() {
 									</CollapsibleDialogBody>
 								</CollapsibleDialogSection>
 
-								{canManage && (
+								{(canManage || (canReviewRetainedTeam && editingMember)) && (
 									<CollapsibleDialogSection
 										open={teamMemberDialogOpenSections.access}
 										onToggle={handleTeamMemberDialogSectionToggle('access')}>
@@ -1838,7 +1817,7 @@ export default function TeamPage() {
 																	? 'revoked'
 																	: 'active'
 															}>
-															{getTeamMemberAccessState(editingMember) ===
+												{canManage && getTeamMemberAccessState(editingMember) ===
 																'accepted'
 																? 'Active'
 																: getTeamMemberAccessState(editingMember) ===
@@ -2129,14 +2108,28 @@ export default function TeamPage() {
 								)}
 							</RightColumn>
 						</DialogBody>
+						</fieldset>
 
 						<DialogFooter>
+							{editingMember &&
+								(canManage || canReviewRetainedTeam) &&
+								currentUser?.email !== editingMember.email && (
+									<DeleteMemberButton
+										type='button'
+										onClick={() =>
+											handleRequestDeleteTeamMember(editingMember)
+										}>
+										Delete Member
+									</DeleteMemberButton>
+								)}
 							<CancelButton onClick={() => setShowTeamMemberDialog(false)}>
-								Cancel
+								{canManage ? 'Cancel' : 'Close'}
 							</CancelButton>
-							<SaveButton onClick={handleSaveTeamMember}>
-								{editingMember ? 'Update Member' : 'Add Member'}
-							</SaveButton>
+							{canEditCurrentMember && (
+								<SaveButton onClick={handleSaveTeamMember}>
+									{editingMember ? 'Update Member' : 'Add Member'}
+								</SaveButton>
+							)}
 						</DialogFooter>
 					</TeamDialogContent>
 				</DialogOverlay>

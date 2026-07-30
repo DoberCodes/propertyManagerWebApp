@@ -6,6 +6,7 @@ import {
 	canManageTeam,
 	canManageTenants,
 	canAccessReadOnlyFeatures,
+	getEffectiveAccessPlanId,
 	getEffectiveSubscriptionPlanId,
 } from '../../utils/subscriptionUtils';
 
@@ -36,14 +37,19 @@ export const selectIsContractor = createSelector([selectUser], (user) => {
 });
 
 export const selectIsHomeowner = createSelector([selectUser], (user) => {
-	const plan = getEffectiveSubscriptionPlanId(user?.subscription, 'homeowner');
-	return !!user && (plan === 'homeowner' || plan === 'homeowner_plus');
+	if (!user) return false;
+	if (user.workspaceMode) return user.workspaceMode === 'homeowner';
+
+	const plan = getEffectiveAccessPlanId(user.subscription);
+	return !!user &&
+		(plan === 'homeowner' ||
+			plan === 'homeowner_plus');
 });
 
 export const selectCanAccessTeam = createSelector([selectUser], (user) => {
 	if (isTeamMemberAccount(user)) return false;
 	if (!user || !user.subscription) return false;
-	return canManageTeam(user.subscription);
+	return canManageTeam(user.subscription) || user.hasExistingTeamMembers === true;
 });
 
 export const selectCanInviteTeamMembers = createSelector(

@@ -28,6 +28,7 @@ import {
 	PropertyScanRecommendation,
 } from '../../utils/propertyIntelligenceScan';
 import {
+	canUsePropertyInsights,
 	getEffectiveSubscriptionPlanId,
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
@@ -139,8 +140,8 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 		() => new Set(),
 	);
 	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
-	const isFreePlan = currentPlanId === 'homeowner';
-	const canRunFullReview = canRunAudit && !isFreePlan;
+	const isFreePlan = !canUsePropertyInsights(subscription);
+	const intelligenceUpgradePlan = currentPlanId === 'property' ? 'Portfolio' : 'Homeowner+';
 	const {
 		data: persistedAuditSnapshot,
 		isLoading: isLoadingAuditSnapshot,
@@ -150,7 +151,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			scanType: 'property_audit_v1',
 		},
 		{
-			skip: !canRunFullReview || !property.id,
+			skip: !property.id,
 		},
 	);
 	const [savePropertyAuditSnapshot] = useSavePropertyAuditSnapshotMutation();
@@ -235,7 +236,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 			low: findings.filter((finding) => finding.severity === 'low').length,
 		};
 	}, [auditCategories, latestAuditSnapshot]);
-	const hasSavedAudit = canRunFullReview && Boolean(latestAuditSnapshot);
+	const hasSavedAudit = Boolean(latestAuditSnapshot);
 
 	const handleToggleAssetReview = (assetId: string) => {
 		setExpandedAssetIds((currentIds) => {
@@ -360,7 +361,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						and equipment details, organized by {isHomeowner ? 'equipment' : 'system'} so you can improve the
 						{' '}{reviewLanguage.subjectNoun} memory over time.
 						{isFreePlan
-							? ' Free includes Quick Scan. Home Review is the deeper Homeowner+ layer.'
+							? ` A lightweight record check remains available. ${reviewLanguage.label} is the deeper ${intelligenceUpgradePlan} layer.`
 							: ''}
 					</AuditText>
 				</AuditTitleBlock>
@@ -377,7 +378,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						onClick={isFreePlan ? handleViewPlanOptions : handleRunAudit}
 						disabled={isRunningAudit}>
 						{isFreePlan
-							? 'Explore Homeowner+'
+							? `Explore ${intelligenceUpgradePlan}`
 							: isRunningAudit
 								? 'Reviewing...'
 								: hasSavedAudit
@@ -391,13 +392,15 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 				<AuditBody>
 					<AuditMeta>
 						{isFreePlan
-							? `${reviewLanguage.label} unlocks with Homeowner+.`
+							? hasSavedAudit
+								? `Saved review: ${formatAuditDate(latestAuditSnapshot?.createdAt)}. Upgrade to run a new review.`
+								: `${reviewLanguage.label} unlocks with ${intelligenceUpgradePlan}.`
 							: `Last review: ${formatAuditDate(latestAuditSnapshot?.createdAt)}`}
 					</AuditMeta>
 					{auditSaveError ? <ErrorResult>{auditSaveError}</ErrorResult> : null}
-					{isFreePlan ? (
+					{isFreePlan && !hasSavedAudit ? (
 						<ReviewUpgradePreview>
-							<ReviewUpgradeEyebrow>Available with Homeowner+</ReviewUpgradeEyebrow>
+							<ReviewUpgradeEyebrow>Available with {intelligenceUpgradePlan}</ReviewUpgradeEyebrow>
 							<ReviewUpgradeTitle>
 								A deeper review of how complete this {reviewLanguage.recordNoun} is.
 							</ReviewUpgradeTitle>
@@ -425,7 +428,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 								</ReviewUpgradeItem>
 							</ReviewUpgradeGrid>
 							<ReviewUpgradeAction type='button' onClick={handleViewPlanOptions}>
-								Explore Homeowner+
+								Explore {intelligenceUpgradePlan}
 							</ReviewUpgradeAction>
 						</ReviewUpgradePreview>
 					) : isRunningAudit ? (
@@ -613,7 +616,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						groups opportunities by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance
 						coverage.
 						{isFreePlan
-							? ' Free includes Quick Scan. This deeper review unlocks with Homeowner+.'
+							? ` A lightweight record check remains available. This deeper review unlocks with ${intelligenceUpgradePlan}.`
 							: ''}
 					</ReviewInfoLead>
 					<ReviewInfoItem $tone='records'>

@@ -3,6 +3,7 @@
 Status: Implemented
 Date: 2026-06-12
 Accepted: 2026-06-12
+Amended: 2026-07-26
 Decision Source: Manual
 
 ## Context
@@ -84,11 +85,19 @@ If the user marks `Water Heater` as present, Maintley can suggest tasks such as:
 
 ## Relationship to Home Health
 
+This section records the original implementation direction. ADR 0017 later
+removed Home Health and score-based framing from the Dashboard. ADR 0006 now
+defines category-based Maintley Intelligence readiness as the replacement.
+
 Do not create a separate completion score.
 
-The assistant should eventually feed reviewed results into Home Health, especially a `Property Records` or similar category.
+The assistant may contribute reviewed property and equipment context to the
+shared Maintley Intelligence readiness calculation. It must not create a
+separate completion score.
 
-Users should not be penalized for items marked `Not Present`. Home Health should only consider reviewed/present items where appropriate.
+Items marked `Not Present` must not reduce readiness. Readiness should consider
+only applicable records and should explain the benefit supported by the saved
+context.
 
 ## UX Rules
 
@@ -116,4 +125,13 @@ The first implementation adds:
 - Equipment/system creation or reuse for items marked present.
 - Suggested recurring task creation for present items, using the existing suggested maintenance templates.
 
-Future iterations can add richer Home Health integration, completed-state dismissal behavior, and more detailed room/property-record fields.
+Future iterations can add richer Maintley Intelligence readiness integration,
+completed-state dismissal behavior, and more detailed room/property-record
+fields.
+## 2026-07 homeowner maintenance access update
+
+Recurring maintenance and setup-generated recurring tasks are part of the core
+homeowner workflow. The Setup Assistant must allow Free users to review and
+create suggested recurring tasks. Maintley Intelligence may provide deeper
+premium interpretation, but the task creation required to maintain one home is
+not a premium capability.

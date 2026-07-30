@@ -624,7 +624,7 @@ export const TodayFocusCard = styled.article`
 	background: linear-gradient(135deg, ${COLORS.bgWhite} 0%, ${COLORS.primaryLight} 100%);
 `;
 
-export const PortfolioHealthCard = styled.article`
+export const IntelligenceReadinessCard = styled.article`
 	${sharedCard}
 `;
 
@@ -641,19 +641,19 @@ export const DashboardIntelligenceHeader = styled.div`
 	gap: 10px;
 `;
 
-export const HomeHealthHeader = styled.div`
+export const IntelligenceReadinessHeader = styled.div`
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 10px;
 `;
 
-export const HomeHealthHelp = styled.span`
+export const IntelligenceReadinessHelp = styled.span`
 	display: inline-flex;
 	flex-shrink: 0;
 `;
 
-export const HomeHealthHelpButton = styled.button`
+export const IntelligenceReadinessHelpButton = styled.button`
 	width: 28px;
 	height: 28px;
 	border-radius: 999px;
@@ -940,108 +940,59 @@ export const FocusButton = styled.button<{ $variant?: 'primary' | 'secondary' | 
 	}
 `;
 
-export const HomeHealthSummary = styled.div`
-	display: grid;
-	grid-template-columns: minmax(148px, 1fr) minmax(0, 1.1fr);
-	align-items: center;
-	column-gap: 18px;
-	row-gap: 10px;
-	width: 100%;
-	min-width: 0;
-
-	@media (max-width: 420px) {
-		align-items: flex-start;
-		grid-template-columns: 1fr;
-		gap: 10px;
-	}
-`;
-
-export const HomeHealthStatus = styled.div`
+export const IntelligenceReadinessIntro = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 4px;
 	min-width: 0;
 `;
 
-export const HomeHealthStatusLine = styled.div`
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	flex-wrap: wrap;
-`;
-
-export const HomeHealthStatusLabel = styled.p`
+export const IntelligenceReadinessTitle = styled.h3`
 	margin: 0;
 	font-size: 1.12rem;
 	font-weight: 800;
 	color: ${COLORS.textPrimary};
 `;
 
-export const HomeHealthStatusPercent = styled.p`
+export const IntelligenceReadinessDescription = styled.p`
 	margin: 0;
-	color: ${COLORS.primaryDark};
-	font-size: 1.36rem;
-	font-weight: 900;
-	line-height: 1;
-`;
-
-// Kept temporarily so React Fast Refresh can recover from older hot-update chunks
-// that referenced the previous percentage readout name.
-export const HomeHealthScore = HomeHealthStatusLabel;
-
-export const HomeHealthMemoryBlocks = styled.div`
-	display: grid;
-	grid-template-columns: repeat(10, 1fr);
-	gap: 3px;
-	width: min(168px, 100%);
-`;
-
-export const HomeHealthMemoryBlock = styled.span<{ $filled: boolean }>`
-	height: 14px;
-	border-radius: 4px;
-	background: ${(props) =>
-		props.$filled
-			? `linear-gradient(180deg, ${COLORS.primary} 0%, ${COLORS.primaryHover} 100%)`
-			: COLORS.gray100};
-	border: 1px solid
-		${(props) => (props.$filled ? 'rgba(4, 120, 87, 0.2)' : COLORS.border)};
-`;
-
-export const HomeHealthMemoryText = styled.p`
-	margin: 0;
-	font-size: 0.76rem;
-	font-weight: 800;
+	font-size: 0.8rem;
+	font-weight: 600;
+	line-height: 1.45;
 	color: ${COLORS.textSecondary};
 `;
 
-export const HomeHealthBreakdown = styled.div`
+export const IntelligenceReadinessCategories = styled.div`
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 8px;
 	width: 100%;
 	min-width: 0;
 `;
 
-export const HomeHealthBreakdownRow = styled.button<{ $clickable?: boolean }>`
+export const IntelligenceReadinessCategory = styled.button<{ $clickable?: boolean }>`
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) max-content;
-	align-items: center;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: start;
 	column-gap: 8px;
 	row-gap: 4px;
 	width: 100%;
 	min-width: 0;
-	border: 0;
-	background: transparent;
-	padding: 0;
-	font-size: 0.76rem;
-	font-weight: 700;
+	border: 1px solid ${COLORS.border};
+	border-radius: 10px;
+	background: ${COLORS.bgWhite};
+	padding: 10px;
 	color: ${COLORS.textSecondary};
 	text-align: left;
 	cursor: ${(props) => (props.$clickable ? 'pointer' : 'default')};
+	transition: border-color 0.16s ease, background 0.16s ease;
 
 	&:hover,
 	&:focus-visible {
-		color: ${(props) => (props.$clickable ? COLORS.primaryDark : COLORS.textSecondary)};
+		border-color: ${(props) =>
+			props.$clickable ? 'rgba(4, 120, 87, 0.34)' : COLORS.border};
+		background: ${(props) =>
+			props.$clickable ? 'rgba(236, 253, 245, 0.45)' : COLORS.bgWhite};
 		outline: none;
 	}
 
@@ -1049,37 +1000,70 @@ export const HomeHealthBreakdownRow = styled.button<{ $clickable?: boolean }>`
 		cursor: default;
 	}
 
-	> span:first-child {
-		grid-column: 1 / -1;
-		min-width: 0;
+	@media (max-width: 420px) {
+		grid-template-columns: 1fr;
 	}
+`;
 
-	> span:last-child {
-		grid-column: 2;
-		grid-row: 2;
-		justify-self: end;
-		white-space: nowrap;
-	}
+export const IntelligenceReadinessCategoryTitle = styled.strong`
+	color: ${COLORS.textPrimary};
+	font-size: 0.84rem;
+	font-weight: 800;
+`;
 
-	> div {
+export const IntelligenceReadinessLevel = styled.span<{
+	$level: 'starting' | 'building_context' | 'ready';
+}>`
+	grid-column: 2;
+	grid-row: 1;
+	justify-self: end;
+	padding: 3px 7px;
+	border-radius: 999px;
+	font-size: 0.68rem;
+	font-weight: 900;
+	white-space: nowrap;
+	color: ${(props) =>
+		props.$level === 'ready'
+			? COLORS.successDark
+			: props.$level === 'building_context'
+				? COLORS.warningDark
+				: COLORS.textSecondary};
+	background: ${(props) =>
+		props.$level === 'ready'
+			? COLORS.successLight
+			: props.$level === 'building_context'
+				? COLORS.warningLight
+				: COLORS.gray100};
+
+	@media (max-width: 420px) {
 		grid-column: 1;
 		grid-row: 2;
+		justify-self: start;
 	}
 `;
 
-export const HomeHealthBarTrack = styled.div`
-	min-width: 0;
-	height: 8px;
-	border-radius: 999px;
-	background: ${COLORS.gray100};
-	overflow: hidden;
+export const IntelligenceReadinessSummary = styled.span`
+	grid-column: 1 / -1;
+	font-size: 0.77rem;
+	font-weight: 600;
+	line-height: 1.4;
+	color: ${COLORS.textSecondary};
 `;
 
-export const HomeHealthBarFill = styled.div<{ $percent: number }>`
-	width: ${(props) => Math.max(0, Math.min(100, props.$percent))}%;
-	height: 100%;
-	border-radius: inherit;
-	background: linear-gradient(90deg, ${COLORS.primary} 0%, ${COLORS.success} 100%);
+export const IntelligenceReadinessNextStep = styled.span`
+	grid-column: 1 / -1;
+	font-size: 0.74rem;
+	font-weight: 800;
+	line-height: 1.4;
+	color: ${COLORS.primaryDark};
+`;
+
+export const DashboardIntelligenceRecommendationTitle = styled.p`
+	margin: -2px 0 0;
+	font-size: 0.95rem;
+	font-weight: 800;
+	line-height: 1.4;
+	color: ${COLORS.primaryDark};
 `;
 
 export const PortfolioHeaderText = styled.p`
@@ -1089,47 +1073,14 @@ export const PortfolioHeaderText = styled.p`
 	color: ${COLORS.textSecondary};
 `;
 
-export const HomeHealthQuickWin = styled.div`
+export const IntelligenceReadinessFooter = styled.div`
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-end;
 	gap: 12px;
-	padding: 10px 12px;
-	border-radius: 12px;
-	border: 1px solid rgba(4, 120, 87, 0.14);
-	background: rgba(63, 204, 124, 0.08);
-
-	@media (max-width: 640px) {
-		align-items: flex-start;
-		flex-direction: column;
-	}
 `;
 
-export const HomeHealthQuickWinLabel = styled.p`
-	margin: 0 0 4px;
-	color: ${COLORS.primaryDark};
-	font-size: 0.68rem;
-	font-weight: 900;
-	letter-spacing: 0.07em;
-	text-transform: uppercase;
-`;
-
-export const HomeHealthQuickWinText = styled.p`
-	margin: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	font-size: 0.78rem;
-	line-height: 1.35;
-	color: ${COLORS.textSecondary};
-
-	strong {
-		color: ${COLORS.textPrimary};
-		font-size: 0.86rem;
-	}
-`;
-
-export const HomeHealthQuickWinButton = styled.button`
+export const IntelligenceReadinessReviewButton = styled.button`
 	flex-shrink: 0;
 	border: 1px solid rgba(4, 120, 87, 0.22);
 	border-radius: 999px;
@@ -1148,14 +1099,14 @@ export const HomeHealthQuickWinButton = styled.button`
 	}
 `;
 
-export const HomeHealthDialogBody = styled.div`
+export const IntelligenceReadinessDialogBody = styled.div`
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 	color: ${COLORS.textSecondary};
 `;
 
-export const HomeHealthDialogLead = styled.p`
+export const IntelligenceReadinessDialogLead = styled.p`
 	margin: 0;
 	padding: 12px 14px;
 	border-radius: 12px;
@@ -1167,7 +1118,7 @@ export const HomeHealthDialogLead = styled.p`
 	color: ${COLORS.textPrimary};
 `;
 
-export const HomeHealthDialogSubhead = styled.p`
+export const IntelligenceReadinessDialogSubhead = styled.p`
 	margin: 4px 0 -2px;
 	font-size: 0.72rem;
 	font-weight: 800;
@@ -1176,7 +1127,7 @@ export const HomeHealthDialogSubhead = styled.p`
 	color: ${COLORS.textSecondary};
 `;
 
-export const HomeHealthDialogSection = styled.div`
+export const IntelligenceReadinessDialogSection = styled.div`
 	border-top: 1px solid ${COLORS.border};
 	padding: 11px 0 0;
 	display: grid;
@@ -1201,7 +1152,7 @@ export const HomeHealthDialogSection = styled.div`
 	}
 `;
 
-export const HomeHealthDialogNote = styled.p`
+export const IntelligenceReadinessDialogNote = styled.p`
 	margin: 4px 0 0;
 	padding: 12px 14px;
 	border-radius: 12px;
@@ -1217,7 +1168,7 @@ export const HomeHealthDialogNote = styled.p`
 	}
 `;
 
-export const HomeHealthDialogFooter = styled.p`
+export const IntelligenceReadinessDialogFooter = styled.p`
 	margin: 2px 0 0;
 	padding-top: 2px;
 	color: ${COLORS.textMuted};
@@ -1226,6 +1177,120 @@ export const HomeHealthDialogFooter = styled.p`
 	letter-spacing: 0.06em;
 	text-align: center;
 	text-transform: uppercase;
+`;
+
+export const IntelligenceReadinessPropertyList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-height: min(52vh, 520px);
+	overflow-y: auto;
+	padding-right: 2px;
+`;
+
+export const IntelligenceReadinessPropertyCard = styled.article`
+	display: flex;
+	flex-direction: column;
+	gap: 9px;
+	padding: 12px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 12px;
+	background: ${COLORS.bgWhite};
+`;
+
+export const IntelligenceReadinessPropertyHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+`;
+
+export const IntelligenceReadinessPropertyTitle = styled.strong`
+	color: ${COLORS.textPrimary};
+	font-size: 0.92rem;
+	font-weight: 800;
+	line-height: 1.35;
+`;
+
+export const IntelligenceReadinessPropertyLevel = styled.span<{
+	$level: 'starting' | 'building_context' | 'ready';
+}>`
+	flex-shrink: 0;
+	padding: 3px 8px;
+	border-radius: 999px;
+	font-size: 0.68rem;
+	font-weight: 900;
+	color: ${(props) =>
+		props.$level === 'ready'
+			? COLORS.successDark
+			: props.$level === 'building_context'
+				? COLORS.warningDark
+				: COLORS.textSecondary};
+	background: ${(props) =>
+		props.$level === 'ready'
+			? COLORS.successLight
+			: props.$level === 'building_context'
+				? COLORS.warningLight
+				: COLORS.gray100};
+`;
+
+export const IntelligenceReadinessEvidenceList = styled.ul`
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	margin: 0;
+	padding: 0 0 0 18px;
+`;
+
+export const IntelligenceReadinessEvidenceItem = styled.li`
+	color: ${COLORS.textSecondary};
+	font-size: 0.78rem;
+	font-weight: 600;
+	line-height: 1.4;
+`;
+
+export const IntelligenceReadinessPropertyAction = styled.button`
+	align-self: flex-end;
+	min-height: 38px;
+	padding: 7px 11px;
+	border: 1px solid rgba(4, 120, 87, 0.24);
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 0.78rem;
+	font-weight: 900;
+	cursor: pointer;
+
+	&:hover,
+	&:focus-visible {
+		border-color: rgba(4, 120, 87, 0.45);
+		background: rgba(63, 204, 124, 0.16);
+		outline: none;
+	}
+
+	@media (max-width: 520px) {
+		align-self: stretch;
+		width: 100%;
+		min-height: 44px;
+	}
+`;
+
+export const IntelligenceReadinessFractions = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+`;
+
+export const IntelligenceReadinessFraction = styled.span`
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 8px;
+	border-radius: 999px;
+	background: ${COLORS.gray50};
+	border: 1px solid ${COLORS.border};
+	color: ${COLORS.textSecondary};
+	font-size: 0.72rem;
+	font-weight: 800;
 `;
 
 export const RecentActivitySection = styled.section`

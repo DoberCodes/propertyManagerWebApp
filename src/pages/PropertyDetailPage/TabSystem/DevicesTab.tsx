@@ -16,6 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from 'Redux/store';
+import { selectIsHomeowner } from 'Redux/selectors/permissionSelectors';
 import {
 	useGetDevicesQuery,
 	useLazyGetAllDevicesQuery,
@@ -84,6 +85,8 @@ import {
 import { COLORS } from '../../../constants/colors';
 import { expectsEquipmentIdentityDetails } from '../../../intelligence/assetRecordExpectations';
 import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
+import { getMaintenanceEventDate } from '../../../utils/maintenanceEventUtils';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../../maintenanceHistory/maintenanceHistoryAdapter';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -118,12 +121,14 @@ interface DeviceFormData {
 
 interface DevicesTabProps {
 	property: Property;
+	maintenanceHistoryRecords?: any[];
 	permissions?: RoleCapabilities;
 	openCreateDeviceToken?: number;
 }
 
 export const DevicesTab: React.FC<DevicesTabProps> = ({
 	property,
+	maintenanceHistoryRecords = [],
 	permissions,
 	openCreateDeviceToken = 0,
 }) => {
@@ -175,6 +180,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		useLazyGetAllDevicesQuery();
 	const { data: units = [] } = useGetUnitsQuery(property.id);
 	const { data: allTasks = [] } = useGetTasksQuery();
+	const resolvedMaintenanceHistory = useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				maintenanceHistoryRecords,
+				devices,
+			),
+		[maintenanceHistoryRecords, devices],
+	);
 
 	const openPropertyTasks = useMemo(
 		() =>
@@ -298,18 +311,22 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	}, [getDeviceInstallDate]);
 
 	const getLastServicedDate = (device: any): string => {
-		const history = Array.isArray(device?.maintenanceHistory)
-			? device.maintenanceHistory
-			: [];
-		const latest = history
-			.filter((entry: any) => entry?.date)
+		const deviceId = String(device?.id || '').trim();
+		const latest = resolvedMaintenanceHistory
+			.filter((record: any) =>
+				(Array.isArray(record.deviceIds) ? record.deviceIds : [record.deviceId])
+					.map((id: any) => String(id || '').trim())
+					.includes(deviceId),
+			)
+			.filter((record: any) => getMaintenanceEventDate(record))
 			.sort((a: any, b: any) => {
-				const left = getDisplayDateTime(a.date);
-				const right = getDisplayDateTime(b.date);
+				const left = getDisplayDateTime(getMaintenanceEventDate(a));
+				const right = getDisplayDateTime(getMaintenanceEventDate(b));
 				return right - left;
 			})[0];
-		if (!latest?.date) return 'Last serviced not recorded';
-		const formatted = formatDisplayDate(latest.date);
+		const latestDate = latest ? getMaintenanceEventDate(latest) : '';
+		if (!latestDate) return 'Last serviced not recorded';
+		const formatted = formatDisplayDate(latestDate);
 		if (!formatted) return 'Last serviced not recorded';
 		return `Last serviced ${formatted}`;
 	};
@@ -342,7 +359,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const deviceFilters: FilterConfig[] = [
 		{
 			key: 'status',
-			label: 'Lifecycle Status',
+			label: 'Equipment status',
 			type: 'select',
 			options: [
 				{ value: 'Active', label: 'Active' },
@@ -600,7 +617,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 								}}>
 								View history
 							</button>
-							<span style={{ color: '#94a3b8' }}>Lifecycle timeline and service records</span>
+							<span style={{ color: '#94a3b8' }}>Service history and related records</span>
 						</div>
 					</div>
 				);
@@ -653,7 +670,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{activityText}</div>
 						<div style={{ fontSize: 12, color: '#64748b' }}>
-							Last lifecycle update: {formatRelativeTime(row.decommissionDate || getDeviceInstallDate(row))}
+							Installed or retired: {formatRelativeTime(row.decommissionDate || getDeviceInstallDate(row))}
 						</div>
 					</div>
 				);
@@ -684,12 +701,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const canManageAppliances = permissions?.canManageAppliances ?? true;
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
-	const isHomeownerMode =
-		effectivePlanId === 'homeowner' || effectivePlanId === 'homeowner_plus';
+	const isHomeownerMode = useSelector(selectIsHomeowner);
 	const equipmentLanguage = {
 		contextNoun: isHomeownerMode ? 'this home' : 'this property',
 	};
@@ -1038,8 +1050,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			/>
 			<SectionHeader>Equipment</SectionHeader>
 			<SectionLead>
-				Track each equipment record as part of the maintenance memory for {equipmentLanguage.contextNoun}, including
-				task context and service lifecycle history.
+				Keep equipment details, related tasks, and service history together for {equipmentLanguage.contextNoun}.
 			</SectionLead>
 			<TabSummaryBar>
 				<TabSummaryPill>Total: {devices.length}</TabSummaryPill>
@@ -1081,7 +1092,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				defaultSortValue='type'
 				sortOptions={[
 					{ value: 'type', label: 'Equipment type' },
-					{ value: 'status', label: 'Lifecycle status' },
+					{ value: 'status', label: 'Equipment status' },
 					{ value: 'brand', label: 'Brand' },
 				]}
 				onSortChange={(value) =>
@@ -1153,7 +1164,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 						}
 						style={{ minHeight: 42, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 10 }}>
 						<option value='type'>Sort: Equipment type</option>
-						<option value='status'>Sort: Lifecycle status</option>
+						<option value='status'>Sort: Equipment status</option>
 						<option value='brand'>Sort: Brand</option>
 					</select>
 				</div>

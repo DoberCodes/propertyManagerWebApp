@@ -1,16 +1,36 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     Button,
+	ButtonRow,
     ErrorText,
     Input,
     InlineToggle,
     Label,
+	MoreActionsMenu,
+	MoreActionsMenuContent,
+	GrantWizardActions,
+	GrantWizardFieldGrid,
+	GrantWizardMeta,
+	GrantWizardNotice,
+	GrantWizardPanel,
+	GrantWizardReview,
+	GrantWizardReviewRow,
+	GrantWizardStep,
+	GrantWizardStepNumber,
+	GrantWizardSteps,
     Select,
+	SecondaryButton,
     SubTitle,
     SuccessText,
-    UserActivityItem,
-    UserActivityList,
+	UserActivityItem,
+	UserActivityList,
+	UserCard,
+	UserCardActionButton,
+	UserCardHeader,
+	UserCardIdentity,
+	UserCardList,
+	UserCardMeta,
     UserDetailsGrid,
     UserDetailsItem,
     UserDetailsKey,
@@ -26,10 +46,16 @@ import {
 import { GenericModal } from 'Components/Library';
 import {
     adminPortalApplyUserBillingActions,
+	adminPortalMutateEntitlementGrant,
+	adminSendAccessLifecycleEmail,
+	adminSendOperationalUserEmail,
+	adminPortalPreviewEntitlementGrant,
     adminPortalManageUserSubscription,
     adminPortalRefreshUserSubscriptionFromStripe,
     getAdminPortalUserTroubleshootingDetails,
     type AdminPortalUserTroubleshootingDetails,
+	type AdminEntitlementAccessPreview,
+	type AdminEntitlementGrantAction,
 } from '../../../services/adminPortalService';
 import {
     selectFilteredAdminUsers,
@@ -44,6 +70,9 @@ import type { AppDispatch } from '../../../Redux/store/store';
 
 interface AdminUserManagementPanelProps {
     sessionToken: string;
+	requestedUserId?: string;
+	onOpenUser?: (userId: string) => void;
+	onBackToUsers?: () => void;
 }
 
 const LIST_FILTER_OPTIONS = [
@@ -95,8 +124,18 @@ const formatBytesToMb = (bytes: number): string => {
     return `${(safeBytes / (1024 * 1024)).toFixed(2)} MB`;
 };
 
+const createGrantRequestId = (): string => {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return `grant:${crypto.randomUUID()}`;
+	}
+	return `grant:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`;
+};
+
 export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> = ({
     sessionToken,
+	requestedUserId = '',
+	onOpenUser,
+	onBackToUsers,
 }) => {
     const dispatch = useDispatch<AppDispatch>();
     const filteredUsers = useSelector(selectFilteredAdminUsers);
@@ -113,6 +152,10 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
     const [trialDays, setTrialDays] = useState('');
     const [planActionLoading, setPlanActionLoading] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+	const [showClearStripeConfirm, setShowClearStripeConfirm] = useState(false);
+	const [stripeClearReason, setStripeClearReason] = useState('');
+	const [stripeClearConfirmation, setStripeClearConfirmation] = useState('');
+	const [stripeClearRequestId, setStripeClearRequestId] = useState('');
     const [showBillingActionsDialog, setShowBillingActionsDialog] = useState(false);
     const [actionMessage, setActionMessage] = useState('');
     const [syncStripe, setSyncStripe] = useState(false);
@@ -120,6 +163,31 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
     const [checkoutBillingCycle, setCheckoutBillingCycle] = useState<'month' | 'year'>('month');
     const [checkoutCouponCode, setCheckoutCouponCode] = useState('');
     const [checkoutLink, setCheckoutLink] = useState('');
+	const [showGrantDialog, setShowGrantDialog] = useState(false);
+	const [grantAction, setGrantAction] = useState<AdminEntitlementGrantAction>('create');
+	const [grantProgramId, setGrantProgramId] = useState('');
+	const [grantKind, setGrantKind] = useState<'temporary' | 'permanent'>('temporary');
+	const [grantDurationDays, setGrantDurationDays] = useState('30');
+	const [selectedGrantId, setSelectedGrantId] = useState('');
+	const [grantReason, setGrantReason] = useState('');
+	const [grantRequestId, setGrantRequestId] = useState('');
+	const [grantConfirmation, setGrantConfirmation] = useState('');
+	const [grantWizardStep, setGrantWizardStep] = useState<1 | 2 | 3>(1);
+	const [grantPreview, setGrantPreview] = useState<{
+		currentAccess: AdminEntitlementAccessPreview;
+		proposedAccess: AdminEntitlementAccessPreview;
+		confirmationPhrase: string;
+		programLabel: string;
+	} | null>(null);
+	const [grantActionLoading, setGrantActionLoading] = useState(false);
+	const [accessEmailLoadingGrantId, setAccessEmailLoadingGrantId] = useState('');
+	const [showEmailUserDialog, setShowEmailUserDialog] = useState(false);
+	const [emailCategory, setEmailCategory] = useState<'support_follow_up' | 'account_notice' | 'billing_access'>('support_follow_up');
+	const [emailSubject, setEmailSubject] = useState('');
+	const [emailMessage, setEmailMessage] = useState('');
+	const [emailReason, setEmailReason] = useState('');
+	const [emailSending, setEmailSending] = useState(false);
+	const billingMoreActionsRef = useRef<HTMLDetailsElement | null>(null);
     const displayError = localError || error || '';
 
     const sortedUsers = useMemo(() => {
@@ -132,6 +200,60 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
             return String(left.displayName || '').localeCompare(String(right.displayName || ''));
         });
     }, [filteredUsers]);
+
+	const activeInternalGrants = useMemo(
+		() => {
+			const nowMs = Date.now();
+			return (details?.access?.grants || []).filter((grant) => {
+				const startsAtMs = grant.startsAt ? new Date(grant.startsAt).getTime() : 0;
+				const endsAtMs = grant.endsAt ? new Date(grant.endsAt).getTime() : 0;
+				return (
+					grant.state === 'active' &&
+					(!Number.isFinite(startsAtMs) || startsAtMs <= nowMs) &&
+					(grant.kind === 'permanent' || (Number.isFinite(endsAtMs) && endsAtMs > nowMs))
+				);
+			});
+		},
+		[details],
+	);
+	const grantDurationValue = Number(grantDurationDays || 0);
+	const grantDurationRequired =
+		grantAction === 'extend' ||
+		(grantAction === 'create' && grantKind !== 'permanent');
+	const grantConfigurationReady =
+		grantReason.trim().length >= 10 &&
+		(grantAction === 'create' ? Boolean(grantProgramId) : Boolean(selectedGrantId)) &&
+		(!grantDurationRequired || (Number.isInteger(grantDurationValue) && grantDurationValue > 0));
+
+	const handleSendAccessEmail = async (grantId: string) => {
+		if (!selectedUserId || !grantId) return;
+		setLocalError('');
+		setActionMessage('');
+		setAccessEmailLoadingGrantId(grantId);
+		try {
+			const result = await adminSendAccessLifecycleEmail({
+				sessionToken,
+				targetUserId: selectedUserId,
+				grantId,
+				milestone: 'activation',
+				requestId: createGrantRequestId().replace(/^grant:/, 'access-email:'),
+				reason: 'Admin requested the authoritative complimentary-access activation message.',
+			});
+			setActionMessage(
+				result.outcome === 'sent'
+					? 'Complimentary-access email sent. Audit log saved.'
+					: 'The lifecycle delivery was already handled or is currently processing; no duplicate email was sent. Audit log saved.',
+			);
+		} catch (emailError) {
+			setLocalError(
+				emailError instanceof Error
+					? emailError.message
+					: 'Unable to request the complimentary-access email.',
+			);
+		} finally {
+			setAccessEmailLoadingGrantId('');
+		}
+	};
 
     const handleLoadUsers = async () => {
         await dispatch(
@@ -148,7 +270,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
         dispatch(setUsersFilters(filterUpdates));
     };
 
-    const handleInspectUser = async (userId: string) => {
+	const loadUserDetails = async (userId: string) => {
         if (!userId) return;
         setDetailLoading(true);
         setLocalError('');
@@ -163,9 +285,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
             setSelectedPlan(result.profile.subscriptionPlan || 'property');
             setTrialDays('');
             setCheckoutCouponCode('');
-            if (!result.profile.hasStripeSubscription) {
-                setSyncStripe(false);
-            }
+			setSyncStripe(Boolean(result.profile.hasStripeSubscription));
         } catch (detailError) {
             const message =
                 detailError instanceof Error
@@ -199,7 +319,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                 syncStripe,
             });
 
-            await handleInspectUser(selectedUserId);
+            await loadUserDetails(selectedUserId);
             setActionMessage(
                 `Subscription updated to ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). ${result.stripeUpdated ? 'Stripe updated. ' : ''
                 }Audit log saved.`,
@@ -253,11 +373,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                 syncStripe,
             });
             const createdCheckoutLink = result.checkoutUrl || '';
-            setActionMessage(
-                `Billing updates applied for ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). ${result.stripeUpdated ? 'Stripe updated. ' : ''
-                }${result.applied.checkoutLinkCreated ? 'Checkout link created. ' : ''}Audit log saved.`,
-            );
-            await handleInspectUser(selectedUserId);
+			setActionMessage(
+				result.applied.checkoutLinkCreated
+					? 'Stripe Checkout link created. No paid access was granted; Maintley will update only after Stripe confirms the subscription. Audit log saved.'
+					: `Stripe billing updated for ${formatLabel(result.subscriptionPlan)} (${formatLabel(result.subscriptionStatus)}). Audit log saved.`,
+			);
+            await loadUserDetails(selectedUserId);
             setCheckoutLink(createdCheckoutLink);
             setTrialDays('');
             setCheckoutCouponCode('');
@@ -283,7 +404,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                 sessionToken,
                 userId: selectedUserId,
             });
-            await handleInspectUser(selectedUserId);
+            await loadUserDetails(selectedUserId);
             const matchLabel =
                 result.matchedBy === 'stripe_subscription_id'
                     ? 'subscription ID'
@@ -316,6 +437,151 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
         }
     };
 
+	const resetGrantPreview = () => {
+		setGrantPreview(null);
+		setGrantConfirmation('');
+		setGrantWizardStep(1);
+	};
+
+	const handleSendOperationalEmail = async () => {
+		if (!selectedUserId) return;
+		setLocalError('');
+		setActionMessage('');
+		setEmailSending(true);
+		try {
+			const requestId = `user-email:${
+				typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+					? crypto.randomUUID()
+					: `${Date.now()}:${Math.random().toString(36).slice(2, 12)}`
+			}`;
+			const result = await adminSendOperationalUserEmail({
+				sessionToken,
+				targetUserId: selectedUserId,
+				category: emailCategory,
+				subject: emailSubject,
+				message: emailMessage,
+				reason: emailReason,
+				requestId,
+			});
+			setActionMessage(
+				result.outcome === 'sent'
+					? 'Operational email sent. Audit log saved.'
+					: 'This email request was already completed. No duplicate was sent.',
+			);
+			setShowEmailUserDialog(false);
+			setEmailSubject('');
+			setEmailMessage('');
+			setEmailReason('');
+		} catch (emailError) {
+			setLocalError(
+				emailError instanceof Error ? emailError.message : 'Unable to send the operational email.',
+			);
+		} finally {
+			setEmailSending(false);
+		}
+	};
+
+	const handleInspectUser = async (userId: string) => {
+		if (onOpenUser) {
+			onOpenUser(userId);
+			return;
+		}
+		await loadUserDetails(userId);
+	};
+
+	React.useEffect(() => {
+		if (!requestedUserId || requestedUserId === selectedUserId) return;
+		void loadUserDetails(requestedUserId);
+		// Loading is intentionally keyed to the route identifier only.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [requestedUserId]);
+
+	const handleOpenGrantDialog = () => {
+		const programs = details?.access?.grantAdministration?.programs || [];
+		const firstProgram = programs[0];
+		const activeGrant = details?.access?.grants?.find((grant) =>
+			['active', 'scheduled'].includes(grant.state),
+		);
+		setGrantAction('create');
+		setGrantProgramId(firstProgram?.programId || '');
+		setGrantKind(firstProgram?.allowedKinds?.[0] || 'temporary');
+		setGrantDurationDays(String(firstProgram?.defaultDurationDays || 30));
+		setSelectedGrantId(activeGrant?.grantId || '');
+		setGrantReason('');
+		setGrantRequestId(createGrantRequestId());
+		setGrantConfirmation('');
+		setGrantPreview(null);
+		setGrantWizardStep(1);
+		setLocalError('');
+		setActionMessage('');
+		setShowGrantDialog(true);
+	};
+
+	const handlePreviewGrant = async () => {
+		if (!selectedUserId) return;
+		setGrantActionLoading(true);
+		setLocalError('');
+		setActionMessage('');
+		try {
+			const preview = await adminPortalPreviewEntitlementGrant({
+				sessionToken,
+				targetUserId: selectedUserId,
+				action: grantAction,
+				programId: grantAction === 'create' ? grantProgramId : undefined,
+				kind: grantAction === 'create' ? grantKind : undefined,
+				durationDays:
+					grantAction === 'revoke' ? undefined : Number(grantDurationDays || 0),
+				grantId: grantAction === 'create' ? undefined : selectedGrantId,
+			});
+			setGrantPreview(preview);
+			setGrantConfirmation('');
+			setGrantWizardStep(2);
+		} catch (previewError) {
+			setLocalError(
+				previewError instanceof Error
+					? previewError.message
+					: 'Unable to preview the internal access grant.',
+			);
+		} finally {
+			setGrantActionLoading(false);
+		}
+	};
+
+	const handleApplyGrant = async () => {
+		if (!selectedUserId || !grantPreview) return;
+		setGrantActionLoading(true);
+		setLocalError('');
+		setActionMessage('');
+		try {
+			const result = await adminPortalMutateEntitlementGrant({
+				sessionToken,
+				targetUserId: selectedUserId,
+				action: grantAction,
+				programId: grantAction === 'create' ? grantProgramId : undefined,
+				kind: grantAction === 'create' ? grantKind : undefined,
+				durationDays:
+					grantAction === 'revoke' ? undefined : Number(grantDurationDays || 0),
+				grantId: grantAction === 'create' ? undefined : selectedGrantId,
+				reason: grantReason,
+				requestId: grantRequestId,
+				confirmation: grantConfirmation,
+			});
+			await loadUserDetails(selectedUserId);
+			setActionMessage(
+				`${formatLabel(grantAction)} completed for internal grant ${result.grantId}. No Stripe billing relationship was created. Audit log saved.`,
+			);
+			setShowGrantDialog(false);
+		} catch (grantError) {
+			setLocalError(
+				grantError instanceof Error
+					? grantError.message
+					: 'Unable to apply the internal access grant change.',
+			);
+		} finally {
+			setGrantActionLoading(false);
+		}
+	};
+
     const handleConfirmCancelSubscription = async (): Promise<void> => {
         const completed = await handleSubscriptionAction('cancel_subscription');
         if (completed) {
@@ -323,6 +589,49 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
             setShowBillingActionsDialog(false);
         }
     };
+
+	const handleOpenClearStripeLinkage = () => {
+		setStripeClearReason('');
+		setStripeClearConfirmation('');
+		setStripeClearRequestId(createGrantRequestId().replace(/^grant:/, 'billing-clear:'));
+		setLocalError('');
+		setShowClearStripeConfirm(true);
+	};
+
+	const closeBillingMoreActions = () => {
+		if (billingMoreActionsRef.current) billingMoreActionsRef.current.open = false;
+	};
+
+	const handleClearStripeLinkage = async (): Promise<void> => {
+		if (!selectedUserId) return;
+		setPlanActionLoading(true);
+		setLocalError('');
+		setActionMessage('');
+		try {
+			await adminPortalManageUserSubscription({
+				sessionToken,
+				userId: selectedUserId,
+				action: 'clear_stripe_linkage',
+				reason: stripeClearReason,
+				confirmation: stripeClearConfirmation,
+				requestId: stripeClearRequestId,
+			});
+			setShowClearStripeConfirm(false);
+			setShowBillingActionsDialog(false);
+			await loadUserDetails(selectedUserId);
+			setActionMessage(
+				'Stale Stripe linkage cleared. Billing returned to the free Homeowner plan; internal grants were preserved. Audit log saved.',
+			);
+		} catch (clearError) {
+			setLocalError(
+				clearError instanceof Error
+					? clearError.message
+					: 'Unable to clear the stale Stripe linkage.',
+			);
+		} finally {
+			setPlanActionLoading(false);
+		}
+	};
 
     const selectedRow = sortedUsers.find((user) => String(user.id) === selectedUserId) || null;
     const selectedUserCurrentPlan = details?.profile.subscriptionPlan || '';
@@ -340,6 +649,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 
     return (
         <UserPanelWrap>
+			{requestedUserId ? (
+				<SecondaryButton type='button' onClick={onBackToUsers}>
+					Back to Users
+				</SecondaryButton>
+			) : null}
+			<div hidden={Boolean(requestedUserId)}>
             <SubTitle>
                 User troubleshooting: quickly inspect account profile, usage, support history, recent activity, and error context.
             </SubTitle>
@@ -388,6 +703,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
             </div>
 
             {isUserListExpanded ? (
+				<>
                 <UserTableWrap id='admin-user-list-table'>
                     <UserTable>
                         <thead>
@@ -435,7 +751,38 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                         </tbody>
                     </UserTable>
                 </UserTableWrap>
+				<UserCardList aria-label='Admin users'>
+					{sortedUsers.length === 0 ? (
+						<UserCard>No users loaded yet.</UserCard>
+					) : (
+						sortedUsers.map((user) => (
+							<UserCard key={String(user.id)}>
+								<UserCardHeader>
+									<UserCardIdentity>
+										<strong>{String(user.displayName || '') || 'Unknown User'}</strong>
+										<span>{String(user.email || '') || 'No email'}</span>
+									</UserCardIdentity>
+									<UserRolePill>{formatLabel(String(user.maintleyRole || 'user'))}</UserRolePill>
+								</UserCardHeader>
+								<UserCardMeta>
+									<div><dt>Plan</dt><dd>{formatLabel(String(user.subscriptionPlan || 'none'))}</dd></div>
+									<div><dt>Status</dt><dd>{formatLabel(String(user.accountStatus || user.subscriptionStatus || 'active'))}</dd></div>
+									<div><dt>Properties</dt><dd>{String(user.propertyCount ?? 0)}</dd></div>
+									<div><dt>Last active</dt><dd>{formatRelative(user.lastActiveAt)}</dd></div>
+									<div><dt>Created</dt><dd>{formatDate(String(user.createdAt || ''))}</dd></div>
+								</UserCardMeta>
+								<UserCardActionButton
+									type='button'
+									onClick={() => void handleInspectUser(String(user.id || ''))}>
+									Inspect user
+								</UserCardActionButton>
+							</UserCard>
+						))
+					)}
+				</UserCardList>
+				</>
             ) : null}
+			</div>
 
             {details ? (
                 <UserDetailsPanel>
@@ -445,7 +792,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             : `Customer Lookup Card: ${details.profile.displayName}`}
                     </SubTitle>
 
-                    <Label>Account</Label>
+					<ButtonRow>
+						<Label>Account</Label>
+						<Button type='button' onClick={() => setShowEmailUserDialog(true)}>
+							Email User
+						</Button>
+					</ButtonRow>
                     <UserDetailsGrid>
                         <UserDetailsItem>
                             <UserDetailsKey>Name</UserDetailsKey>
@@ -468,11 +820,11 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             <UserDetailsValue>{formatDate(details.profile.lastLoginAt)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Last Activity</UserDetailsKey>
+							<UserDetailsKey>Last Customer Activity</UserDetailsKey>
                             <UserDetailsValue>{formatDate(details.profile.lastActivityAt)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Plan</UserDetailsKey>
+							<UserDetailsKey>Billing Plan</UserDetailsKey>
                             <UserDetailsValue>
                                 {formatLabel(details.profile.subscriptionPlan)} ({formatLabel(details.profile.subscriptionStatus)})
                             </UserDetailsValue>
@@ -511,7 +863,12 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                         </UserDetailsItem>
                     </UserDetailsGrid>
 
-                    <Label>Subscription Management</Label>
+					<div style={{ marginTop: 20 }}>
+						<Label>Stripe Billing</Label>
+						<p style={{ margin: '4px 0 12px' }}>
+							Paid subscriptions, invoices, renewals, coupons, and Stripe trial periods. These controls do not create internal complimentary grants.
+						</p>
+					</div>
                     <UserDetailsGrid>
                         <UserDetailsItem>
                             <UserDetailsKey>Current Plan</UserDetailsKey>
@@ -587,15 +944,201 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                                     onClick={() => setShowBillingActionsDialog(true)}>
                                     Manage Billing
                                 </Button>
-                                <Button
-                                    type='button'
-                                    disabled={planActionLoading || stripeRefreshLoading}
-                                    onClick={() => void handleRefreshSubscriptionFromStripe()}>
-                                    {stripeRefreshLoading ? 'Refreshing...' : 'Refresh From Stripe'}
-                                </Button>
+								<MoreActionsMenu
+									ref={billingMoreActionsRef}
+									onBlur={(event) => {
+										if (!event.relatedTarget || !event.currentTarget.contains(event.relatedTarget as Node)) {
+											event.currentTarget.open = false;
+										}
+									}}
+									onKeyDown={(event) => {
+										if (event.key === 'Escape') {
+											event.currentTarget.open = false;
+											event.currentTarget.querySelector('summary')?.focus();
+										}
+									}}>
+									<summary>More Actions</summary>
+									<MoreActionsMenuContent>
+										<SecondaryButton
+											type='button'
+											disabled={planActionLoading || stripeRefreshLoading}
+											onClick={() => {
+												closeBillingMoreActions();
+												void handleRefreshSubscriptionFromStripe();
+											}}>
+											{stripeRefreshLoading ? 'Refreshing...' : 'Refresh From Stripe'}
+										</SecondaryButton>
+										{details.profile.hasStripeSubscription ? (
+											<SecondaryButton
+												type='button'
+												disabled={planActionLoading || stripeRefreshLoading}
+												onClick={() => {
+													closeBillingMoreActions();
+													setShowCancelConfirm(true);
+												}}>
+												Cancel Subscription
+											</SecondaryButton>
+										) : null}
+										{details.profile.stripeCustomerId || details.profile.stripeSubscriptionId ? (
+											<SecondaryButton
+												type='button'
+												disabled={planActionLoading || stripeRefreshLoading}
+												onClick={() => {
+													closeBillingMoreActions();
+													handleOpenClearStripeLinkage();
+												}}>
+												Clear Stale Stripe Linkage
+											</SecondaryButton>
+										) : null}
+									</MoreActionsMenuContent>
+								</MoreActionsMenu>
                             </div>
                         </UserDetailsItem>
                     </UserDetailsGrid>
+
+					<div style={{ marginTop: 20 }}>
+						<Label>Internal Access Grants</Label>
+						<p style={{ margin: '4px 0 12px' }}>
+							Complimentary Maintley access issued outside Stripe. A grant does not create a Stripe customer, subscription, invoice, renewal, or charge.
+						</p>
+					</div>
+					<UserDetailsGrid>
+						<UserDetailsItem>
+							<UserDetailsKey>Active Internal Grants</UserDetailsKey>
+							<div style={{ display: 'grid', gap: 8 }}>
+								<UserDetailsValue>
+									{activeInternalGrants.length} active
+								</UserDetailsValue>
+								{activeInternalGrants.length ? (
+									activeInternalGrants.map((grant) => (
+										<div key={grant.grantId} style={{ padding: 10, border: '1px solid #d1fae5', borderRadius: 8, background: '#f0fdf4' }}>
+											<strong>
+												{details.access?.grantAdministration?.programs.find(
+													(program) => program.programId === grant.programId,
+												)?.label || formatLabel(grant.programId || grant.grantId)}
+											</strong>
+											<div style={{ marginTop: 3, fontSize: 13 }}>
+												{grant.kind === 'permanent' ? 'Permanent access' : formatLabel(grant.kind)}
+												{grant.bundleId ? ` · ${formatLabel(grant.bundleId)}` : ''}
+												{grant.endsAt ? ` · Ends ${formatDate(grant.endsAt)}` : grant.kind === 'permanent' ? ' · No expiration' : ''}
+											</div>
+											{details.access?.grantAdministration?.enabled &&
+											details.access.grantAdministration.canManage ? (
+												<SecondaryButton
+													type='button'
+													style={{ marginTop: 8 }}
+													disabled={Boolean(accessEmailLoadingGrantId)}
+													onClick={() => handleSendAccessEmail(grant.grantId)}>
+													{accessEmailLoadingGrantId === grant.grantId
+														? 'Sending...'
+														: 'Send access email'}
+												</SecondaryButton>
+											) : null}
+										</div>
+									))
+								) : (
+									<UserDetailsValue>No active internal grants.</UserDetailsValue>
+								)}
+							</div>
+						</UserDetailsItem>
+						<UserDetailsItem>
+							<UserDetailsKey>Grant Administration</UserDetailsKey>
+							<div style={{ display: 'grid', gap: 8 }}>
+								<UserDetailsValue>
+									{!details.access?.grantAdministration
+										? 'Grant administration is unavailable until the updated Firebase Functions are deployed.'
+										: !details.access.grantAdministration.enabled
+											? 'Disabled by the internal entitlement-grant rollout flag.'
+										: details.access.grantAdministration.canManage
+											? details.access.grantAdministration.isMaintleyOwner
+												? 'Maintley owner: unrestricted grant administration, including self-grants and lifetime access.'
+												: 'Authorized grant manager. Self-grants are prohibited.'
+											: 'Requires the entitlement_grants.manage Maintley permission.'}
+								</UserDetailsValue>
+								{details.access?.grantAdministration?.targetRestrictionReason ? (
+									<ErrorText>{details.access.grantAdministration.targetRestrictionReason}</ErrorText>
+								) : null}
+								<Button
+									type='button'
+									disabled={
+										grantActionLoading ||
+										!details.access?.grantAdministration?.enabled ||
+										!details.access?.grantAdministration?.canManage ||
+										details.access?.grantAdministration?.targetAllowed === false
+									}
+									onClick={handleOpenGrantDialog}>
+									Manage Internal Grants
+								</Button>
+							</div>
+						</UserDetailsItem>
+					</UserDetailsGrid>
+
+					<div style={{ marginTop: 20 }}>
+						<Label>Resolved Product Access</Label>
+						<p style={{ margin: '4px 0 12px' }}>
+							The access Maintley currently resolves from the Stripe billing plan plus any active internal grants.
+						</p>
+					</div>
+					<UserDetailsGrid>
+						<UserDetailsItem>
+							<UserDetailsKey>Billing Base Plan</UserDetailsKey>
+							<UserDetailsValue>{formatLabel(details.access?.basePlan || details.profile.subscriptionPlan)}</UserDetailsValue>
+						</UserDetailsItem>
+						<UserDetailsItem>
+							<UserDetailsKey>Effective Bundles</UserDetailsKey>
+							<UserDetailsValue>
+								{details.access?.effectiveBundles?.length
+									? details.access.effectiveBundles.map(formatLabel).join(', ')
+									: formatLabel(details.profile.subscriptionPlan)}
+							</UserDetailsValue>
+						</UserDetailsItem>
+						<UserDetailsItem>
+							<UserDetailsKey>Homeowner+ Trial</UserDetailsKey>
+							<UserDetailsValue>
+								{details.access?.homeownerPlusTrial
+									? `${formatLabel(details.access.homeownerPlusTrial.state)} through ${formatDate(details.access.homeownerPlusTrial.endsAt)}`
+									: 'Not issued'}
+							</UserDetailsValue>
+						</UserDetailsItem>
+					</UserDetailsGrid>
+
+					{details.access?.timeline?.length ? (
+						<>
+							<Label>Access Timeline</Label>
+							<UserDetailsGrid>
+								{details.access.timeline.map((event) => (
+									<UserDetailsItem key={event.id}>
+										<UserDetailsKey>{formatDate(event.createdAt || undefined)}</UserDetailsKey>
+										<UserDetailsValue>
+											{formatLabel(event.action)}{event.reason ? ` — ${event.reason}` : ''}
+										</UserDetailsValue>
+									</UserDetailsItem>
+								))}
+							</UserDetailsGrid>
+						</>
+					) : null}
+
+					{details.access?.lifecycleDeliveries?.length ? (
+						<>
+							<Label>Access Lifecycle Deliveries</Label>
+							<UserDetailsGrid>
+								{details.access.lifecycleDeliveries.map((delivery) => (
+									<UserDetailsItem key={delivery.id}>
+										<UserDetailsKey>
+											{formatLabel(delivery.milestone)} · {formatLabel(delivery.status)}
+										</UserDetailsKey>
+										<UserDetailsValue>
+											{delivery.outcome ? formatLabel(delivery.outcome) : 'Pending'}
+											{` · ${delivery.attempts} attempt${delivery.attempts === 1 ? '' : 's'}`}
+											{delivery.sentAt || delivery.updatedAt
+												? ` · ${formatDate(delivery.sentAt || delivery.updatedAt || undefined)}`
+												: ''}
+										</UserDetailsValue>
+									</UserDetailsItem>
+								))}
+							</UserDetailsGrid>
+						</>
+					) : null}
 
                     <div>
                         <Label>Support History</Label>
@@ -673,7 +1216,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
 
             <GenericModal
                 isOpen={showBillingActionsDialog}
-                title='Manage billing'
+				title='Manage Stripe billing'
                 onClose={() => {
                     if (!planActionLoading) {
                         setShowBillingActionsDialog(false);
@@ -694,10 +1237,13 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             {details?.profile.stripeSubscription?.planLabel ||
                                 (details?.profile.hasStripeSubscription ? 'Connected' : 'No subscription on record')}
                         </p>
+						<p style={{ margin: '10px 0 0', padding: 10, background: '#FAFAF8', border: '1px solid #3FCC7C', borderRadius: 8 }}>
+							This workflow manages paid billing only. For complimentary access without a billing relationship, use the separate Internal Access Grants workflow when grant administration is enabled.
+						</p>
                     </div>
 
                     <div style={{ display: 'grid', gap: 8 }}>
-                        <Label>Billing updates</Label>
+						<Label>Stripe subscription or Checkout</Label>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
                             <div>
                                 <Label>Plan</Label>
@@ -723,13 +1269,14 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                                 </Select>
                             </div>
                             <div>
-                                <Label>Add trial days</Label>
+								<Label>Add Stripe trial days</Label>
                                 <Input
                                     type='number'
                                     min={1}
                                     max={90}
-                                    placeholder='Optional'
+									placeholder={details?.profile.stripeSubscription?.status === 'trialing' ? 'Optional' : 'Requires trialing Stripe subscription'}
                                     value={trialDays}
+									disabled={details?.profile.stripeSubscription?.status !== 'trialing'}
                                     onChange={(event) => setTrialDays(event.target.value)}
                                 />
                             </div>
@@ -746,25 +1293,20 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                     </div>
 
                     <div style={{ display: 'grid', gap: 8 }}>
-                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                            <input
-                                type='checkbox'
-                                checked={syncStripe}
-                                disabled={!details?.profile.hasStripeSubscription || planActionLoading}
-                                onChange={(event) => setSyncStripe(event.target.checked)}
-                            />
-                            <span>
-                                Update Stripe subscription first
-                                {details?.profile.hasStripeSubscription
-                                    ? ''
-                                    : ' (requires a Stripe subscription on the user record)'}
-                            </span>
-                        </label>
+						<p style={{ margin: 0 }}>
+							{details?.profile.hasStripeSubscription
+								? 'Changes update the existing Stripe subscription first, then refresh Maintley.'
+								: 'This account has no Stripe subscription. Selecting a paid plan creates a Checkout link; it does not grant paid access immediately.'}
+						</p>
                         <Button
                             type='button'
                             disabled={planActionLoading || !hasBillingUpdatesToApply}
                             onClick={() => void handleApplyBillingUpdates()}>
-                            {planActionLoading ? 'Applying...' : 'Apply Billing Updates'}
+							{planActionLoading
+								? 'Applying...'
+								: details?.profile.hasStripeSubscription
+									? 'Update Stripe Billing'
+									: 'Create Stripe Checkout Link'}
                         </Button>
                         {checkoutLink ? (
                             <Button
@@ -776,20 +1318,293 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                         ) : null}
                     </div>
 
-                    <div style={{ display: 'grid', gap: 8, borderTop: '1px solid #f3c7aa', paddingTop: 14 }}>
-                        <Label>Cancel subscription</Label>
-                        <p style={{ margin: 0 }}>
-                            Use this only when the customer should stop renewing. This action stays separate from plan, trial, and coupon updates.
-                        </p>
-                        <Button
-                            type='button'
-                            disabled={planActionLoading}
-                            onClick={() => setShowCancelConfirm(true)}>
-                            {planActionLoading ? 'Updating...' : 'Cancel Subscription'}
-                        </Button>
-                    </div>
                 </div>
             </GenericModal>
+
+			<GenericModal
+				isOpen={showGrantDialog}
+				title='Manage internal access grant'
+				onClose={() => {
+					if (!grantActionLoading) setShowGrantDialog(false);
+				}}
+				compact>
+				<div style={{ display: 'grid', gap: 16 }}>
+					{localError ? <ErrorText role='alert'>{localError}</ErrorText> : null}
+					<GrantWizardNotice>
+						<strong>No Stripe billing relationship</strong>
+						<p>
+							This workflow changes Maintley product access only. It does not create or modify a Stripe customer, subscription, invoice, renewal, payment method, or charge.
+						</p>
+					</GrantWizardNotice>
+
+					<GrantWizardSteps aria-label='Grant workflow progress'>
+						{(['Configure', 'Review', 'Confirm'] as const).map((label, index) => {
+							const step = (index + 1) as 1 | 2 | 3;
+							return (
+								<GrantWizardStep
+									key={label}
+									$active={grantWizardStep === step}
+									$complete={grantWizardStep > step}
+									aria-current={grantWizardStep === step ? 'step' : undefined}>
+									<GrantWizardStepNumber>{step}</GrantWizardStepNumber>
+									{label}
+								</GrantWizardStep>
+							);
+						})}
+					</GrantWizardSteps>
+
+					{grantWizardStep === 1 ? (
+						<GrantWizardPanel aria-label='Configure access change'>
+							<SubTitle>
+								Choose the authorized access change and provide the audit reason before reviewing its effect.
+							</SubTitle>
+							<div>
+								<Label>Action</Label>
+								<Select
+									value={grantAction}
+									onChange={(event) => {
+											const nextAction = event.target.value as AdminEntitlementGrantAction;
+											const eligibleGrant = details?.access?.grants.find((grant) =>
+												nextAction === 'extend'
+													? grant.state === 'active' && grant.kind === 'temporary'
+													: ['active', 'scheduled'].includes(grant.state),
+											);
+											setGrantAction(nextAction);
+											if (nextAction !== 'create') {
+												setSelectedGrantId(eligibleGrant?.grantId || '');
+											}
+											resetGrantPreview();
+									}}>
+									<option value='create'>Create grant</option>
+									<option value='extend'>Extend grant</option>
+									<option value='revoke'>Revoke grant</option>
+								</Select>
+							</div>
+
+							{grantAction === 'create' ? (
+								<GrantWizardFieldGrid>
+									<div>
+										<Label>Approved access program</Label>
+										<Select
+											value={grantProgramId}
+											onChange={(event) => {
+												const programId = event.target.value;
+												const program = details?.access?.grantAdministration?.programs.find(
+													(candidate) => candidate.programId === programId,
+												);
+												setGrantProgramId(programId);
+												setGrantKind(program?.allowedKinds?.[0] || 'temporary');
+												setGrantDurationDays(String(program?.defaultDurationDays || 30));
+												resetGrantPreview();
+											}}>
+											{details?.access?.grantAdministration?.programs.map((program) => (
+												<option key={program.programId} value={program.programId}>
+													{program.label}{program.ownerOnly ? ' — Maintley owner only' : ''}
+												</option>
+											))}
+										</Select>
+									</div>
+									<div>
+										<Label>Access bundle</Label>
+										<Input
+											type='text'
+											value={formatLabel(
+												details?.access?.grantAdministration?.programs.find(
+													(program) => program.programId === grantProgramId,
+												)?.bundleId || '',
+											)}
+											readOnly
+										/>
+									</div>
+									<div>
+										<Label>Grant type</Label>
+										<Select
+											value={grantKind}
+											onChange={(event) => {
+												setGrantKind(event.target.value as 'temporary' | 'permanent');
+												resetGrantPreview();
+											}}>
+											{details?.access?.grantAdministration?.programs
+												.find((program) => program.programId === grantProgramId)
+												?.allowedKinds.map((kind) => (
+													<option key={kind} value={kind}>{formatLabel(kind)}</option>
+												))}
+										</Select>
+									</div>
+									{grantKind !== 'permanent' ? (
+										<div>
+											<Label>Duration in days</Label>
+											<Input
+												type='number'
+												min={1}
+												value={grantDurationDays}
+												onChange={(event) => {
+													setGrantDurationDays(event.target.value);
+													resetGrantPreview();
+												}}
+											/>
+										</div>
+									) : null}
+								</GrantWizardFieldGrid>
+							) : (
+								<GrantWizardFieldGrid>
+									<div>
+										<Label>Existing grant</Label>
+										<Select
+											value={selectedGrantId}
+											onChange={(event) => {
+												setSelectedGrantId(event.target.value);
+												resetGrantPreview();
+											}}>
+											<option value=''>Select a grant</option>
+											{details?.access?.grants
+												.filter((grant) =>
+													grantAction === 'extend'
+														? grant.state === 'active' && grant.kind === 'temporary'
+														: ['active', 'scheduled'].includes(grant.state),
+												)
+												.map((grant) => (
+													<option key={grant.grantId} value={grant.grantId}>
+														{formatLabel(grant.programId)} — {formatLabel(grant.state)}
+													</option>
+												))}
+										</Select>
+									</div>
+									{grantAction === 'extend' ? (
+										<div>
+											<Label>Additional days</Label>
+											<Input
+												type='number'
+												min={1}
+												value={grantDurationDays}
+												onChange={(event) => {
+													setGrantDurationDays(event.target.value);
+													resetGrantPreview();
+												}}
+											/>
+										</div>
+									) : null}
+								</GrantWizardFieldGrid>
+							)}
+
+							<div>
+								<Label>Required audit reason</Label>
+								<Input
+									type='text'
+									placeholder='Explain why this access change is authorized'
+									value={grantReason}
+									onChange={(event) => setGrantReason(event.target.value)}
+								/>
+							</div>
+							<GrantWizardMeta>Request ID: {grantRequestId}</GrantWizardMeta>
+							<GrantWizardActions>
+								<SecondaryButton
+									type='button'
+									disabled={grantActionLoading}
+									onClick={() => setShowGrantDialog(false)}>
+									Cancel
+								</SecondaryButton>
+								<Button
+									type='button'
+									disabled={grantActionLoading || !grantConfigurationReady}
+									onClick={() => void handlePreviewGrant()}>
+									{grantActionLoading ? 'Checking...' : 'Review Access Change'}
+								</Button>
+							</GrantWizardActions>
+						</GrantWizardPanel>
+					) : null}
+
+					{grantWizardStep === 2 && grantPreview ? (
+						<GrantWizardPanel aria-label='Review access change'>
+							<div>
+								<strong>{grantPreview.programLabel}</strong>
+								<SubTitle>No access has changed yet. Verify the resulting account state before continuing.</SubTitle>
+							</div>
+							<GrantWizardReview>
+								<GrantWizardReviewRow>
+									<strong>Action</strong>
+									<span>{formatLabel(grantAction)}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Current bundles</strong>
+									<span>{grantPreview.currentAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Resulting bundles</strong>
+									<span>{grantPreview.proposedAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Property limit</strong>
+									<span>{grantPreview.currentAccess.propertyLimit} → {grantPreview.proposedAccess.propertyLimit}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Active grants</strong>
+									<span>{grantPreview.currentAccess.activeGrantIds.length} → {grantPreview.proposedAccess.activeGrantIds.length}</span>
+								</GrantWizardReviewRow>
+							</GrantWizardReview>
+							<GrantWizardMeta>Audit reason: {grantReason}</GrantWizardMeta>
+							<GrantWizardActions>
+								<SecondaryButton type='button' onClick={() => setGrantWizardStep(1)}>
+									Back
+								</SecondaryButton>
+								<Button
+									type='button'
+									onClick={() => {
+										setGrantConfirmation('');
+										setGrantWizardStep(3);
+									}}>
+									Continue to Confirmation
+								</Button>
+							</GrantWizardActions>
+						</GrantWizardPanel>
+					) : null}
+
+					{grantWizardStep === 3 && grantPreview ? (
+						<GrantWizardPanel aria-label='Confirm access change'>
+							<div>
+								<strong>Confirm {grantPreview.programLabel}</strong>
+								<SubTitle>
+									This final action changes effective product access and writes an immutable administrative audit event.
+								</SubTitle>
+							</div>
+							<GrantWizardReview>
+								<GrantWizardReviewRow>
+									<strong>Resulting bundles</strong>
+									<span>{grantPreview.proposedAccess.effectiveBundles.map(formatLabel).join(', ') || 'None'}</span>
+								</GrantWizardReviewRow>
+								<GrantWizardReviewRow>
+									<strong>Property limit</strong>
+									<span>{grantPreview.proposedAccess.propertyLimit}</span>
+								</GrantWizardReviewRow>
+							</GrantWizardReview>
+							<div>
+								<Label>Type “{grantPreview.confirmationPhrase}” to confirm</Label>
+								<Input
+									type='text'
+									value={grantConfirmation}
+									autoComplete='off'
+									onChange={(event) => setGrantConfirmation(event.target.value)}
+								/>
+							</div>
+							<GrantWizardMeta>Request ID: {grantRequestId}</GrantWizardMeta>
+							<GrantWizardActions>
+								<SecondaryButton
+									type='button'
+									disabled={grantActionLoading}
+									onClick={() => setGrantWizardStep(2)}>
+									Back
+								</SecondaryButton>
+								<Button
+									type='button'
+									disabled={grantActionLoading || grantConfirmation !== grantPreview.confirmationPhrase}
+									onClick={() => void handleApplyGrant()}>
+									{grantActionLoading ? 'Applying...' : `${formatLabel(grantAction)} Internal Access`}
+								</Button>
+							</GrantWizardActions>
+						</GrantWizardPanel>
+					) : null}
+				</div>
+			</GenericModal>
 
             <GenericModal
                 isOpen={showCancelConfirm}
@@ -820,6 +1635,105 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                     {formatLabel(details?.profile.subscriptionStatus || 'none')}).
                 </p>
             </GenericModal>
+
+			<GenericModal
+				isOpen={showClearStripeConfirm}
+				title='Clear stale Stripe linkage?'
+				onClose={() => {
+					if (!planActionLoading) setShowClearStripeConfirm(false);
+				}}
+				compact>
+				<div style={{ display: 'grid', gap: 14 }}>
+					{localError ? <ErrorText role='alert'>{localError}</ErrorText> : null}
+					<p style={{ margin: 0 }}>
+						This does not delete anything in Stripe. It verifies that the Stripe customer is deleted or missing and that the subscription is cancelled, expired, or missing.
+					</p>
+					<p style={{ margin: 0 }}>
+						Maintley billing will return to the free Homeowner plan. Internal entitlement grants remain unchanged.
+					</p>
+					<div>
+						<Label>Stored Stripe customer</Label>
+						<UserDetailsValue>{details?.profile.stripeCustomerId || 'None'}</UserDetailsValue>
+					</div>
+					<div>
+						<Label>Stored Stripe subscription</Label>
+						<UserDetailsValue>{details?.profile.stripeSubscriptionId || 'None'}</UserDetailsValue>
+					</div>
+					<div>
+						<Label>Required audit reason</Label>
+						<Input
+							type='text'
+							placeholder='Explain why this stale billing relationship is being cleared'
+							value={stripeClearReason}
+							onChange={(event) => setStripeClearReason(event.target.value)}
+						/>
+					</div>
+					<div>
+						<Label>Type “CLEAR STRIPE LINK” to confirm</Label>
+						<Input
+							type='text'
+							value={stripeClearConfirmation}
+							onChange={(event) => setStripeClearConfirmation(event.target.value)}
+						/>
+					</div>
+					<Button
+						type='button'
+						disabled={
+							planActionLoading ||
+							stripeClearReason.trim().length < 10 ||
+							stripeClearConfirmation !== 'CLEAR STRIPE LINK'
+						}
+						onClick={() => void handleClearStripeLinkage()}>
+						{planActionLoading ? 'Verifying Stripe...' : 'Verify and Clear Linkage'}
+					</Button>
+				</div>
+			</GenericModal>
+
+			<GenericModal
+				isOpen={showEmailUserDialog}
+				title={`Email ${details?.profile.displayName || 'User'}`}
+				onClose={() => {
+					if (!emailSending) setShowEmailUserDialog(false);
+				}}
+				compact>
+				<div style={{ display: 'grid', gap: 14 }}>
+					<p style={{ margin: 0 }}>
+						Send an operational account or support message to{' '}
+						<strong>{details?.profile.email || 'this user'}</strong>. Marketing messages use a separate consent-based workflow.
+					</p>
+					<div>
+						<Label>Message type</Label>
+						<Select value={emailCategory} onChange={(event) => setEmailCategory(event.target.value as typeof emailCategory)}>
+							<option value='support_follow_up'>Support follow-up</option>
+							<option value='account_notice'>Account notice</option>
+							<option value='billing_access'>Billing or access</option>
+						</Select>
+					</div>
+					<div>
+						<Label>Subject</Label>
+						<Input value={emailSubject} maxLength={120} onChange={(event) => setEmailSubject(event.target.value)} />
+					</div>
+					<div>
+						<Label>Message</Label>
+						<Input as='textarea' rows={7} maxLength={3000} value={emailMessage} onChange={(event) => setEmailMessage(event.target.value)} />
+					</div>
+					<UserDetailsPanel>
+						<UserDetailsKey>Email preview</UserDetailsKey>
+						<UserDetailsValue><strong>{emailSubject || 'Subject'}</strong></UserDetailsValue>
+						<p style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{emailMessage || 'Your message will appear here.'}</p>
+					</UserDetailsPanel>
+					<div>
+						<Label>Required audit reason</Label>
+						<Input value={emailReason} maxLength={500} onChange={(event) => setEmailReason(event.target.value)} placeholder='Why this operational email is being sent' />
+					</div>
+					<Button
+						type='button'
+						disabled={emailSending || emailSubject.trim().length < 5 || emailMessage.trim().length < 10 || emailReason.trim().length < 10}
+						onClick={() => void handleSendOperationalEmail()}>
+						{emailSending ? 'Sending...' : 'Send Email'}
+					</Button>
+				</div>
+			</GenericModal>
         </UserPanelWrap>
     );
 };

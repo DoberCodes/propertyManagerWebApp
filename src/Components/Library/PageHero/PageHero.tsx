@@ -39,28 +39,34 @@ const HeroShell = styled.div<{
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: linear-gradient(
-			135deg,
-			rgba(0, 0, 0, 0.3) 0%,
-			rgba(0, 0, 0, 0.5) 50%,
-			rgba(0, 0, 0, 0.7) 100%
-		);
+		background: ${({ $imageUrl, $theme }) =>
+			$imageUrl
+				? `linear-gradient(
+					135deg,
+					rgba(0, 0, 0, 0.3) 0%,
+					rgba(0, 0, 0, 0.5) 50%,
+					rgba(0, 0, 0, 0.7) 100%
+				)`
+				: $theme === 'green'
+					? `radial-gradient(circle at 82% 18%, rgba(63, 204, 124, 0.42) 0%, rgba(63, 204, 124, 0) 34%),
+						linear-gradient(135deg, rgba(3, 97, 81, 0.06) 0%, rgba(3, 97, 81, 0.32) 100%)`
+					: `linear-gradient(135deg, rgba(15, 23, 42, 0.08) 0%, rgba(0, 0, 0, 0.28) 100%)`};
 		border-radius: 0 0 24px 24px;
 		pointer-events: none;
 	}
 
 	@media (max-width: 1024px) {
-		min-height: 220px;
+		min-height: ${({ $imageUrl }) => ($imageUrl ? '220px' : '200px')};
 		border-radius: 0 0 20px 20px;
 	}
 
 	@media (max-width: 768px) {
-		min-height: 300px;
+		min-height: ${({ $imageUrl }) => ($imageUrl ? '300px' : '220px')};
 		border-radius: 0 0 18px 18px;
 	}
 
 	@media (max-width: 480px) {
-		min-height: 320px;
+		min-height: ${({ $imageUrl }) => ($imageUrl ? '320px' : '220px')};
 		border-radius: 0 0 16px 16px;
 	}
 `;

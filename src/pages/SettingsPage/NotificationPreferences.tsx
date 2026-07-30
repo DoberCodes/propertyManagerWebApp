@@ -4,6 +4,7 @@ import { AppDispatch } from '../../Redux/store/store';
 import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { Task } from '../../types/Task.types';
+import { getTaskTimingLabel } from '../../tasks/taskSchedule';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	FormGroup,
@@ -353,11 +354,11 @@ export const NotificationPreferences: React.FC<
 		enabled: boolean,
 	) => {
 		if (key === 'taskReminders' && !taskReminderEmailsEnabledByPlan) {
-			feedback.notify('Task reminder emails are available on Homeowner+ and higher plans.');
+			feedback.notify('Task reminder emails are included with standard Maintley plans. Refresh your account and try again.');
 			return;
 		}
 		if (key === 'propertyInsights' && !propertyInsightsEnabledByPlan) {
-			feedback.notify('Property Insights are available on Homeowner+ and higher plans.');
+			feedback.notify('Property Insights are available with Homeowner+ and Portfolio.');
 			return;
 		}
 
@@ -985,7 +986,7 @@ export const NotificationPreferences: React.FC<
 												<PreferenceText>
 													<strong>{task.title}</strong>
 													<span>
-														Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'ASAP'} | Property: {task.property}
+												Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : getTaskTimingLabel(task)} | Property: {task.property}
 													</span>
 												</PreferenceText>
 											</PreferenceOption>
@@ -1009,7 +1010,7 @@ export const NotificationPreferences: React.FC<
 												<PreferenceText>
 													<strong>{task.title}</strong>
 													<span>
-														Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'ASAP'} | Property: {task.property}
+												Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : getTaskTimingLabel(task)} | Property: {task.property}
 													</span>
 												</PreferenceText>
 											</PreferenceOption>

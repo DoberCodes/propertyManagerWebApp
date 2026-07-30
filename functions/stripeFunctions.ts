@@ -2,12 +2,21 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
 import {
+	EntitlementGrant,
+	getAdminAuditEventId,
+	PaidPlanId,
+} from '@maintley/entitlements';
+import {
 	defineJsonSecret,
 	defineSecret,
 	defineString,
 	StringParam,
 } from 'firebase-functions/params';
 import { ensureFamilyAccountForUser } from './ensureFamilyAccount';
+import { ENTITLEMENT_FEATURE_FLAGS } from './subscriptionEntitlements';
+import { buildStripeBillingDisclosure } from './stripeBillingDisclosure';
+import { selectCustomerSubscription } from './stripeSubscriptionSelection';
+import { getGrantAwareCheckoutPolicy } from './grantAwareCheckout';
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 const FUNCTIONS_CONFIG_EXPORT = defineJsonSecret<Record<string, any>>(
@@ -206,6 +215,27 @@ const resolvePriceIdForPlan = (
 	);
 };
 
+const CHECKOUT_PLAN_IDS = [
+	'homeowner_plus',
+	'property',
+	'portfolio',
+] as const;
+const LEGACY_PRICE_ONLY_CHECKOUT_REMOVAL_RELEASE = '2.10.0';
+
+const resolveConfiguredPlanForPriceId = (priceId: string): string => {
+	const normalizedPriceId = sanitizeSecret(String(priceId || ''));
+	if (!normalizedPriceId) return '';
+
+	for (const planId of CHECKOUT_PLAN_IDS) {
+		for (const billingCycle of ['month', 'year'] as const) {
+			if (resolvePriceIdForPlan(planId, billingCycle) === normalizedPriceId) {
+				return planId;
+			}
+		}
+	}
+	return '';
+};
+
 const resolvePromotionCodeId = async (
 	promoCode: string,
 ): Promise<string | null> => {
@@ -224,60 +254,367 @@ const resolvePromotionCodeId = async (
 
 const db = admin.firestore();
 
-const TEAM_GROUP_ELIGIBLE_PLANS = new Set(['property', 'portfolio']);
-
-const ensureConfirmedPlanDefaults = async (
-	accountId: string,
-	planId: string,
-): Promise<void> => {
-	const normalizedAccountId = String(accountId || '').trim();
-	const normalizedPlanId = String(planId || '').trim().toLowerCase();
-
-	if (!normalizedAccountId) {
-		return;
+const toTimestampMs = (value: unknown): number => {
+	if (typeof value === 'number') return value;
+	if (
+		value &&
+		typeof value === 'object' &&
+		typeof (value as { toMillis?: unknown }).toMillis === 'function'
+	) {
+		return (value as { toMillis: () => number }).toMillis();
 	}
-
-	const now = admin.firestore.FieldValue.serverTimestamp();
-	const createIfMissing = async (
-		ref: FirebaseFirestore.DocumentReference,
-		data: Record<string, unknown>,
-	): Promise<void> => {
-		const snapshot = await ref.get();
-		if (!snapshot.exists) {
-			await ref.set(data);
-		}
-	};
-	const writes: Promise<void>[] = [];
-
-	if (TEAM_GROUP_ELIGIBLE_PLANS.has(normalizedPlanId)) {
-		writes.push(
-			createIfMissing(
-				db.collection('teamGroups').doc(`${normalizedAccountId}_default`),
-				{
-					userId: normalizedAccountId,
-					accountId: normalizedAccountId,
-					name: 'My Team',
-					linkedProperties: [],
-					createdAt: now,
-					updatedAt: now,
-				},
-			),
-		);
-	}
-
-	await Promise.all(writes);
+	return Date.parse(String(value || ''));
 };
 
-const ensureConfirmedPlanDefaultsForSubscription = async (
+const loadAccountEntitlementGrants = async (
 	accountId: string,
-	subscription: Record<string, any> | undefined,
-): Promise<void> => {
-	const status = String(subscription?.status || '').trim().toLowerCase();
-	if (!['active', 'trial'].includes(status)) {
+): Promise<EntitlementGrant[]> => {
+	const snapshot = await db
+		.collection('familyAccounts')
+		.doc(accountId)
+		.collection('entitlementGrants')
+		.get();
+	return snapshot.docs.map((doc) => {
+		const grant = doc.data() || {};
+		return {
+			...grant,
+			grantId: String(grant.grantId || doc.id),
+			programId: String(grant.programId || ''),
+			accountId: String(grant.accountId || accountId),
+			kind: String(grant.kind || '') as EntitlementGrant['kind'],
+			state: String(grant.state || '') as EntitlementGrant['state'],
+			startsAtMs: toTimestampMs(grant.startsAtMs || grant.startsAt),
+			endsAtMs: grant.endsAtMs || grant.endsAt
+				? toTimestampMs(grant.endsAtMs || grant.endsAt)
+				: null,
+			source: String(grant.source || 'support') as EntitlementGrant['source'],
+		} as EntitlementGrant;
+	});
+};
+
+const getStripePaymentMethodStatus = async (
+	subscription: Stripe.Subscription,
+): Promise<'usable' | 'missing'> => {
+	if (subscription.status === 'active' || subscription.default_payment_method) {
+		return 'usable';
+	}
+	const customer =
+		typeof subscription.customer === 'string'
+			? await getStripe().customers.retrieve(subscription.customer)
+			: subscription.customer;
+	if (
+		customer &&
+		!customer.deleted &&
+		customer.invoice_settings?.default_payment_method
+	) {
+		return 'usable';
+	}
+	return 'missing';
+};
+
+const updateGrantTransitionsAfterCheckout = async (params: {
+	accountId: string;
+	userId: string;
+	grantIds: string[];
+	conversionGrantIds: string[];
+	targetPlanId: PaidPlanId;
+	billingCycle: 'month' | 'year';
+	firstChargeAtSeconds: number | null;
+	paymentMethodStatus: 'usable' | 'missing' | 'requires_action';
+	optedOut?: boolean;
+	failureReason?: string | null;
+	session?: Stripe.Checkout.Session | null;
+	subscription: Stripe.Subscription;
+}): Promise<void> => {
+	const uniqueGrantIds = Array.from(new Set(params.grantIds.filter(Boolean)));
+	if (!uniqueGrantIds.length) return;
+
+	const accountRef = db.collection('familyAccounts').doc(params.accountId);
+	const grantRefs = uniqueGrantIds.map((grantId) =>
+		accountRef.collection('entitlementGrants').doc(grantId),
+	);
+	const checkoutSessionId = String(params.session?.id || '');
+	const stripeCustomerId =
+		String(params.session?.customer || '') ||
+		(typeof params.subscription.customer === 'string'
+			? params.subscription.customer
+			: params.subscription.customer?.id || '');
+	const requestBase = checkoutSessionId
+		? `checkout:${checkoutSessionId}`
+		: `subscription:${params.subscription.id}:${params.targetPlanId}:${params.billingCycle}`;
+	const conversionSet = new Set(params.conversionGrantIds);
+	const recurringPrice = params.subscription.items.data[0]?.price;
+	const transitionFirstChargeAtSeconds =
+		params.firstChargeAtSeconds || params.subscription.current_period_start;
+	const shouldConvertDuringCheckout =
+		!params.optedOut && !params.failureReason && params.subscription.status === 'active';
+	const auditDescriptors = uniqueGrantIds.map((grantId) => {
+		const action:
+			| 'grant.converted'
+			| 'billing_transition.linked'
+			| 'billing_transition.opted_out'
+			| 'billing_transition.updated' = params.optedOut
+			? 'billing_transition.opted_out'
+			: params.failureReason
+				? 'billing_transition.updated'
+			: conversionSet.has(grantId) && shouldConvertDuringCheckout
+				? 'grant.converted'
+				: 'billing_transition.linked';
+		const requestId = `${requestBase}:${grantId}:${action}`;
+		const auditEventId = getAdminAuditEventId(action, requestId);
+		return {
+			action,
+			requestId,
+			auditEventId,
+			auditRef: db.collection('admin_audit_logs').doc(auditEventId),
+		};
+	});
+
+	await db.runTransaction(async (transaction) => {
+		const snapshots = await Promise.all([
+			transaction.get(accountRef),
+			...grantRefs.map((grantRef) => transaction.get(grantRef)),
+			...auditDescriptors.map(({ auditRef }) => transaction.get(auditRef)),
+		]);
+		const accountSnapshot = snapshots[0];
+		const grantSnapshots = snapshots.slice(1, 1 + grantRefs.length);
+		const auditSnapshots = snapshots.slice(1 + grantRefs.length);
+		const account = accountSnapshot.data() || {};
+		const projection = (account.effectiveEntitlementProjection || {}) as Record<
+			string,
+			any
+		>;
+		const projectedGrants = Array.isArray(projection.activeGrants)
+			? [...projection.activeGrants]
+			: [];
+
+		for (let index = 0; index < grantSnapshots.length; index += 1) {
+			const grantSnapshot = grantSnapshots[index];
+			if (!grantSnapshot.exists) continue;
+			const grant = grantSnapshot.data() || {};
+			const grantId = uniqueGrantIds[index];
+			const shouldConvertNow =
+				conversionSet.has(grantId) && shouldConvertDuringCheckout;
+			const nextState = shouldConvertNow ? 'converted' : String(grant.state || 'active');
+			const transition = {
+				...(grant.transition || {}),
+				mode: params.optedOut ? 'checkout_required' : 'automatic',
+				targetPlanId: params.targetPlanId,
+				billingCycle: params.billingCycle === 'year' ? 'annual' : 'monthly',
+				currency: String(recurringPrice?.currency || '').toLowerCase(),
+				recurringAmountMinor: Number(recurringPrice?.unit_amount || 0),
+				firstChargeAt: transitionFirstChargeAtSeconds
+					? transitionFirstChargeAtSeconds * 1000
+					: null,
+				paymentMethodStatus: params.paymentMethodStatus,
+				disclosureVersion: 'grant-aware-checkout-v1',
+				termsVersion: 'grant-aware-checkout-v1',
+				consentAt:
+					grant.transition?.consentAt ||
+					admin.firestore.FieldValue.serverTimestamp(),
+				consentActorUserId: params.userId,
+				consentSource:
+					grant.transition?.consentSource ||
+					(checkoutSessionId
+						? 'stripe_checkout'
+						: 'authenticated_subscription_change'),
+				stripeCustomerId,
+				stripeSubscriptionId: params.subscription.id,
+				...(checkoutSessionId
+					? { stripeCheckoutSessionId: checkoutSessionId }
+					: {}),
+				status: params.optedOut
+					? 'opted_out'
+					: params.failureReason
+						? 'failed'
+					: shouldConvertNow
+						? 'converted'
+						: 'scheduled',
+				...(params.failureReason
+					? { failureReason: params.failureReason }
+					: { failureReason: null }),
+			};
+			transaction.update(grantRefs[index], {
+				state: nextState,
+				transition,
+				...(shouldConvertNow
+					? {
+							terminalReason: 'Customer activated a higher paid plan.',
+							terminalAtMs: Date.now(),
+					  }
+					: {}),
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+			});
+
+			const projectionIndex = projectedGrants.findIndex(
+				(candidate: any) => String(candidate?.grantId || '') === grantId,
+			);
+			if (projectionIndex >= 0) {
+				if (shouldConvertNow) {
+					projectedGrants.splice(projectionIndex, 1);
+				} else {
+					projectedGrants[projectionIndex] = {
+						...projectedGrants[projectionIndex],
+						transition,
+					};
+				}
+			}
+
+			const { action, requestId, auditEventId, auditRef } =
+				auditDescriptors[index];
+			const auditSnapshot = auditSnapshots[index];
+			if (!auditSnapshot.exists) {
+				transaction.create(auditRef, {
+					eventId: auditEventId,
+					action,
+					category: 'billing_transition',
+					actorUserId: params.userId,
+					targetAccountId: params.accountId,
+					targetUserId: params.userId,
+					grantId,
+					programId: String(grant.programId || ''),
+					stripeCustomerId,
+					stripeSubscriptionId: params.subscription.id,
+					reason: params.optedOut
+						? 'Customer opted out of paid continuation through Stripe billing management.'
+						: params.failureReason
+							? `Stripe reported a billing-recovery state: ${params.failureReason}.`
+						: shouldConvertNow
+						? 'Customer activated a higher paid plan through Stripe Checkout.'
+						: 'Customer established paid continuation through Stripe Checkout.',
+					requestId,
+					createdAt: admin.firestore.FieldValue.serverTimestamp(),
+					before: { state: grant.state, transition: grant.transition || null },
+					after: { state: nextState, transition },
+				});
+			}
+		}
+
+		transaction.set(
+			accountRef,
+			{
+				effectiveEntitlementProjection: {
+					...projection,
+					activeGrants: projectedGrants,
+					activeBundleIds: Array.from(
+						new Set(
+							projectedGrants
+								.map((grant: any) => String(grant?.bundleId || ''))
+								.filter(Boolean),
+						),
+					),
+					bundleVersions: Array.from(
+						new Set(
+							projectedGrants
+								.map((grant: any) => {
+							const bundleId = String(grant?.bundleId || '');
+									const bundleVersion = String(grant?.bundleVersion || '');
+									return bundleId && bundleVersion
+										? `${bundleId}@${bundleVersion}`
+										: '';
+								})
+								.filter(Boolean),
+						),
+					),
+					bundleExpirationsMs: projectedGrants.reduce(
+						(expirations: Record<string, number | null>, grant: any) => {
+							const bundleId = String(grant?.bundleId || '');
+							if (!bundleId) return expirations;
+							const endsAtMs = grant?.endsAtMs == null
+								? null
+								: Number(grant.endsAtMs);
+							if (endsAtMs == null) {
+								expirations[bundleId] = null;
+								return expirations;
+							}
+							const hasCurrent = Object.prototype.hasOwnProperty.call(
+								expirations,
+								bundleId,
+							);
+							const current = expirations[bundleId];
+							if (!hasCurrent || (current != null && endsAtMs > current)) {
+								expirations[bundleId] = endsAtMs;
+							}
+							return expirations;
+						},
+						{},
+					),
+					nextTransitionAtMs:
+						projectedGrants
+							.map((grant: any) => Number(grant?.endsAtMs || 0))
+							.filter((endsAtMs: number) => endsAtMs > Date.now())
+							.sort((left: number, right: number) => left - right)[0] || null,
+					calculatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				},
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+			},
+			{ merge: true },
+		);
+	});
+};
+
+const applyGrantTransitionMetadata = async (params: {
+	userId: string;
+	userData: Record<string, any> | undefined;
+	subscription: Stripe.Subscription;
+	session?: Stripe.Checkout.Session | null;
+}): Promise<void> => {
+	const metadata = {
+		...(params.subscription.metadata || {}),
+		...(params.session?.metadata || {}),
+	};
+	const targetPlanId = String(metadata.targetPlanId || '') as PaidPlanId;
+	const billingCycle = String(metadata.billingCycle || '');
+	const transitionGrantIds = String(metadata.transitionGrantIds || '')
+		.split(',')
+		.map((value) => value.trim())
+		.filter(Boolean);
+	if (
+		!transitionGrantIds.length ||
+		!CHECKOUT_PLAN_IDS.includes(
+			targetPlanId as typeof CHECKOUT_PLAN_IDS[number],
+		) ||
+		!['month', 'year'].includes(billingCycle)
+	) {
 		return;
 	}
+	const conversionGrantIds = String(metadata.conversionGrantIds || '')
+		.split(',')
+		.map((value) => value.trim())
+		.filter(Boolean);
+	const parsedFirstChargeAt = Number(metadata.firstChargeAt || 0);
+	const optedOut =
+		Boolean(params.subscription.cancel_at_period_end) ||
+		params.subscription.status === 'canceled';
+	const failureReason = [
+		'past_due',
+		'unpaid',
+		'incomplete',
+		'incomplete_expired',
+	].includes(params.subscription.status)
+		? params.subscription.status
+		: null;
+	const paymentMethodStatus = failureReason
+		? 'requires_action'
+		: await getStripePaymentMethodStatus(params.subscription);
 
-	await ensureConfirmedPlanDefaults(accountId, String(subscription?.plan || ''));
+	await updateGrantTransitionsAfterCheckout({
+		accountId: String(params.userData?.accountId || params.userId),
+		userId: params.userId,
+		grantIds: transitionGrantIds,
+		conversionGrantIds,
+		targetPlanId,
+		billingCycle: billingCycle as 'month' | 'year',
+		firstChargeAtSeconds:
+			Number.isFinite(parsedFirstChargeAt) && parsedFirstChargeAt > 0
+				? parsedFirstChargeAt
+				: null,
+		paymentMethodStatus,
+		optedOut,
+		failureReason,
+		session: params.session,
+		subscription: params.subscription,
+	});
 };
 
 const removeUndefinedFields = (obj: Record<string, any>) => {
@@ -348,12 +685,24 @@ const syncFamilyAccountSubscription = async (
 	}
 
 	try {
+		const normalizedPlan = String(subscription.plan || '').trim().toLowerCase();
+		const preservesResidentContinuity = ['property', 'portfolio'].includes(
+			normalizedPlan,
+		);
 		await db
 			.collection('familyAccounts')
 			.doc(accountId)
 			.set(
 				{
 					subscription: removeUndefinedFields(subscription),
+					...(preservesResidentContinuity
+						? {
+								resourceContinuity: {
+									residentManagementPreviouslyEntitled: true,
+									updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+								},
+							}
+						: {}),
 					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 				},
 				{ merge: true },
@@ -393,6 +742,7 @@ export const createCheckoutSession = functions
 			promoCode: requestedPromoCode,
 		} = data;
 		const normalizedPlanId = String(planId || '').trim().toLowerCase();
+		const normalizedBillingCycle = String(billingCycle || '').toLowerCase();
 		const authenticatedUserId = context.auth.uid;
 		if (String(userId || '').trim() !== authenticatedUserId) {
 			throw new functions.https.HttpsError(
@@ -400,19 +750,42 @@ export const createCheckoutSession = functions
 				'Checkout can only be created for the signed-in account',
 			);
 		}
-		const resolvedPlanPriceId = resolvePriceIdForPlan(
-			normalizedPlanId,
-			String(billingCycle || '').toLowerCase() === 'year' ? 'year' : 'month',
-		);
 		const resolvedRequestedPriceId = sanitizeSecret(String(requestedPriceId || ''));
-		const resolvedPriceId = normalizedPlanId
-			? resolvedPlanPriceId || resolvedRequestedPriceId
-			: resolvedRequestedPriceId;
+		let checkoutPlanId = normalizedPlanId;
+		let resolvedPriceId = '';
 
+		if (checkoutPlanId) {
+			if (!CHECKOUT_PLAN_IDS.includes(checkoutPlanId as typeof CHECKOUT_PLAN_IDS[number])) {
+				throw new functions.https.HttpsError(
+					'invalid-argument',
+					'Checkout requires a supported paid plan ID.',
+				);
+			}
+			if (!['month', 'year'].includes(normalizedBillingCycle)) {
+				throw new functions.https.HttpsError(
+					'invalid-argument',
+					'Checkout requires a monthly or annual billing cycle.',
+				);
+			}
+			resolvedPriceId = resolvePriceIdForPlan(
+				checkoutPlanId,
+				normalizedBillingCycle as 'month' | 'year',
+			);
+		} else {
+			checkoutPlanId = resolveConfiguredPlanForPriceId(resolvedRequestedPriceId);
+			resolvedPriceId = checkoutPlanId ? resolvedRequestedPriceId : '';
+			if (checkoutPlanId) {
+				functions.logger.warn('Legacy price-only checkout compatibility path used', {
+					userId: authenticatedUserId,
+					resolvedPlanId: checkoutPlanId,
+					removalRelease: LEGACY_PRICE_ONLY_CHECKOUT_REMOVAL_RELEASE,
+				});
+			}
+		}
 		if (!resolvedPriceId || !userId || !email) {
 			throw new functions.https.HttpsError(
-				'invalid-argument',
-				`Missing required Stripe configuration: no price ID resolved for plan '${String(planId || '')}'. Provide a valid price ID in the client request or configure STRIPE_*_PRICE_ID in functions environment.`,
+				'failed-precondition',
+				`No server-owned Stripe price is configured for plan '${String(planId || '')}', or the legacy price-only request is not recognized.`,
 			);
 		}
 
@@ -437,10 +810,11 @@ export const createCheckoutSession = functions
 				);
 			}
 			const userData = userDoc.data() || {};
+			const accountId = String(userData.accountId || authenticatedUserId);
 			await ensureFamilyAccountForUser(
 				authenticatedUserId,
 				{
-					accountId: String(userData.accountId || authenticatedUserId),
+					accountId,
 					syncSubscription: true,
 					subscription: userData.subscription as
 						| Record<string, unknown>
@@ -449,6 +823,61 @@ export const createCheckoutSession = functions
 				userData,
 			);
 			console.log('User data retrieved:', userData);
+
+			const entitlementGrants = await loadAccountEntitlementGrants(accountId);
+			const grantCheckoutPolicy = getGrantAwareCheckoutPolicy({
+				grants: entitlementGrants,
+				targetPlanId: checkoutPlanId as PaidPlanId,
+				nowMs: Date.now(),
+			});
+			if (grantCheckoutPolicy.kind === 'blocked_permanent') {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					`This account already has permanent ${grantCheckoutPolicy.effectiveGrantPlanId.replace(/_/g, ' ')} access. Choose a higher plan to add capabilities.`,
+					{
+						code: 'redundant-permanent-grant-checkout',
+						grantPlanId: grantCheckoutPolicy.effectiveGrantPlanId,
+					},
+				);
+			}
+			if (
+				grantCheckoutPolicy.kind !== 'standard' &&
+				!ENTITLEMENT_FEATURE_FLAGS.complimentaryPaidTransitions
+			) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					'Complimentary access upgrades are temporarily unavailable while billing transitions are being enabled.',
+					{ code: 'complimentary-paid-transitions-disabled' },
+				);
+			}
+			const transitionGrantIds =
+				grantCheckoutPolicy.kind === 'delayed'
+					? grantCheckoutPolicy.controllingGrantIds
+					: grantCheckoutPolicy.kind === 'immediate_upgrade'
+						? grantCheckoutPolicy.conversionGrantIds
+						: [];
+			const conversionGrantIds =
+				grantCheckoutPolicy.kind === 'delayed' ||
+				grantCheckoutPolicy.kind === 'immediate_upgrade'
+					? grantCheckoutPolicy.conversionGrantIds
+					: [];
+			const firstChargeAtSeconds =
+				grantCheckoutPolicy.kind === 'delayed'
+					? grantCheckoutPolicy.firstChargeAtSeconds
+					: null;
+			const grantTransitionMetadata: Stripe.MetadataParam = {
+				grantCheckoutPolicy: grantCheckoutPolicy.kind,
+				...(grantCheckoutPolicy.kind === 'delayed'
+					? { preScheduled: 'true' }
+					: {}),
+				targetPlanId: checkoutPlanId,
+				billingCycle: normalizedBillingCycle,
+				transitionGrantIds: transitionGrantIds.join(','),
+				conversionGrantIds: conversionGrantIds.join(','),
+				...(firstChargeAtSeconds
+					? { firstChargeAt: String(firstChargeAtSeconds) }
+					: {}),
+			};
 
 			const accountPromoCode = normalizePromoCode(
 				requestedPromoCode || userData?.subscription?.promoCode,
@@ -490,6 +919,16 @@ export const createCheckoutSession = functions
 			);
 
 			if (existingSubscription) {
+				if (
+					grantCheckoutPolicy.kind === 'delayed' &&
+					existingSubscription.status !== 'trialing'
+				) {
+					throw new functions.https.HttpsError(
+						'failed-precondition',
+						'This account already has current Stripe billing. Maintley support must schedule this grant-aware plan change so the existing subscription is not charged incorrectly.',
+						{ code: 'existing-subscription-schedule-required' },
+					);
+				}
 				const subscriptionItem = existingSubscription.items.data[0];
 				if (!subscriptionItem?.id) {
 					throw new functions.https.HttpsError(
@@ -515,31 +954,49 @@ export const createCheckoutSession = functions
 								quantity: subscriptionItem.quantity || 1,
 							},
 						],
-						proration_behavior: 'create_prorations',
+						proration_behavior:
+							grantCheckoutPolicy.kind === 'delayed'
+								? 'none'
+								: 'create_prorations',
+						...(firstChargeAtSeconds
+							? { trial_end: firstChargeAtSeconds }
+							: {}),
 						metadata: {
 							...(existingSubscription.metadata || {}),
 							firebaseUID: userId,
+							...grantTransitionMetadata,
 							...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
 						},
 					},
 				);
 
 				const updatedPriceId = updatedSubscription.items.data[0]?.price?.id || resolvedPriceId;
+				const billingDisclosure = await buildStripeBillingDisclosure(
+					getStripe(),
+					updatedSubscription,
+				);
 				const subscriptionData = removeUndefinedFields({
 					status: toLocalSubscriptionStatus(updatedSubscription.status),
 					plan: getPlanFromPriceId(
 						updatedPriceId,
-						normalizedPlanId || userData?.subscription?.plan || 'homeowner',
+						checkoutPlanId || userData?.subscription?.plan || 'homeowner',
 					),
 					currentPeriodStart: updatedSubscription.current_period_start,
 					currentPeriodEnd: updatedSubscription.current_period_end,
 					trialEndsAt: updatedSubscription.trial_end,
 					stripeCustomerId: String(updatedSubscription.customer || customerId),
 					stripeSubscriptionId: updatedSubscription.id,
-					hasScheduledSubscription: false,
-					scheduledPlan: null,
+					hasScheduledSubscription:
+						grantCheckoutPolicy.kind === 'delayed' &&
+						updatedSubscription.status === 'trialing',
+					scheduledPlan:
+						grantCheckoutPolicy.kind === 'delayed' &&
+						updatedSubscription.status === 'trialing'
+							? checkoutPlanId
+							: null,
 					pendingCheckoutPlan: null,
 					pendingCheckoutStartedAt: null,
+					billingDisclosure,
 					...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
 				});
 
@@ -554,10 +1011,19 @@ export const createCheckoutSession = functions
 				});
 
 				await syncFamilyAccountSubscription(userData, mergedSubscription);
-				await ensureConfirmedPlanDefaultsForSubscription(
-					userData?.accountId || userId,
-					mergedSubscription,
-				);
+				await updateGrantTransitionsAfterCheckout({
+					accountId,
+					userId: authenticatedUserId,
+					grantIds: transitionGrantIds,
+					conversionGrantIds,
+					targetPlanId: checkoutPlanId as PaidPlanId,
+					billingCycle: normalizedBillingCycle as 'month' | 'year',
+					firstChargeAtSeconds,
+					paymentMethodStatus: await getStripePaymentMethodStatus(
+						updatedSubscription,
+					),
+					subscription: updatedSubscription,
+				});
 
 				return {
 					subscriptionUpdated: true,
@@ -567,7 +1033,7 @@ export const createCheckoutSession = functions
 			}
 
 			// Create checkout session
-			const session = await getStripe().checkout.sessions.create({
+			const checkoutSessionParams: Stripe.Checkout.SessionCreateParams = {
 				customer: customerId,
 				payment_method_types: ['card'],
 				line_items: [
@@ -577,6 +1043,7 @@ export const createCheckoutSession = functions
 					},
 				],
 				mode: 'subscription',
+				payment_method_collection: 'always',
 				success_url: successUrl,
 				cancel_url: cancelUrl,
 				...(promotionCodeId
@@ -584,9 +1051,24 @@ export const createCheckoutSession = functions
 					: {}),
 				metadata: {
 					firebaseUID: userId,
+					...grantTransitionMetadata,
 					...(accountPromoCode ? { promoCode: accountPromoCode } : {}),
 				},
-			});
+				subscription_data: {
+					metadata: {
+						firebaseUID: userId,
+						...grantTransitionMetadata,
+					},
+					...(firstChargeAtSeconds
+						? { trial_end: firstChargeAtSeconds }
+						: {}),
+				},
+			};
+			const session = transitionGrantIds.length
+				? await getStripe().checkout.sessions.create(checkoutSessionParams, {
+						idempotencyKey: `grant-aware-checkout:${accountId}:${checkoutPlanId}:${normalizedBillingCycle}:${transitionGrantIds.join('-')}`,
+				  })
+				: await getStripe().checkout.sessions.create(checkoutSessionParams);
 
 			return { sessionId: session.id, url: session.url };
 		} catch (error) {
@@ -845,6 +1327,10 @@ export const verifyCheckoutSession = functions
 			const subscription = await getStripe().subscriptions.retrieve(
 				session.subscription as string,
 			);
+			const billingDisclosure = await buildStripeBillingDisclosure(
+				getStripe(),
+				subscription,
+			);
 			const subscriptionStatus = toLocalSubscriptionStatus(subscription.status);
 			if (!['active', 'trial'].includes(subscriptionStatus)) {
 				throw new functions.https.HttpsError(
@@ -864,6 +1350,15 @@ export const verifyCheckoutSession = functions
 				stripeSubscriptionId: subscription.id,
 				pendingCheckoutPlan: null,
 				pendingCheckoutStartedAt: null,
+				billingDisclosure,
+				hasScheduledSubscription:
+					subscription.status === 'trialing' &&
+					subscription.metadata?.preScheduled === 'true',
+				scheduledPlan:
+					subscription.status === 'trialing' &&
+					subscription.metadata?.preScheduled === 'true'
+						? getPlanFromPriceId(subscription.items.data[0].price.id)
+						: null,
 			};
 
 			const userRef = db.collection('users').doc(firebaseUID);
@@ -880,10 +1375,13 @@ export const verifyCheckoutSession = functions
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
-			await ensureConfirmedPlanDefaultsForSubscription(
-				userData?.accountId || firebaseUID,
-				mergedSubscription,
-			);
+
+			await applyGrantTransitionMetadata({
+				userId: firebaseUID,
+				userData,
+				session,
+				subscription,
+			});
 
 			return { success: true, subscription: subscriptionData };
 		} catch (error) {
@@ -920,6 +1418,19 @@ export const cancelSubscription = functions
 		}
 
 		try {
+			const userRef = db.collection('users').doc(context.auth.uid);
+			const userDoc = await userRef.get();
+			const userData = userDoc.data() || {};
+			const storedSubscriptionId = String(
+				userData?.subscription?.stripeSubscriptionId || '',
+			).trim();
+			if (!userDoc.exists || storedSubscriptionId !== String(subscriptionId)) {
+				throw new functions.https.HttpsError(
+					'permission-denied',
+					'This subscription does not belong to the signed-in account.',
+				);
+			}
+
 			// Cancel subscription in Stripe
 			const subscription = await getStripe().subscriptions.update(
 				subscriptionId,
@@ -927,34 +1438,34 @@ export const cancelSubscription = functions
 					cancel_at_period_end: true,
 				},
 			);
+			const billingDisclosure = await buildStripeBillingDisclosure(
+				getStripe(),
+				subscription,
+			);
+			const mergedSubscription = buildMergedSubscription(
+				userData.subscription,
+				{
+					status: toLocalSubscriptionStatus(subscription.status),
+					cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+					canceledAt: subscription.canceled_at,
+					billingDisclosure,
+				},
+			);
 
-			// Update user subscription status
-			const userQuery = await db
-				.collection('users')
-				.where('subscription.stripeSubscriptionId', '==', subscriptionId)
-				.get();
+			await userRef.update({
+				subscription: mergedSubscription,
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+			});
 
-			if (!userQuery.empty) {
-				const userDoc = userQuery.docs[0];
-				const userData = userDoc.data();
-				const mergedSubscription = buildMergedSubscription(
-					userData.subscription,
-					{
-						status: 'cancelled',
-						canceledAt: subscription.cancel_at,
-					},
-				);
+			await syncFamilyAccountSubscription(userData, mergedSubscription);
 
-				await userDoc.ref.update({
-					subscription: mergedSubscription,
-					updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-				});
-
-				await syncFamilyAccountSubscription(userData, mergedSubscription);
-			}
-
-			return { success: true, cancelAt: subscription.cancel_at };
+			return {
+				success: true,
+				cancelAt: subscription.cancel_at || subscription.current_period_end,
+				subscription: mergedSubscription,
+			};
 		} catch (error) {
+			if (error instanceof functions.https.HttpsError) throw error;
 			console.error('Error canceling subscription:', error);
 			throw new functions.https.HttpsError(
 				'internal',
@@ -987,11 +1498,30 @@ export const getSubscriptionDetails = functions
 		}
 
 		try {
+			const userDoc = await db.collection('users').doc(context.auth.uid).get();
+			const storedSubscriptionId = String(
+				userDoc.data()?.subscription?.stripeSubscriptionId || '',
+			).trim();
+			if (!userDoc.exists || storedSubscriptionId !== String(subscriptionId)) {
+				throw new functions.https.HttpsError(
+					'permission-denied',
+					'This subscription does not belong to the signed-in account.',
+				);
+			}
 			const subscription = await getStripe().subscriptions.retrieve(
 				subscriptionId,
+				{ expand: ['discounts'] },
 			);
-			return subscription;
+			return {
+				id: subscription.id,
+				status: subscription.status,
+				billingDisclosure: await buildStripeBillingDisclosure(
+					getStripe(),
+					subscription,
+				),
+			};
 		} catch (error) {
+			if (error instanceof functions.https.HttpsError) throw error;
 			console.error('Error getting subscription details:', error);
 			throw new functions.https.HttpsError(
 				'internal',
@@ -1026,7 +1556,7 @@ export const syncSubscriptionFromStripe = functions
 			string,
 			any
 		>;
-		const stripeCustomerId = String(existingSubscription.stripeCustomerId || '');
+		let stripeCustomerId = String(existingSubscription.stripeCustomerId || '');
 		const existingStripeSubscriptionId = String(
 			existingSubscription.stripeSubscriptionId || '',
 		);
@@ -1038,41 +1568,104 @@ export const syncSubscriptionFromStripe = functions
 			};
 		}
 
-		let stripeSubscription: Stripe.Subscription | null = null;
+		const subscriptionCandidates: Stripe.Subscription[] = [];
+		let storedStripeSubscription: Stripe.Subscription | null = null;
 
 		if (
 			existingStripeSubscriptionId &&
 			existingStripeSubscriptionId !== 'YOUR_SUBSCRIPTION_ID_HERE'
 		) {
 			try {
-				stripeSubscription = await getStripe().subscriptions.retrieve(
+				storedStripeSubscription = await getStripe().subscriptions.retrieve(
 					existingStripeSubscriptionId,
+					{ expand: ['discounts'] },
 				);
+				if (!stripeCustomerId) {
+					stripeCustomerId =
+						typeof storedStripeSubscription.customer === 'string'
+							? storedStripeSubscription.customer
+							: storedStripeSubscription.customer?.id || '';
+				}
+				subscriptionCandidates.push(storedStripeSubscription);
 			} catch (error) {
 				console.warn(
-					`Unable to retrieve Stripe subscription ${existingStripeSubscriptionId}; falling back to customer listing.`,
+					`Unable to retrieve stored Stripe subscription ${existingStripeSubscriptionId}; checking the customer subscription list.`,
 				);
 			}
 		}
 
-		if (!stripeSubscription && stripeCustomerId) {
-			const subscriptions = await getStripe().subscriptions.list({
-				customer: stripeCustomerId,
-				status: 'all',
-				limit: 10,
-			});
-
-			stripeSubscription =
-				subscriptions.data.find((sub) =>
-					['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status),
-				) || subscriptions.data[0] || null;
+		if (stripeCustomerId) {
+			try {
+				const subscriptions = await getStripe().subscriptions.list({
+					customer: stripeCustomerId,
+					status: 'all',
+					limit: 100,
+				});
+				subscriptionCandidates.push(...subscriptions.data);
+			} catch (error) {
+				if (!storedStripeSubscription) throw error;
+				console.warn(
+					`Unable to list subscriptions for Stripe customer ${stripeCustomerId}; using the verified stored subscription.`,
+				);
+			}
 		}
 
-		if (!stripeSubscription) {
+		const selection = selectCustomerSubscription(
+			subscriptionCandidates,
+			existingStripeSubscriptionId,
+		);
+
+		if (selection.kind === 'conflict') {
+			const billingSyncIssue = {
+				code: 'multiple_current_subscriptions',
+				stripeSubscriptionIds: selection.subscriptions.map(
+					(subscription) => subscription.id,
+				),
+				detectedAt: new Date().toISOString(),
+			};
+			const conflictedSubscription = buildMergedSubscription(
+				existingSubscription,
+				{ billingSyncIssue },
+			);
+
+			await userRef.update({
+				subscription: conflictedSubscription,
+				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+			});
+			await syncFamilyAccountSubscription(userData, conflictedSubscription);
+
+			console.error('Stripe billing synchronization conflict:', {
+				userId,
+				stripeCustomerId,
+				stripeSubscriptionIds: billingSyncIssue.stripeSubscriptionIds,
+			});
+			return {
+				success: false,
+				reason: 'Multiple current Stripe subscriptions require review',
+				conflict: true,
+				subscription: { billingSyncIssue },
+			};
+		}
+
+		if (selection.kind === 'none') {
 			return {
 				success: false,
 				reason: 'No Stripe subscription found for this user',
 			};
+		}
+
+		let stripeSubscription = selection.subscription;
+		if (stripeSubscription !== storedStripeSubscription) {
+			try {
+				stripeSubscription = await getStripe().subscriptions.retrieve(
+					stripeSubscription.id,
+					{ expand: ['discounts'] },
+				);
+			} catch (error) {
+				console.warn(
+					`Unable to expand selected Stripe subscription ${stripeSubscription.id}; using the customer-list representation.`,
+				);
+			}
 		}
 
 		const localStatus =
@@ -1090,6 +1683,10 @@ export const syncSubscriptionFromStripe = functions
 			stripeSubscription.items.data[0]?.price?.id ||
 			existingSubscription.currentPriceId ||
 			'';
+		const billingDisclosure = await buildStripeBillingDisclosure(
+			getStripe(),
+			stripeSubscription,
+		);
 
 		const subscriptionPatch = removeUndefinedFields({
 			status: localStatus,
@@ -1102,8 +1699,11 @@ export const syncSubscriptionFromStripe = functions
 			trialEndsAt: stripeSubscription.trial_end,
 			stripeCustomerId: String(stripeSubscription.customer || stripeCustomerId),
 			stripeSubscriptionId: stripeSubscription.id,
+			cancelAtPeriodEnd: Boolean(stripeSubscription.cancel_at_period_end),
 			pendingCheckoutPlan: null,
 			pendingCheckoutStartedAt: null,
+			billingDisclosure,
+			billingSyncIssue: null,
 			updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			...(stripeSubscription.status === 'canceled'
 				? { canceledAt: stripeSubscription.canceled_at }
@@ -1121,10 +1721,6 @@ export const syncSubscriptionFromStripe = functions
 		});
 
 		await syncFamilyAccountSubscription(userData, mergedSubscription);
-		await ensureConfirmedPlanDefaultsForSubscription(
-			userData?.accountId || userDoc.id,
-			mergedSubscription,
-		);
 
 		return {
 			success: true,
@@ -1247,6 +1843,14 @@ const handleSubscriptionUpdate = async (subscription: any) => {
 		if (!userQuery.empty) {
 			const userDoc = userQuery.docs[0];
 			const userData = userDoc.data();
+			const authoritativeSubscription = await getStripe().subscriptions.retrieve(
+				subscription.id,
+				{ expand: ['discounts'] },
+			);
+			const billingDisclosure = await buildStripeBillingDisclosure(
+				getStripe(),
+				authoritativeSubscription,
+			);
 
 			// Update subscription data
 			const subscriptionData: any = {
@@ -1264,9 +1868,13 @@ const handleSubscriptionUpdate = async (subscription: any) => {
 				currentPeriodEnd: subscription.current_period_end,
 				trialEndsAt: subscription.trial_end,
 				stripeSubscriptionId: subscription.id,
+				cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
 				pendingCheckoutPlan: null,
 				pendingCheckoutStartedAt: null,
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				billingDisclosure,
+				hasScheduledSubscription: false,
+				scheduledPlan: null,
 			};
 
 			// Check if this is a pre-scheduled subscription
@@ -1293,10 +1901,6 @@ const handleSubscriptionUpdate = async (subscription: any) => {
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
-			await ensureConfirmedPlanDefaultsForSubscription(
-				userData?.accountId || userDoc.id,
-				mergedSubscription,
-			);
 
 			console.log('Subscription updated for user:', userDoc.id);
 		}
@@ -1319,11 +1923,17 @@ const handleSubscriptionCancellation = async (subscription: any) => {
 		if (!userQuery.empty) {
 			const userDoc = userQuery.docs[0];
 			const userData = userDoc.data();
+			const billingDisclosure = await buildStripeBillingDisclosure(
+				getStripe(),
+				subscription as Stripe.Subscription,
+			);
 			const mergedSubscription = buildMergedSubscription(
 				userData.subscription,
 				{
 					status: 'cancelled',
 					canceledAt: subscription.canceled_at,
+					cancelAtPeriodEnd: false,
+					billingDisclosure,
 				},
 			);
 
@@ -1333,6 +1943,11 @@ const handleSubscriptionCancellation = async (subscription: any) => {
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
+			await applyGrantTransitionMetadata({
+				userId: userDoc.id,
+				userData,
+				subscription: subscription as Stripe.Subscription,
+			});
 
 			console.log('Subscription cancelled for user:', userDoc.id);
 		}
@@ -1375,10 +1990,6 @@ const handlePaymentSuccess = async (invoice: any) => {
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
-			await ensureConfirmedPlanDefaultsForSubscription(
-				userData?.accountId || userDoc.id,
-				mergedSubscription,
-			);
 
 			console.log('Payment succeeded for user:', userDoc.id);
 		}
@@ -1415,6 +2026,19 @@ const handlePaymentFailure = async (invoice: any) => {
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
+			const invoiceSubscriptionId =
+				typeof invoice.subscription === 'string'
+					? invoice.subscription
+					: invoice.subscription?.id;
+			if (invoiceSubscriptionId) {
+				const authoritativeSubscription =
+					await getStripe().subscriptions.retrieve(invoiceSubscriptionId);
+				await applyGrantTransitionMetadata({
+					userId: userDoc.id,
+					userData,
+					subscription: authoritativeSubscription,
+				});
+			}
 
 			console.log(
 				`Payment failed for user: ${userDoc.id}, status: ${newStatus}`,
@@ -1439,6 +2063,14 @@ const handleSubscriptionCreated = async (subscription: any) => {
 		if (!userQuery.empty) {
 			const userDoc = userQuery.docs[0];
 			const userData = userDoc.data();
+			const authoritativeSubscription = await getStripe().subscriptions.retrieve(
+				subscription.id,
+				{ expand: ['discounts'] },
+			);
+			const billingDisclosure = await buildStripeBillingDisclosure(
+				getStripe(),
+				authoritativeSubscription,
+			);
 
 			// Update subscription data
 			const subscriptionData: any = {
@@ -1456,10 +2088,14 @@ const handleSubscriptionCreated = async (subscription: any) => {
 				currentPeriodEnd: subscription.current_period_end,
 				trialEndsAt: subscription.trial_end,
 				stripeSubscriptionId: subscription.id,
+				cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
 				pendingCheckoutPlan: null,
 				pendingCheckoutStartedAt: null,
 				createdAt: admin.firestore.FieldValue.serverTimestamp(),
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+				billingDisclosure,
+				hasScheduledSubscription: false,
+				scheduledPlan: null,
 			};
 
 			// Check if this is a pre-scheduled subscription
@@ -1486,10 +2122,11 @@ const handleSubscriptionCreated = async (subscription: any) => {
 			});
 
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
-			await ensureConfirmedPlanDefaultsForSubscription(
-				userData?.accountId || userDoc.id,
-				mergedSubscription,
-			);
+			await applyGrantTransitionMetadata({
+				userId: userDoc.id,
+				userData,
+				subscription: authoritativeSubscription,
+			});
 
 			console.log(
 				'New subscription created for user:',
@@ -1560,10 +2197,6 @@ const handleSubscriptionResumed = async (subscription: any) => {
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			});
 			await syncFamilyAccountSubscription(userData, mergedSubscription);
-			await ensureConfirmedPlanDefaultsForSubscription(
-				userData?.accountId || userDoc.id,
-				mergedSubscription,
-			);
 			console.log('Subscription resumed for user:', userDoc.id);
 		}
 	} catch (error) {
@@ -1720,6 +2353,40 @@ const handlePaymentMethodDetached = async (paymentMethod: any) => {
 /**
  * Handle discount creation from Stripe webhooks
  */
+const refreshBillingDisclosureForDiscountEvent = async (
+	userDoc: admin.firestore.QueryDocumentSnapshot,
+	discount: any,
+): Promise<void> => {
+	const userData = userDoc.data();
+	const storedSubscriptionId = String(
+		userData?.subscription?.stripeSubscriptionId || '',
+	).trim();
+	const eventSubscriptionId =
+		typeof discount?.subscription === 'string'
+			? discount.subscription
+			: discount?.subscription?.id || '';
+	const subscriptionId = eventSubscriptionId || storedSubscriptionId;
+	if (!subscriptionId) return;
+
+	const subscription = await getStripe().subscriptions.retrieve(subscriptionId, {
+		expand: ['discounts'],
+	});
+	const billingDisclosure = await buildStripeBillingDisclosure(
+		getStripe(),
+		subscription,
+	);
+	const mergedSubscription = buildMergedSubscription(userData.subscription, {
+		billingDisclosure,
+		updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+	});
+
+	await userDoc.ref.update({
+		subscription: mergedSubscription,
+		updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+	});
+	await syncFamilyAccountSubscription(userData, mergedSubscription);
+};
+
 const handleDiscountCreated = async (discount: any) => {
 	try {
 		// Find user by customer ID
@@ -1730,6 +2397,7 @@ const handleDiscountCreated = async (discount: any) => {
 
 		if (!userQuery.empty) {
 			const userDoc = userQuery.docs[0];
+			await refreshBillingDisclosureForDiscountEvent(userDoc, discount);
 			console.log(
 				'Discount applied for user:',
 				userDoc.id,
@@ -1755,6 +2423,7 @@ const handleDiscountDeleted = async (discount: any) => {
 
 		if (!userQuery.empty) {
 			const userDoc = userQuery.docs[0];
+			await refreshBillingDisclosureForDiscountEvent(userDoc, discount);
 			console.log('Discount removed for user:', userDoc.id);
 		}
 	} catch (error) {

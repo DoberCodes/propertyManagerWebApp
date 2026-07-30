@@ -17,6 +17,9 @@ Plan availability:
   Property, and Portfolio plans.
 * Free users may see a preview or upgrade prompt, but upload workflows should
   save the source document without starting Property Knowledge Acquisition.
+* Manuals and warranties are stored and linked as Property Documents, but do
+  not enter Property Knowledge Acquisition until purpose-built extraction is
+  available for those document types.
 
 ```text
 Document / source
@@ -72,25 +75,65 @@ Property documents are the canonical source documents for acquisition. Uploads s
 
 Additional links should come from reviewed Property Memory changes. If acquisition finds that a document appears to describe an existing asset, task, contractor, part, warranty, cost, or Maintenance Event, the review experience should propose that connection and let the user confirm it.
 
-Suggested details are generated from document metadata, lightweight image OCR
-for uploaded image files, and backend PDF text extraction for supported
-text-based PDF invoices or receipts. Maintley does not perform AI extraction,
-rendered-page OCR for scanned PDFs, or manual-specific parsing in this phase.
+For eligible document categories, suggested details are generated from document metadata, lightweight image OCR
+for uploaded image files, backend layout-aware extraction for supported
+text-based PDFs, and backend DOCX text and table extraction for structured
+maintenance service reports. Digital PDF and DOCX service reports share the
+same deterministic visit interpreter after format-specific extraction. Maintley does not perform AI
+extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
+this phase.
 
-PDF invoice acquisition runs after the canonical Property Document is saved.
+Manual and warranty uploads remain separate from this general acquisition path.
+The document card does not offer **Check for suggested details**, **Scan again**,
+or processing retry actions for those categories. This restriction is enforced
+by both the upload workflow and the backend callable. Existing suggestions are
+retained for review history and may still be rejected by the user.
+
+Maintley Owner and Maintley Admin may use a small **Test scan - Maintley only**
+action on stored PDF or DOCX manuals and warranties. The action requires a
+warning confirmation and sends an explicit restricted-document override. The
+backend verifies the caller's server-managed `maintley_role`, normal property
+access, and the property's document-processing entitlement before running.
+Customer account owners and administrators do not receive this authority. Test
+scan results remain pending suggestions and identify the internal actor and role
+in document-acquisition event metadata.
+Structured PDF or DOCX service reports may propose a dated Maintenance Event,
+recommended tasks, and equipment reconciliation. Positive and negative status
+checks remain attributed visit observations within the Maintenance Event.
+Inspection areas such as rooms or general structural checks must not be turned
+into equipment records. Only controlled maintainable asset types may be offered
+for matching or creation, and every proposed task or equipment record requires
+review.
+
+PDF acquisition runs after the canonical Property Document is saved. Maintley
+first uses the PDF's embedded text layer and page coordinates to preserve lines
+and recognized tables. Service-report layouts are routed through the shared
+visit interpreter; other readable PDFs continue through document-specific field
+extraction. The legacy byte-stream decoder remains a compatibility fallback when
+the layout extractor cannot open a file. Image-only PDFs still require the
+future rendered-page OCR fallback.
+
 PDF uploads may move through `processing`, `pending_review`, or `failed`
 acquisition states. The PDF remains the source document; any extracted text or
 future rendered page images are derived processing artifacts only.
 
-PDF processing is backend-triggered from the saved property document state. The
-frontend marks the PDF document as `processing`; the backend worker detects that
-state and performs extraction in the background. This prevents the browser from
+PDF and DOCX processing are backend-triggered from the saved property document
+state. The frontend marks the supported document as `processing`; the backend
+worker detects that state and performs extraction in the background. This
+prevents the browser from
 owning the processing lifecycle after upload.
 
 Manual retry uses the callable processor directly instead of first writing a new
 `processing` state. The backend writes only the final acquisition outcome for
 that retry, which keeps the property document from receiving unnecessary status
 updates during repeated review attempts.
+
+After a PDF or DOCX review is applied or rejected, document managers with
+document-review access may choose **Scan again** from the document card. A
+rescan creates a new pending review while preserving earlier applied or rejected
+suggestions for provenance. Maintley does not offer a rescan while another
+review for that document is pending, and rescanning never changes Property
+Memory without a new approval.
 
 The active property detail view listens to collection-backed property document
 and suggestion records, then merges any embedded compatibility records. Document
@@ -108,7 +151,7 @@ These events drive in-app notifications and Android push delivery. Upload
 screens should not directly create separate persistent notifications for each
 document review state.
 
-The callable processor remains available for explicit retry. If PDF processing
+The callable processor remains available for explicit retry. If document processing
 cannot be started or completed, the backend should move the document out of
 `processing` with a homeowner-friendly retry message when needed.
 
@@ -150,6 +193,15 @@ The review hierarchy should be object-first:
 Objects and sections should default to accepted. Field-level keep/skip controls
 belong inside expanded details so the default review feels like approving a
 Property Memory merge, not answering a long list of database-field questions.
+
+Equipment reconciliation should follow the same low-friction default. When one
+clear existing equipment record matches, the review should preselect that
+record. When no clear match exists, the suggested new equipment record should
+default to approved. Skipping equipment is an intentional exception and should
+retain a short reviewer-selected reason with the reviewed suggestion. Tasks in
+the same review may select approved equipment that will be created during the
+save; the apply flow creates equipment first and resolves that selection to the
+new equipment ID before creating or linking the task.
 
 If Maintley finds a likely matching record, the review should explain why the
 match was suggested and allow the reviewer to update the existing record or mark

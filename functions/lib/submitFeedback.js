@@ -375,7 +375,7 @@ exports.submitFeedback = functions
         : '';
     const internalHtml = `
 			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-				<h2 style="color: #6366f1;">New Feedback Received</h2>
+				<h2 style="color: #047857;">New Feedback Received</h2>
 				<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
 					<h3 style="margin-top: 0; color: #374151;">Feedback Details</h3>
 					<p><strong>Type:</strong> ${feedbackTypeLabels[data.type]}</p>
@@ -397,11 +397,11 @@ exports.submitFeedback = functions
     const escapedTicketNumber = (0, emailService_1.escapeHtml)(ticketNumber);
     const confirmationSubject = `Thanks for your feedback — ${ticketNumber} — Maintley`;
     const confirmationHtml = `
-			<div style="margin:0; padding:0; background:#edf7ef; font-family:Arial,sans-serif; color:#111827;">
-				<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#edf7ef; padding:24px 0;">
+			<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
+				<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:24px 0;">
 					<tr><td align="center">
 						<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #cfe8d4;">
-							<tr><td style="background:#16a34a; color:#ffffff; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
+							<tr><td style="background:#047857; color:#FFFFFF; padding:20px 24px; font-size:24px; font-weight:700;">Maintley</td></tr>
 							<tr><td style="padding:24px;">
 								<h2 style="margin:0 0 12px 0; font-size:22px; color:#111827;">Thanks for your feedback, ${escapedUserName}!</h2>
 								<p style="margin:0 0 16px 0; font-size:15px; line-height:1.6; color:#374151;">We received your ${feedbackTypeLabels[data.type].toLowerCase()} and our team will review it shortly.</p>
@@ -412,9 +412,9 @@ exports.submitFeedback = functions
 									<p style="margin:0 0 8px 0; font-size:14px; color:#065f46;"><strong>Subject:</strong> ${escapedSubject}</p>
 									<p style="margin:0; font-size:14px; color:#065f46; white-space:pre-wrap;"><strong>Your message:</strong><br/>${escapedMessage}</p>
 								</div>
-								<a href="${helpCenterUrl}" style="display:inline-block; background:#16a34a; color:#ffffff; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Visit Help Center</a>
+								<a href="${helpCenterUrl}" style="display:inline-block; background:#047857; color:#FFFFFF; text-decoration:none; padding:11px 18px; border-radius:8px; font-size:14px; font-weight:600;">Visit Help Center</a>
 							</td></tr>
-							<tr><td style="padding:16px 24px; border-top:1px solid #cfe8d4; font-size:12px; line-height:1.5; color:#6b7280;">Maintley Support • <a href="mailto:${supportEmail}" style="color:#16a34a; text-decoration:none;">${supportEmail}</a></td></tr>
+							<tr><td style="padding:16px 24px; border-top:1px solid #3FCC7C; font-size:12px; line-height:1.5; color:#1F2937;">Maintley Support • <a href="mailto:${supportEmail}" style="color:#047857; text-decoration:none;">${supportEmail}</a></td></tr>
 						</table>
 					</td></tr>
 				</table>

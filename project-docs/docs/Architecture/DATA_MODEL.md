@@ -244,10 +244,70 @@ Typical fields:
 * updatedAt
 * subscriptionStatus
 * subscriptionPlan
+* entitlementPrograms
+* effectiveEntitlementProjection
 
 Purpose:
 
 Defines ownership boundaries for all account-scoped resources.
+
+### entitlementGrants subcollection
+
+Reserved path:
+
+```text
+familyAccounts/{accountId}/entitlementGrants/{grantId}
+```
+
+The shared contract supports temporary and permanent grants with stable grant
+and program IDs, lifecycle state, versioned bundle or capability overrides,
+authoritative timestamps, source, idempotency, beneficiary, and audit metadata.
+Grants belong to the family account and are additive.
+
+This collection is server-written and client-inaccessible. The first persisted
+program is `homeowner_plus_first_property_trial_v1`. Eligible new Free owner
+accounts receive its deterministic temporary grant only after the first
+property commit. The account stores a constrained, server-written
+`effectiveEntitlementProjection` for client capability resolution; that
+projection is derived and never becomes independent authority.
+
+Trial eligibility is stored under `entitlementPrograms` when the family account
+is first created. Issuance records the program as consumed, so trigger retries,
+duplicate property events, profile recreation, and later property creation
+cannot restart the program.
+
+Approved admin-grant programs use the same generic documents. Create, extend,
+and revoke operations are server-only, request-idempotent, and rebuild the
+derived account projection in the same transaction. The admin interface does
+not accept arbitrary bundles or program IDs. Current program IDs cover support,
+beta, legacy-outreach, and Maintley-owner-only lifetime Homeowner+ access.
+Permanent lifetime access is not a Stripe subscription and does not establish a
+billing relationship.
+
+Grant decisions are recorded separately in `admin_audit_logs` with actor,
+target account and user, grant and program IDs, request ID, reason,
+before-and-after state, and policy metadata. The audit record is append-only;
+lower-level resolver execution remains in operational logs.
+
+### accessLifecycleDeliveries subcollection
+
+Reserved path:
+
+```text
+familyAccounts/{accountId}/accessLifecycleDeliveries/{deliveryId}
+```
+
+Stores server-written operational evidence for access lifecycle messages. The
+deterministic delivery ID includes program, grant, milestone, and template
+version. Typical fields include `accountId`, `grantId`, `programId`,
+`milestone`, `templateVersion`, `targetAtMs`, `status`, `outcome`, `attempts`,
+lease timestamps, recipient, provider message ID, rendered time zone, and
+terminal timestamps.
+
+This is not customer activity history and is not the immutable administrative
+decision audit. Clients cannot read or write these records. Admin
+troubleshooting may expose a minimized delivery timeline through a trusted
+callable without exposing message content.
 
 ---
 
@@ -315,6 +375,7 @@ Typical fields:
 * name
 * address
 * propertyType
+* propertyClassification
 * photoUrl
 * notes
 * createdAt
@@ -329,6 +390,13 @@ Optional fields may include:
 * occupancy information
 
 Properties should store descriptive information rather than operational history.
+
+`propertyType` uses the canonical values `residential`, `multi_unit`, and
+`commercial`. `propertyClassification` refines the physical form within that
+broad type. `isRental` is independent behavioral state and is not inferred from
+either taxonomy field. Legacy values are normalized at application boundaries;
+the ADR 0033 migration writes canonical values without guessing an unknown
+Multi-unit or Commercial classification.
 
 Operational history belongs in Maintenance Events.
 
@@ -562,6 +630,16 @@ assignment resolver rather than rebuilt independently by each task surface. This
 keeps eligible people and contractors consistent across Dashboard, Tasks,
 property tasks, device tasks, and mobile task editing.
 
+Recurring-task creation, recurrence schedule edits, and next-occurrence
+generation are trusted operations. The server resolves the account's current
+`recurring_tasks.use` capability from paid access and authoritative internal
+grants, validates the property relationship and recurrence shape, and uses a
+stable request ID for idempotent creation. Firestore rules independently reject
+active recurrence metadata for an account without current access. A temporary
+default-off web rollout flag preserves the previous entitled-user path only
+until the callable has been deployed and observed; it is not a permanent second
+implementation and must be removed after rollout.
+
 ---
 
 # Task Status Model
@@ -662,6 +740,14 @@ overdue
 
 The due date remains the authoritative source for overdue calculations.
 
+Task timing has three explicit modes:
+
+- `scheduled`: the task has a calendar due date and can become due soon or overdue.
+- `asap`: the task has no calendar date but should be addressed as soon as capacity allows.
+- `unscheduled`: the task remains visible, but its timing has not been decided and it does not receive date-based reminders.
+
+The optional `scheduleMode` field preserves this distinction. For backward compatibility, an older task with no `scheduleMode` and no due date is interpreted as `asap`, matching the behavior users saw before this field existed. New document-derived recommendations without a stated date default to `unscheduled`; Maintley should not infer urgency from missing information.
+
 New development should avoid persisting:
 
 - overdue
@@ -696,11 +782,15 @@ Tasks track planned work.
 
 Maintenance Events preserve historical work.
 
-When a recurring task is completed, Maintley creates the next `Initiated` task
-from the recurring schedule before removing the completed task from the active
-task list. Built-in recurrence options include daily, weekly, biweekly,
-monthly, quarterly, and yearly schedules; custom schedules use an interval and
-unit.
+When a recurring task is completed, Maintley first preserves the completed work
+as a Maintenance Event. It then evaluates the account's current recurring-task
+access before creating the next `Initiated` task and removing the completed task
+from the active task list. Expired access returns `not_entitled`: completion
+still succeeds, history remains intact, and no next occurrence is generated.
+Other recurrence outcomes are `created`, `not_recurring`,
+`invalid_recurrence`, and `failed`. Built-in recurrence options include daily,
+weekly, biweekly, monthly, quarterly, and yearly schedules; custom schedules
+use an interval and unit.
 
 ---
 
@@ -759,6 +849,12 @@ Corrections and removals are function-managed. Removal is a soft deletion so
 the historical event and its immutable `maintenanceEventRevisions` audit record
 remain available for authorized support and dispute handling.
 
+During the legacy dual-read period, corrections use the same server boundary.
+If a visible `maintenanceHistory` record has no canonical event with the same
+ID, the server promotes it into `maintenanceEvents` with source provenance and
+a creation revision before applying the correction or soft deletion. The
+legacy source is retained unchanged for parity review.
+
 ---
 
 ## Historical Source of Truth
@@ -788,6 +884,10 @@ maintenanceHistory
 ```
 
 This collection exists for compatibility.
+
+Normal property, equipment, recurring-task, and Quick Log workflows do not
+write or rewrite this collection or embedded property/equipment history.
+Legacy reads remain temporarily available until migration parity is proven.
 
 Future development should favor:
 

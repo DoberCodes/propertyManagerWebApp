@@ -63,9 +63,6 @@ export interface TasksTabProps {
 	propertyTasks: any[];
 	property: any;
 	currentUser?: any;
-	unitOptions?: { label: string; value: string }[];
-	selectedUnitId?: string;
-	onSelectUnit?: (unitId: string) => void;
 	openCreateTaskToken?: number;
 	createTaskDraft?: (Partial<TaskFormData> & { propertyId?: string }) | null;
 	createTaskDraftRecommendationId?: string | null;
@@ -119,9 +116,6 @@ export interface MaintenanceTabProps {
 export interface TenantsTabProps {
 	property: any;
 	currentUser: any;
-	unitOptions?: { label: string; value: string }[];
-	selectedUnitId?: string;
-	onSelectUnit?: (unitId: string) => void;
 	setShowAddTenantModal: (show: boolean) => void;
 	onEditTenant: (tenant: any) => void;
 	onDeleteTenant: (tenant: any) => void;
@@ -129,24 +123,10 @@ export interface TenantsTabProps {
 	permissions?: RoleCapabilities;
 }
 
-export interface UnitsTabProps {
-	property: any;
-	units: any[];
-	handleCreateUnit: () => void;
-	handleDeleteUnit: (unitId: string) => void;
-}
-
-export interface SuitesTabProps {
-	property: any;
-}
-
 export interface RequestsTabProps {
 	propertyMaintenanceRequests: any[];
 	propertyTitle?: string;
 	currentUser: any;
-	unitOptions?: { label: string; value: string }[];
-	selectedUnitId?: string;
-	onSelectUnit?: (unitId: string) => void;
 	canApproveMaintenanceRequest: (role: any) => boolean;
 	handleConvertRequestToTask: (requestId: string) => void;
 	onCreateTask?: () => void;

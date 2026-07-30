@@ -3,6 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
 	beginAuthTransition,
 	setCurrentUser,
+	updateEntitlementProjection,
+	updateSubscriptionFromStripe,
 	setAuthLoading,
 } from './Redux/Slices/userSlice';
 import type { AppDispatch, RootState } from './Redux/store/store';
@@ -18,10 +20,13 @@ import { canUseNotifications } from './utils/subscriptionUtils';
 import { COLORS } from './constants/colors';
 import { SplashScreen } from './Components/Library/SplashScreen';
 import { clearAccountScopedClientState } from './Redux/utils/clearAccountScopedClientState';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from './config/firebase';
+import type { User } from './Redux/Slices/userSlice';
+import { syncSubscriptionFromStripe } from './services/stripeService';
+import { recordCurrentUserActivity } from './services/userActivityService';
 
-const UpdateNotification = React.lazy(
-	() => import('./Components/Library/UpdateNotification/UpdateNotification'),
-);
+const USER_ACTIVITY_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 
 type SystemBarType = 'StatusBar' | 'NavigationBar';
 
@@ -91,6 +96,7 @@ export const App = () => {
 	const currentUserIdRef = useRef<string | null>(null);
 	const resolvedAuthUserIdRef = useRef<string | null | undefined>(undefined);
 	const pushNotificationsInitializedRef = useRef(false);
+	const stripeSyncKeyRef = useRef('');
 
 	useEffect(() => {
 		if ('scrollRestoration' in window.history) {
@@ -101,6 +107,110 @@ export const App = () => {
 	useEffect(() => {
 		currentUserIdRef.current = currentUser?.id || null;
 	}, [currentUser?.id]);
+
+	useEffect(() => {
+		if (!currentUser?.id) return undefined;
+
+		const recordActivity = () => {
+			if (document.visibilityState !== 'visible') return;
+			recordCurrentUserActivity().catch((error) => {
+				console.warn('User activity heartbeat could not be recorded:', error);
+			});
+		};
+		const handleVisibilityChange = () => recordActivity();
+
+		recordActivity();
+		const intervalId = window.setInterval(
+			recordActivity,
+			USER_ACTIVITY_HEARTBEAT_INTERVAL_MS,
+		);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			window.clearInterval(intervalId);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	}, [currentUser?.id]);
+
+	useEffect(() => {
+		if (!currentUser?.id || !currentUser.subscription?.stripeCustomerId) {
+			stripeSyncKeyRef.current = '';
+			return;
+		}
+		if (currentUser.isTeamMemberAccount || currentUser.isAccountOwner === false) {
+			return;
+		}
+
+		const syncKey = `${currentUser.id}:${
+			currentUser.subscription.stripeSubscriptionId ||
+			currentUser.subscription.stripeCustomerId
+		}`;
+		if (stripeSyncKeyRef.current === syncKey) return;
+		stripeSyncKeyRef.current = syncKey;
+
+		syncSubscriptionFromStripe()
+			.then((result) => {
+				if (result.subscription) {
+					dispatch(
+						updateSubscriptionFromStripe({
+							userId: currentUser.id,
+							subscription: result.subscription,
+						}),
+					);
+				}
+				if (result.conflict) {
+					console.warn(
+						'Stripe subscription sync requires review:',
+						result.reason,
+					);
+				}
+			})
+			.catch((error) => {
+				console.warn('Background Stripe subscription sync skipped:', error);
+			});
+	}, [
+		currentUser?.id,
+		currentUser?.isAccountOwner,
+		currentUser?.isTeamMemberAccount,
+		currentUser?.subscription?.stripeCustomerId,
+		currentUser?.subscription?.stripeSubscriptionId,
+		dispatch,
+	]);
+
+	useEffect(() => {
+		if (!currentUser?.id) return undefined;
+		const accountId =
+			String(currentUser.accountId || '').trim() || currentUser.id;
+
+		return onSnapshot(
+			doc(db, 'familyAccounts', accountId),
+			(snapshot) => {
+				const rawProjection = snapshot.data()?.effectiveEntitlementProjection;
+				// A missing projection means this account snapshot has not supplied an
+				// authoritative entitlement result. It must not erase a grant that was
+				// already resolved during authentication. Grant revocation and expiration
+				// write an explicit projection with an empty activeGrants array.
+				if (
+					!rawProjection ||
+					typeof rawProjection !== 'object' ||
+					Array.isArray(rawProjection)
+				) {
+					return;
+				}
+				const projection = {
+					...rawProjection,
+					calculatedAt:
+						typeof rawProjection.calculatedAt?.toDate === 'function'
+							? rawProjection.calculatedAt.toDate().toISOString()
+							: rawProjection.calculatedAt,
+				} as User['effectiveEntitlementProjection'];
+				dispatch(updateEntitlementProjection({ accountId, projection }));
+			},
+			(error) => {
+				console.warn('Account access updates could not be loaded:', error);
+			},
+		);
+	}, [currentUser?.accountId, currentUser?.id, dispatch]);
 
 	// Register push notifications on native app startup
 	useEffect(() => {
@@ -300,9 +410,6 @@ export const App = () => {
 					/>
 				)}
 				<RouterComponent />
-				<React.Suspense fallback={null}>
-					<UpdateNotification />
-				</React.Suspense>
 			</AppFeedbackProvider>
 		</DataFetchProvider>
 	);

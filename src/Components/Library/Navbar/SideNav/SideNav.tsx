@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../../Redux/store/store';
@@ -44,6 +43,7 @@ import {
 	getEffectiveSubscriptionPlanId,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
+import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
 import { COLORS } from '../../../../constants/colors';
 import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
 
@@ -84,7 +84,7 @@ export const SideNav = () => {
 	// Desktop nav items
 	const desktopMenuItems = [
 		{
-			label: 'Dashboard',
+			label: TODAY_PAGE_LABEL,
 			path: '/dashboard',
 			icon: faTachometerAlt,
 			visible: !isUserTenant,
@@ -111,7 +111,7 @@ export const SideNav = () => {
 			label: 'Team',
 			path: '/team',
 			icon: faUsers,
-			visible: !isUserTenant && !isHomeowner && canAccessTeam,
+			visible: !isUserTenant && canAccessTeam,
 		},
 		{
 			label: 'Reports',

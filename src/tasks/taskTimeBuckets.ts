@@ -1,12 +1,14 @@
 import { Task } from '../types/Task.types';
 import { isTaskOverdueForDisplay } from '../utils/taskUtils';
+import { getTaskScheduleMode } from './taskSchedule';
 
 export type TaskTimeBucketId =
 	| 'overdue'
 	| 'today'
 	| 'this-week'
 	| 'upcoming'
-	| 'no-due-date';
+	| 'asap'
+	| 'unscheduled';
 
 export type TaskTimeBucket = {
 	id: TaskTimeBucketId;
@@ -33,7 +35,9 @@ export const getTaskTimeBucketId = (
 	now: Date = new Date(),
 ): TaskTimeBucketId => {
 	const dueDate = parseTaskDueDate(task);
-	if (!dueDate) return 'no-due-date';
+	if (!dueDate) {
+		return getTaskScheduleMode(task) === 'unscheduled' ? 'unscheduled' : 'asap';
+	}
 
 	const today = startOfDay(now);
 	if (isTaskOverdueForDisplay(task) || dueDate < today) return 'overdue';
@@ -55,7 +59,8 @@ export const buildTaskTimeBuckets = (
 		today: [],
 		'this-week': [],
 		upcoming: [],
-		'no-due-date': [],
+		asap: [],
+		unscheduled: [],
 	};
 
 	tasks.forEach((task) => {
@@ -88,10 +93,16 @@ export const buildTaskTimeBuckets = (
 			tasks: buckets.upcoming,
 		},
 		{
-			id: 'no-due-date',
-			label: 'No Due Date',
-			description: 'Tasks that need a planned date.',
-			tasks: buckets['no-due-date'],
+			id: 'asap',
+			label: 'ASAP',
+			description: 'Work to address as soon as capacity allows.',
+			tasks: buckets.asap,
+		},
+		{
+			id: 'unscheduled',
+			label: 'Not Scheduled',
+			description: 'Work whose timing has not been decided.',
+			tasks: buckets.unscheduled,
 		},
 	];
 };

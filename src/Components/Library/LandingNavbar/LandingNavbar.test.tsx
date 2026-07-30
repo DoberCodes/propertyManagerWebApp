@@ -17,17 +17,18 @@ describe('LandingNavbar', () => {
 
 		expect(menuButton).toHaveAttribute('aria-expanded', 'true');
 		expect(screen.getByRole('link', { name: 'Features' })).toBeInTheDocument();
+		const [solutionsDetails, resourcesDetails] = screen.getAllByRole('group');
 		const solutionsSummary = screen.getByText('Solutions', { selector: 'summary' });
 		const resourcesSummary = screen.getByText('Resources', { selector: 'summary' });
 		fireEvent.click(solutionsSummary);
-		expect(solutionsSummary.closest('details')).toHaveAttribute('open');
+		expect(solutionsDetails).toHaveAttribute('open');
 		expect(screen.getByRole('link', { name: 'Homeowners' })).toBeInTheDocument();
 		expect(screen.getByRole('link', { name: 'Property Owners & Managers' })).toBeInTheDocument();
 		expect(screen.queryByRole('link', { name: 'Service Businesses' })).not.toBeInTheDocument();
 
 		fireEvent.click(resourcesSummary);
-		expect(resourcesSummary.closest('details')).toHaveAttribute('open');
-		expect(solutionsSummary.closest('details')).not.toHaveAttribute('open');
+		expect(resourcesDetails).toHaveAttribute('open');
+		expect(solutionsDetails).not.toHaveAttribute('open');
 		expect(screen.getByRole('link', { name: 'Home Maintenance Checklist' })).toHaveAttribute('href', '/resources/home-maintenance-checklist/');
 		expect(screen.getByRole('link', { name: 'Seasonal Maintenance Schedule' })).toHaveAttribute('href', '/resources/seasonal-home-maintenance-schedule/');
 		expect(screen.getByRole('link', { name: 'Home Service History' })).toHaveAttribute('href', '/resources/home-service-history/');
@@ -47,6 +48,7 @@ describe('LandingNavbar', () => {
 		);
 
 		fireEvent.click(screen.getByLabelText('Open navigation menu'));
+		const [solutionsDetails] = screen.getAllByRole('group');
 		const solutionsSummary = screen.getByText('Solutions', { selector: 'summary' });
 		fireEvent.click(solutionsSummary);
 		fireEvent.keyDown(window, { key: 'Escape' });
@@ -54,6 +56,6 @@ describe('LandingNavbar', () => {
 		expect(
 			screen.getByLabelText('Open navigation menu'),
 		).toHaveAttribute('aria-expanded', 'false');
-		expect(solutionsSummary.closest('details')).not.toHaveAttribute('open');
+		expect(solutionsDetails).not.toHaveAttribute('open');
 	});
 });

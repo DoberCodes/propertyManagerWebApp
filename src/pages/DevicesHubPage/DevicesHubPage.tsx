@@ -24,6 +24,7 @@ import {
 	getMaintenanceEventTitle,
 	isContinuityEvent,
 } from '../../utils/maintenanceEventUtils';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	Device,
 	DeviceServiceItem,
@@ -138,22 +139,14 @@ const getLinkedDeviceIds = (task: any): Set<string> => {
 };
 
 const getLatestMaintenanceEntry = (
-	device: Device,
 	linkedEvents: any[] = [],
 ): { date?: string; description?: string } | null => {
-	const history = Array.isArray(device.maintenanceHistory)
-		? device.maintenanceHistory.map((entry: any) => ({
-			date: entry?.date,
-			description: entry?.description,
-		}))
-		: [];
-	const eventEntries = linkedEvents.map((event: any) => ({
+	const combinedHistory = linkedEvents.map((event: any) => ({
 		date: getMaintenanceEventDate(event),
 		description:
 			getMaintenanceEventTitle(event) ||
 			String(event?.description || event?.completionNotes || '').trim(),
-	}));
-	const combinedHistory = [...history, ...eventEntries].filter((entry) =>
+	})).filter((entry) =>
 		Boolean(entry.date || entry.description),
 	);
 	if (combinedHistory.length === 0) return null;
@@ -392,6 +385,10 @@ export const DevicesHubPage: React.FC = () => {
 		useGetPropertiesQuery();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
+	const resolvedMaintenanceHistory = useMemo(
+		() => mergeMaintenanceHistoryWithDeviceSources(allMaintenanceHistory, devices),
+		[allMaintenanceHistory, devices],
+	);
 	const [createDevice] = useCreateDeviceMutation();
 	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 
@@ -772,7 +769,7 @@ export const DevicesHubPage: React.FC = () => {
 
 	const continuityEventsByDevice = useMemo(() => {
 		const map = new Map<string, any[]>();
-		const filteredEvents = allMaintenanceHistory.filter(isContinuityEvent);
+		const filteredEvents = resolvedMaintenanceHistory.filter(isContinuityEvent);
 		filteredEvents.forEach((event: any) => {
 			if (Array.isArray(event.deviceIds)) {
 				event.deviceIds.forEach((deviceId: string) => {
@@ -787,7 +784,7 @@ export const DevicesHubPage: React.FC = () => {
 			}
 		});
 		return map;
-	}, [allMaintenanceHistory]);
+	}, [resolvedMaintenanceHistory]);
 
 	const deviceRows = useMemo(() => {
 		return devices
@@ -795,7 +792,7 @@ export const DevicesHubPage: React.FC = () => {
 				const deviceId = String(device.id);
 				const linkedOpenTasksForDevice = linkedTasksByDevice.get(deviceId) || [];
 				const continuityEvents = continuityEventsByDevice.get(deviceId) || [];
-				const latestMaintenance = getLatestMaintenanceEntry(device, continuityEvents);
+				const latestMaintenance = getLatestMaintenanceEntry(continuityEvents);
 				const upcomingMaintenance = getUpcomingMaintenanceDate(
 					linkedOpenTasksForDevice,
 				);

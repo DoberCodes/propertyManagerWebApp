@@ -12,7 +12,8 @@ import {
 import { cancelSubscription } from 'services/stripeService';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import { useUpdateUserMutation } from 'Redux/API/userSlice';
-import { setCurrentUser } from 'Redux/Slices/userSlice';
+import { setCurrentUser, WorkspaceMode } from 'Redux/Slices/userSlice';
+import { selectIsHomeowner } from 'Redux/selectors/permissionSelectors';
 import {
 	addFamilyMember,
 	removeFamilyMember,
@@ -26,6 +27,8 @@ import { Title, SettingsLayout, CategorySidebar, CategoryNavButton, CategoryCont
 import { AccountManagement } from './AccountManagement';
 import { FamilyManagement } from './FamilyManagement';
 import { shouldBypassOnboarding } from 'utils/userAccount';
+import { isMaintleyOwner } from 'utils/maintleyRole';
+import { PersonalAssistantSettings } from './PersonalAssistantSettings';
 
 export const SettingsPage: React.FC = () => {
 	type SettingsCategoryKey =
@@ -34,6 +37,8 @@ export const SettingsPage: React.FC = () => {
 		| 'account'
 		| 'notifications'
 		| 'getting-started'
+		| 'experience'
+		| 'personal-assistant'
 		| 'legal';
 
 	const navigate = useNavigate();
@@ -42,12 +47,20 @@ export const SettingsPage: React.FC = () => {
 
 	// User and permissions
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const isHomeownerExperience = useSelector(selectIsHomeowner);
 	const isTenant = currentUser?.role === 'tenant';
 	const canUseOnboarding = !isTenant && !shouldBypassOnboarding(currentUser);
 	const canManageFamilyRoles =
 		currentUser?.isAccountOwner ||
 		currentUser?.accountId === currentUser?.id ||
 		currentUser?.role === 'admin';
+	const canManageWorkspaceMode =
+		!!currentUser &&
+		!isTenant &&
+		(currentUser.isAccountOwner === true ||
+			!currentUser.accountId ||
+			currentUser.accountId === currentUser.id);
+	const canManagePersonalAssistant = isMaintleyOwner(currentUser?.maintley_role);
 
 
 	// API mutations
@@ -60,6 +73,8 @@ export const SettingsPage: React.FC = () => {
 	const [activeCategory, setActiveCategory] = useState<SettingsCategoryKey>('account');
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [isRestartingOnboarding, setIsRestartingOnboarding] = useState(false);
+	const [isSavingWorkspaceMode, setIsSavingWorkspaceMode] = useState(false);
+	const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('homeowner');
 
 
 	// loading States
@@ -74,6 +89,13 @@ export const SettingsPage: React.FC = () => {
 	// Success/Error states
 	const [addFamilyMemberError, setAddFamilyMemberError] = useState('');
 	const [cancelSubscriptionError, setCancelSubscriptionError] = useState('');
+
+	useEffect(() => {
+		setWorkspaceMode(
+			currentUser?.workspaceMode ||
+				(isHomeownerExperience ? 'homeowner' : 'property_operator'),
+		);
+	}, [currentUser?.workspaceMode, isHomeownerExperience]);
 
 	// Modal states
 	const [showAddFamilyMemberModal, setShowAddFamilyMemberModal] = useState(false);
@@ -129,6 +151,11 @@ export const SettingsPage: React.FC = () => {
 				visible: true,
 			},
 			{
+				key: 'experience' as SettingsCategoryKey,
+				label: 'App Experience',
+				visible: canManageWorkspaceMode,
+			},
+			{
 				key: 'family' as SettingsCategoryKey,
 				label: 'Family Members',
 				visible: !isTenant && canManageFamilyRoles,
@@ -140,12 +167,17 @@ export const SettingsPage: React.FC = () => {
 				visible: !isTenant,
 			},
 			{
+				key: 'personal-assistant' as SettingsCategoryKey,
+				label: 'Personal Assistant',
+				visible: canManagePersonalAssistant,
+			},
+			{
 				key: 'legal' as SettingsCategoryKey,
 				label: 'Legal',
 				visible: true,
 			},
 		],
-		[canManageFamilyRoles, canUseOnboarding, isTenant],
+		[canManageFamilyRoles, canManagePersonalAssistant, canManageWorkspaceMode, canUseOnboarding, isTenant],
 	);
 
 	const visibleCategories = useMemo(
@@ -391,6 +423,25 @@ export const SettingsPage: React.FC = () => {
 		}
 	};
 
+	const handleSaveWorkspaceMode = async () => {
+		if (!currentUser || !canManageWorkspaceMode) return;
+
+		setIsSavingWorkspaceMode(true);
+		try {
+			await updateUser({
+				id: currentUser.id,
+				updates: { workspaceMode },
+			}).unwrap();
+			dispatch(setCurrentUser({ ...currentUser, workspaceMode }));
+			feedback.notify('App terminology updated.');
+		} catch (error) {
+			console.error('Failed to update app experience:', error);
+			feedback.notify('Could not update app terminology. Please try again.');
+		} finally {
+			setIsSavingWorkspaceMode(false);
+		}
+	};
+
 
 	const handleCancelSubscription = async () => {
 		if (!currentUser?.subscription?.stripeSubscriptionId) return;
@@ -467,6 +518,34 @@ export const SettingsPage: React.FC = () => {
 							<AccountManagement setShowCancelSubscriptionModal={setShowCancelSubscriptionModal} />
 						)}
 
+						{activeCategory === 'experience' && canManageWorkspaceMode && (
+							<Section>
+								<SectionTitle>App Experience</SectionTitle>
+								<p style={{ marginBottom: '16px', color: '#6b7280' }}>
+									Maintley normally chooses home or property terminology from your
+									effective plan. You can override that language here without changing
+									your plan, billing, or feature access.
+								</p>
+								<FormGroup>
+									<FormLabel>I primarily use Maintley for</FormLabel>
+									<FormInput
+										as='select'
+										value={workspaceMode}
+										onChange={(event) =>
+											setWorkspaceMode(event.target.value as WorkspaceMode)
+										}>
+										<option value='homeowner'>My home or homes</option>
+										<option value='property_operator'>Rental or managed properties</option>
+									</FormInput>
+								</FormGroup>
+								<AccountButton
+									disabled={isSavingWorkspaceMode}
+									onClick={handleSaveWorkspaceMode}>
+									{isSavingWorkspaceMode ? 'Saving...' : 'Save App Experience'}
+								</AccountButton>
+							</Section>
+						)}
+
 
 						{activeCategory === 'family' && !isTenant && canManageFamilyRoles && (
 							<FamilyManagement handleResendFamilyPasswordSetup={handleOpenResendFamilyPasswordSetup} handleRemoveFamilyMember={handleOpenRemoveFamilyMember} handleEditFamilyMember={handleOpenEditFamilyMember} handleAddFamilyMember={handleOpenAddFamilyMember} canManageFamilyRoles={canManageFamilyRoles} familyMembers={familyMembers} familyMemberSuccess={familyMemberSuccess} isLoadingFamilyMembers={isLoadingFamilyMembers} />
@@ -478,6 +557,10 @@ export const SettingsPage: React.FC = () => {
 								currentUser={currentUser}
 								defaultCollapsed={false}
 							/>
+						)}
+
+						{activeCategory === 'personal-assistant' && canManagePersonalAssistant && (
+							<PersonalAssistantSettings />
 						)}
 
 

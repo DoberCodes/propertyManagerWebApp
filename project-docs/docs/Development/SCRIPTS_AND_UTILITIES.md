@@ -41,6 +41,23 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 - `adr:author` prepares humanized review drafts in `project-docs/reports/decision-audit-YYYY-MM/approved/`.
 - `adr:promote` writes final accepted ADRs into `project-docs/ADR/`.
 - `adr:author`, `adr:promote`, and `adr:promote:dry-run` are the canonical ADR workflow commands.
+- `validate:functions-package` verifies that local Functions dependencies are contained within the Firebase upload boundary.
+- `version:entitlements -- <version>` updates the bundled entitlement package and both Yarn lockfile entries together.
+- `sync:entitlement-locks` repairs both lockfile entries from the current bundled entitlement package version.
+- `check:entitlement-locks` verifies synchronization without modifying files and runs in GitHub deployment workflows.
+
+### Entitlement Package Version Workflow
+
+When deployable files under `functions/packages/entitlements/` change, use:
+
+```bash
+yarn version:entitlements -- 0.3.0
+```
+
+This updates `functions/packages/entitlements/package.json`, `yarn.lock`, and
+`functions/yarn.lock` as one operation. Commit all three files with the package
+change. CI runs `yarn check:entitlement-locks` and remains non-mutating so a
+deployment cannot silently rely on generated changes that were never committed.
 
 ### ADR Promotion Queue Workflow
 
@@ -170,44 +187,6 @@ yarn start
 Purpose:
 
 Starts the React development environment.
-
-Risk:
-
-Low
-
----
-
-## Seed Admin User (Admin Portal)
-
-```bash
-cd functions
-npm run seed:admin-user -- --username admin --password "ChangeMeNow!" --display-name "Maintley Owner" --email "owner@example.com"
-```
-
-Purpose:
-
-Creates or updates a document in `admin_users` for `/admin` access.
-
-Behavior:
-
-- Hashes password server-side in the seed script before storing.
-- Upserts by `usernameLower` (or a specific doc with `--doc-id`).
-- Writes `username`, `usernameLower`, `displayName`, `email`, `passwordSalt`, `passwordHash`, `roles`, `isActive`, timestamps.
-- After first seed, records can be edited directly in Firebase Console.
-
-Optional:
-
-```bash
-cd functions
-npm run seed:admin-user -- --username admin --password "ChangeMeNow!" --dry-run
-```
-
-Safe placeholder (inactive account):
-
-```bash
-cd functions
-npm run seed:admin-user -- --username admin-placeholder --password "ChangeMeNow!" --inactive
-```
 
 Risk:
 
@@ -646,6 +625,33 @@ Migration scripts support schema evolution and data normalization.
 
 Migration scripts should be reviewed before execution.
 
+## Property Taxonomy Migration
+
+```bash
+yarn migrate:property-taxonomy
+```
+
+Runs a production dry-run using `serviceAccountKey.json` and prints aggregate
+canonical type counts. Add `--verbose` through
+`yarn migrate:property-taxonomy:verbose` only when record-level review is
+required.
+
+Apply mode requires an explicit project confirmation in addition to `--apply`:
+
+```bash
+node scripts/migratePropertyTaxonomy.cjs --apply --confirm-project=PROJECT_ID
+```
+
+The migration is repeat-safe. Residential legacy values receive the only safe
+classification inference (`single_family`); Multi-Family and Commercial
+records are canonicalized without guessing a classification.
+
+Risk:
+
+Medium
+
+---
+
 ---
 
 ## Property Membership Migration
@@ -1020,7 +1026,9 @@ High
 yarn release:notes
 ```
 
-Generates release notes from project history.
+Generates release notes from project history. The latest merged `Release v...`
+commit after the latest version tag is treated as the boundary so an unpublished
+or delayed tag does not cause changes from earlier prepared releases to repeat.
 
 The generator recognizes a matching release-preparation merge at `HEAD` and
 keeps its prepared package version. Subsequent product commits continue to bump
@@ -1083,6 +1091,10 @@ yarn version:publish -- --version 2.8.0 --release-notes-file RELEASE_NOTES.txt -
 Publishes Firestore `appConfig/version`. The Publish App Version GitHub Action
 uses this after the Google Play release is ready, so Android update prompts send
 users to the Play Store listing.
+
+The client-side update prompt is temporarily not mounted. Version publishing
+and metadata remain available for a future prompt that verifies Google Play
+availability before notifying users.
 
 Risk:
 

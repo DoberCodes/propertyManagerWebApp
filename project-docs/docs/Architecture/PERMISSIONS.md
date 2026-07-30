@@ -186,6 +186,13 @@ Never the UI.
 
 The `/admin` route is an app-admin workflow and is separate from normal Maintley user authentication.
 
+`maintley_role` is a platform-employment authority field. The `owner` value
+means owner of Maintley itself; it never means homeowner, property owner,
+landlord, family-account owner, or customer account owner. Customer ownership
+continues to use account membership and `isAccountOwner` fields. Clients cannot
+create or modify `maintley_role`; only trusted server or administrative
+operations may assign it.
+
 Rules:
 
 * Standard user login should not grant access to admin inbox workflows.
@@ -195,6 +202,70 @@ Rules:
 * Admin audit log viewing is restricted to top-level Maintley roles and enforced in Cloud Functions.
 
 This keeps admin access isolated from customer account roles and prevents UI-only protection from becoming a security dependency.
+
+## Internal entitlement-grant administration
+
+Internal access grants use a narrower authority than general admin-portal
+access. A Maintley administrator must hold the server-managed
+`entitlement_grants.manage` permission (or its legacy
+`entitlement_grant_manager` role token) before previewing or changing grants.
+
+`maintley_role: owner` is the sole exception. It means the owner of Maintley,
+is unrestricted by the grant-management permission, may use owner-only grant
+programs, and may grant access to the owner's own Maintley account. No customer
+role—including homeowner, property owner, landlord, or account owner—receives
+this exception.
+
+All other Maintley administrators are prohibited from granting access to their
+own identity or family account, including indirectly targeting another user in
+that same account. Grant programs, bundles, kinds, and durations remain
+server-allowlisted for every actor. Every successful mutation requires preview,
+typed confirmation, a reason, and a stable request ID, and is written to the
+immutable admin audit trail.
+
+## Maintley Team administration
+
+The admin portal exposes a `Maintley Team` surface only to authenticated
+Maintley Owner and Admin roles. This is employment authority and must never be
+derived from a customer's homeowner, property-owner, account-owner, landlord,
+or property-management role.
+
+* Maintley Owner may invite and manage Owner, Admin, Support, and Operations
+  roles.
+* Maintley Admin may invite and manage Support and Operations roles, but cannot
+  create, modify, revoke, or demote Owner or Admin authority.
+* Non-owner administrators cannot change their own Maintley role.
+* The final Maintley Owner cannot be revoked.
+* New team identities receive a Firebase-managed password-setup link; an
+  administrator never selects another person's password.
+* A new team identity receives a normal, empty homeowner workspace. Its
+  `maintley_role` controls Maintley employment authority only and does not
+  pre-populate customer data or assign a customer-level administrator role.
+* Invitations, updates, and revocations write immutable before/after audit
+  records with actor, target, reason, request ID, and role metadata.
+
+Support and Operations are employment classifications and do not independently
+grant access to the admin portal. Additional portal permissions remain an
+explicit, server-managed decision.
+
+## Internal manual and warranty scan testing
+
+General Property Knowledge Acquisition does not scan documents categorized as
+manuals or warranties. A Maintley Owner or Maintley Admin who also has normal
+access to the property may explicitly test the restricted scan path from the
+customer application. The Cloud Function verifies the server-managed
+`maintley_role`; customer account ownership, property ownership, and customer
+administrator roles do not grant this override. The override does not bypass
+plan entitlements, produces reviewable suggestions only, and records the
+internal actor and role in acquisition event metadata.
+
+## User activity timestamps
+
+`lastActiveAt` records customer application activity, not administrator
+inspection. The authenticated app requests a throttled heartbeat that writes
+only to the caller's own user document with a server timestamp. The callable
+accepts no target user identifier, so viewing or troubleshooting another user
+cannot update the inspected customer's activity.
 
 ---
 
@@ -664,10 +735,15 @@ from authenticated server context and cannot be forged.
 Update:
 
 * Account managers
+* After downgrade, account managers may still update retained profile, contact,
+  notes, and file fields; access, roles, groups, and property assignments cannot
+  be expanded through this compatibility path.
 
 Delete:
 
 * Account managers
+* Removal and login-access revocation remain available after downgrade because
+  they reduce access rather than expand plan capabilities.
 
 ---
 
@@ -741,6 +817,41 @@ Update:
 Create/Delete:
 
 * Managed by controlled workflows
+
+### entitlementGrants
+
+Path:
+
+```text
+familyAccounts/{accountId}/entitlementGrants/{grantId}
+```
+
+Read, create, update, delete:
+
+* Cloud Functions and Admin SDK only
+
+Clients cannot read or write authoritative grant records. Effective access is
+resolved by trusted code. Customer-facing access summaries use the constrained
+`familyAccounts.effectiveEntitlementProjection`, which clients may read through
+normal account access but cannot create or modify. Grant issuance, eligibility,
+program consumption, and audit events remain server-only.
+
+### accessLifecycleDeliveries
+
+Path:
+
+```text
+familyAccounts/{accountId}/accessLifecycleDeliveries/{deliveryId}
+```
+
+Read, create, update, delete:
+
+* Cloud Functions and Admin SDK only
+
+The admin customer troubleshooting callable may return a minimized operational
+timeline to authenticated Maintley staff. Direct client access is denied. The
+test-send callable is also restricted by the server-managed `maintley_role` and
+does not write production delivery markers.
 
 ---
 
@@ -991,3 +1102,6 @@ When permissions and subscriptions intersect:
 * Subscriptions determine capabilities.
 
 These responsibilities should remain separate.
+# Personal assistant credentials
+
+Personal-assistant setup requires the server-managed Maintley Owner role; customer account ownership does not grant access. Credential, rate-limit, and API audit collections deny all direct client reads and writes. Only the Owner-gated callable manages credentials, and every API request is independently constrained by its stored property allowlist and read scopes.

@@ -1,15 +1,12 @@
 import { useEffect } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { getEffectiveSubscriptionPlanId } from '../utils/subscriptionUtils';
+import { getEffectiveAccessPlanId } from '../utils/subscriptionUtils';
 import { useGetStorageUsageQuery } from '../Redux/API/storageUsageSlice';
 import { STORAGE_USAGE_REFRESH_EVENT } from '../utils/storageUsageEvents';
 
 export const useStorageUsage = (currentUser: any, enabled = true) => {
 	const accountId = String(currentUser?.accountId || currentUser?.id || '').trim();
-	const planId = getEffectiveSubscriptionPlanId(
-		currentUser?.subscription,
-		'homeowner',
-	);
+	const planId = getEffectiveAccessPlanId(currentUser?.subscription);
 
 	const queryArgs = enabled && accountId ? { accountId, planId } : skipToken;
 	const {

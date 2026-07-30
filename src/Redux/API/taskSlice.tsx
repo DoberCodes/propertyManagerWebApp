@@ -31,6 +31,29 @@ import {
 	TaskLifecycleDependencies,
 } from '../../tasks/taskLifecycleWorkflow';
 import { trackAnalyticsEvent } from '../../analytics/analytics';
+import {
+	createTrustedRecurringTask,
+	generateNextTrustedRecurringTask,
+	updateTrustedRecurringTask,
+} from '../../services/recurringTaskService';
+
+const TRUSTED_RECURRING_TASK_WRITES_ENABLED =
+	process.env.REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES === 'true';
+
+const recurrenceKeys = new Set([
+	'isRecurring',
+	'recurrenceFrequency',
+	'recurrenceInterval',
+	'recurrenceCustomUnit',
+	'parentTaskId',
+	'lastRecurrenceDate',
+]);
+
+const changesRecurrence = (updates: Partial<Task>): boolean =>
+	Object.keys(updates).some((key) => recurrenceKeys.has(key));
+
+const createRequestId = (prefix: string): string =>
+	`${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 
 const getSharedPropertyIdsForUser = async (
 	userId: string,
@@ -86,11 +109,23 @@ const writeMaintenanceEvent = async (
 };
 
 const canAccountUseRecurringTasks = async (accountId: string): Promise<boolean> => {
-	const accountUserSnapshot = await getDoc(doc(db, 'users', accountId));
+	const [accountUserSnapshot, familyAccountSnapshot] = await Promise.all([
+		getDoc(doc(db, 'users', accountId)),
+		getDoc(doc(db, 'familyAccounts', accountId)),
+	]);
 	const accountUserData = accountUserSnapshot.data() || {};
+	const entitlementProjection =
+		familyAccountSnapshot.data()?.effectiveEntitlementProjection || {};
+	const activeGrants = Array.isArray(entitlementProjection.activeGrants)
+		? entitlementProjection.activeGrants
+		: [];
 	return Boolean(
 		accountUserData.subscription &&
-			canUseRecurringTasks(accountUserData.subscription as any),
+			canUseRecurringTasks({
+				...accountUserData.subscription,
+				entitlementAccountId: accountId,
+				entitlementGrants: activeGrants,
+			} as any),
 	);
 };
 
@@ -144,6 +179,20 @@ const createTaskLifecycleDependencies = (): TaskLifecycleDependencies => {
 		createTask: async (task) => {
 			await addDoc(collection(db, 'tasks'), task);
 		},
+		canGenerateNextRecurringTask: canAccountUseRecurringTasks,
+		...(TRUSTED_RECURRING_TASK_WRITES_ENABLED
+			? {
+					generateNextRecurringTask: async ({ taskId, accountId, completionDate }) => {
+						const result = await generateNextTrustedRecurringTask({
+							taskId,
+							accountId,
+							completionDate,
+							requestId: `${taskId}:${completionDate}`,
+						});
+						return result.outcome === 'updated' ? 'failed' : result.outcome;
+					},
+			  }
+			: {}),
 		deleteTask: async (taskId) => {
 			await deleteDoc(doc(db, 'tasks', taskId));
 		},
@@ -282,19 +331,42 @@ export const taskSlice = apiSlice.injectEndpoints({
 					const targetUserId = await resolveTargetUserId();
 					const canUseRecurringTaskFeature =
 						await canAccountUseRecurringTasks(targetUserId);
+					const recurrenceIsTrusted =
+						TRUSTED_RECURRING_TASK_WRITES_ENABLED && newTask.isRecurring === true;
 					const preparedTask = withDefaultTaskNotificationSchedule(
-						removeRecurringFieldsForPlan(
-							newTask as Record<string, any>,
-							canUseRecurringTaskFeature,
-						) as Omit<Task, 'id'>,
+						(recurrenceIsTrusted
+							? newTask
+							: removeRecurringFieldsForPlan(
+									newTask as Record<string, any>,
+									canUseRecurringTaskFeature,
+							  )) as Omit<Task, 'id'>,
 					);
-					const docRef = await addDoc(collection(db, 'tasks'), {
+					const taskToCreate = {
 						...preparedTask,
 						userId: preparedTask.userId || targetUserId,
 						accountId: targetUserId,
 						createdAt: new Date().toISOString(),
 						updatedAt: new Date().toISOString(),
-					});
+					} as Omit<Task, 'id'>;
+					let createdTaskId: string;
+					if (TRUSTED_RECURRING_TASK_WRITES_ENABLED && taskToCreate.isRecurring) {
+						const result = await createTrustedRecurringTask({
+							accountId: targetUserId,
+							requestId: createRequestId('task-create'),
+							task: taskToCreate,
+						});
+						if (result.outcome !== 'created' || !result.taskId) {
+							throw new Error(
+								result.outcome === 'not_entitled'
+									? 'Recurring task access is not active for this account.'
+									: 'The recurring schedule could not be created.',
+							);
+						}
+						createdTaskId = result.taskId;
+					} else {
+						const docRef = await addDoc(collection(db, 'tasks'), taskToCreate);
+						createdTaskId = docRef.id;
+					}
 					void trackAnalyticsEvent('task_created', {
 						task_priority: String(preparedTask.priority || 'unspecified'),
 						task_status: String(preparedTask.status || 'unspecified'),
@@ -312,7 +384,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 					});
 					return {
 						data: {
-							id: docRef.id,
+							id: createdTaskId,
 							...preparedTask,
 							userId: preparedTask.userId || targetUserId,
 							accountId: targetUserId,
@@ -337,21 +409,44 @@ export const taskSlice = apiSlice.injectEndpoints({
 					const targetUserId = await resolveTargetUserId();
 					const canUseRecurringTaskFeature =
 						await canAccountUseRecurringTasks(targetUserId);
-					const preparedUpdates = removeRecurringFieldsForPlan(
-						updates as Record<string, any>,
-						canUseRecurringTaskFeature,
-					) as Partial<Task>;
+					const recurrenceIsTrusted =
+						TRUSTED_RECURRING_TASK_WRITES_ENABLED && changesRecurrence(updates);
+					const preparedUpdates = (recurrenceIsTrusted
+						? updates
+						: removeRecurringFieldsForPlan(
+								updates as Record<string, any>,
+								canUseRecurringTaskFeature,
+						  )) as Partial<Task>;
 					const existingAccountId = String(
 						(existingTask as any)?.accountId ||
 							(existingTask as any)?.userId ||
 							targetUserId,
 					).trim();
 
-					await updateDoc(docRef, {
-						...(existingAccountId ? { accountId: existingAccountId } : {}),
-						...preparedUpdates,
-						updatedAt: new Date().toISOString(),
-					});
+					if (
+						TRUSTED_RECURRING_TASK_WRITES_ENABLED &&
+						changesRecurrence(preparedUpdates)
+					) {
+						const result = await updateTrustedRecurringTask({
+							accountId: existingAccountId,
+							taskId: id,
+							requestId: createRequestId(`task-update-${id}`),
+							updates: preparedUpdates,
+						});
+						if (result.outcome !== 'updated') {
+							throw new Error(
+								result.outcome === 'not_entitled'
+									? 'Recurring task access is not active for this account.'
+									: 'The recurring schedule could not be updated.',
+							);
+						}
+					} else {
+						await updateDoc(docRef, {
+							...(existingAccountId ? { accountId: existingAccountId } : {}),
+							...preparedUpdates,
+							updatedAt: new Date().toISOString(),
+						});
+					}
 
 					const transitioningToCompleted =
 						preparedUpdates.status === 'Completed' &&

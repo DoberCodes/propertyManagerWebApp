@@ -10,6 +10,31 @@ on:
   workflow_dispatch:
 
 jobs:
+  entitlement-package-version:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Require an entitlement package version bump
+        env:
+          ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: yarn check:entitlement-package-version
+
+      - name: Check entitlement lock synchronization
+        run: yarn check:entitlement-locks
+
+      - name: Entitlement package version policy tests
+        run: yarn test:entitlement-package-version && yarn test:entitlement-locks
+
   version-validate:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next'
     runs-on: ubuntu-latest
@@ -98,7 +123,16 @@ jobs:
           REACT_APP_ENABLE_ANALYTICS: ${{ secrets.PROD_REACT_APP_ENABLE_ANALYTICS }}
           REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
           REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
-        run: yarn build
+          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.STRIPE_CUSTOMER_PORTAL_URL || 'https://billing.stripe.com/p/login/00wbJ27029Gxama5Cg5gc00' }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
+          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
+        run: |
+          yarn sync:public-pricing
+          yarn build
 
       - name: Check asset budgets
         run: yarn check:asset-budgets
@@ -120,6 +154,53 @@ jobs:
       - name: Install functions dependencies
         run: yarn --cwd functions install --frozen-lockfile
 
+      - name: Check entitlement lock synchronization
+        run: yarn check:entitlement-locks
+
+      - name: Validate Functions deploy package
+        run: yarn validate:functions-package
+
       - name: Build functions
         run: yarn --cwd functions build
+
+      - name: DOCX service report acquisition tests
+        run: yarn --cwd functions test:docx-acquisition
+
+      - name: PDF document acquisition tests
+        run: yarn --cwd functions test:pdf-acquisition
+
+      - name: Document acquisition eligibility tests
+        run: yarn --cwd functions test:document-acquisition-eligibility
+      - name: Property setup activation tests
+        run: yarn --cwd functions test:setup-plan
+
+      - name: Recurring task entitlement tests
+        run: yarn --cwd functions test:recurring-task
+
+      - name: Manual occupancy continuity tests
+        run: yarn --cwd functions test:manual-occupancy
+
+      - name: Stripe billing disclosure tests
+        run: yarn --cwd functions test:billing-disclosure
+
+      - name: Admin entitlement grant policy tests
+        run: node scripts/testAdminEntitlementGrantPolicy.cjs
+
+      - name: Email branding and lifecycle template tests
+        run: node scripts/testEmailTemplates.cjs
+
+      - name: Maintley Event lifecycle delivery tests
+        run: node scripts/testMaintleyEventEngine.cjs
+
+      - name: Use Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Entitlement grant issuance tests
+        run: node ./functions/node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only firestore "node scripts/testEntitlementGrantIssuance.cjs"
+
+      - name: Complimentary access code tests
+        run: yarn test:access-codes
 

@@ -6,7 +6,8 @@ import {
 	FormInput,
 	FormSelect,
 } from 'Components/Library';
-import { useUpdateDeviceMutation } from 'Redux/API/deviceSlice';
+import { useCreateDeviceMutation, useUpdateDeviceMutation } from 'Redux/API/deviceSlice';
+import { useCreateTaskMutation, useGetTasksQuery } from 'Redux/API/taskSlice';
 import { useUpdatePropertyMutation } from 'Redux/API/propertySlice';
 import {
 	useCreateContractorMutation,
@@ -22,6 +23,8 @@ import type {
 	PropertyKnowledgeConfidenceLevel,
 	PropertyKnowledgeTargetEntity,
 	PropertyKnowledgeSuggestion,
+	PropertyKnowledgeTaskSuggestion,
+	PropertyKnowledgeEquipmentSuggestion,
 } from 'types/PropertyKnowledge.types';
 import {
 	acceptKnowledgeSuggestion,
@@ -48,6 +51,7 @@ import {
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
 import {
 	getAssetTypeOptions,
+	getAssetDefinition,
 	getAssetVariantOptions,
 	normalizeAssetType,
 	normalizeAssetVariant,
@@ -56,6 +60,7 @@ import {
 import { COLORS } from '../../../constants/colors';
 import { getFinancialDisplayTotal } from 'utils/financialUtils';
 import { publishMaintleyEvent } from 'services/maintleyEventService';
+import type { TaskScheduleMode } from 'types/Task.types';
 
 interface PropertyKnowledgeReviewPanelProps {
 	property: Property;
@@ -81,9 +86,20 @@ const PART_CATEGORY_OPTIONS: PartKnowledgeCategory[] = [
 	'material',
 ];
 
+const EMPTY_TASKS: any[] = [];
+const EQUIPMENT_SKIP_REASONS = [
+	'Not equipment',
+	'Not part of this property',
+	'Duplicate suggestion',
+	'Incorrect information',
+	'Other',
+];
+
 const getKnowledgeSuggestionCount = (suggestion?: PropertyKnowledgeSuggestion) =>
 	(suggestion?.extractedFields.length || 0) +
-	(suggestion?.suggestedParts?.length || 0);
+	(suggestion?.suggestedParts?.length || 0) +
+	(suggestion?.suggestedTasks?.length || 0) +
+	(suggestion?.suggestedEquipment?.length || 0);
 
 const normalizeLookupValue = (value?: string) =>
 	String(value || '')
@@ -172,6 +188,9 @@ const getExtractionSourceLabel = (suggestion: PropertyKnowledgeSuggestion) => {
 	if (suggestion.extractionMethod === 'pdf_rendered_ocr') {
 		return `${documentType} PDF OCR`;
 	}
+	if (suggestion.extractionMethod === 'docx_text') {
+		return `${documentType} Word text`;
+	}
 	if (suggestion.extractionMethod === 'metadata_placeholder') {
 		return `${documentType} details`;
 	}
@@ -232,6 +251,8 @@ const getUniqueDestinationLabels = (
 	if ((suggestion.suggestedParts || []).length > 0) {
 		labels.add('Parts & Supplies');
 	}
+	if ((suggestion.suggestedTasks || []).length > 0) labels.add('Tasks');
+	if ((suggestion.suggestedEquipment || []).length > 0) labels.add('Equipment');
 	return Array.from(labels);
 };
 
@@ -332,6 +353,7 @@ const WARRANTY_FIELD_KEYS = new Set<PropertyKnowledgeFieldKey>([
 const MAINTENANCE_FIELD_KEYS = new Set<PropertyKnowledgeFieldKey>([
 	'maintenanceEventDate',
 	'maintenanceEventDescription',
+	'performedByName',
 	'maintenanceType',
 	'servicePerformed',
 	'recommendedMaintenanceInterval',
@@ -547,6 +569,10 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [updateDevice] = useUpdateDeviceMutation();
+	const [createDevice] = useCreateDeviceMutation();
+	const [createTask] = useCreateTaskMutation();
+	const { data: queriedTasks } = useGetTasksQuery();
+	const allTasks = queriedTasks || EMPTY_TASKS;
 	const [createContractor] = useCreateContractorMutation();
 	const [updateContractor] = useUpdateContractorMutation();
 	const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(
@@ -559,6 +585,12 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		useState<Record<string, { accepted: boolean }>>({});
 	const [knowledgePartValues, setKnowledgePartValues] = useState<
 		Record<string, { name: string; category: string; accepted: boolean }>
+	>({});
+	const [knowledgeTaskValues, setKnowledgeTaskValues] = useState<
+		Record<string, { title: string; description: string; accepted: boolean; matchedDeviceId?: string; pendingEquipmentSuggestionId?: string; matchedTaskId?: string; scheduleMode: TaskScheduleMode; dueDate: string }>
+	>({});
+	const [knowledgeEquipmentValues, setKnowledgeEquipmentValues] = useState<
+		Record<string, { accepted: boolean; matchedDeviceId?: string; skipReason?: string }>
 	>({});
 	const [targetChoices, setTargetChoices] = useState<TargetChoices>({
 		contractorMode: 'create',
@@ -1032,6 +1064,8 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			setKnowledgeFieldValues({});
 			setKnowledgeFieldReviewStatuses({});
 			setKnowledgePartValues({});
+			setKnowledgeTaskValues({});
+			setKnowledgeEquipmentValues({});
 			setPropertyAddressConfirmed(false);
 			setTargetChoices({
 				contractorMode: 'create',
@@ -1082,6 +1116,60 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 				]),
 			),
 		);
+		const nextEquipmentValues = Object.fromEntries(
+				(selectedSuggestion.suggestedEquipment || []).map((equipment) => {
+					const matchingDevice =
+						propertyDevices.find(
+							(device) =>
+								normalizeAssetType(device.assetType || device.type) ===
+								normalizeAssetType(equipment.assetType),
+						) || null;
+					return [
+						equipment.id,
+						{
+							accepted: equipment.reviewStatus !== 'rejected',
+							matchedDeviceId: equipment.matchedDeviceId || matchingDevice?.id,
+							skipReason: equipment.skipReason,
+						},
+					];
+				}),
+			);
+		setKnowledgeEquipmentValues(nextEquipmentValues);
+		setKnowledgeTaskValues(
+			Object.fromEntries(
+				(selectedSuggestion.suggestedTasks || []).map((task) => {
+					const matchingDevice = propertyDevices.find(
+						(device) =>
+							normalizeAssetType(device.assetType || device.type) ===
+							normalizeAssetType(task.relatedAssetType),
+					);
+					const matchingOpenTask = allTasks.find((candidate: any) => {
+						const sameProperty = String(candidate.propertyId || candidate.property) === String(property.id);
+						const active = !['Completed', 'Rejected'].includes(String(candidate.status));
+						return sameProperty && active && normalizeLookupValue(candidate.title) === normalizeLookupValue(task.userEditableTitle || task.title);
+					});
+					const pendingEquipment = (selectedSuggestion.suggestedEquipment || []).find(
+						(equipment) => normalizeAssetType(equipment.assetType) === normalizeAssetType(task.relatedAssetType),
+					);
+					return [
+						task.id,
+						{
+							title: task.userEditableTitle || task.title,
+							description: task.userEditableDescription || task.description,
+							accepted: task.reviewStatus !== 'rejected',
+							matchedDeviceId: task.matchedDeviceId || matchingDevice?.id,
+							pendingEquipmentSuggestionId:
+								!matchingDevice && pendingEquipment && nextEquipmentValues[pendingEquipment.id]?.accepted !== false
+									? pendingEquipment.id
+									: undefined,
+							matchedTaskId: matchingOpenTask?.id,
+							scheduleMode: task.scheduleMode || (task.dueDate ? 'scheduled' : 'unscheduled'),
+							dueDate: task.dueDate || '',
+						},
+					];
+				}),
+			),
+		);
 		setPropertyAddressConfirmed(
 			selectedSuggestion.propertyConfirmation?.status === 'confirmed',
 		);
@@ -1095,6 +1183,9 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			maintenanceEventMode: targetMaintenanceEventRecordId ? 'update' : 'create',
 		});
 	}, [
+		allTasks,
+		propertyDevices,
+		property.id,
 		selectedSuggestion,
 		targetAssetRecordId,
 		targetContractorRecordId,
@@ -1114,8 +1205,20 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		const acceptedPartCount = (selectedSuggestion.suggestedParts || []).filter(
 			(part) => knowledgePartValues[part.id]?.accepted !== false,
 		).length;
-		return acceptedFieldCount + acceptedPartCount;
-	}, [knowledgeFieldReviewStatuses, knowledgePartValues, selectedSuggestion]);
+		const acceptedTaskCount = (selectedSuggestion.suggestedTasks || []).filter(
+			(task) => knowledgeTaskValues[task.id]?.accepted !== false,
+		).length;
+		const acceptedEquipmentCount = (selectedSuggestion.suggestedEquipment || []).filter(
+			(equipment) => knowledgeEquipmentValues[equipment.id]?.accepted !== false,
+		).length;
+		return acceptedFieldCount + acceptedPartCount + acceptedTaskCount + acceptedEquipmentCount;
+	}, [
+		knowledgeEquipmentValues,
+		knowledgeFieldReviewStatuses,
+		knowledgePartValues,
+		knowledgeTaskValues,
+		selectedSuggestion,
+	]);
 
 	const requiresPropertyAddressConfirmation =
 		selectedSuggestion?.propertyConfirmation?.status === 'needs_confirmation';
@@ -1123,9 +1226,15 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 	const reviewSummarySections = useMemo<ReviewSummarySection[]>(() => {
 		const uniqueItems = (items: string[]) => Array.from(new Set(items));
 		const newRecords = uniqueItems(
-			selectedMemoryChangeGroups
+			[
+				...selectedMemoryChangeGroups
 				.filter((group) => group.mode === 'create' && group.key !== 'warranty')
 				.map(getReviewSummaryLabel),
+				...(selectedSuggestion?.suggestedTasks?.length ? ['Recommended tasks'] : []),
+				...(selectedSuggestion?.suggestedEquipment?.some(
+					(equipment) => !knowledgeEquipmentValues[equipment.id]?.matchedDeviceId,
+				) ? ['Missing equipment'] : []),
+			],
 		);
 		const updates = uniqueItems(
 			selectedMemoryChangeGroups
@@ -1150,6 +1259,8 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		propertyAddressConfirmed,
 		requiresPropertyAddressConfirmation,
 		selectedMemoryChangeGroups,
+		selectedSuggestion,
+		knowledgeEquipmentValues,
 	]);
 
 	const renderTargetChoice = (group: MemoryChangeGroup) => {
@@ -1496,6 +1607,207 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		</KnowledgePartCard>
 	);
 
+	const renderEquipmentSuggestion = (
+		equipment: PropertyKnowledgeEquipmentSuggestion,
+	) => {
+		const values = knowledgeEquipmentValues[equipment.id];
+		const accepted = values?.accepted !== false;
+		const matchingDevices = propertyDevices.filter(
+			(device) =>
+				normalizeAssetType(device.assetType || device.type) ===
+				normalizeAssetType(equipment.assetType),
+		);
+		return (
+			<ReviewCandidateCard key={equipment.id} $accepted={accepted}>
+				<MemoryChangeRowHeader>
+					<div>
+						<KnowledgePartTitle>{equipment.label}</KnowledgePartTitle>
+						<KnowledgeDestinationText>
+							{!accepted
+								? `Skipped${values?.skipReason ? `: ${values.skipReason}` : ''}`
+								: values?.matchedDeviceId
+									? 'Match existing equipment'
+									: 'Add new equipment'}
+						</KnowledgeDestinationText>
+					</div>
+					<FieldDecisionGroup>
+						<button type='button' aria-pressed={accepted} onClick={() =>
+							setKnowledgeEquipmentValues((current) => ({
+								...current,
+								[equipment.id]: { ...current[equipment.id], accepted: true, skipReason: undefined },
+							}))}>{values?.matchedDeviceId ? 'Use match' : 'Add new'}</button>
+						<button type='button' aria-pressed={!accepted} onClick={() =>
+							setKnowledgeEquipmentValues((current) => ({
+								...current,
+								[equipment.id]: { ...current[equipment.id], accepted: false, skipReason: current[equipment.id]?.skipReason || '' },
+							}))}>Skip</button>
+					</FieldDecisionGroup>
+				</MemoryChangeRowHeader>
+				<FormSelect
+					aria-label={`${equipment.label} equipment match`}
+					disabled={!accepted}
+					value={values?.matchedDeviceId || ''}
+					onChange={(event) =>
+						setKnowledgeEquipmentValues((current) => ({
+							...current,
+							[equipment.id]: {
+								accepted: true,
+								matchedDeviceId: event.target.value || undefined,
+								skipReason: undefined,
+							},
+						}))
+					}>
+					<option value=''>Add as new {equipment.label}</option>
+					{matchingDevices.map((device) => (
+						<option key={device.id} value={device.id}>
+							{device.type || device.assetType} {device.location?.unitId ? `- ${device.location.unitId}` : ''}
+						</option>
+					))}
+				</FormSelect>
+				{!accepted && (
+					<FormSelect
+						aria-label={`${equipment.label} skip reason`}
+						value={values?.skipReason || ''}
+						onChange={(event) => setKnowledgeEquipmentValues((current) => ({
+							...current,
+							[equipment.id]: { ...current[equipment.id], accepted: false, skipReason: event.target.value },
+						}))}>
+						<option value=''>Select why this was skipped</option>
+						{EQUIPMENT_SKIP_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
+					</FormSelect>
+				)}
+				<KnowledgeConfidenceRow>
+					<KnowledgeConfidence $level={getConfidenceLevel(equipment)}>
+						{getConfidenceLabel(equipment)}
+					</KnowledgeConfidence>
+					<KnowledgeConfidenceMessage>{equipment.confidenceReason}</KnowledgeConfidenceMessage>
+				</KnowledgeConfidenceRow>
+				<KnowledgeSourceText>Report evidence: {equipment.sourceText}</KnowledgeSourceText>
+			</ReviewCandidateCard>
+		);
+	};
+
+	const renderTaskSuggestion = (task: PropertyKnowledgeTaskSuggestion) => {
+		const values = knowledgeTaskValues[task.id];
+		const accepted = values?.accepted !== false;
+		const matchingOpenTasks = allTasks.filter((candidate: any) =>
+			String(candidate.propertyId || candidate.property) === String(property.id) &&
+			!['Completed', 'Rejected'].includes(String(candidate.status)),
+		);
+		const pendingEquipmentOptions = (selectedSuggestion?.suggestedEquipment || []).filter(
+			(equipment) =>
+				knowledgeEquipmentValues[equipment.id]?.accepted !== false &&
+				!knowledgeEquipmentValues[equipment.id]?.matchedDeviceId,
+		);
+		return (
+			<ReviewCandidateCard key={task.id} $accepted={accepted}>
+				<MemoryChangeRowHeader>
+					<div>
+						<KnowledgePartTitle>Recommended task</KnowledgePartTitle>
+						<KnowledgeDestinationText>{task.priority} priority</KnowledgeDestinationText>
+					</div>
+					<FieldDecisionGroup>
+						<button type='button' aria-pressed={accepted} onClick={() =>
+							setKnowledgeTaskValues((current) => ({
+								...current,
+								[task.id]: { ...current[task.id], accepted: true },
+							}))}>{values?.matchedTaskId ? 'Link' : 'Create'}</button>
+						<button type='button' aria-pressed={!accepted} onClick={() =>
+							setKnowledgeTaskValues((current) => ({
+								...current,
+								[task.id]: { ...current[task.id], accepted: false },
+							}))}>Skip</button>
+					</FieldDecisionGroup>
+				</MemoryChangeRowHeader>
+				<FormInput
+					aria-label='Recommended task title'
+					disabled={!accepted}
+					value={values?.title || task.title}
+					onChange={(event) => setKnowledgeTaskValues((current) => ({
+						...current,
+						[task.id]: { ...current[task.id], title: event.target.value },
+					}))}
+				/>
+				<ReviewCandidateTextarea
+					aria-label='Recommended task description'
+					disabled={!accepted}
+					value={values?.description || task.description}
+					onChange={(event) => setKnowledgeTaskValues((current) => ({
+						...current,
+						[task.id]: { ...current[task.id], description: event.target.value },
+					}))}
+				/>
+				<FormSelect
+					aria-label='Existing task match'
+					disabled={!accepted}
+					value={values?.matchedTaskId || ''}
+					onChange={(event) => setKnowledgeTaskValues((current) => ({
+						...current,
+						[task.id]: { ...current[task.id], matchedTaskId: event.target.value || undefined },
+					}))}>
+					<option value=''>Create a new task</option>
+					{matchingOpenTasks.map((candidate: any) => (
+						<option key={candidate.id} value={candidate.id}>{candidate.title}</option>
+					))}
+				</FormSelect>
+				<FormSelect
+					aria-label='Related equipment'
+					disabled={!accepted}
+					value={values?.pendingEquipmentSuggestionId ? `pending:${values.pendingEquipmentSuggestionId}` : values?.matchedDeviceId || ''}
+					onChange={(event) => setKnowledgeTaskValues((current) => ({
+						...current,
+						[task.id]: {
+							...current[task.id],
+							matchedDeviceId: event.target.value && !event.target.value.startsWith('pending:') ? event.target.value : undefined,
+							pendingEquipmentSuggestionId: event.target.value.startsWith('pending:') ? event.target.value.slice('pending:'.length) : undefined,
+						},
+					}))}>
+					<option value=''>No equipment selected</option>
+					{propertyDevices.map((device) => (
+						<option key={device.id} value={device.id}>{device.type || device.assetType}</option>
+					))}
+					{pendingEquipmentOptions.map((equipment) => (
+						<option key={`pending-${equipment.id}`} value={`pending:${equipment.id}`}>
+							{equipment.label} — will be added
+						</option>
+					))}
+				</FormSelect>
+				<FormSelect
+					aria-label='Recommended task timing'
+					disabled={!accepted}
+					value={values?.scheduleMode || 'unscheduled'}
+					onChange={(event) => {
+						const scheduleMode = event.target.value as TaskScheduleMode;
+						setKnowledgeTaskValues((current) => ({
+							...current,
+							[task.id]: {
+								...current[task.id],
+								scheduleMode,
+								dueDate: scheduleMode === 'scheduled' ? current[task.id]?.dueDate || new Date().toISOString().split('T')[0] : '',
+							},
+						}));
+					}}>
+					<option value='scheduled'>Due date</option>
+					<option value='asap'>ASAP</option>
+					<option value='unscheduled'>Not scheduled</option>
+				</FormSelect>
+				{values?.scheduleMode === 'scheduled' && (
+					<FormInput
+						type='date'
+						aria-label='Recommended task due date'
+						disabled={!accepted}
+						value={values.dueDate}
+						onChange={(event) => setKnowledgeTaskValues((current) => ({
+							...current,
+							[task.id]: { ...current[task.id], dueDate: event.target.value, scheduleMode: event.target.value ? 'scheduled' : 'unscheduled' },
+						}))}
+					/>
+				)}
+				<KnowledgeSourceText>Report evidence: {task.sourceText}</KnowledgeSourceText>
+			</ReviewCandidateCard>
+		);
+	};
+
 	const renderMemorySection = (
 		group: MemoryChangeGroup,
 		section: MemoryChangeSection,
@@ -1657,6 +1969,15 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			feedback.notify('Confirm this document belongs to this property before saving.');
 			return;
 		}
+		const skippedEquipmentWithoutReason = (selectedSuggestion.suggestedEquipment || []).find(
+			(equipment) =>
+				knowledgeEquipmentValues[equipment.id]?.accepted === false &&
+				!knowledgeEquipmentValues[equipment.id]?.skipReason,
+		);
+		if (skippedEquipmentWithoutReason) {
+			feedback.notify(`Select why ${skippedEquipmentWithoutReason.label} is being skipped.`);
+			return;
+		}
 		const acceptedAt = new Date().toISOString();
 		const acceptedByUser = getAcceptedByUserId();
 		const suggestionReadyForReview: PropertyKnowledgeSuggestion =
@@ -1678,6 +1999,8 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			fieldValues: knowledgeFieldValues,
 			fieldReviewStatuses: knowledgeFieldReviewStatuses,
 			partValues: knowledgePartValues,
+			taskValues: knowledgeTaskValues,
+			equipmentValues: knowledgeEquipmentValues,
 		});
 		const suggestionForApply: PropertyKnowledgeSuggestion = {
 			...acceptedSuggestion,
@@ -1700,11 +2023,125 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 
 		setIsSaving(true);
 		try {
+			const linkedEquipmentIds = new Set<string>();
+			const linkedTaskIds = new Set<string>();
 			await Promise.all(
 				result.systemUpdates.map((systemUpdate) =>
 					updateDevice(systemUpdate).unwrap(),
 				),
 			);
+
+			const equipmentIdsByType = new Map<string, string>();
+			const equipmentIdsBySuggestion = new Map<string, string>();
+			propertyDevices.forEach((device) => {
+				equipmentIdsByType.set(
+					normalizeAssetType(device.assetType || device.type),
+					String(device.id),
+				);
+			});
+			if (permissions?.canManageAppliances ?? true) {
+				for (const equipment of result.equipmentSuggestions) {
+					const selectedMatch = knowledgeEquipmentValues[equipment.id]?.matchedDeviceId;
+					const previouslyCreatedMatch = propertyDevices.find((device: any) =>
+						Object.values(device.propertyKnowledgeProvenance || {}).flat().some((entry: any) =>
+							entry?.sourceDocumentId === result.appliedSuggestion.sourceDocumentId &&
+							entry?.suggestionId === result.appliedSuggestion.id &&
+							entry?.sourceText === equipment.sourceText,
+						),
+					);
+					const equipmentMatchId = selectedMatch || previouslyCreatedMatch?.id;
+					if (equipmentMatchId) {
+						linkedEquipmentIds.add(String(equipmentMatchId));
+						equipmentIdsByType.set(normalizeAssetType(equipment.assetType), String(equipmentMatchId));
+						equipmentIdsBySuggestion.set(equipment.id, String(equipmentMatchId));
+						continue;
+					}
+					const definition = getAssetDefinition(equipment.assetType);
+					const created = await createDevice({
+						userId: String((currentUser as any)?.id || property.userId),
+						type: normalizeAssetType(equipment.assetType),
+						assetType: normalizeAssetType(equipment.assetType),
+						assetVariant: normalizeAssetVariant(
+							equipment.assetType,
+							equipment.assetVariant,
+						),
+						assetCategory: definition?.category || 'other',
+						knowledgePack: definition?.knowledgePack || 'generic',
+						brand: '',
+						model: '',
+						serialNumber: '',
+						location: { propertyId: property.id },
+						status: 'Active',
+						notes: `Added from ${result.appliedSuggestion.sourceDocumentName || 'a reviewed service report'}.`,
+						propertyKnowledgeProvenance: {
+							assetType: [{
+								sourceDocumentId: result.appliedSuggestion.sourceDocumentId,
+								sourceDocumentType: result.appliedSuggestion.documentType,
+								extractionMethod: result.appliedSuggestion.extractionMethod,
+								acceptedByUser,
+								acceptedAt,
+								suggestionId: result.appliedSuggestion.id,
+								fieldKey: 'assetType',
+								sourceText: equipment.sourceText,
+							}],
+						},
+					}).unwrap();
+					if (created?.id) {
+						linkedEquipmentIds.add(String(created.id));
+						equipmentIdsByType.set(
+							normalizeAssetType(equipment.assetType),
+							String(created.id),
+						);
+						equipmentIdsBySuggestion.set(equipment.id, String(created.id));
+					}
+				}
+			}
+
+			if (permissions?.canManageTasks ?? true) {
+				for (const task of result.taskSuggestions) {
+					const taskValues = knowledgeTaskValues[task.id];
+					const previouslyCreatedTask = allTasks.find((candidate: any) =>
+						candidate.sourceDocumentId === result.appliedSuggestion.sourceDocumentId &&
+						candidate.sourceKnowledgeSuggestionId === result.appliedSuggestion.id &&
+						normalizeLookupValue(candidate.title) === normalizeLookupValue(task.userEditableTitle || task.title),
+					);
+					const existingTaskId = taskValues?.matchedTaskId || previouslyCreatedTask?.id;
+					if (existingTaskId) {
+						linkedTaskIds.add(String(existingTaskId));
+						continue;
+					}
+					const matchedDeviceId =
+						taskValues?.matchedDeviceId ||
+						(taskValues?.pendingEquipmentSuggestionId
+							? equipmentIdsBySuggestion.get(taskValues.pendingEquipmentSuggestionId)
+							: undefined) ||
+						(task.relatedAssetType
+							? equipmentIdsByType.get(normalizeAssetType(task.relatedAssetType))
+							: undefined);
+					const createdTask = await createTask({
+						userId: String((currentUser as any)?.id || property.userId),
+						propertyId: property.id,
+						property: property.id,
+						propertyTitle: property.title,
+						title: task.userEditableTitle || task.title,
+						description: task.userEditableDescription || task.description,
+						notes: [
+							`Suggested from ${result.appliedSuggestion.sourceDocumentName || 'a reviewed service report'}.`,
+							task.sourceText ? `Report evidence: ${task.sourceText}` : '',
+						].filter(Boolean).join('\n'),
+						dueDate: taskValues?.scheduleMode === 'scheduled' ? taskValues.dueDate : '',
+						scheduleMode: taskValues?.scheduleMode || 'unscheduled',
+						status: 'Initiated',
+						priority: task.priority,
+						category: 'Maintenance',
+						sourceDocumentId: result.appliedSuggestion.sourceDocumentId,
+						sourceKnowledgeSuggestionId: result.appliedSuggestion.id,
+						...(matchedDeviceId ? { devices: [matchedDeviceId] } : {}),
+					}).unwrap();
+					if (createdTask?.id) linkedTaskIds.add(String(createdTask.id));
+					if (matchedDeviceId) linkedEquipmentIds.add(String(matchedDeviceId));
+				}
+			}
 
 			let completedBy: string | undefined;
 			let completedByName: string | undefined;
@@ -1840,6 +2277,23 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					result.appliedSuggestion.sourceDocumentId,
 					{
 						acquisitionStatus: 'applied',
+						links: {
+							...(propertyDocuments.find(
+								(document) => document.id === result.appliedSuggestion.sourceDocumentId,
+							)?.links || {}),
+							assetIds: Array.from(new Set([
+								...(propertyDocuments.find(
+									(document) => document.id === result.appliedSuggestion.sourceDocumentId,
+								)?.links?.assetIds || []),
+								...linkedEquipmentIds,
+							])),
+							taskIds: Array.from(new Set([
+								...(propertyDocuments.find(
+									(document) => document.id === result.appliedSuggestion.sourceDocumentId,
+								)?.links?.taskIds || []),
+								...linkedTaskIds,
+							])),
+						},
 					},
 				),
 				updatePropertyKnowledgeSuggestionInCollection(
@@ -1856,6 +2310,17 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 							? {
 									...document,
 									acquisitionStatus: 'applied',
+									links: {
+										...(document.links || {}),
+										assetIds: Array.from(new Set([
+											...(document.links?.assetIds || []),
+											...linkedEquipmentIds,
+										])),
+										taskIds: Array.from(new Set([
+											...(document.links?.taskIds || []),
+											...linkedTaskIds,
+										])),
+									},
 							  }
 							: document,
 					),
@@ -1958,12 +2423,12 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					</div>
 				</PanelHeader>
 				<EmptyState>
-					<h3>Your property's memory is ready to grow.</h3>
+					<h3>Turn property documents into useful records.</h3>
 					<p>
-						Upload manuals, invoices, warranties, or inspection reports to help your property remember more over time.
+						Upload manuals, invoices, warranties, or inspection reports. Maintley can identify equipment details, completed service, and recommended next steps.
 					</p>
 					<p>
-						Maintley will identify information you can review before adding it to your property's memory. Accepted details become part of your property record and are recorded in Intelligence History.
+						You review every suggestion before anything is added to your property record.
 					</p>
 					<EmptyExamples>
 						<span>Maintley can identify:</span>
@@ -2153,10 +2618,45 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 											</MemoryChangeCard>
 										))}
 									</MemoryChangeList>
+									{(selectedSuggestion.suggestedEquipment || []).length > 0 && (
+										<ReviewCandidateSection>
+											<KnowledgeSectionHeader>
+												<div>
+													<KnowledgeSectionTitle>Equipment mentioned</KnowledgeSectionTitle>
+													<KnowledgeSectionText>
+														Match equipment already in this property or approve adding a missing record.
+													</KnowledgeSectionText>
+												</div>
+											</KnowledgeSectionHeader>
+											<ReviewCandidateList>
+												{(selectedSuggestion.suggestedEquipment || []).map(renderEquipmentSuggestion)}
+											</ReviewCandidateList>
+										</ReviewCandidateSection>
+									)}
+									{(selectedSuggestion.suggestedTasks || []).length > 0 && (
+										<ReviewCandidateSection>
+											<KnowledgeSectionHeader>
+												<div>
+													<KnowledgeSectionTitle>Recommended next steps</KnowledgeSectionTitle>
+													<KnowledgeSectionText>
+												Only approved recommendations become tasks. When the report gives no timing, the task starts as Not scheduled; choose ASAP only when it genuinely needs prompt attention.
+													</KnowledgeSectionText>
+												</div>
+											</KnowledgeSectionHeader>
+											<ReviewCandidateList>
+												{(selectedSuggestion.suggestedTasks || []).map(renderTaskSuggestion)}
+											</ReviewCandidateList>
+										</ReviewCandidateSection>
+									)}
 								</>
 							)}
 
 							<DetailActions>
+								<KnowledgeSectionText>
+									Saving will apply {activeReviewItemCount} approved detail{activeReviewItemCount === 1 ? '' : 's'}, including{' '}
+									{(selectedSuggestion.suggestedTasks || []).filter((task) => knowledgeTaskValues[task.id]?.accepted !== false).length} task recommendation{(selectedSuggestion.suggestedTasks || []).filter((task) => knowledgeTaskValues[task.id]?.accepted !== false).length === 1 ? '' : 's'} and{' '}
+									{(selectedSuggestion.suggestedEquipment || []).filter((equipment) => knowledgeEquipmentValues[equipment.id]?.accepted !== false).length} equipment match or addition{(selectedSuggestion.suggestedEquipment || []).filter((equipment) => knowledgeEquipmentValues[equipment.id]?.accepted !== false).length === 1 ? '' : 's'}.
+								</KnowledgeSectionText>
 								<SaveButton
 									type='button'
 									onClick={handleApplySuggestion}
@@ -2197,6 +2697,51 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 const PanelShell = styled.section`
 	display: grid;
 	gap: 14px;
+`;
+
+const ReviewCandidateSection = styled.section`
+	display: grid;
+	gap: 12px;
+	margin-top: 14px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 10px;
+	background: ${COLORS.white};
+	padding: 14px;
+`;
+
+const ReviewCandidateList = styled.div`
+	display: grid;
+	gap: 10px;
+`;
+
+const ReviewCandidateCard = styled.div<{ $accepted: boolean }>`
+	display: grid;
+	gap: 10px;
+	border: 1px solid ${({ $accepted }) => ($accepted ? COLORS.primaryLight : COLORS.border)};
+	border-radius: 8px;
+	background: ${({ $accepted }) => ($accepted ? COLORS.bgLight : COLORS.white)};
+	padding: 12px;
+	opacity: ${({ $accepted }) => ($accepted ? 1 : 0.72)};
+`;
+
+const ReviewCandidateTextarea = styled.textarea`
+	width: 100%;
+	min-height: 92px;
+	box-sizing: border-box;
+	resize: vertical;
+	border: 1px solid ${COLORS.border};
+	border-radius: 6px;
+	background: ${COLORS.white};
+	color: ${COLORS.textPrimary};
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.45;
+	padding: 9px 10px;
+
+	&:disabled {
+		background: ${COLORS.bgLight};
+		color: ${COLORS.textSecondary};
+	}
 `;
 
 const PanelHeader = styled.div`

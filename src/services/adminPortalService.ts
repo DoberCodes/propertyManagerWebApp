@@ -108,7 +108,7 @@ export type AdminPortalUserTroubleshootingDetails = {
 		} | null;
 		inviteCode?: string | null;
 		lastLoginAt?: string;
-		lastActivityAt?: string;
+		lastActivityAt?: string | null;
 		createdAt?: string;
 		updatedAt?: string;
 	};
@@ -122,6 +122,62 @@ export type AdminPortalUserTroubleshootingDetails = {
 		supportAttachmentStorageBytes: number;
 		recentErrorCount?: number;
 		openTicketCount?: number;
+	};
+	access?: {
+		basePlan: string;
+		effectiveBundles: string[];
+		activeGrantCount: number;
+		grants: Array<{
+			grantId: string;
+			programId: string;
+			state: string;
+			kind: string;
+			bundleId?: string | null;
+			startsAt?: string | null;
+			endsAt?: string | null;
+			source?: string;
+		}>;
+		homeownerPlusTrial?: {
+			state: string;
+			startsAt: string;
+			endsAt: string;
+		} | null;
+		timeline: Array<{
+			id: string;
+			action: string;
+			reason: string;
+			createdAt?: string | null;
+			grantId?: string | null;
+			programId?: string | null;
+		}>;
+		lifecycleDeliveries: Array<{
+			id: string;
+			milestone: string;
+			status: string;
+			outcome: string;
+			templateVersion: string;
+			attempts: number;
+			targetAt?: string | null;
+			sentAt?: string | null;
+			updatedAt?: string | null;
+		}>;
+		grantAdministration: {
+			enabled: boolean;
+			canManage: boolean;
+			isMaintleyOwner: boolean;
+			canSelfGrant: boolean;
+			targetAllowed: boolean;
+			targetRestrictionReason?: string | null;
+			programs: Array<{
+				programId: string;
+				label: string;
+				bundleId: 'homeowner_plus' | 'portfolio';
+				allowedKinds: Array<'temporary' | 'permanent'>;
+				defaultDurationDays?: number | null;
+				maxDurationDays?: number | null;
+				ownerOnly: boolean;
+			}>;
+		};
 	};
 	recentSupportRequests: Array<{
 		id: string;
@@ -173,6 +229,80 @@ export type AdminBillingCoupon = {
 	appliesToBillingCycle?: string;
 	internalNote?: string;
 	createdAt?: string | null;
+};
+
+export type AdminComplimentaryAccessCode = {
+	codeId: string;
+	programId: string;
+	label: string;
+	bundleId: 'homeowner_plus' | 'property' | 'portfolio' | string;
+	durationDays: number;
+	expiresAt?: string | null;
+	maxRedemptions: number;
+	redeemedCount: number;
+	recipientEmail?: string | null;
+	transitionMode: 'none' | 'checkout_required' | string;
+	status: string;
+	createdAt?: string | null;
+};
+
+export type AdminMaintleyTeamMember = {
+	id: string;
+	email?: string | null;
+	displayName: string;
+	maintleyRole: 'owner' | 'admin' | 'support' | 'operations' | string;
+	permissions: string[];
+	updatedAt?: string | null;
+};
+
+export const adminPortalListMaintleyTeam = async (params: {
+	sessionToken: string;
+}): Promise<{
+	members: AdminMaintleyTeamMember[];
+	actorRole: string;
+	canAssignElevatedRoles: boolean;
+}> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{
+			members: AdminMaintleyTeamMember[];
+			actorRole: string;
+			canAssignElevatedRoles: boolean;
+		}
+	>('adminPortalListMaintleyTeam');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalMutateMaintleyTeam = async (params: {
+	sessionToken: string;
+	action: 'invite' | 'update' | 'revoke';
+	targetUserId?: string;
+	email?: string;
+	firstName?: string;
+	lastName?: string;
+	role?: 'owner' | 'admin' | 'support' | 'operations';
+	reason: string;
+	requestId: string;
+	confirmation?: string;
+}): Promise<{
+	success: true;
+	outcome: 'completed' | 'replayed';
+	requestId: string;
+	targetUserId?: string;
+	createdAuthUser?: boolean;
+	invitationEmailOutcome?: 'not_applicable' | 'sent' | 'failed';
+}> => {
+	const callable = await getAdminCallable<typeof params, {
+		success: true;
+		outcome: 'completed' | 'replayed';
+		requestId: string;
+		targetUserId?: string;
+		createdAuthUser?: boolean;
+		invitationEmailOutcome?: 'not_applicable' | 'sent' | 'failed';
+	}>('adminPortalMutateMaintleyTeam');
+	const result = await callable(params);
+	return result.data;
 };
 
 export type AdminPortalAuditLogRecord = {
@@ -311,28 +441,129 @@ export const getAdminPortalUserTroubleshootingDetails = async (params: {
 	return result.data;
 };
 
+export type AdminEntitlementGrantAction = 'create' | 'extend' | 'revoke';
+
+export type AdminEntitlementAccessPreview = {
+	billingPlan: string;
+	effectiveBundles: string[];
+	activeGrantIds: string[];
+	propertyLimit: number;
+	fileLimit: number;
+	storageGb: number;
+};
+
+export const adminPortalPreviewEntitlementGrant = async (params: {
+	sessionToken: string;
+	targetUserId: string;
+	action: AdminEntitlementGrantAction;
+	programId?: string;
+	kind?: 'temporary' | 'permanent';
+	durationDays?: number;
+	grantId?: string;
+}): Promise<{
+	action: AdminEntitlementGrantAction;
+	programId: string;
+	programLabel: string;
+	kind: 'temporary' | 'permanent';
+	durationDays: number | null;
+	currentAccess: AdminEntitlementAccessPreview;
+	proposedAccess: AdminEntitlementAccessPreview;
+	confirmationPhrase: string;
+	billingRelationshipCreated: false;
+}> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{
+			action: AdminEntitlementGrantAction;
+			programId: string;
+			programLabel: string;
+			kind: 'temporary' | 'permanent';
+			durationDays: number | null;
+			currentAccess: AdminEntitlementAccessPreview;
+			proposedAccess: AdminEntitlementAccessPreview;
+			confirmationPhrase: string;
+			billingRelationshipCreated: false;
+		}
+	>('adminPortalPreviewEntitlementGrant');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalMutateEntitlementGrant = async (params: {
+	sessionToken: string;
+	targetUserId: string;
+	action: AdminEntitlementGrantAction;
+	programId?: string;
+	kind?: 'temporary' | 'permanent';
+	durationDays?: number;
+	grantId?: string;
+	reason: string;
+	requestId: string;
+	confirmation: string;
+}): Promise<{
+	success: true;
+	replayed: boolean;
+	grantId: string;
+	programId: string;
+	billingRelationshipCreated: false;
+}> => {
+	const callable = await getAdminCallable<typeof params, {
+		success: true;
+		replayed: boolean;
+		grantId: string;
+		programId: string;
+		billingRelationshipCreated: false;
+	}>('adminPortalMutateEntitlementGrant');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminSendAccessLifecycleEmail = async (params: {
+	sessionToken: string;
+	targetUserId: string;
+	grantId: string;
+	milestone: 'activation';
+	requestId: string;
+	reason: string;
+}): Promise<{ success: true; outcome: 'sent' | 'skipped' | 'deferred' | 'replayed'; requestId: string }> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{ success: true; outcome: 'sent' | 'skipped' | 'deferred' | 'replayed'; requestId: string }
+	>('sendAdminAccessLifecycleEmail');
+	const result = await callable(params);
+	return result.data;
+};
+
 export const adminPortalManageUserSubscription = async (params: {
 	sessionToken: string;
 	userId: string;
-	action: 'change_plan' | 'extend_trial' | 'cancel_subscription';
+	action: 'change_plan' | 'extend_trial' | 'cancel_subscription' | 'clear_stripe_linkage';
 	planId?: string;
 	trialDays?: number;
 	syncStripe?: boolean;
+	reason?: string;
+	confirmation?: string;
+	requestId?: string;
 }): Promise<{
 	success: true;
 	subscriptionPlan: string;
 	subscriptionStatus: string;
 	trialEndsAt: number | null;
 	stripeUpdated: boolean;
+	stripeLinkageCleared?: boolean;
+	replayed?: boolean;
 }> => {
 	const callable = await getAdminCallable<
 		{
 			sessionToken: string;
 			userId: string;
-			action: 'change_plan' | 'extend_trial' | 'cancel_subscription';
+			action: 'change_plan' | 'extend_trial' | 'cancel_subscription' | 'clear_stripe_linkage';
 			planId?: string;
 			trialDays?: number;
 			syncStripe?: boolean;
+			reason?: string;
+			confirmation?: string;
+			requestId?: string;
 		},
 		{
 			success: true;
@@ -340,6 +571,8 @@ export const adminPortalManageUserSubscription = async (params: {
 			subscriptionStatus: string;
 			trialEndsAt: number | null;
 			stripeUpdated: boolean;
+			stripeLinkageCleared?: boolean;
+			replayed?: boolean;
 		}
 	>('adminPortalManageUserSubscription');
 
@@ -477,6 +710,68 @@ export const adminPortalCreateBillingCoupon = async (params: {
 
 	const result = await callable(params);
 	return result.data;
+};
+
+export const adminSendOperationalUserEmail = async (params: {
+	sessionToken: string;
+	targetUserId: string;
+	category: 'support_follow_up' | 'account_notice' | 'billing_access';
+	subject: string;
+	message: string;
+	reason: string;
+	requestId: string;
+}): Promise<{
+	success: true;
+	outcome: 'sent' | 'replayed';
+	requestId: string;
+}> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{ success: true; outcome: 'sent' | 'replayed'; requestId: string }
+	>('sendAdminOperationalUserEmail');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalCreateComplimentaryAccessCode = async (params: {
+	sessionToken: string;
+	label: string;
+	bundleId: 'homeowner_plus' | 'property' | 'portfolio';
+	durationDays: number;
+	expiresAt?: string;
+	maxRedemptions: number;
+	recipientEmail?: string;
+	transitionMode: 'none' | 'checkout_required';
+	reason: string;
+	requestId: string;
+}): Promise<{
+	success: true;
+	replayed: boolean;
+	code: string | null;
+	programId: string;
+	program?: AdminComplimentaryAccessCode;
+}> => {
+	const callable = await getAdminCallable<typeof params, {
+		success: true;
+		replayed: boolean;
+		code: string | null;
+		programId: string;
+		program?: AdminComplimentaryAccessCode;
+	}>('adminPortalCreateComplimentaryAccessCode');
+	const result = await callable(params);
+	return result.data;
+};
+
+export const adminPortalListComplimentaryAccessCodes = async (params: {
+	sessionToken: string;
+	limit?: number;
+}): Promise<AdminComplimentaryAccessCode[]> => {
+	const callable = await getAdminCallable<
+		typeof params,
+		{ codes: AdminComplimentaryAccessCode[] }
+	>('adminPortalListComplimentaryAccessCodes');
+	const result = await callable(params);
+	return result.data.codes || [];
 };
 
 export const adminPortalListBillingCoupons = async (params: {

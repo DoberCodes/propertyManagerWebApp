@@ -15,7 +15,6 @@ import { auth, db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import {
 	PropertyShare,
-	Suite,
 	Unit,
 	PropertyGroupMembership,
 } from '../../types/Property.types';
@@ -1374,105 +1373,7 @@ const propertySlice = apiSlice.injectEndpoints({
 			],
 		}),
 
-		// Suites endpoints
-		getSuites: builder.query<Suite[], string>({
-			async queryFn(propertyId: string) {
-				try {
-					const q = query(
-						collection(db, 'suites'),
-						where('propertyId', '==', propertyId),
-					);
-					const querySnapshot = await getDocs(q);
-					const suites = querySnapshot.docs.map((doc) => ({
-						id: doc.id,
-						...doc.data(),
-					})) as Suite[];
-					return { data: suites };
-				} catch (error) {
-					return { error: (error as Error).message };
-				}
-			},
-			providesTags: ['Suites'],
-		}),
-
-		getSuite: builder.query<Suite, string>({
-			async queryFn(suiteId: string) {
-				try {
-					const docRef = doc(db, 'suites', suiteId);
-					const docSnapshot = await getDoc(docRef);
-					const data = docToData(docSnapshot) as Suite;
-					return { data };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			providesTags: ['Suites'],
-		}),
-
-		createSuite: builder.mutation<Suite, Omit<Suite, 'id'>>({
-			async queryFn(newSuite) {
-				try {
-					const currentUser = auth.currentUser;
-					if (!currentUser) {
-						return { error: 'User not authenticated' };
-					}
-					const targetUserId = await resolveTargetUserId();
-					const docRef = await addDoc(collection(db, 'suites'), {
-						...newSuite,
-						userId: targetUserId,
-						accountId: targetUserId,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					});
-					return {
-						data: {
-							id: docRef.id,
-							...newSuite,
-							userId: targetUserId,
-							accountId: targetUserId,
-						} as Suite,
-					};
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['Suites'],
-		}),
-
-		updateSuite: builder.mutation<
-			Suite,
-			{ id: string; updates: Partial<Suite> }
-		>({
-			async queryFn({ id, updates }) {
-				try {
-					const docRef = doc(db, 'suites', id);
-					await updateDoc(docRef, {
-						...updates,
-						updatedAt: new Date().toISOString(),
-					});
-					const savedSnapshot = await getDoc(docRef);
-					const savedData = docToData(savedSnapshot) as Suite;
-					return { data: savedData };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['Suites'],
-		}),
-
-		deleteSuite: builder.mutation<void, string>({
-			async queryFn(suiteId: string) {
-				try {
-					await deleteDoc(doc(db, 'suites', suiteId));
-					return { data: undefined };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['Suites'],
-		}),
-
-		// Units endpoints
+		// Legacy Unit readers preserve location context for existing records.
 		getUnits: builder.query<Unit[], string>({
 			async queryFn(propertyId: string) {
 				try {
@@ -1521,66 +1422,6 @@ const propertySlice = apiSlice.injectEndpoints({
 			providesTags: ['Units'],
 		}),
 
-		createUnit: builder.mutation<Unit, Omit<Unit, 'id'>>({
-			async queryFn(newUnit) {
-				try {
-					const currentUser = auth.currentUser;
-					if (!currentUser) {
-						return { error: 'User not authenticated' };
-					}
-					const targetUserId = await resolveTargetUserId();
-					const docRef = await addDoc(collection(db, 'units'), {
-						...newUnit,
-						userId: targetUserId,
-						accountId: targetUserId,
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString(),
-					});
-					return {
-						data: {
-							id: docRef.id,
-							...newUnit,
-							userId: targetUserId,
-							accountId: targetUserId,
-						} as Unit,
-					};
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['Units'],
-		}),
-
-		updateUnit: builder.mutation<Unit, { id: string; updates: Partial<Unit> }>({
-			async queryFn({ id, updates }) {
-				try {
-					const docRef = doc(db, 'units', id);
-					await updateDoc(docRef, {
-						...updates,
-						updatedAt: new Date().toISOString(),
-					});
-					const savedSnapshot = await getDoc(docRef);
-					const savedData = docToData(savedSnapshot) as Unit;
-					return { data: savedData };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['Units'],
-		}),
-
-		deleteUnit: builder.mutation<void, string>({
-			async queryFn(unitId: string) {
-				try {
-					await deleteDoc(doc(db, 'units', unitId));
-					return { data: undefined };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['Units'],
-		}),
-
 		// Get all units across all properties (for reports)
 		getAllUnits: builder.query<Unit[], void>({
 			async queryFn() {
@@ -1627,15 +1468,7 @@ export const {
 	useCreatePropertyMutation,
 	useUpdatePropertyMutation,
 	useDeletePropertyMutation,
-	useGetSuitesQuery,
-	useGetSuiteQuery,
-	useCreateSuiteMutation,
-	useUpdateSuiteMutation,
-	useDeleteSuiteMutation,
 	useGetUnitsQuery,
 	useGetUnitQuery,
-	useCreateUnitMutation,
-	useUpdateUnitMutation,
-	useDeleteUnitMutation,
 	useGetAllUnitsQuery,
 } = propertySlice;

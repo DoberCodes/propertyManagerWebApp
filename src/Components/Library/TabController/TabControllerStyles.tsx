@@ -2,7 +2,7 @@ import styled from 'styled-components';
 import { COLORS } from '../../../constants/colors';
 
 /**
- * Shared tab control styles used across PropertyDetailPage, UnitDetailPage, SuiteDetailPage
+ * Shared tab control styles used across detail pages
  * These components handle the visual container and button styles for tab navigation
  */
 

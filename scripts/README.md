@@ -202,8 +202,9 @@ These scripts are actively used, referenced by package aliases, or remain part o
 * syncAppVersion.cjs
 
 `generateReleaseNotes.cjs` is the active PR-first release note generator used by
-the Release Notes GitHub Action and local preview commands. It uses the local
-git range from the latest `v*` tag to `HEAD`, enriches merged PRs with GitHub
+the Release Notes GitHub Action and local preview commands. It uses the latest
+merged `Release v...` commit after the latest `v*` tag as its boundary, or the
+tag when there is no newer merged release. It enriches merged PRs with GitHub
 CLI metadata when available, writes customer-facing release notes, and can write
 engineering notes plus structured metadata.
 
@@ -228,8 +229,9 @@ versioning PR itself does not appear as a customer-facing improvement.
 artifact.
 
 `build:signed` does not call this generator directly. It downloads the
-successful `release-notes.yml` artifact for the current `main` commit and uses
-those customer notes as the GitHub Release body.
+successful `release-notes.yml` artifact for the current `main` commit to
+validate the prepared version. The matching GitHub Release must already exist;
+the helper attaches or replaces Android artifacts without changing its notes.
 
 `prepareReleaseVersion.cjs` updates the repo-controlled release version files:
 
@@ -283,7 +285,6 @@ silently fall back to a preview.
 * migratePropertyGroupMemberships.cjs
 * migratePruneInactiveUserData.cjs
 * migrateRemoveOrphanedData.cjs
-* migrateFixDeviceStructure.cjs
 
 ---
 
@@ -291,59 +292,50 @@ silently fall back to a preview.
 
 * testFirebaseRules.cjs
 * testStorageRules.cjs
-* debugRecurringTasks.cjs
-* testRecurrence.cjs
-* testRecurrenceLogic.cjs
-* auditTasksSchema.cjs
-* checkDeviceLocations.cjs
+* inventoryMaintenanceHistory.cjs
+
+### Maintenance History migration inventory
+
+`inventoryMaintenanceHistory.cjs` is the report-only discovery gate for ADR
+0024. It scans canonical Maintenance Events, the legacy `maintenanceHistory`
+collection, and embedded property/equipment history. It classifies records but
+does not create, update, or delete Firestore data.
+
+The command permanently rejects `--apply`, requires explicit confirmation of
+the Firebase project encoded by the service account, and only writes JSON
+reports beneath the gitignored `tmp/` directory.
+
+```bash
+yarn audit:maintenance-history --confirm-project=mypropertymanager-cda42
+```
+
+Optional account-scoped report:
+
+```bash
+yarn audit:maintenance-history \
+  --confirm-project=mypropertymanager-cda42 \
+  --account-id=<account-id> \
+  --report=tmp/maintenance-history-inventory.json
+```
+
+Run deterministic classifier fixtures with:
+
+```bash
+yarn test:maintenance-history-inventory
+```
+
+Do not run `migrateMaintenanceHistoryToEvents.cjs --apply`. Its earlier
+backfill behavior predates the inventory, provenance, revision, parity, and
+rollback requirements now established for the migration.
 
 ---
 
 ## Utilities
 
-* convert-to-root-imports.cjs
 * generateMaintleyContentIdea.cjs
-* scan-packages-for-test-code.cjs
 * seedFirestore.cjs
-* seedFirestoreAuth.cjs
 * seedDemoAccount.cjs
 * updateSupportUpdates.cjs
-
----
-
-# Needs Review
-
-These scripts remain in the repository but are not currently part of documented operational workflows.
-
-Review before use.
-
-* testFirebaseAdmin.cjs
-* testContractorsQuery.cjs
-* testDevicesQuery.cjs
-* test-push-notifications.cjs
-* trigger-push-notification.cjs
-
-Potential future action:
-
-* Keep
-* Archive
-* Remove
-
-depending on actual usage.
-
----
-
-# Remove Candidates
-
-The following scripts have been identified as likely obsolete or duplicated.
-
-Do not rely on them for current workflows.
-
-* sendPushOnNotificationCreate.js
-
-Potential action:
-
-* Remove after final verification.
 
 ---
 
@@ -362,6 +354,10 @@ scripts/archive/README.md
 ```
 
 for execution guidance and archive policies.
+
+The archive includes historical task-schema, device-location, recurring-task,
+and device-structure migration artifacts retained as evidence. They are not
+supported operational commands.
 
 ---
 
@@ -383,8 +379,11 @@ The release workflow uses split ownership:
 * `build:signed` remains the local Android signing helper while signing secrets
   stay local. It validates that version files were already prepared, builds the
   signed Android artifacts needed for validation and app-store maintenance, and
-  creates or updates the GitHub Release. Public Android distribution and updates
-  are handled through Google Play.
+  attaches them to an existing GitHub Release without changing its notes. Public
+  Android distribution and updates are handled through Google Play.
+* Automatic version tag and GitHub Release creation will follow a successful
+  production website deploy as part of the Firebase Hosting migration. Firebase
+  preview channels for pull requests will not create releases or tags.
 * After release artifacts are prepared, Publish App Version writes Firestore
   `appConfig/version` with release metadata and the Google Play listing URL.
 

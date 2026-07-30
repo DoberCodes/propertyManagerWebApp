@@ -432,6 +432,69 @@ const tenantSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['Properties'],
 		}),
 
+		addManualOccupancy: builder.mutation<
+			{ tenantId: string; canInviteTenantAccess: boolean; manualOnly: boolean },
+			{
+				propertyId: string;
+				firstName: string;
+				lastName: string;
+				email: string;
+				phone?: string;
+				leaseEnd?: string;
+			}
+		>({
+			async queryFn(occupant) {
+				try {
+					const result = await callFirebaseFunction<
+						{ action: 'create'; propertyId: string; occupant: typeof occupant },
+						{ tenantId: string; canInviteTenantAccess: boolean; manualOnly: boolean }
+					>('manageManualOccupancy', {
+						action: 'create',
+						propertyId: occupant.propertyId,
+						occupant,
+					});
+					return { data: result.data };
+				} catch (error: any) {
+					return { error: mapCallableErrorMessage(error, 'Failed to add resident record') };
+				}
+			},
+			invalidatesTags: ['Properties'],
+		}),
+
+		updateManualOccupancy: builder.mutation<
+			void,
+			{ propertyId: string; tenantId: string; updates: Record<string, unknown> }
+		>({
+			async queryFn({ propertyId, tenantId, updates }) {
+				try {
+					await callFirebaseFunction('manageManualOccupancy', {
+						action: 'update', propertyId, tenantId, occupant: updates,
+					});
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: mapCallableErrorMessage(error, 'Failed to update resident record') };
+				}
+			},
+			invalidatesTags: ['Properties'],
+		}),
+
+		removeManualOccupancy: builder.mutation<
+			void,
+			{ propertyId: string; tenantId: string }
+		>({
+			async queryFn({ propertyId, tenantId }) {
+				try {
+					await callFirebaseFunction('manageManualOccupancy', {
+						action: 'remove', propertyId, tenantId,
+					});
+					return { data: undefined };
+				} catch (error: any) {
+					return { error: mapCallableErrorMessage(error, 'Failed to remove resident record') };
+				}
+			},
+			invalidatesTags: ['Properties'],
+		}),
+
 	}),
 });
 
@@ -446,4 +509,7 @@ export const {
 	useLazyGetTenantInvitationCodesByEmailQuery,
 
 	useRemoveTenantMutation,
+	useAddManualOccupancyMutation,
+	useUpdateManualOccupancyMutation,
+	useRemoveManualOccupancyMutation,
 } = tenantSlice;

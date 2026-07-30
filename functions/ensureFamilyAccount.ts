@@ -1,5 +1,9 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
+import {
+	getInitialTrialEligibility,
+	HOMEOWNER_PLUS_TRIAL_PROGRAM_ID,
+} from './entitlementGrants';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -130,6 +134,10 @@ export const ensureFamilyAccountForUser = async (
 				(data?.subscription as Record<string, unknown> | undefined) ||
 				(userData.subscription as Record<string, unknown> | undefined) ||
 				null;
+			const trialEligibility = getInitialTrialEligibility(
+				subscriptionToStore,
+				userData.createdAt,
+			);
 
 			transaction.set(accountRef, {
 				id: accountId,
@@ -138,6 +146,13 @@ export const ensureFamilyAccountForUser = async (
 				propertyCount: 0,
 				deviceCount: 0,
 				subscription: subscriptionToStore,
+				...(trialEligibility
+					? {
+							entitlementPrograms: {
+								[HOMEOWNER_PLUS_TRIAL_PROGRAM_ID]: trialEligibility,
+							},
+					  }
+					: {}),
 				createdAt: admin.firestore.FieldValue.serverTimestamp(),
 				updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 			});
@@ -160,12 +175,20 @@ export const ensureFamilyAccountForUser = async (
 
 	const finalAccountDoc = await accountRef.get();
 	const finalData = finalAccountDoc.data() || {};
+	const [accountTeamMembers, legacyTeamMembers] = await Promise.all([
+		db.collection('teamMembers').where('accountId', '==', accountId).limit(1).get(),
+		db.collection('teamMembers').where('userId', '==', accountId).limit(1).get(),
+	]);
 
 	return {
 		id: accountId,
 		ownerId: finalData.ownerId,
 		memberIds: Array.isArray(finalData.memberIds) ? finalData.memberIds : [],
 		subscription: serializeFirestoreValue(finalData.subscription),
+		effectiveEntitlementProjection: serializeFirestoreValue(
+			finalData.effectiveEntitlementProjection,
+		),
+		hasExistingTeamMembers: !accountTeamMembers.empty || !legacyTeamMembers.empty,
 		updatedAt: serializeFirestoreValue(finalData.updatedAt),
 	};
 };

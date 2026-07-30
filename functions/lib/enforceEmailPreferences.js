@@ -36,42 +36,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.enforceEmailPreferences = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
+const entitlements_1 = require("@maintley/entitlements");
+const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
-const PAID_TASK_REMINDER_EMAIL_PLANS = new Set([
-    'homeowner_plus',
-    'property',
-    'portfolio',
-]);
-const PROPERTY_INSIGHTS_PLANS = new Set([
-    'homeowner_plus',
-    'property',
-    'portfolio',
-]);
-const TEAM_MEMBER_REPORT_PLANS = new Set(['property', 'portfolio']);
-const normalizePlanId = (planId) => {
-    return String(planId || '').trim().toLowerCase();
-};
-const hasCurrentEntitlement = (subscription) => {
-    if (!subscription?.status)
-        return false;
-    if (subscription.status === 'active')
-        return true;
-    if (subscription.status !== 'trial')
-        return false;
-    if (!subscription.trialEndsAt)
-        return true;
-    return subscription.trialEndsAt > Date.now() / 1000;
-};
-const getEffectivePlanId = (subscription) => {
-    if (!hasCurrentEntitlement(subscription)) {
-        return 'homeowner';
-    }
-    const plan = normalizePlanId(subscription?.plan);
-    return plan || 'homeowner';
-};
 exports.enforceEmailPreferences = functions.firestore
     .document('users/{userId}')
     .onWrite(async (change, context) => {
@@ -87,10 +57,11 @@ exports.enforceEmailPreferences = functions.firestore
         !teamMemberReportsEnabled) {
         return null;
     }
-    const effectivePlan = getEffectivePlanId(afterData.subscription);
-    const canUseTaskReminderEmails = PAID_TASK_REMINDER_EMAIL_PLANS.has(effectivePlan);
-    const canUsePropertyInsights = PROPERTY_INSIGHTS_PLANS.has(effectivePlan);
-    const canUseTeamMemberReports = TEAM_MEMBER_REPORT_PLANS.has(effectivePlan);
+    const accountId = String(afterData.accountId || '').trim() || String(context.params.userId);
+    const entitlements = await (0, subscriptionEntitlements_1.resolveEntitlementsForAccount)(accountId, afterData.subscription);
+    const canUseTaskReminderEmails = (0, entitlements_1.hasCapability)(entitlements, 'notifications.use');
+    const canUsePropertyInsights = (0, entitlements_1.hasCapability)(entitlements, 'property_intelligence.use');
+    const canUseTeamMemberReports = (0, entitlements_1.hasCapability)(entitlements, 'team.manage');
     const updates = {};
     if (taskRemindersEnabled && !canUseTaskReminderEmails) {
         updates['emailPreferences.taskReminders'] = false;
@@ -113,7 +84,7 @@ exports.enforceEmailPreferences = functions.firestore
     });
     functions.logger.info('Disabled paid-only email preferences for ineligible plan', {
         userId: context.params.userId,
-        effectivePlan,
+        plan: String(afterData.subscription?.plan || '').trim() || 'homeowner',
         updates: Object.keys(updates),
     });
     return null;

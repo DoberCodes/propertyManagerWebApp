@@ -310,6 +310,10 @@ Operational Score
 
 # Dashboard Language
 
+Use `Today` as the customer-facing name for the Dashboard in navigation, page
+headings, and return actions. `Dashboard` remains acceptable when documenting
+the internal product surface or implementation architecture.
+
 The dashboard should answer:
 
 > What needs my attention right now?
@@ -435,6 +439,35 @@ Documentation Score: 41%
 ```
 
 Maintley Intelligence should encourage progress.
+
+Maintley Intelligence readiness may describe whether saved records support a
+specific kind of guidance. Use categorical, explainable levels:
+
+* Starting
+* Building context
+* Ready
+
+Pair every level with what Maintley can currently do and one useful next step.
+Readiness describes Maintley's available context, not the property's physical
+condition, the customer's performance, or subscription access.
+
+Use:
+
+```text
+Equipment context - Building context
+
+Maintley can suggest general care for the systems you added. Add installation
+details for more specific guidance.
+```
+
+Avoid:
+
+```text
+Home Health - 72%
+```
+
+Do not convert the former health score into an Intelligence percentage. Use the
+shared readiness result rather than calculating local levels in a UI surface.
 
 Quick Scan recommendation titles should avoid sounding like validation errors.
 

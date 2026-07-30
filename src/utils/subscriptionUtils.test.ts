@@ -15,10 +15,14 @@ import {
 	canUseSuggestedMaintenancePackages,
 	canViewReports,
 	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
+	getActiveGrantedPlanAccess,
+	getActiveHomeownerPlusTrial,
 	getMaxFilesForPlan,
 	getMaxPropertiesForPlan,
 	getMaxStorageGbForPlan,
 	getSuggestedMaintenancePackageLimit,
+	isIntentionalFreeAccountSubscription,
 	SubscriptionData,
 } from './subscriptionUtils';
 
@@ -38,7 +42,19 @@ const expiredSubscription = (plan: string): SubscriptionData => ({
 });
 
 describe('subscriptionUtils', () => {
-	it('treats Homeowner Plus like Property for paid maintenance capabilities', () => {
+	it('keeps the complete maintenance workflow available on Free', () => {
+		const free = activeSubscription('homeowner');
+
+		expect(canUseSuggestedMaintenancePackages(free)).toBe(true);
+		expect(getSuggestedMaintenancePackageLimit(free)).toBe(
+			Number.POSITIVE_INFINITY,
+		);
+		expect(canUseRecurringTasks(free)).toBe(true);
+		expect(canUseNotifications(free)).toBe(true);
+		expect(canLinkParts(free)).toBe(true);
+	});
+
+	it('gives Homeowner Plus homeowner Intelligence and five-home limits', () => {
 		const homeownerPlus = activeSubscription('homeowner_plus');
 
 		expect(canUseSuggestedMaintenancePackages(homeownerPlus)).toBe(true);
@@ -54,15 +70,12 @@ describe('subscriptionUtils', () => {
 		expect(canAdvancedAuditTrail(homeownerPlus)).toBe(true);
 	});
 
-	it('keeps Homeowner Plus homeowner-sized limits without team or tenant management', () => {
+	it('keeps Homeowner Plus out of business team and resident management', () => {
 		const homeownerPlus = activeSubscription('homeowner_plus');
 
-		expect(getMaxPropertiesForPlan('homeowner_plus')).toBe(1);
-		expect(getMaxFilesForPlan('homeowner_plus')).toBe(250);
-		expect(getMaxStorageGbForPlan('homeowner_plus')).toBe(5);
-		expect(getMaxFilesForPlan('homeowner_plus')).toBeLessThan(
-			getMaxFilesForPlan('property'),
-		);
+		expect(getMaxPropertiesForPlan('homeowner_plus')).toBe(5);
+		expect(getMaxFilesForPlan('homeowner_plus')).toBe(999999999);
+		expect(getMaxStorageGbForPlan('homeowner_plus')).toBe(10);
 		expect(getMaxStorageGbForPlan('homeowner_plus')).toBeLessThan(
 			getMaxStorageGbForPlan('property'),
 		);
@@ -72,19 +85,19 @@ describe('subscriptionUtils', () => {
 
 	it('matches the matrix limits for Free, Property, and Portfolio', () => {
 		expect(getMaxPropertiesForPlan('homeowner')).toBe(1);
-		expect(getMaxFilesForPlan('homeowner')).toBe(10);
+		expect(getMaxFilesForPlan('homeowner')).toBe(999999999);
 		expect(getMaxStorageGbForPlan('homeowner')).toBe(1);
 
 		expect(getMaxPropertiesForPlan('property')).toBe(7);
-		expect(getMaxFilesForPlan('property')).toBe(1500);
+		expect(getMaxFilesForPlan('property')).toBe(999999999);
 		expect(getMaxStorageGbForPlan('property')).toBe(15);
 
 		expect(getMaxPropertiesForPlan('portfolio')).toBe(15);
-		expect(getMaxFilesForPlan('portfolio')).toBe(5000);
+		expect(getMaxFilesForPlan('portfolio')).toBe(999999999);
 		expect(getMaxStorageGbForPlan('portfolio')).toBe(25);
 	});
 
-	it('allows Free raw exports and warranty info without task generation', () => {
+	it('allows Free raw exports, warranties, and task generation', () => {
 		const free = activeSubscription('homeowner');
 
 		expect(canViewReports(free)).toBe(true);
@@ -92,8 +105,10 @@ describe('subscriptionUtils', () => {
 		expect(canAccessReportBuilder(free)).toBe(true);
 		expect(canExportReports(free)).toBe(true);
 		expect(canTrackWarranties(free)).toBe(true);
-		expect(canUseSuggestedMaintenancePackages(free)).toBe(false);
-		expect(getSuggestedMaintenancePackageLimit(free)).toBe(0);
+		expect(canUseSuggestedMaintenancePackages(free)).toBe(true);
+		expect(getSuggestedMaintenancePackageLimit(free)).toBe(
+			Number.POSITIVE_INFINITY,
+		);
 	});
 
 	it('allows expired users to access report exports for their existing data', () => {
@@ -173,6 +188,22 @@ describe('subscriptionUtils', () => {
 		expect(canManageTeam(pendingPaidCheckout)).toBe(false);
 		expect(canManageTenants(pendingPaidCheckout)).toBe(false);
 		expect(canUseAdvancedTeamManagement(pendingPaidCheckout)).toBe(false);
+		expect(isIntentionalFreeAccountSubscription(pendingPaidCheckout)).toBe(false);
+	});
+
+	it('identifies only active Free accounts without a Stripe billing relationship as first-property candidates', () => {
+		expect(
+			isIntentionalFreeAccountSubscription(activeSubscription('homeowner')),
+		).toBe(true);
+		expect(
+			isIntentionalFreeAccountSubscription({
+				...activeSubscription('homeowner'),
+				stripeCustomerId: 'cus_test',
+			}),
+		).toBe(false);
+		expect(
+			isIntentionalFreeAccountSubscription(activeSubscription('homeowner_plus')),
+		).toBe(false);
 	});
 
 	it('does not grant paid feature access from a pending checkout on expired access', () => {
@@ -242,5 +273,130 @@ describe('subscriptionUtils', () => {
 			'homeowner',
 		);
 		expect(canManageTeam(currentHomeownerWithScheduledPortfolio)).toBe(false);
+	});
+
+	it('layers an active Homeowner+ trial grant over the Free base plan', () => {
+		const nowMs = Date.now();
+		const freeWithTrial: SubscriptionData = {
+			...activeSubscription('homeowner'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'homeowner_plus_first_property_trial',
+					programId: 'homeowner_plus_first_property_trial_v1',
+					accountId: 'account-1',
+					kind: 'temporary',
+					state: 'active',
+					bundleId: 'homeowner_plus',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 1000,
+					endsAtMs: nowMs + 30 * 24 * 60 * 60 * 1000,
+					source: 'trial',
+				},
+			],
+		};
+
+		expect(getEffectiveSubscriptionPlanId(freeWithTrial)).toBe('homeowner');
+		expect(getEffectiveAccessPlanId(freeWithTrial)).toBe('homeowner_plus');
+		expect(getActiveGrantedPlanAccess(freeWithTrial, nowMs)).toEqual({
+			programId: 'homeowner_plus_first_property_trial_v1',
+			planId: 'homeowner_plus',
+			kind: 'temporary',
+			source: 'trial',
+			endsAtMs: nowMs + 30 * 24 * 60 * 60 * 1000,
+			grantIds: ['homeowner_plus_first_property_trial'],
+		});
+		expect(canUseRecurringTasks(freeWithTrial)).toBe(true);
+		expect(canUseNotifications(freeWithTrial)).toBe(true);
+		expect(getActiveHomeownerPlusTrial(freeWithTrial, nowMs)?.daysRemaining).toBe(30);
+	});
+
+	it('falls back to Free behavior when the internal trial grant expires', () => {
+		const nowMs = Date.now();
+		const freeWithExpiredTrial: SubscriptionData = {
+			...activeSubscription('homeowner'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'homeowner_plus_first_property_trial',
+					programId: 'homeowner_plus_first_property_trial_v1',
+					accountId: 'account-1',
+					kind: 'temporary',
+					state: 'active',
+					bundleId: 'homeowner_plus',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 31 * 24 * 60 * 60 * 1000,
+					endsAtMs: nowMs - 1000,
+					source: 'trial',
+				},
+			],
+		};
+
+		expect(canUseRecurringTasks(freeWithExpiredTrial)).toBe(true);
+		expect(canUseNotifications(freeWithExpiredTrial)).toBe(true);
+		expect(getActiveHomeownerPlusTrial(freeWithExpiredTrial, nowMs)).toBeNull();
+		expect(getActiveGrantedPlanAccess(freeWithExpiredTrial, nowMs)).toBeNull();
+	});
+
+	it('reports permanent Portfolio access separately from the Free billing plan', () => {
+		const nowMs = Date.now();
+		const freeWithLifetimePortfolio: SubscriptionData = {
+			...activeSubscription('homeowner'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'lifetime_portfolio',
+					programId: 'lifetime_portfolio_v1',
+					accountId: 'account-1',
+					kind: 'permanent',
+					state: 'active',
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 1000,
+					endsAtMs: null,
+					source: 'lifetime',
+				},
+			],
+		};
+
+		expect(getEffectiveSubscriptionPlanId(freeWithLifetimePortfolio)).toBe('homeowner');
+		expect(getEffectiveAccessPlanId(freeWithLifetimePortfolio)).toBe('portfolio');
+		expect(getActiveGrantedPlanAccess(freeWithLifetimePortfolio, nowMs)).toEqual({
+			programId: 'lifetime_portfolio_v1',
+			planId: 'portfolio',
+			kind: 'permanent',
+			source: 'lifetime',
+			endsAtMs: null,
+			grantIds: ['lifetime_portfolio'],
+		});
+	});
+
+	it('keeps maintenance-package access active when an internal grant outlives billing', () => {
+		const nowMs = Date.now();
+		const expiredWithLifetimePortfolio: SubscriptionData = {
+			...expiredSubscription('portfolio'),
+			entitlementAccountId: 'account-1',
+			entitlementGrants: [
+				{
+					grantId: 'lifetime_portfolio',
+					programId: 'lifetime_portfolio_v1',
+					accountId: 'account-1',
+					kind: 'permanent',
+					state: 'active',
+					bundleId: 'portfolio',
+					bundleVersion: 'v1',
+					startsAtMs: nowMs - 1000,
+					endsAtMs: null,
+					source: 'lifetime',
+				},
+			],
+		};
+
+		expect(canUseSuggestedMaintenancePackages(expiredWithLifetimePortfolio)).toBe(true);
+		expect(getSuggestedMaintenancePackageLimit(expiredWithLifetimePortfolio)).toBe(
+			Number.POSITIVE_INFINITY,
+		);
+		expect(canUseRecurringTasks(expiredWithLifetimePortfolio)).toBe(true);
+		expect(canUseNotifications(expiredWithLifetimePortfolio)).toBe(true);
 	});
 });

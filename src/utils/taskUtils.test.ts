@@ -102,7 +102,7 @@ describe('taskUtils overdue helpers', () => {
 			return date.toISOString();
 		};
 
-		it('orders overdue, due today, ASAP, due soon, then later tasks', () => {
+		it('orders overdue, due today, ASAP, due soon, later, then unscheduled tasks', () => {
 			const overdue = makeTask({
 				id: 'overdue',
 				title: 'Overdue',
@@ -128,8 +128,14 @@ describe('taskUtils overdue helpers', () => {
 				title: 'Later',
 				dueDate: dateOffset(30),
 			});
+			const unscheduled = makeTask({
+				id: 'unscheduled',
+				title: 'Unscheduled',
+				dueDate: '',
+				scheduleMode: 'unscheduled',
+			});
 
-			const sorted = [later, asap, dueSoon, overdue, today].sort(
+			const sorted = [unscheduled, later, asap, dueSoon, overdue, today].sort(
 				compareTasksByDueUrgency,
 			);
 
@@ -139,6 +145,7 @@ describe('taskUtils overdue helpers', () => {
 				'asap',
 				'due-soon',
 				'later',
+				'unscheduled',
 			]);
 		});
 

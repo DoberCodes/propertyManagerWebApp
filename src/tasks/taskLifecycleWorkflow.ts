@@ -13,10 +13,23 @@ export type RecurringTaskFailureInput = {
 	error: unknown;
 };
 
+export type RecurringTaskGenerationOutcome =
+	| 'created'
+	| 'not_recurring'
+	| 'not_entitled'
+	| 'invalid_recurrence'
+	| 'failed';
+
 export type TaskLifecycleDependencies = {
 	getTask: (taskId: string) => Promise<Task | null>;
 	writeMaintenanceEvent: (event: Record<string, unknown>) => Promise<void>;
 	createTask: (task: Omit<Task, 'id'>) => Promise<void>;
+	canGenerateNextRecurringTask: (accountId: string) => Promise<boolean>;
+	generateNextRecurringTask?: (input: {
+		taskId: string;
+		accountId: string;
+		completionDate: string;
+	}) => Promise<RecurringTaskGenerationOutcome>;
 	deleteTask: (taskId: string) => Promise<void>;
 	notifyRecurringTaskGenerationFailure: (
 		input: RecurringTaskFailureInput,
@@ -82,9 +95,31 @@ export const createNextRecurringTaskForCompletion = async ({
 	notifyUserId: string;
 	deps: Pick<
 		TaskLifecycleDependencies,
-		'createTask' | 'notifyRecurringTaskGenerationFailure' | 'now' | 'warn'
+		| 'createTask'
+		| 'canGenerateNextRecurringTask'
+		| 'generateNextRecurringTask'
+		| 'notifyRecurringTaskGenerationFailure'
+		| 'now'
+		| 'warn'
 	>;
-}): Promise<void> => {
+}): Promise<RecurringTaskGenerationOutcome> => {
+	if (!task.isRecurring) {
+		return 'not_recurring';
+	}
+
+	if (deps.generateNextRecurringTask) {
+		try {
+			return await deps.generateNextRecurringTask({
+				taskId,
+				accountId,
+				completionDate,
+			});
+		} catch (error) {
+			deps.warn?.('Failed to generate next recurring task through trusted writer:', error);
+			return 'failed';
+		}
+	}
+
 	const nextTask = buildNextRecurringTask({
 		task,
 		taskId,
@@ -93,11 +128,16 @@ export const createNextRecurringTaskForCompletion = async ({
 		nowIso: deps.now?.(),
 	});
 	if (!nextTask) {
-		return;
+		return 'invalid_recurrence';
+	}
+
+	if (!(await deps.canGenerateNextRecurringTask(accountId))) {
+		return 'not_entitled';
 	}
 
 	try {
 		await deps.createTask(withDefaultTaskNotificationSchedule(nextTask));
+		return 'created';
 	} catch (error) {
 		deps.warn?.('Failed to create next recurring task:', error);
 		try {
@@ -113,6 +153,7 @@ export const createNextRecurringTaskForCompletion = async ({
 				notificationError,
 			);
 		}
+		return 'failed';
 	}
 };
 
@@ -130,7 +171,11 @@ const getRequiredTask = async (
 export const submitTaskCompletionWorkflow = async (
 	input: SubmitTaskCompletionInput,
 	deps: TaskLifecycleDependencies,
-): Promise<Partial<Task>> => {
+): Promise<
+	Partial<Task> & {
+		recurrenceGenerationOutcome: RecurringTaskGenerationOutcome;
+	}
+> => {
 	const task = await getRequiredTask(input.taskId, deps);
 	const accountId = String(
 		(task as any).accountId || input.accountId || task.userId || '',
@@ -160,7 +205,7 @@ export const submitTaskCompletionWorkflow = async (
 			completedByPlan: input.completedByPlan,
 		},
 	});
-	await createNextRecurringTaskForCompletion({
+	const recurrenceGenerationOutcome = await createNextRecurringTaskForCompletion({
 		task,
 		taskId: input.taskId,
 		accountId,
@@ -186,6 +231,7 @@ export const submitTaskCompletionWorkflow = async (
 		completedBy: input.completedBy,
 		completionNotes: input.completionNotes,
 		financials: mergedFinancials,
+		recurrenceGenerationOutcome,
 	};
 };
 

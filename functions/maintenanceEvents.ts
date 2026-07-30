@@ -5,6 +5,7 @@ import {
 	hasAnyRole,
 	resolveAccountIdForUser,
 } from './accountAuthz';
+import { buildPromotedLegacyMaintenanceEvent } from './legacyMaintenancePromotion';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -116,6 +117,13 @@ type UpdateMaintenanceEventRequest = {
 
 type DeleteMaintenanceEventRequest = {
 	eventId: string;
+	correctionReason: string;
+};
+
+type CorrectMaintenanceHistoryRecordRequest = {
+	recordId: string;
+	action: 'update' | 'delete';
+	updates?: Record<string, unknown>;
 	correctionReason: string;
 };
 
@@ -747,4 +755,198 @@ export const deleteMaintenanceEvent = functions
 		});
 		await batch.commit();
 		return { success: true, id: eventId };
+	});
+
+/**
+ * Governs corrections from the transitional dual-read Maintenance History UI.
+ * Canonical events are corrected directly. A legacy-only collection record is
+ * first promoted to the same deterministic ID with migration provenance and a
+ * creation revision, then corrected or soft-deleted. The legacy source remains
+ * unchanged for migration parity and rollback investigation.
+ */
+export const correctMaintenanceHistoryRecord = functions
+	.region('us-central1')
+	.https.onCall(async (data: CorrectMaintenanceHistoryRecordRequest, context) => {
+		const uid = assertAuthenticated(context);
+		const recordId = toString(data?.recordId);
+		const action = toString(data?.action);
+		const reason = toString(data?.correctionReason);
+		if (!recordId || !reason || (action !== 'update' && action !== 'delete')) {
+			throw new functions.https.HttpsError(
+				'invalid-argument',
+				'recordId, a supported action, and correctionReason are required.',
+			);
+		}
+
+		const updates = action === 'update' ? normalizeEventUpdates(data?.updates || {}) : {};
+		const changedFields =
+			action === 'update'
+				? Object.keys(updates)
+				: ['deletedAt', 'deletedBy', 'deletionReason', 'status'];
+		if (action === 'update' && changedFields.length === 0) {
+			throw new functions.https.HttpsError(
+				'invalid-argument',
+				'No supported updates were provided.',
+			);
+		}
+
+		const eventRef = db.collection('maintenanceEvents').doc(recordId);
+		const legacyRef = db.collection('maintenanceHistory').doc(recordId);
+		const initialEvent = await eventRef.get();
+		const initialLegacy = initialEvent.exists ? null : await legacyRef.get();
+		if (!initialEvent.exists && !initialLegacy?.exists) {
+			throw new functions.https.HttpsError('not-found', 'Maintenance record not found.');
+		}
+
+		const source = (initialEvent.exists ? initialEvent.data() : initialLegacy?.data()) || {};
+		const propertyId = toString(source.propertyId);
+		if (!propertyId) {
+			throw new functions.https.HttpsError(
+				'failed-precondition',
+				'This legacy record needs migration review before it can be corrected.',
+			);
+		}
+		const propertySnapshot = await db.collection('properties').doc(propertyId).get();
+		if (!propertySnapshot.exists) {
+			throw new functions.https.HttpsError(
+				'failed-precondition',
+				'This record is not linked to a current property.',
+			);
+		}
+		const property = propertySnapshot.data() || {};
+		const sourceAccountId =
+			toString(source.accountId) ||
+			toString(property.accountId || property.userId || property.ownerId);
+		const accountId = await resolveWritableAccountId(uid, sourceAccountId);
+		await assertPropertyBelongsToAccount(propertyId, accountId, uid);
+
+		const actor = await getRecorderSnapshot(uid) as Record<string, unknown>;
+		const nowIso = new Date().toISOString();
+		const createdRevisionRef = db.collection('maintenanceEventRevisions').doc();
+		const correctionRevisionRef = db.collection('maintenanceEventRevisions').doc();
+		let promotedLegacy = false;
+
+		await db.runTransaction(async (transaction) => {
+			const eventSnapshot = await transaction.get(eventRef);
+			const legacySnapshot = await transaction.get(legacyRef);
+			let existing = (eventSnapshot.data() || {}) as Record<string, unknown>;
+
+			if (!eventSnapshot.exists) {
+				if (!legacySnapshot.exists) {
+					throw new functions.https.HttpsError('not-found', 'Maintenance record not found.');
+				}
+				const legacy = legacySnapshot.data() || {};
+				const currentLegacyPropertyId = toString(legacy.propertyId);
+				const currentLegacyAccountId = toString(legacy.accountId);
+				if (
+					currentLegacyPropertyId !== propertyId ||
+					(currentLegacyAccountId && currentLegacyAccountId !== accountId)
+				) {
+					throw new functions.https.HttpsError(
+						'permission-denied',
+						'Legacy maintenance record ownership changed before the correction completed.',
+					);
+				}
+				try {
+					existing = buildPromotedLegacyMaintenanceEvent({
+						legacyId: recordId,
+						legacy,
+						accountId,
+						propertyId,
+						propertyTitle: toString(property.title),
+						nowIso,
+					});
+				} catch {
+					throw new functions.https.HttpsError(
+						'failed-precondition',
+						'This legacy record needs migration review before it can be corrected.',
+					);
+				}
+				promotedLegacy = true;
+				transaction.set(
+					createdRevisionRef,
+					buildRevision({
+						eventId: recordId,
+						accountId,
+						propertyId,
+						action: 'created',
+						actor,
+						changedFields: Object.keys(existing),
+						reason: 'Promoted before a user-requested correction.',
+						nowIso,
+					}),
+				);
+			} else {
+				if (toString(existing.accountId) !== accountId || toString(existing.propertyId) !== propertyId) {
+					throw new functions.https.HttpsError(
+						'permission-denied',
+						'Maintenance record ownership changed before the correction completed.',
+					);
+				}
+			}
+
+			if (existing.deletedAt) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					'Deleted maintenance events cannot be changed again.',
+				);
+			}
+
+			const protectedUpdates =
+				action === 'update' && updates.data && typeof updates.data === 'object'
+					? {
+						...updates,
+						data: {
+							...((existing.data || {}) as Record<string, unknown>),
+							...(updates.data as Record<string, unknown>),
+							...((existing.data as Record<string, unknown> | undefined)?.migration
+								? {
+									migration: (existing.data as Record<string, unknown>).migration,
+								}
+								: {}),
+						},
+					}
+					: updates;
+			const correctionFields =
+				action === 'update'
+					? {
+						...protectedUpdates,
+						updatedAt: nowIso,
+						updatedBy: actor,
+						correctionCount: Number(existing.correctionCount || 0) + 1,
+					}
+					: {
+						status: 'deleted',
+						deletedAt: nowIso,
+						deletedBy: actor,
+						deletionReason: reason,
+						updatedAt: nowIso,
+						updatedBy: actor,
+					};
+
+			if (eventSnapshot.exists) {
+				transaction.update(eventRef, correctionFields);
+			} else {
+				transaction.create(eventRef, { ...existing, ...correctionFields });
+			}
+			transaction.set(
+				correctionRevisionRef,
+				buildRevision({
+					eventId: recordId,
+					accountId,
+					propertyId,
+					action: action === 'update' ? 'corrected' : 'deleted',
+					actor,
+					changedFields,
+					previousValues:
+						action === 'update'
+							? getRevisionPreviousValues(existing, changedFields)
+							: undefined,
+					reason,
+					nowIso,
+				}),
+			);
+		});
+
+		return { success: true, id: recordId, promotedLegacy };
 	});

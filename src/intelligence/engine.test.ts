@@ -92,6 +92,28 @@ describe('Maintley Intelligence engine', () => {
 		);
 	});
 
+	it('adapts equipment-embedded history before evaluating maintenance rules', () => {
+		const system = makeSystem({
+			id: 'hvac-with-legacy-history',
+			maintenanceHistory: [
+				{ date: '2026-06-01', description: 'HVAC inspected' },
+			],
+		});
+		const result = runMaintleyIntelligence({
+			property,
+			systems: [system],
+			tasks: [],
+			maintenanceHistory: [],
+			createdAt: '2026-06-24T12:00:00.000Z',
+		});
+
+		expect(
+			result.findings.some(
+				(finding) => finding.ruleId === 'systems-missing-maintenance-history',
+			),
+		).toBe(false);
+	});
+
 	it('keeps recurring maintenance coverage as a Homeowner+ finding', () => {
 		const context = {
 			property,

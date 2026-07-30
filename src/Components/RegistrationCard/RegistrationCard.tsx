@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import {
 	Input,
@@ -43,6 +43,13 @@ import {
 	createLegalAgreementDocuments,
 } from '../../constants/legal';
 import { auth } from '../../config/firebase';
+import { sendEmailVerification } from 'firebase/auth';
+import {
+	complimentaryAccessCodesEnabled,
+	ComplimentaryAccessCodePreview,
+	previewComplimentaryAccessCode,
+	redeemComplimentaryAccessCode,
+} from '../../services/complimentaryAccessCodeService';
 
 // Map selected account type to appropriate role
 const getRoleFromAccountType = (accountType: string): string => {
@@ -76,6 +83,12 @@ export const RegistrationCard = () => {
 	const [accountType, setAccountType] = useState<string>('homeowner');
 	const [selectedPlan, setSelectedPlan] = useState<string>('');
 	const [promoCode, setPromoCode] = useState<string>('');
+	const [showComplimentaryCode, setShowComplimentaryCode] = useState(false);
+	const [complimentaryCode, setComplimentaryCode] = useState('');
+	const [complimentaryPreview, setComplimentaryPreview] =
+		useState<ComplimentaryAccessCodePreview | null>(null);
+	const [complimentaryError, setComplimentaryError] = useState('');
+	const [complimentaryBusy, setComplimentaryBusy] = useState(false);
 	const [inviteCodeInput, setInviteCodeInput] = useState<string>('');
 	const [inviteMode, setInviteMode] = useState<boolean>(false);
 	const [inviteType, setInviteType] = useState<'tenant' | 'team'>('tenant');
@@ -108,6 +121,11 @@ export const RegistrationCard = () => {
 		['homeowner_plus', 'property', 'portfolio'].includes(selectedPlan);
 	const totalSteps = skipsPlanSelection ? 2 : 3;
 	const displayStep = step;
+	const hasRegistrationAccessCode =
+		complimentaryAccessCodesEnabled &&
+		!inviteMode &&
+		!isTenantSignup &&
+		complimentaryCode.trim().length > 0;
 
 	const enableInviteMode = () => {
 		setInviteMode(true);
@@ -321,6 +339,8 @@ export const RegistrationCard = () => {
 			if (inviteMode || isTenantSignup) {
 				setSelectedPlan(inviteMode && inviteType === 'tenant' ? 'tenant' : isTenantSignup ? 'tenant' : 'team');
 				await signup();
+			} else if (hasRegistrationAccessCode) {
+				await signup('homeowner');
 			} else {
 				setStep(3);
 			}
@@ -335,6 +355,10 @@ export const RegistrationCard = () => {
 	};
 
 	const handleTopBack = () => {
+		if (step === 4) {
+			navigate('/dashboard', { replace: true });
+			return;
+		}
 		if (step > 1) {
 			handleBack();
 			return;
@@ -342,9 +366,46 @@ export const RegistrationCard = () => {
 		navigate('/login');
 	};
 
-	const signup = async () => {
+	const reviewRegistrationAccessCode = async () => {
+		setComplimentaryBusy(true);
+		setComplimentaryError('');
+		setComplimentaryPreview(null);
+		try {
+			if (auth.currentUser) {
+				await auth.currentUser.reload();
+				await auth.currentUser.getIdToken(true);
+			}
+			setComplimentaryPreview(
+				await previewComplimentaryAccessCode(complimentaryCode),
+			);
+		} catch (reviewError: any) {
+			setComplimentaryError(
+				String(reviewError?.message || 'This complimentary access code is not available.'),
+			);
+		} finally {
+			setComplimentaryBusy(false);
+		}
+	};
+
+	const activateRegistrationAccessCode = async () => {
+		if (!complimentaryPreview) return;
+		setComplimentaryBusy(true);
+		setComplimentaryError('');
+		try {
+			await redeemComplimentaryAccessCode(complimentaryCode);
+			window.location.assign(`${window.location.origin}${window.location.pathname}#/dashboard`);
+		} catch (activationError: any) {
+			setComplimentaryError(
+				String(activationError?.message || 'Maintley could not activate this access code.'),
+			);
+			setComplimentaryPreview(null);
+			setComplimentaryBusy(false);
+		}
+	};
+
+	const signup = async (planOverride?: string) => {
 		setError('');
-		if (!skipsPlanSelection && !validateStep3()) {
+		if (!planOverride && !skipsPlanSelection && !validateStep3()) {
 			return;
 		}
 		setLoading(true);
@@ -363,7 +424,7 @@ export const RegistrationCard = () => {
 				? inviteType === 'tenant'
 					? 'tenant'
 					: 'team'
-				: isTenantSignup ? 'tenant' : selectedPlan;
+				: isTenantSignup ? 'tenant' : planOverride || selectedPlan;
 			const effectivePromoCode = inviteMode
 				? inviteCodeInput.trim()
 				: isTenantSignup ? '' : promoCode.trim();
@@ -400,6 +461,20 @@ export const RegistrationCard = () => {
 			// Update Redux store to mark user as logged in
 			dispatch(setCurrentUser(user));
 
+			if (hasRegistrationAccessCode) {
+				setStep(4);
+				setLoading(false);
+				if (auth.currentUser && !auth.currentUser.emailVerified) {
+					try {
+						await sendEmailVerification(auth.currentUser);
+					} catch {
+						// The access-code review explains verification if the code is email restricted.
+					}
+				}
+				await reviewRegistrationAccessCode();
+				return;
+			}
+
 			if (user.subscription?.pendingCheckoutPlan) {
 				navigate('/checkout/start', { replace: true });
 				return;
@@ -430,7 +505,7 @@ export const RegistrationCard = () => {
 
 	return (
 		<Wrapper
-			$wide={step === 3}
+			$wide={step === 3 || step === 4}
 			onSubmit={(e) => e.preventDefault()}>
 			<BackButton
 				type='button'
@@ -442,6 +517,7 @@ export const RegistrationCard = () => {
 				{step === 1 && `Create Account - Step ${displayStep} of ${totalSteps}`}
 				{step === 2 && `Create Account - Step ${displayStep} of ${totalSteps}`}
 				{step === 3 && `Create Account - Step ${displayStep} of ${totalSteps}`}
+				{step === 4 && 'Review Complimentary Access'}
 			</Title>
 			{step === 1 && (
 				<TrialNotice>
@@ -568,6 +644,41 @@ export const RegistrationCard = () => {
 							This email is already registered. Please use a different email or
 							sign in instead.
 						</EmailStatusText>
+					)}
+					{complimentaryAccessCodesEnabled && !inviteMode && !isTenantSignup && (
+						<InviteModePanel $active={showComplimentaryCode}>
+							<InviteModeTitle>Have a complimentary access code?</InviteModeTitle>
+							<InviteModeDescription>
+								This is separate from a Stripe coupon. It provides temporary Maintley access without automatic billing.
+							</InviteModeDescription>
+							{showComplimentaryCode ? (
+								<>
+									<Input
+										placeholder='Complimentary access code'
+										type='text'
+										value={complimentaryCode}
+										onChange={(event) => {
+											setComplimentaryCode(event.target.value.toUpperCase());
+											setComplimentaryError('');
+										}}
+										autoComplete='off'
+									/>
+									<InviteModeActionButton
+										type='button'
+										$secondary
+										onClick={() => {
+											setShowComplimentaryCode(false);
+											setComplimentaryCode('');
+										}}>
+										Remove access code
+									</InviteModeActionButton>
+								</>
+							) : (
+								<InviteModeActionButton type='button' onClick={() => setShowComplimentaryCode(true)}>
+									Enter Access Code
+								</InviteModeActionButton>
+							)}
+						</InviteModePanel>
 					)}
 					<PasswordInputWrapper>
 						<Input
@@ -716,7 +827,7 @@ export const RegistrationCard = () => {
 							setError('');
 						}}
 					/>
-					<Submit type='button' onClick={signup} disabled={loading}>
+					<Submit type='button' onClick={() => void signup()} disabled={loading}>
 						{loading && <LoadingSpinner />}
 						{loading
 							? isPaidCheckoutSelection
@@ -724,6 +835,45 @@ export const RegistrationCard = () => {
 								: 'Creating account...'
 							: 'Create Account'}
 					</Submit>
+				</>
+			)}
+
+			{step === 4 && (
+				<>
+					<TrialNotice>
+						Your Free account is ready. Review this code before activating temporary access.
+					</TrialNotice>
+					{complimentaryError ? <ErrorMessage>{complimentaryError}</ErrorMessage> : null}
+					<Input
+						placeholder='Complimentary access code'
+						type='text'
+						value={complimentaryCode}
+						onChange={(event) => {
+							setComplimentaryCode(event.target.value.toUpperCase());
+							setComplimentaryPreview(null);
+							setComplimentaryError('');
+						}}
+						autoComplete='off'
+					/>
+					{complimentaryPreview ? (
+						<InviteModePanel $active>
+							<InviteModeTitle>{complimentaryPreview.label}</InviteModeTitle>
+							<InviteModeDescription>
+								Includes {complimentaryPreview.durationDays} days of{' '}
+								{complimentaryPreview.bundleId.replaceAll('_', ' ')} access. It does not create a charge or automatic renewal. When it ends, your account returns to its existing plan{complimentaryPreview.transitionMode === 'checkout_required' ? ' and paid continuation requires Checkout' : ''}.
+							</InviteModeDescription>
+							<Submit type='button' disabled={complimentaryBusy} onClick={() => void activateRegistrationAccessCode()}>
+								{complimentaryBusy ? 'Activating...' : 'Activate Complimentary Access'}
+							</Submit>
+						</InviteModePanel>
+					) : (
+						<Submit type='button' disabled={complimentaryBusy || complimentaryCode.trim().length < 8} onClick={() => void reviewRegistrationAccessCode()}>
+							{complimentaryBusy ? 'Reviewing...' : 'Review Access'}
+						</Submit>
+					)}
+					<InviteModeActionButton type='button' $secondary onClick={() => navigate('/dashboard', { replace: true })}>
+						Skip for now
+					</InviteModeActionButton>
 				</>
 			)}
 

@@ -30,7 +30,7 @@ import {
 } from '../../Redux/API/maintenanceSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
-	useRemoveTenantMutation,
+	useRemoveManualOccupancyMutation,
 	useLazyGetTenantInvitationCodeQuery,
 	useLazyGetTenantInvitationCodesByEmailQuery,
 } from '../../Redux/API/tenantSlice';
@@ -91,12 +91,17 @@ import { TabSystem } from './TabSystem';
 import { TaskFinancials, TaskFormData } from '../../types/Task.types';
 import { MaintenanceHistoryDraftData } from '../../types/PropertyDetailPage.types';
 import { PropertyDialog } from '../../Components/PropertiesTab/PropertyDialog';
+import {
+	getDefaultPropertyClassification,
+	normalizePropertyType,
+} from '../../utils/propertyTaxonomy';
 import { PropertySetupAssistant } from '../../Components/PropertySetupAssistant/PropertySetupAssistant';
 import {
 	PropertyScanActionType,
 	PropertyScanRecommendation,
 } from '../../utils/propertyIntelligenceScan';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
+import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	props,
@@ -198,7 +203,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();
 	const [updateMaintenanceHistory] = useUpdateMaintenanceHistoryMutation();
 	const [createNotification] = useCreateNotificationMutation();
-	const [removeTenant] = useRemoveTenantMutation();
+	const [removeTenant] = useRemoveManualOccupancyMutation();
 	const [getTenantInvitationCode] = useLazyGetTenantInvitationCodeQuery();
 	const [getTenantInvitationCodesByEmail] =
 		useLazyGetTenantInvitationCodesByEmailQuery();
@@ -294,8 +299,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			return;
 		}
 
-		// Units are temporarily hidden from the app flow; keep tenant users on
-		// the property surface instead of redirecting into a unit detail page.
+		// Resident access remains property-scoped; Unit detail routes are retired.
 	}, [property, currentUser?.email, isUserTenant, tenantAssignment, navigate]);
 
 	const handleEditTenant = (tenant: any) => {
@@ -628,9 +632,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			return;
 		}
 
-		const effectivePropertyType = isHomeowner
-			? 'Single Family'
-			: formData.propertyType;
+		const effectivePropertyType = formData.propertyType;
 		const normalizedGroupId =
 			typeof formData.groupId === 'string' && formData.groupId.trim().length > 0
 				? formData.groupId.trim()
@@ -650,19 +652,11 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			owner: formData.owner,
 			address: formData.address,
 			propertyType: effectivePropertyType,
-			hasSuites:
-				effectivePropertyType === 'Commercial'
-					? false
-					: undefined,
-			suites:
-				effectivePropertyType === 'Commercial'
-					? []
-					: undefined,
+			propertyClassification: formData.propertyClassification,
 			bedrooms: formData.bedrooms,
 			bathrooms: formData.bathrooms,
 			notes: formData.notes,
 			isRental: !!formData.isRental,
-			taskHistory: formData.maintenanceHistory || [],
 			...sharingData,
 		};
 
@@ -969,8 +963,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		return allMaintenanceRequests.filter((req) => req.propertyId === property.id);
 	}, [property, allMaintenanceRequests]);
 
-	const unitOptions = useMemo<{ label: string; value: string }[]>(() => [], []);
-
 	const propertyTasks = useMemo(() => {
 		if (!property) return [];
 		const allPropertyTasks = allTasks.filter(
@@ -988,7 +980,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		);
 	}, [property, allTasks]);
 
-	const { data: maintenanceHistoryRecords = [] } =
+	const { data: sourceMaintenanceHistoryRecords = [] } =
 		useGetMaintenanceHistoryByPropertyQuery(property?.id || '', {
 			skip: !property?.id,
 			refetchOnMountOrArgChange: true,
@@ -996,6 +988,14 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
 		skip: !property?.id,
 	});
+	const maintenanceHistoryRecords = useMemo(
+		() =>
+			mergeMaintenanceHistoryWithDeviceSources(
+				sourceMaintenanceHistoryRecords,
+				propertyDevices,
+			),
+		[sourceMaintenanceHistoryRecords, propertyDevices],
+	);
 	const canRunPropertyScan =
 		canManageProperties &&
 		roleCapabilities.canManageAppliances &&
@@ -1488,7 +1488,6 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					canApproveMaintenanceRequest={canApproveMaintenanceRequest}
 					propertyTasks={propertyTasks}
 					propertyDevices={propertyDevices}
-					unitOptions={unitOptions}
 					maintenanceHistoryRecords={maintenanceHistoryRecords}
 					propertyUnits={propertyUnits}
 					propertyContractors={propertyContractors}
@@ -1728,23 +1727,14 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 							photo: property.image,
 							owner: (property as any).owner || '',
 							address: (property as any).address || '',
-							propertyType:
-								((property as any).propertyType as
-									| 'Single Family'
-									| 'Multi-Family'
-									| 'Commercial') || 'Single Family',
-							units: (((property as any).units || []) as any[]).map((unit) =>
-								typeof unit === 'string' ? unit : unit?.name,
-							),
-							hasSuites: (property as any).hasSuites ?? false,
-							suites: (((property as any).suites || []) as any[]).map((suite) =>
-								typeof suite === 'string' ? suite : suite?.name,
-							),
+							propertyType: normalizePropertyType((property as any).propertyType),
+							propertyClassification:
+								(property as any).propertyClassification ||
+								getDefaultPropertyClassification((property as any).propertyType),
 							bedrooms: (property as any).bedrooms || 0,
 							bathrooms: (property as any).bathrooms || 0,
 							notes: (property as any).notes || '',
 							isRental: (property as any).isRental ?? false,
-							maintenanceHistory: (property as any).maintenanceHistory || [],
 							coOwners: (property as any).coOwners || [],
 							administrators: (property as any).administrators || [],
 							viewers: (property as any).viewers || [],
