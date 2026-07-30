@@ -396,6 +396,30 @@ Treat this JSON like a password. Do not commit it to the repository.
 
 `FIREBASE_TOKEN` is no longer used by the active Firebase deploy workflow.
 
+### Development deployment identity
+
+The Firebase Hosting migration uses keyless Workload Identity Federation for
+the development environment. GitHub environment variables identify the
+development project, provider, and service account:
+
+```text
+DEV_FIREBASE_PROJECT_ID
+DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER
+DEV_GOOGLE_SERVICE_ACCOUNT
+```
+
+The Workload Identity provider admits tokens only from
+`DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
+`development` environment. The dedicated service account is scoped to the
+`maintleybeta` project. Its initial permissions are Firebase Hosting Admin and
+API Keys Viewer, which support Hosting preview work without granting Functions,
+Firestore Rules, Storage Rules, Scheduler, Secret Manager, or production access.
+
+Do not create or store a JSON key for this development identity. Add further
+roles only when the corresponding development deployment stage is implemented
+and validated. The current production workflow continues using its existing
+credential path until the production identity migration is performed.
+
 The GitHub deploy service account must also be allowed to act as the Cloud
 Functions runtime service account. If deploy fails with:
 
