@@ -175,7 +175,7 @@ jobs:
         if: steps.deploy-targets.outputs.has_targets == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
           cache-dependency-path: functions/yarn.lock
 

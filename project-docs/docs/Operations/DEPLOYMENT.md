@@ -331,6 +331,19 @@ make the trusted writer mandatory, tighten rules to reject every direct client
 recurrence write, and remove the rollout flag. Client entitlement checks may
 remain only for contextual interface messaging.
 
+Production rollout state approved on 2026-07-30 enables the Homeowner+ product
+trial, internal entitlement-grant issuance, grant-aware paid transitions,
+access-lifecycle communication, trusted setup-plan activation, trusted recurring
+task writes, and trusted storage quota. The first-property trial eligibility
+boundary is `2026-07-25T16:19:46-04:00`; accounts created before that instant are
+not automatically enrolled. Customer-entered complimentary access-code
+redemption remains disabled because Maintley uses the admin grant flow.
+`ENTITLEMENT_COMPARE_MODE` also remains disabled because it is diagnostic only.
+
+These enabled flags are migration controls, not permanent configuration. After
+the Firebase migration is stable, remove each completed rollout flag and its
+obsolete fallback so the validated trusted path becomes standard behavior.
+
 `.env.example` is the committed environment contract. Each entry includes
 `@maintley-env` metadata defining its scope, delivery system, applicable
 environments, required status, optional source, and safe environment defaults.
@@ -380,6 +393,12 @@ Actions variable and not a normal dotenv value in production. Create it with
 32 random characters before deploying the access-code callables. `RESEND_API_KEY`
 remains the Firebase Functions secret used by lifecycle delivery. Do not copy
 either value into repository Variables.
+
+`FUNCTIONS_CONFIG_EXPORT` is a required JSON secret retained only as a
+compatibility fallback for legacy `functions.config()` Stripe values. New
+environments using the dedicated Stripe secrets and price parameters must set it
+to an empty JSON object (`{}`); do not duplicate current Stripe credentials into
+the compatibility payload.
 
 Trusted storage quota rollout has three deliberate steps: deploy the callable,
 triggers, and compatible clients while both rollout controls are disabled; set
@@ -884,8 +903,10 @@ the root rules-testing package, while Functions builds and callable emulator
 tests use `functions/node_modules`; neither dependency set may be omitted from
 the deployment job merely because the earlier build-check job installed it in a
 separate runner. Root dependencies are installed under Node 24 to satisfy the
-current web and Capacitor tooling engines; the job then switches to Node 20 for
-the Functions package, matching the deployed Functions runtime.
+current web and Capacitor tooling engines; the job then switches to Node 22 for
+the Functions package. `firebase.json` declares `nodejs22` as the authoritative
+deployed Functions runtime, while the Functions package accepts Node 22 or newer
+so root workspace tooling can continue to run under Node 24.
 
 If `package.json` is already ahead of the latest `v*` tag because a release was
 prepared but not tagged locally yet, the latest merged `Release v...` commit is
