@@ -446,14 +446,14 @@ The release restructuring and hosting migration share these validation gates:
 * Default Hosting site: `maintleybeta.web.app`
 * Analytics measurement configuration: confirmed and separate from production
 * Default Firestore database: created as Standard edition in `nam5`
-* Initial Firestore access: closed until Maintley's reviewed rules are deployed
+* Firestore access: Maintley's reviewed rules deployed successfully on 2026-07-30 after emulator-backed Build Check validation
 * Hosting preview channels: none beyond the live channel
 * Blaze billing: confirmed active
 * Functions platform APIs: enabled without deploying application code
 * Functions deployment inventory: 98 expected callable, event, and scheduled Functions deployed and reconciled without unexpected exports
 * Default Firebase Storage bucket: `maintleybeta.firebasestorage.app`, provisioned in `US-CENTRAL1`
 * Cloud Storage for Firebase API: enabled; Firebase linkage verified
-* Storage rules and files: no Maintley rules deployed and no files uploaded during bootstrap
+* Storage rules and files: Maintley's reviewed Storage rules deployed successfully on 2026-07-30; no production files were copied during bootstrap
 * Authentication: initialized with email/password sign-in and improved email privacy enabled
 * Authentication exclusions: anonymous sign-in and MFA disabled; no federated providers configured
 * Authorized Auth domains: `localhost`, `maintleybeta.firebaseapp.com`, and `maintleybeta.web.app`
