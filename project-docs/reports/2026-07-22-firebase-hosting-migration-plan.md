@@ -423,7 +423,7 @@ The release restructuring and hosting migration share these validation gates:
 ## Phase 0A: Development environment and promotion model
 
 * [x] Create or confirm the dedicated development Firebase project.
-* [ ] Link a development billing account or budget only where required by deployed services.
+* [x] Link a development billing account or budget only where required by deployed services.
 * [x] Register the development web app and Hosting site.
 * [ ] Configure separate development Auth, Firestore, Storage, Functions, Hosting, and Analytics resources.
 * [ ] Create least-privilege development and production GitHub deployment environments.
@@ -449,8 +449,10 @@ The release restructuring and hosting migration share these validation gates:
 * Default Firestore database: created as Standard edition in `nam5`
 * Initial Firestore access: closed until Maintley's reviewed rules are deployed
 * Hosting preview channels: none beyond the live channel
-* Functions: not initialized or not yet available to the development project
-* Storage bucket: referenced by the web SDK, but provisioning remains to be verified
+* Blaze billing: confirmed active
+* Functions platform APIs: enabled without deploying application code
+* Functions deployment inventory: empty
+* Storage bucket: referenced by the web SDK but not yet provisioned
 * Authentication providers and authorized domains: not yet verified
 
 No production customer data, production service credentials, or synthetic seed
