@@ -1,0 +1,44 @@
+{
+	"version": 1,
+	"repository": "DoberFamilyVentures/propertyManagerWebApp",
+	"requiredReactKeys": [
+		"REACT_APP_FIREBASE_API_KEY",
+		"REACT_APP_FIREBASE_AUTH_DOMAIN",
+		"REACT_APP_FIREBASE_PROJECT_ID",
+		"REACT_APP_FIREBASE_STORAGE_BUCKET",
+		"REACT_APP_FIREBASE_MESSAGING_SENDER_ID",
+		"REACT_APP_FIREBASE_APP_ID",
+		"REACT_APP_STRIPE_PUBLIC_KEY"
+	],
+	"functionVariableKeys": [
+		"STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID",
+		"STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID",
+		"STRIPE_PROPERTY_MONTHLY_PRICE_ID",
+		"STRIPE_PROPERTY_ANNUAL_PRICE_ID",
+		"STRIPE_PORTFOLIO_MONTHLY_PRICE_ID",
+		"STRIPE_PORTFOLIO_ANNUAL_PRICE_ID"
+	],
+	"firebaseSecretKeys": [
+		"COMPLIMENTARY_ACCESS_CODE_PEPPER",
+		"PERSONAL_ASSISTANT_TOKEN_PEPPER",
+		"RESEND_API_KEY",
+		"STRIPE_SECRET_KEY",
+		"STRIPE_WEBHOOK_SECRET"
+	],
+	"environments": {
+		"development": {
+			"githubEnvironment": "development",
+			"destinationPrefix": "DEV_",
+			"defaultReactFile": ".env.development.local",
+			"firebaseProjectId": "maintleybeta",
+			"stripePublishablePrefix": "pk_test_"
+		},
+		"production": {
+			"githubEnvironment": "production",
+			"destinationPrefix": "PROD_",
+			"defaultReactFile": ".env.production",
+			"firebaseProjectId": "mypropertymanager-cda42",
+			"stripePublishablePrefix": "pk_live_"
+		}
+	}
+}

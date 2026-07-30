@@ -467,6 +467,10 @@ The release restructuring and hosting migration share these validation gates:
 * Development frontend variables: public Maintley Beta Firebase web configuration stored separately from production in the GitHub `development` environment
 * Deployment identity verification: IAM bindings and provider conditions verified; a non-deploying GitHub smoke workflow is ready to verify runtime impersonation and Hosting visibility after merge
 * Development billing boundary: preview deployment remains blocked from a functional build until a Stripe test publishable key or an approved billing-suppression mode is configured; the production key will not be reused
+* Development Stripe frontend: test-mode publishable key configured in the GitHub `development` environment; production publishable key remains excluded
+* Hosting targets: explicit `beta` and `prod` target mappings added without deploying either live channel
+* Hosting preview workflow: same-repository pull requests targeting `beta` build without deployment credentials, then deploy only the static artifact to a seven-day Maintley Beta preview channel
+* Hosting preview verification: Beta-configured local production build passed; first GitHub preview deployment remains pending a feature pull request targeting `beta`
 
 No production customer data, production service credentials, or synthetic seed
 records were copied into the development project during bootstrap.
@@ -486,13 +490,13 @@ records were copied into the development project during bootstrap.
 
 ## Hosting checklist H2: Firebase Hosting foundation
 
-* [ ] Confirm the production Firebase project and hosting site name.
-* [ ] Confirm the development Firebase project and hosting site name.
-* [ ] Initialize Firebase Hosting without changing the production domain.
-* [ ] Add Hosting configuration with explicit development and production project targets.
-* [ ] Configure public files and SPA fallback ordering.
-* [ ] Configure appropriate security and cache headers.
-* [ ] Confirm private Firebase or customer data is never cached as static content.
+* [x] Confirm the production Firebase project and hosting site name.
+* [x] Confirm the development Firebase project and hosting site name.
+* [x] Initialize Firebase Hosting without changing the production domain.
+* [x] Add Hosting configuration with explicit development and production project targets.
+* [x] Configure public files and SPA fallback ordering.
+* [x] Configure appropriate security and cache headers.
+* [x] Confirm private Firebase or customer data is never cached as static content.
 * [ ] Deploy the candidate build to the development Firebase `*.web.app` host.
 * [ ] Verify assets, static pages, error responses, and the React application shell.
 * [ ] Verify no preview build contains production Firebase or Analytics configuration.
@@ -559,9 +563,9 @@ records were copied into the development project during bootstrap.
 
 ## Hosting checklist H7: Firebase web deployment
 
-* [ ] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
-* [ ] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
-* [ ] Keep PR previews on the stable development backend; do not deploy shared Functions or rules per PR.
+* [x] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
+* [x] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
+* [x] Keep PR previews on the stable development backend; do not deploy shared Functions or rules per PR.
 * [ ] Add stable development Hosting, Functions, Firestore rules, and Storage rules deployment after merge to `beta`.
 * [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
 * [ ] Use separate, least-privilege development and production deployment identities.

@@ -257,7 +257,8 @@ Important backend configuration includes:
 * Firebase Functions params/secrets
 * Plan price identifiers
 
-Important GitHub Actions secrets include:
+The GitHub `production` environment owns non-sensitive production build and
+Functions configuration as environment variables. Important variables include:
 
 * Frontend Firebase config:
   * `PROD_REACT_APP_FIREBASE_API_KEY`
@@ -272,7 +273,8 @@ Important GitHub Actions secrets include:
 * `PROD_FIREBASE_PROJECT_ID` for Firebase deploy targeting; if omitted, the
   deploy workflow falls back to `PROD_REACT_APP_FIREBASE_PROJECT_ID`
 * `PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY` for browser push builds
-* `FIREBASE_SERVICE_ACCOUNT_JSON` for Firebase rules and Functions deployment
+Repository secrets remain limited to credentials such as
+`FIREBASE_SERVICE_ACCOUNT_JSON` for Firebase rules and Functions deployment.
 * Stripe price IDs for non-interactive Functions deploy:
   * `PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`
   * `PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID`
@@ -281,9 +283,11 @@ Important GitHub Actions secrets include:
   * `PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID`
   * `PROD_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID`
 
-The Firebase deploy workflow falls back to matching frontend secret names with
-the `PROD_REACT_APP_` prefix for Stripe price IDs when the backend-specific
-secret names are not present.
+The Firebase deploy workflow reads the six backend price identifiers directly
+from the GitHub `production` environment. Browser Firebase configuration and
+publishable Stripe configuration also live there as `PROD_REACT_APP_*`
+variables. Retired plan identifiers must be removed rather than retained as
+fallback configuration.
 
 ## GitHub Actions rollout variables
 
@@ -438,6 +442,25 @@ when manually dispatched after it exists on the default branch, it verifies
 that GitHub can impersonate the development service account and that the
 expected Maintley Beta Hosting site is visible. It intentionally avoids loading
 application code or printing access tokens.
+
+Pull requests targeting `beta` use:
+
+```text
+.github/workflows/firebase-hosting-preview.yml
+```
+
+The preview workflow builds against only `DEV_REACT_APP_*` configuration,
+requires the Stripe publishable key to start with `pk_test_`, disables staged
+server-owned feature flags, and deploys only the `beta` Hosting target to a
+seven-day preview channel. Pull requests from forks are not deployed. The build
+job has no Google identity token; the deploy job downloads the static artifact,
+uses the trusted Hosting configuration from the PR base commit, and authenticates
+only immediately before the Firebase CLI deployment. It never deploys Functions,
+Firestore Rules, or Storage Rules.
+
+The workflow updates one bot comment on the pull request with the preview URL.
+The development customer-portal URL remains pointed at a safe Maintley Beta
+support route until Stripe test Customer Portal behavior is configured.
 
 The GitHub deploy service account must also be allowed to act as the Cloud
 Functions runtime service account. If deploy fails with:

@@ -1,4 +1,58 @@
 {
+	"hosting": [
+		{
+			"target": "beta",
+			"public": "build",
+			"ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+			"headers": [
+				{
+					"source": "/static/**",
+					"headers": [
+						{
+							"key": "Cache-Control",
+							"value": "public,max-age=31536000,immutable"
+						}
+					]
+				},
+				{
+					"source": "/@(index.html|service-worker.js|manifest.json)",
+					"headers": [
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, must-revalidate"
+						}
+					]
+				}
+			],
+			"rewrites": [{ "source": "**", "destination": "/index.html" }]
+		},
+		{
+			"target": "prod",
+			"public": "build",
+			"ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+			"headers": [
+				{
+					"source": "/static/**",
+					"headers": [
+						{
+							"key": "Cache-Control",
+							"value": "public,max-age=31536000,immutable"
+						}
+					]
+				},
+				{
+					"source": "/@(index.html|service-worker.js|manifest.json)",
+					"headers": [
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, must-revalidate"
+						}
+					]
+				}
+			],
+			"rewrites": [{ "source": "**", "destination": "/index.html" }]
+		}
+	],
 	"functions": {
 		"source": "functions",
 		"predeploy": ["node scripts/validateFunctionsDeployPackage.cjs"]
