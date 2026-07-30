@@ -14,6 +14,7 @@ on:
 jobs:
   build-check:
     runs-on: ubuntu-latest
+    environment: production
     permissions:
       contents: read
 
@@ -33,32 +34,46 @@ jobs:
       - name: Unit tests
         run: yarn test:ci
 
+      - name: Validate environment contract
+        run: yarn env:contract:validate
+
       - name: Build app
         env:
           CI: false
-          REACT_APP_FIREBASE_API_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_API_KEY }}
-          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.PROD_REACT_APP_FIREBASE_AUTH_DOMAIN }}
-          REACT_APP_FIREBASE_PROJECT_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
-          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ secrets.PROD_REACT_APP_FIREBASE_STORAGE_BUCKET }}
-          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
-          REACT_APP_FIREBASE_APP_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_APP_ID }}
-          REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_MEASUREMENT_ID }}
-          REACT_APP_ENABLE_ANALYTICS: ${{ secrets.PROD_REACT_APP_ENABLE_ANALYTICS }}
-          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
-          REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
-          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.STRIPE_CUSTOMER_PORTAL_URL || 'https://billing.stripe.com/p/login/00wbJ27029Gxama5Cg5gc00' }}
-          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
-          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
-          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
+          REACT_APP_FIREBASE_API_KEY: ${{ vars.PROD_REACT_APP_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.PROD_REACT_APP_FIREBASE_AUTH_DOMAIN }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ vars.PROD_REACT_APP_FIREBASE_STORAGE_BUCKET }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
+          REACT_APP_FIREBASE_APP_ID: ${{ vars.PROD_REACT_APP_FIREBASE_APP_ID }}
+          REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_MEASUREMENT_ID }}
+          REACT_APP_ENABLE_ANALYTICS: ${{ vars.PROD_REACT_APP_ENABLE_ANALYTICS }}
+          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ vars.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
+          REACT_APP_STRIPE_PUBLIC_KEY: ${{ vars.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
+          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.PROD_REACT_APP_STRIPE_CUSTOMER_PORTAL_URL }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
+          REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
+          REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID }}
+          REACT_APP_WEATHER_API_KEY: ${{ vars.PROD_REACT_APP_WEATHER_API_KEY }}
+          REACT_APP_PUBLIC_WEB_URL: ${{ vars.PROD_REACT_APP_PUBLIC_WEB_URL }}
+          REACT_APP_PLAY_STORE_URL: ${{ vars.PROD_REACT_APP_PLAY_STORE_URL }}
+          REACT_APP_ANALYTICS_DEBUG: ${{ vars.PROD_REACT_APP_ANALYTICS_DEBUG || 'false' }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.PROD_REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.PROD_REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
+          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.PROD_REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
         run: |
           yarn sync:public-pricing
           yarn build
 
   deploy:
     runs-on: ubuntu-latest
+    environment: production
     needs: [build-check]
     permissions:
       contents: read
@@ -74,8 +89,8 @@ jobs:
         id: target
         shell: bash
         env:
-          FIREBASE_PROJECT_ID: ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
-          REACT_FIREBASE_PROJECT_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
+          FIREBASE_PROJECT_ID: ${{ vars.PROD_FIREBASE_PROJECT_ID }}
+          REACT_FIREBASE_PROJECT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
         run: |
           TARGET="prod"
           PROJECT_ID="${FIREBASE_PROJECT_ID:-$REACT_FIREBASE_PROJECT_ID}"
@@ -121,15 +136,15 @@ jobs:
 
           targets=()
 
-          if echo "$CHANGED_FILES" | grep -Eq '(^functions/|^firebase\.json$)'; then
+          if echo "$CHANGED_FILES" | grep -Eq '^functions/'; then
             targets+=("functions")
           fi
 
-          if echo "$CHANGED_FILES" | grep -Eq '(^firestore\.rules$|^firebase\.json$)'; then
+          if echo "$CHANGED_FILES" | grep -Eq '^firestore\.rules$'; then
             targets+=("firestore:rules")
           fi
 
-          if echo "$CHANGED_FILES" | grep -Eq '(^storage\.rules$|^firebase\.json$)'; then
+          if echo "$CHANGED_FILES" | grep -Eq '^storage\.rules$'; then
             targets+=("storage")
           fi
 
@@ -251,19 +266,28 @@ jobs:
       - name: Write Functions deploy environment
         if: steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
         env:
-          STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
-          STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
-          ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
-          ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
-          ENABLE_COMPLIMENTARY_PAID_TRANSITIONS: ${{ vars.ENABLE_COMPLIMENTARY_PAID_TRANSITIONS || 'false' }}
-          ENABLE_ACCESS_LIFECYCLE_COMMUNICATION: ${{ vars.ENABLE_ACCESS_LIFECYCLE_COMMUNICATION || 'false' }}
-          ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
-          ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
-          HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT: ${{ vars.HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT || '' }}
-          STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_PROPERTY_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
-          STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_PROPERTY_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
-          STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ secrets.PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
-          STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ secrets.PROD_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID || secrets.PROD_REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID }}
+          STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ vars.PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
+          STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ vars.PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
+          ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.PROD_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.PROD_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          ENABLE_COMPLIMENTARY_PAID_TRANSITIONS: ${{ vars.PROD_ENABLE_COMPLIMENTARY_PAID_TRANSITIONS || 'false' }}
+          ENABLE_ACCESS_LIFECYCLE_COMMUNICATION: ${{ vars.PROD_ENABLE_ACCESS_LIFECYCLE_COMMUNICATION || 'false' }}
+          ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.PROD_ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.PROD_ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
+          HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT: ${{ vars.PROD_HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT || '' }}
+          APP_URL: ${{ vars.PROD_APP_URL }}
+          APP_ROUTER_MODE: ${{ vars.PROD_APP_ROUTER_MODE }}
+          MAINTLEY_ENVIRONMENT: ${{ vars.PROD_MAINTLEY_ENVIRONMENT }}
+          ENTITLEMENT_COMPARE_MODE: ${{ vars.PROD_ENTITLEMENT_COMPARE_MODE || 'false' }}
+          SUPPORT_EMAIL: ${{ vars.PROD_SUPPORT_EMAIL }}
+          HELP_CENTER_URL: ${{ vars.PROD_HELP_CENTER_URL }}
+          RESEND_FROM_EMAIL: ${{ vars.PROD_RESEND_FROM_EMAIL }}
+          RESEND_FEEDBACK_FROM_EMAIL: ${{ vars.PROD_RESEND_FEEDBACK_FROM_EMAIL }}
+          RESEND_API_KEY_SECRET_NAME: ${{ vars.PROD_RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY' }}
+          STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ vars.PROD_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
+          STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ vars.PROD_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
+          STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ vars.PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
+          STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ vars.PROD_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID }}
         run: |
           missing=0
           for name in \
@@ -281,7 +305,7 @@ jobs:
           done
 
           if [[ "$missing" -ne 0 ]]; then
-            echo "Add the PROD_STRIPE_* GitHub Actions secrets, or matching PROD_REACT_APP_STRIPE_* fallback secrets."
+            echo "Add the PROD_STRIPE_* variables to the GitHub production environment."
             exit 1
           fi
 
@@ -295,17 +319,26 @@ jobs:
             echo "ENABLE_COMPLIMENTARY_ACCESS_CODES=$ENABLE_COMPLIMENTARY_ACCESS_CODES"
             echo "ENABLE_TRUSTED_STORAGE_QUOTA=$ENABLE_TRUSTED_STORAGE_QUOTA"
             echo "HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT=$HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT"
+            echo "APP_URL=$APP_URL"
+            echo "APP_ROUTER_MODE=$APP_ROUTER_MODE"
+            echo "MAINTLEY_ENVIRONMENT=$MAINTLEY_ENVIRONMENT"
+            echo "ENTITLEMENT_COMPARE_MODE=$ENTITLEMENT_COMPARE_MODE"
+            echo "SUPPORT_EMAIL=$SUPPORT_EMAIL"
+            echo "HELP_CENTER_URL=$HELP_CENTER_URL"
+            echo "RESEND_FROM_EMAIL=$RESEND_FROM_EMAIL"
+            echo "RESEND_FEEDBACK_FROM_EMAIL=$RESEND_FEEDBACK_FROM_EMAIL"
+            echo "RESEND_API_KEY_SECRET_NAME=$RESEND_API_KEY_SECRET_NAME"
             echo "STRIPE_PROPERTY_MONTHLY_PRICE_ID=$STRIPE_PROPERTY_MONTHLY_PRICE_ID"
             echo "STRIPE_PROPERTY_ANNUAL_PRICE_ID=$STRIPE_PROPERTY_ANNUAL_PRICE_ID"
             echo "STRIPE_PORTFOLIO_MONTHLY_PRICE_ID=$STRIPE_PORTFOLIO_MONTHLY_PRICE_ID"
             echo "STRIPE_PORTFOLIO_ANNUAL_PRICE_ID=$STRIPE_PORTFOLIO_ANNUAL_PRICE_ID"
-          } > functions/.env
+          } > functions/.env.prod
 
       - name: Deploy Firebase rules and Functions
         if: steps.deploy-targets.outputs.has_targets == 'true'
         run: |
           ./functions/node_modules/.bin/firebase deploy \
-            --project "${{ steps.target.outputs.project_id }}" \
+            --project "${{ steps.target.outputs.target }}" \
             --only "${{ steps.deploy-targets.outputs.targets }}" \
             --non-interactive \
             --force

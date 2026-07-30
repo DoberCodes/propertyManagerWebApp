@@ -19,7 +19,9 @@ const {
 	writeBatch,
 	Timestamp,
 } = require('firebase/firestore');
-require('dotenv').config({ path: '.env' });
+const { loadLocalEnvironment } = require('./loadLocalEnvironment.cjs');
+
+loadLocalEnvironment();
 
 // NOTE: Currently using hardcoded data below due to CommonJS/TypeScript compatibility.
 // To sync with Redux mockData.ts, manually update the data arrays below or

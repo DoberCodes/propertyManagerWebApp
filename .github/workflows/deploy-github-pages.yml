@@ -54,6 +54,9 @@ jobs:
       - name: Validate release version files
         run: yarn version:validate
 
+      - name: Validate GitHub Pages deployment freeze
+        run: yarn validate:deployment-freeze
+
   unit-test:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
@@ -70,8 +73,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Validate GitHub Pages deployment freeze
+        run: yarn validate:deployment-freeze
+
       - name: Unit tests
         run: yarn test:ci
+
+      - name: Validate environment contract
+        run: yarn env:contract:validate
 
       - name: Release version policy tests
         run: yarn test:release-version
@@ -91,6 +100,7 @@ jobs:
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -107,23 +117,33 @@ jobs:
       - name: Build
         env:
           CI: false
-          REACT_APP_FIREBASE_API_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_API_KEY }}
-          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ secrets.PROD_REACT_APP_FIREBASE_AUTH_DOMAIN }}
-          REACT_APP_FIREBASE_PROJECT_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
-          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ secrets.PROD_REACT_APP_FIREBASE_STORAGE_BUCKET }}
-          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
-          REACT_APP_FIREBASE_APP_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_APP_ID }}
-          REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ secrets.PROD_REACT_APP_FIREBASE_MEASUREMENT_ID }}
-          REACT_APP_ENABLE_ANALYTICS: ${{ secrets.PROD_REACT_APP_ENABLE_ANALYTICS }}
-          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ secrets.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
-          REACT_APP_STRIPE_PUBLIC_KEY: ${{ secrets.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
-          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.STRIPE_CUSTOMER_PORTAL_URL || 'https://billing.stripe.com/p/login/00wbJ27029Gxama5Cg5gc00' }}
-          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
-          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
-          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
+          REACT_APP_FIREBASE_API_KEY: ${{ vars.PROD_REACT_APP_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.PROD_REACT_APP_FIREBASE_AUTH_DOMAIN }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ vars.PROD_REACT_APP_FIREBASE_STORAGE_BUCKET }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
+          REACT_APP_FIREBASE_APP_ID: ${{ vars.PROD_REACT_APP_FIREBASE_APP_ID }}
+          REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_MEASUREMENT_ID }}
+          REACT_APP_ENABLE_ANALYTICS: ${{ vars.PROD_REACT_APP_ENABLE_ANALYTICS }}
+          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ vars.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
+          REACT_APP_STRIPE_PUBLIC_KEY: ${{ vars.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
+          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.PROD_REACT_APP_STRIPE_CUSTOMER_PORTAL_URL }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
+          REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
+          REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID }}
+          REACT_APP_WEATHER_API_KEY: ${{ vars.PROD_REACT_APP_WEATHER_API_KEY }}
+          REACT_APP_PUBLIC_WEB_URL: ${{ vars.PROD_REACT_APP_PUBLIC_WEB_URL }}
+          REACT_APP_PLAY_STORE_URL: ${{ vars.PROD_REACT_APP_PLAY_STORE_URL }}
+          REACT_APP_ANALYTICS_DEBUG: ${{ vars.PROD_REACT_APP_ANALYTICS_DEBUG || 'false' }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.PROD_REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.PROD_REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
+          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.PROD_REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
         run: |
           yarn sync:public-pricing
           yarn build

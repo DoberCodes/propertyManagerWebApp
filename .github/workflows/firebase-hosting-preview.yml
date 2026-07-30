@@ -1,0 +1,196 @@
+name: Firebase Hosting Preview
+
+on:
+  pull_request:
+    branches:
+      - beta
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+concurrency:
+  group: firebase-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-preview:
+    name: Build development preview
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Validate environment contract
+        run: yarn env:contract:validate
+
+      - name: Validate development build configuration
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
+          STRIPE_PUBLIC_KEY: ${{ vars.DEV_REACT_APP_STRIPE_PUBLIC_KEY }}
+        run: |
+          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
+            echo "Refusing to build a preview for a non-development Firebase project."
+            exit 1
+          fi
+
+          if [[ "$STRIPE_PUBLIC_KEY" != pk_test_* ]]; then
+            echo "Development previews require a Stripe pk_test_ publishable key."
+            exit 1
+          fi
+
+      - name: Build Maintley Beta preview
+        env:
+          CI: false
+          REACT_APP_FIREBASE_API_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.DEV_REACT_APP_FIREBASE_AUTH_DOMAIN }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ vars.DEV_REACT_APP_FIREBASE_STORAGE_BUCKET }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.DEV_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
+          REACT_APP_FIREBASE_APP_ID: ${{ vars.DEV_REACT_APP_FIREBASE_APP_ID }}
+          REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_MEASUREMENT_ID }}
+          REACT_APP_ENABLE_ANALYTICS: ${{ vars.DEV_REACT_APP_ENABLE_ANALYTICS }}
+          REACT_APP_ANALYTICS_DEBUG: ${{ vars.DEV_REACT_APP_ANALYTICS_DEBUG || 'false' }}
+          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
+          REACT_APP_STRIPE_PUBLIC_KEY: ${{ vars.DEV_REACT_APP_STRIPE_PUBLIC_KEY }}
+          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.DEV_REACT_APP_STRIPE_CUSTOMER_PORTAL_URL }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
+          REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
+          REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID }}
+          REACT_APP_WEATHER_API_KEY: ${{ vars.DEV_REACT_APP_WEATHER_API_KEY }}
+          REACT_APP_PUBLIC_WEB_URL: ${{ vars.DEV_REACT_APP_PUBLIC_WEB_URL }}
+          REACT_APP_PLAY_STORE_URL: ${{ vars.DEV_REACT_APP_PLAY_STORE_URL }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.DEV_REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.DEV_REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.DEV_REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.DEV_REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
+          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.DEV_REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.DEV_REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
+        run: |
+          yarn sync:public-pricing
+          yarn build
+          yarn check:asset-budgets
+
+      - name: Upload preview build
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-preview-${{ github.event.pull_request.number }}
+          path: build
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy-preview:
+    name: Deploy development preview
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    needs: build-preview
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout trusted Hosting configuration
+        uses: actions/checkout@v4
+        with:
+          # Feature PRs use the protected beta branch configuration. The protected
+          # main branch is trusted only while synchronizing release foundations
+          # into beta, including the initial Hosting configuration bootstrap.
+          ref: ${{ github.event.pull_request.head.ref == 'main' && github.event.pull_request.head.sha || github.event.pull_request.base.sha }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.22.3
+
+      - name: Download preview build
+        uses: actions/download-artifact@v4
+        with:
+          name: firebase-preview-${{ github.event.pull_request.number }}
+          path: build
+
+      - name: Authenticate to Maintley Beta
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
+
+      - name: Deploy expiring Firebase preview channel
+        id: deploy
+        shell: bash
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
+            echo "Refusing to deploy a preview outside Maintley Beta."
+            exit 1
+          fi
+
+          firebase hosting:channel:deploy "pr-$PR_NUMBER" \
+            --project "$FIREBASE_PROJECT_ID" \
+            --only beta \
+            --expires 7d \
+            --non-interactive \
+            --json > firebase-preview-result.json
+
+          preview_url="$(jq -r '.. | objects | .url? // empty' firebase-preview-result.json | head -n 1)"
+          if [[ -z "$preview_url" || "$preview_url" != https://*.web.app ]]; then
+            echo "Firebase did not return a valid preview URL."
+            exit 1
+          fi
+
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+
+      - name: Add preview URL to pull request
+        uses: actions/github-script@v8
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.preview_url }}
+        with:
+          script: |
+            const marker = '<!-- maintley-firebase-preview -->';
+            const body = `${marker}\nMaintley Beta preview: ${process.env.PREVIEW_URL}\n\nThis preview expires seven days after its latest deployment.`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker),
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

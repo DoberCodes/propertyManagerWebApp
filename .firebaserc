@@ -3,5 +3,21 @@
     "default": "mypropertymanager-cda42",
     "prod": "mypropertymanager-cda42",
     "beta": "maintleybeta"
+  },
+  "targets": {
+    "maintleybeta": {
+      "hosting": {
+        "beta": [
+          "maintleybeta"
+        ]
+      }
+    },
+    "mypropertymanager-cda42": {
+      "hosting": {
+        "prod": [
+          "mypropertymanager-cda42"
+        ]
+      }
+    }
   }
 }

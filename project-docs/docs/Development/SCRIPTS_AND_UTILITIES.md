@@ -34,8 +34,8 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 
 ## Current Script Notes
 
-- `deploy` remains the primary web deployment script.
-- `deploy:gh-pages` is available as an explicit alias.
+- `deploy` and `deploy:gh-pages` are migration-freeze guards and intentionally fail.
+- No supported script publishes to GitHub Pages during the Firebase migration.
 - `stripe:webhook:auto` is Unix-only.
 - E2E scripts are intended to be cross-platform.
 - `adr:author` prepares humanized review drafts in `project-docs/reports/decision-audit-YYYY-MM/approved/`.
@@ -991,7 +991,8 @@ Deployment procedures are documented in:
 yarn predeploy
 ```
 
-Runs the application build before deployment.
+Intentionally fails through the GitHub Pages migration guard so the package
+lifecycle cannot build and continue into the historical Pages deploy command.
 
 ---
 
@@ -999,21 +1000,19 @@ Runs the application build before deployment.
 
 ```bash
 yarn deploy
+yarn deploy:gh-pages
 ```
 
-Deploys the application using the configured deployment target.
+Both commands intentionally fail through
+`scripts/assertGitHubPagesFrozen.cjs`. GitHub Pages publishing is frozen while
+Firebase Hosting and BrowserRouter are migrated.
 
-Current implementation:
-
-```text
-gh-pages -d build
-```
-
-Verify deployment strategy before use.
+Do not bypass this guard or call `gh-pages` directly.
 
 Risk:
 
-Medium
+High
+
 
 ---
 
@@ -1279,6 +1278,30 @@ Do not use unless intentionally abandoning the CRA-managed configuration.
 ---
 
 # Script Development Guidelines
+
+## Environment contract automation
+
+```bash
+yarn env:contract:validate
+yarn env:organize --apply
+yarn env:bootstrap --environment all --apply
+yarn env:validate
+yarn github-env:sync --environment development
+yarn github-env:sync --environment production
+```
+
+`.env.example` is the only committed variable manifest. The contract validator
+checks source coverage. The organizer creates browser and operations files. The
+bootstrapper creates project-specific non-secret Functions dotenv files. The
+GitHub sync command uploads only declared non-secret variables and is dry-run by
+default. Firebase secret values remain in the target project's Secret Manager
+and are never copied into GitHub variables or generated dotenv files.
+
+When adding configuration, declare it in `.env.example` first. Include its
+scope, delivery method, environments, required status, and any safe defaults or
+source mapping. CI rejects undeclared Maintley-owned runtime variables.
+
+---
 
 New scripts should:
 

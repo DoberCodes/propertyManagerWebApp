@@ -1,0 +1,90 @@
+name: Verify Development Deployment Identity
+
+on:
+  push:
+    branches:
+      - beta
+      - main
+    paths:
+      - '.github/workflows/verify-development-deployment-identity.yml'
+      - '.firebaserc'
+      - 'firebase.json'
+  workflow_dispatch:
+
+concurrency:
+  group: verify-development-deployment-identity
+  cancel-in-progress: false
+
+jobs:
+  verify-development-identity:
+    name: Verify development identity
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Validate development identity configuration
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          GOOGLE_SERVICE_ACCOUNT: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
+          WORKLOAD_IDENTITY_PROVIDER: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+        run: |
+          missing=0
+          for name in \
+            FIREBASE_PROJECT_ID \
+            GOOGLE_SERVICE_ACCOUNT \
+            WORKLOAD_IDENTITY_PROVIDER
+          do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required development environment variable: $name"
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
+            echo "Refusing to authenticate: development project must be maintleybeta."
+            exit 1
+          fi
+
+      - name: Authenticate to Maintley Beta
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
+
+      - name: Use Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify project and Firebase Hosting access
+        shell: bash
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+        run: |
+          resolved_project="$(gcloud projects describe "$FIREBASE_PROJECT_ID" --format='value(projectId)')"
+          if [[ "$resolved_project" != "$FIREBASE_PROJECT_ID" ]]; then
+            echo "Authenticated project does not match the development project."
+            exit 1
+          fi
+
+          access_token="$(gcloud auth print-access-token)"
+          hosting_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $access_token" \
+            "https://firebasehosting.googleapis.com/v1beta1/projects/$FIREBASE_PROJECT_ID/sites")"
+
+          if ! jq --exit-status \
+            --arg expected "projects/$FIREBASE_PROJECT_ID/sites/$FIREBASE_PROJECT_ID" \
+            '(.sites // []) | any(.name == $expected)' \
+            <<< "$hosting_response" > /dev/null
+          then
+            echo "The expected Maintley Beta Hosting site was not visible to the development identity."
+            exit 1
+          fi
+
+          echo "Verified keyless access to the Maintley Beta Firebase Hosting site."

@@ -1,6 +1,6 @@
 # Deployment
 
-Last reviewed: 2026-06
+Last reviewed: 2026-07-23
 
 This document describes Maintley's current build, deployment, environment, and release validation process.
 
@@ -90,23 +90,15 @@ The production build is written to:
 build/
 ```
 
-The root `package.json` also includes:
+The root `package.json` retains `deploy` and `deploy:gh-pages` as guard
+commands during the Firebase Hosting migration. Both commands intentionally
+exit with an error before publishing anything.
 
-```bash
-npm run deploy
-```
+No repository-supported command may update the `gh-pages` branch during the
+migration freeze. The last verified GitHub Pages build remains online as the
+current site and future rollback target until Firebase cutover is complete.
 
-This uses:
-
-```bash
-gh-pages -d build
-```
-
-`npm run deploy:gh-pages` is also available as an explicit alias to the same command.
-
-Confirm the intended hosting target before using this command.
-
-Firebase Hosting is not configured in `firebase.json`.
+Firebase Hosting is not yet configured as the production deployment path.
 
 ---
 
@@ -119,23 +111,23 @@ intentionally reintroduced.
 
 ---
 
-# GitHub Pages PWA Assets
+# GitHub Pages Migration Freeze
 
-The active web deployment publishes the React `build/` output through GitHub
-Pages on Maintley's custom domain.
+GitHub Pages continues to serve the last verified production build, but
+publishing is frozen for the duration of the Firebase Hosting and BrowserRouter
+migration.
 
-GitHub Pages deployment is handled by:
+The former automatic workflow has been removed:
 
 ```text
 .github/workflows/deploy-web.yml
 ```
 
-The workflow runs after every push to `main`. This intentionally favors a
-current production client over path-filter optimization: frontend behavior can
-depend on shared entitlements, configuration, scripts, or other root files in
-addition to `src/`. It builds the web app, runs asset budget checks, and
-publishes the existing `build/` folder with `gh-pages` using the workflow
-`GITHUB_TOKEN`.
+The `deploy` and `deploy:gh-pages` package commands invoke
+`scripts/assertGitHubPagesFrozen.cjs` and exit unsuccessfully. Do not bypass the
+guard or update the `gh-pages` branch manually. Rollback during the migration
+means restoring DNS or hosting to the existing verified Pages build, not
+publishing a new Pages build.
 
 PWA files live in `public/` and are copied to the root of `build/` during
 `npm run build`:
@@ -265,7 +257,8 @@ Important backend configuration includes:
 * Firebase Functions params/secrets
 * Plan price identifiers
 
-Important GitHub Actions secrets include:
+The GitHub `production` environment owns non-sensitive production build and
+Functions configuration as environment variables. Important variables include:
 
 * Frontend Firebase config:
   * `PROD_REACT_APP_FIREBASE_API_KEY`
@@ -280,7 +273,8 @@ Important GitHub Actions secrets include:
 * `PROD_FIREBASE_PROJECT_ID` for Firebase deploy targeting; if omitted, the
   deploy workflow falls back to `PROD_REACT_APP_FIREBASE_PROJECT_ID`
 * `PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY` for browser push builds
-* `FIREBASE_SERVICE_ACCOUNT_JSON` for Firebase rules and Functions deployment
+Repository secrets remain limited to credentials such as
+`FIREBASE_SERVICE_ACCOUNT_JSON` for Firebase rules and Functions deployment.
 * Stripe price IDs for non-interactive Functions deploy:
   * `PROD_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID`
   * `PROD_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID`
@@ -289,9 +283,11 @@ Important GitHub Actions secrets include:
   * `PROD_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID`
   * `PROD_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID`
 
-The Firebase deploy workflow falls back to matching frontend secret names with
-the `PROD_REACT_APP_` prefix for Stripe price IDs when the backend-specific
-secret names are not present.
+The Firebase deploy workflow reads the six backend price identifiers directly
+from the GitHub `production` environment. Browser Firebase configuration and
+publishable Stripe configuration also live there as `PROD_REACT_APP_*`
+variables. Retired plan identifiers must be removed rather than retained as
+fallback configuration.
 
 ## GitHub Actions rollout variables
 
@@ -335,9 +331,27 @@ make the trusted writer mandatory, tighten rules to reject every direct client
 recurrence write, and remove the rollout flag. Client entitlement checks may
 remain only for contextual interface messaging.
 
-Local development uses the destination names shown above in `.env` or
-`functions/.env`. The repository commits only `.env.example`; `.env*` files are
-ignored, and generated CI `functions/.env` files must never be committed.
+`.env.example` is the committed environment contract. Each entry includes
+`@maintley-env` metadata defining its scope, delivery system, applicable
+environments, required status, optional source, and safe environment defaults.
+Real values never belong in that file.
+
+Run `yarn env:contract:validate` whenever the application, Functions, scripts,
+or workflows introduce environment configuration. The validation fails when a
+Maintley-owned runtime variable is referenced without a contract declaration.
+Run `yarn env:organize --apply` to regenerate local browser and operations files
+from declared entries, and `yarn env:bootstrap --environment all --apply` to
+generate non-secret project-specific Functions files:
+
+```text
+functions/.env.beta
+functions/.env.prod
+functions/.env.local
+```
+
+The local emulator file follows Beta/test configuration. The generic
+`functions/.env` is a legacy migration source only and must not be used by new
+deployments. Every generated `.env*` file is ignored and must not be committed.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
@@ -364,10 +378,22 @@ build`. Missing values or placeholder values such as `YOUR_STORAGE_BUCKET`
 block the build so production cannot publish a bundle pointed at a placeholder
 Firebase project or Storage bucket.
 
-During CI, these Stripe price IDs are written into a temporary
-`functions/.env` file before `firebase deploy` runs. This is required because
-Firebase Functions params are resolved from dotenv files during non-interactive
-deploys. The file is ignored by git and should not be committed.
+During production CI, the contract-managed Functions values are written into a
+temporary `functions/.env.prod` file before `firebase deploy --project prod`
+runs. Firebase loads the project-alias-specific file during non-interactive
+deployment. Beta Functions deployments use `.env.beta`; emulator overrides use
+`.env.local`.
+
+`yarn github-env:sync --environment <development|production>` performs a
+values-hidden dry run against the corresponding GitHub environment. Add
+`--apply` to upsert declared non-secret values. Pruning additionally requires
+`--prune --confirm-prune <environment>`. The tool derives its managed variable
+set from `.env.example`, validates Firebase project and Stripe mode boundaries,
+and retries GitHub verification while environment-variable writes propagate.
+
+`yarn env:bootstrap --environment all --strict --check-secrets` provides the
+full readiness gate. It checks required non-secret values and verifies required
+secret names in each Firebase project without displaying secret contents.
 
 The shared `@maintley/entitlements` package is stored at
 `functions/packages/entitlements`. Firebase uploads only the configured
@@ -389,6 +415,13 @@ Firebase rules and Functions deploy through:
 The workflow authenticates with `google-github-actions/auth` using the
 `FIREBASE_SERVICE_ACCOUNT_JSON` repository secret.
 
+Automatic backend target selection is source-based: `functions/` changes
+deploy Functions, `firestore.rules` changes deploy Firestore rules, and
+`storage.rules` changes deploy Storage rules. A Hosting-only `firebase.json`
+change does not redeploy the production backend. Changes to Firebase backend
+configuration inside `firebase.json` require an explicit reviewed manual deploy
+until a configuration-aware target detector is introduced.
+
 Recommended setup:
 
 1. Create a dedicated Google Cloud service account for GitHub deploys.
@@ -403,6 +436,68 @@ FIREBASE_SERVICE_ACCOUNT_JSON
 Treat this JSON like a password. Do not commit it to the repository.
 
 `FIREBASE_TOKEN` is no longer used by the active Firebase deploy workflow.
+
+### Development deployment identity
+
+The Firebase Hosting migration uses keyless Workload Identity Federation for
+the development environment. GitHub environment variables identify the
+development project, provider, and service account:
+
+```text
+DEV_FIREBASE_PROJECT_ID
+DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER
+DEV_GOOGLE_SERVICE_ACCOUNT
+```
+
+The public Firebase browser configuration is stored in the same environment as
+`DEV_REACT_APP_FIREBASE_*` variables. These values identify the development
+Firebase app and are embedded in browser builds; they are not service-account
+credentials. A separate Stripe test publishable key is still required before a
+functional development frontend can be built and deployed. Never substitute
+the production Stripe publishable key in a development build.
+
+The Workload Identity provider admits tokens only from
+`DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
+`development` environment. The dedicated service account is scoped to the
+`maintleybeta` project. Its initial permissions are Firebase Hosting Admin and
+API Keys Viewer, which support Hosting preview work without granting Functions,
+Firestore Rules, Storage Rules, Scheduler, Secret Manager, or production access.
+
+Do not create or store a JSON key for this development identity. Add further
+roles only when the corresponding development deployment stage is implemented
+and validated. The current production workflow continues using its existing
+credential path until the production identity migration is performed.
+
+Keyless authentication is checked by:
+
+```text
+.github/workflows/verify-development-deployment-identity.yml
+```
+
+The workflow performs no deployment. On relevant pushes to `beta` or `main`, or
+when manually dispatched after it exists on the default branch, it verifies
+that GitHub can impersonate the development service account and that the
+expected Maintley Beta Hosting site is visible. It intentionally avoids loading
+application code or printing access tokens.
+
+Pull requests targeting `beta` use:
+
+```text
+.github/workflows/firebase-hosting-preview.yml
+```
+
+The preview workflow builds against only `DEV_REACT_APP_*` configuration,
+requires the Stripe publishable key to start with `pk_test_`, disables staged
+server-owned feature flags, and deploys only the `beta` Hosting target to a
+seven-day preview channel. Pull requests from forks are not deployed. The build
+job has no Google identity token; the deploy job downloads the static artifact,
+uses the trusted Hosting configuration from the PR base commit, and authenticates
+only immediately before the Firebase CLI deployment. It never deploys Functions,
+Firestore Rules, or Storage Rules.
+
+The workflow updates one bot comment on the pull request with the preview URL.
+The development customer-portal URL remains pointed at a safe Maintley Beta
+support route until Stripe test Customer Portal behavior is configured.
 
 The GitHub deploy service account must also be allowed to act as the Cloud
 Functions runtime service account. If deploy fails with:
@@ -808,8 +903,9 @@ release is ready for users:
 gh workflow run publish-app-version.yml --repo DoberFamilyVentures/propertyManagerWebApp --ref main -f version=2.9.16
 ```
 
-Web deployment is handled separately by the Deploy Web workflow when release
-version files land on `main`. `build:signed` does not deploy GitHub Pages.
+GitHub Pages publishing is frozen during the migration. The removed Deploy Web
+workflow and guarded local deploy commands must not be restored as a temporary
+release path.
 
 The release-notes action is not a test workflow. `build:signed` still performs
 its local test, build, and asset-budget validation before publishing a release.
@@ -1072,17 +1168,21 @@ Potential improvements:
 * Add smoke tests for critical post-deploy flows.
 
 
-## Future Environment Strategy
+## Approved Future Environment Strategy
 
 Maintley currently deploys directly to the production Firebase project.
 
-A separate beta environment was previously evaluated but is not currently active.
+ADR 0028 now governs an approved but not-yet-implemented migration to:
 
-Future growth may justify:
+* A dedicated development Firebase project
+* Feature integration through a protected `beta` branch
+* Expiring development Firebase Hosting previews for feature pull requests
+* Stable development deployment after merge to `beta`
+* Release promotion from `beta` into the production `main` branch
+* Production deployment, tag creation, and GitHub Release publication only after
+  the release merge passes its production gates
+* Separate development Analytics, Stripe test configuration, secrets, and
+  synthetic data
 
-- Dedicated beta Firebase project
-- Beta branch deployments
-- Separate Stripe test environment
-- Staged release process
-
-Until then, deployment remains production-only.
+Until that migration is implemented and validated, the active production-only
+deployment behavior elsewhere in this document remains authoritative.

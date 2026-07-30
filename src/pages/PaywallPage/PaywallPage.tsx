@@ -315,18 +315,6 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			return;
 		}
 
-		const validPromoCodes = [
-			process.env.REACT_APP_UNLIMITED_TRIAL_PROMO_CODE?.toLowerCase(),
-			process.env.REACT_APP_EXPIRED_TRIAL_PROMO_CODE?.toLowerCase(),
-		].filter(Boolean);
-
-		if (validPromoCodes.includes(trimmedPromoCode)) {
-			setPromoHint('Valid promo code found. Click Apply Code to use it.');
-			setPromoHintType('success');
-			setIsCheckingPromo(false);
-			return;
-		}
-
 		setIsCheckingPromo(true);
 		setPromoHint(null);
 		setPromoHintType(null);
@@ -472,32 +460,16 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			// Validate promo code
 			const trimmedPromoCode = promoCode.trim().toLowerCase();
 
-			// Keep local env promo codes for legacy access-period testing behavior
-			const validPromoCodes = [
-				process.env.REACT_APP_UNLIMITED_TRIAL_PROMO_CODE?.toLowerCase(),
-				process.env.REACT_APP_EXPIRED_TRIAL_PROMO_CODE?.toLowerCase(),
-			].filter(Boolean);
-
-			if (validPromoCodes.includes(trimmedPromoCode)) {
-				// Valid promo code - call the callback and track applied promo
-				setAppliedPromoCode(trimmedPromoCode);
-				onPromoCodeApplied?.(trimmedPromoCode);
-				setPromoCode(''); // Clear input but keep applied state
+			const result = await validatePromotionCode(trimmedPromoCode);
+			if (result.valid) {
+				setAppliedPromoCode(result.code || trimmedPromoCode);
+				onPromoCodeApplied?.(result.code || trimmedPromoCode);
+				setPromoCode('');
 				setPromoError(null);
 				setPromoHint(null);
 				setPromoHintType(null);
 			} else {
-				const result = await validatePromotionCode(trimmedPromoCode);
-				if (result.valid) {
-					setAppliedPromoCode(result.code || trimmedPromoCode);
-					onPromoCodeApplied?.(result.code || trimmedPromoCode);
-					setPromoCode('');
-					setPromoError(null);
-					setPromoHint(null);
-					setPromoHintType(null);
-				} else {
-					setPromoError(result.message || 'Invalid promo code. Please try again.');
-				}
+				setPromoError(result.message || 'Invalid promo code. Please try again.');
 			}
 		} catch (err) {
 			console.error('Failed to apply promo code:', err);
