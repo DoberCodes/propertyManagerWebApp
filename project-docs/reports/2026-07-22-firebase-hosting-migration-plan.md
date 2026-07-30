@@ -452,7 +452,9 @@ The release restructuring and hosting migration share these validation gates:
 * Blaze billing: confirmed active
 * Functions platform APIs: enabled without deploying application code
 * Functions deployment inventory: empty
-* Storage bucket: referenced by the web SDK but not yet provisioned
+* Default Firebase Storage bucket: `maintleybeta.firebasestorage.app`, provisioned in `US-CENTRAL1`
+* Cloud Storage for Firebase API: enabled; Firebase linkage verified
+* Storage rules and files: no Maintley rules deployed and no files uploaded during bootstrap
 * Authentication providers and authorized domains: not yet verified
 
 No production customer data, production service credentials, or synthetic seed
