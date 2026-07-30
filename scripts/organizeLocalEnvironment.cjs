@@ -7,13 +7,21 @@ const { defaultFor, entriesFor, loadEnvironmentContract } = require('./environme
 
 const rootDir = path.resolve(__dirname, '..');
 
-function formatDotenv(title, values) {
+function formatDotenv(title, values, entries = []) {
 	const lines = [
 		`# ${title}`,
-		'# Local-only file. Never commit real values.',
+		'# Generated from .env.example. Local-only file; never commit real values.',
 		'',
 	];
-	for (const [key, value] of [...values.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+	const sections = new Map(entries.map(({ name, section }) => [name, section]));
+	let currentSection = '';
+	for (const [key, value] of values) {
+		const section = sections.get(key) || '';
+		if (section && section !== currentSection) {
+			if (currentSection) lines.push('');
+			lines.push(`# ${section}`);
+			currentSection = section;
+		}
 		lines.push(`${key}=${JSON.stringify(String(value))}`);
 	}
 	return `${lines.join('\n')}\n`;
@@ -41,7 +49,7 @@ function selectContractValues(entries, environment, scope, sources) {
 		}
 		if (!selected.has(entry.name)) {
 			const fallback = defaultFor(entry, environment) || entry.example;
-			if (String(fallback || '').trim()) selected.set(entry.name, fallback);
+			selected.set(entry.name, fallback || '');
 		}
 	}
 	return selected;
@@ -112,17 +120,17 @@ function main() {
 		const outputs = [
 			{
 				path: '.env.production',
-				contents: formatDotenv('Maintley production browser configuration', production),
+				contents: formatDotenv('Maintley production browser configuration', production, entriesFor(contract, 'production', (entry) => entry.scope === 'web')),
 				count: production.size,
 			},
 			{
 				path: '.env.development.local',
-				contents: formatDotenv('Maintley development browser configuration', development),
+				contents: formatDotenv('Maintley development browser configuration', development, entriesFor(contract, 'development', (entry) => entry.scope === 'web')),
 				count: development.size,
 			},
 			{
 				path: '.env.operations.local',
-				contents: formatDotenv('Maintley local operations configuration', contractOperations),
+				contents: formatDotenv('Maintley local operations configuration', contractOperations, contract.filter((entry) => ['operations', 'android', 'sandbox', 'e2e'].includes(entry.scope))),
 				count: contractOperations.size,
 			},
 		];

@@ -1,6 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildFunctionValues, parseArgs } = require('./bootstrapEnvironment.cjs');
+const {
+	buildFunctionValues,
+	formatDotenv,
+	parseArgs,
+	readGitHubVariableOverrides,
+} = require('./bootstrapEnvironment.cjs');
 
 const entries = [
 	{
@@ -32,4 +37,25 @@ test('supports dry-run, apply, strict, and secret checks', () => {
 	assert.deepEqual(parseArgs(['--environment', 'production', '--apply', '--strict', '--check-secrets']), {
 		environment: 'production', apply: true, strict: true, checkSecrets: true,
 	});
+});
+
+test('reads prefixed GitHub environment variables without retaining the delivery prefix', () => {
+	assert.deepEqual(Object.fromEntries(readGitHubVariableOverrides('development', JSON.stringify({
+		DEV_STRIPE_PRICE_ID: 'price_test',
+		PROD_STRIPE_PRICE_ID: 'price_live',
+	}))), {
+		STRIPE_PRICE_ID: 'price_test',
+	});
+});
+
+test('groups generated Functions values in manifest order', () => {
+	const formatted = formatDotenv('development', new Map([
+		['STRIPE_PRICE_ID', ''],
+		['APP_URL', 'https://example.test'],
+	]), [
+		{ name: 'STRIPE_PRICE_ID', section: 'Functions Stripe pricing' },
+		{ name: 'APP_URL', section: 'Functions application identity' },
+	]);
+	assert.ok(formatted.indexOf('# Functions Stripe pricing') < formatted.indexOf('# Functions application identity'));
+	assert.match(formatted, /STRIPE_PRICE_ID=""/);
 });

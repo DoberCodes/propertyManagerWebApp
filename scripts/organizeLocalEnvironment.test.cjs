@@ -45,7 +45,7 @@ test('formats values without printing them in metadata', () => {
 	assert.match(formatted, /TOKEN="value with spaces"/);
 });
 
-test('selects only declared values and fills safe defaults', () => {
+test('selects every declared value, retaining empty placeholders and safe defaults', () => {
 	const entries = [
 		{ name: 'REACT_APP_ONE', scope: 'web', environments: ['development'], developmentDefault: '', example: '' },
 		{ name: 'REACT_APP_TWO', scope: 'web', environments: ['development'], developmentDefault: 'false', example: '' },
@@ -58,4 +58,26 @@ test('selects only declared values and fills safe defaults', () => {
 		REACT_APP_ONE: 'configured',
 		REACT_APP_TWO: 'false',
 	});
+});
+
+test('retains an empty placeholder for an unconfigured declared value', () => {
+	const entries = [
+		{ name: 'REACT_APP_REQUIRED', scope: 'web', environments: ['development'], developmentDefault: '', example: '' },
+	];
+	assert.deepEqual(Object.fromEntries(selectContractValues(entries, 'development', 'web', [new Map()])), {
+		REACT_APP_REQUIRED: '',
+	});
+});
+
+test('formats values in manifest order with section headings', () => {
+	const values = new Map([
+		['REACT_APP_FIREBASE_PROJECT_ID', 'maintleybeta'],
+		['REACT_APP_STRIPE_PRICE_ID', ''],
+	]);
+	const formatted = formatDotenv('Example', values, [
+		{ name: 'REACT_APP_FIREBASE_PROJECT_ID', section: 'Browser Firebase' },
+		{ name: 'REACT_APP_STRIPE_PRICE_ID', section: 'Browser Stripe' },
+	]);
+	assert.ok(formatted.indexOf('# Browser Firebase') < formatted.indexOf('# Browser Stripe'));
+	assert.match(formatted, /REACT_APP_STRIPE_PRICE_ID=""/);
 });

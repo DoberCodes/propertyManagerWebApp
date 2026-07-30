@@ -29,6 +29,15 @@ function readValues(relativePath) {
 	return fs.existsSync(absolutePath) ? parseDotenv(fs.readFileSync(absolutePath, 'utf8')) : new Map();
 }
 
+function readGitHubVariableOverrides(environment, serialized = process.env.MAINTLEY_GITHUB_VARIABLES_JSON) {
+	if (!String(serialized || '').trim()) return new Map();
+	const prefix = environment === 'production' ? 'PROD_' : 'DEV_';
+	const parsed = JSON.parse(serialized);
+	return new Map(Object.entries(parsed)
+		.filter(([name, value]) => name.startsWith(prefix) && String(value || '').trim())
+		.map(([name, value]) => [name.slice(prefix.length), String(value)]));
+}
+
 function resolveEntryValue(entry, environment, sources) {
 	for (const values of sources) {
 		const direct = values.get(entry.name);
@@ -56,14 +65,24 @@ function buildFunctionValues(entries, environment, sources) {
 	return { values, missing };
 }
 
-function formatDotenv(environment, values) {
+function formatDotenv(environment, values, entries = []) {
 	const lines = [
 		`# Generated Maintley ${environment} Functions configuration.`,
 		'# Source contract: ../.env.example',
-		'# Non-secret values only. Regenerate with yarn env:bootstrap.',
+		'# Non-secret values only. Generated file; regenerate with yarn env:bootstrap.',
 		'',
 	];
-	for (const [name, value] of values) lines.push(`${name}=${JSON.stringify(String(value || ''))}`);
+	const sections = new Map(entries.map(({ name, section }) => [name, section]));
+	let currentSection = '';
+	for (const [name, value] of values) {
+		const section = sections.get(name) || '';
+		if (section && section !== currentSection) {
+			if (currentSection) lines.push('');
+			lines.push(`# ${section}`);
+			currentSection = section;
+		}
+		lines.push(`${name}=${JSON.stringify(String(value || ''))}`);
+	}
 	return `${lines.join('\n')}\n`;
 }
 
@@ -98,11 +117,17 @@ function runEnvironment(entries, environment, options) {
 	const existing = readValues(files.functions);
 	const react = readValues(files.react);
 	const legacyProduction = environment === 'production' ? readValues('functions/.env') : new Map();
-	const { values, missing } = buildFunctionValues(entries, environment, [existing, react, legacyProduction]);
+	const overrides = readGitHubVariableOverrides(environment);
+	const functionEntries = entriesFor(
+		entries,
+		environment,
+		(entry) => entry.scope === 'functions' && entry.delivery === 'github-variable',
+	);
+	const { values, missing } = buildFunctionValues(entries, environment, [overrides, existing, react, legacyProduction]);
 	if (options.apply) {
-		fs.writeFileSync(path.resolve(rootDir, files.functions), formatDotenv(environment, values), 'utf8');
+		fs.writeFileSync(path.resolve(rootDir, files.functions), formatDotenv(environment, values, functionEntries), 'utf8');
 		if (environment === 'development') {
-			fs.writeFileSync(path.resolve(rootDir, 'functions/.env.local'), formatDotenv('local emulator', values), 'utf8');
+			fs.writeFileSync(path.resolve(rootDir, 'functions/.env.local'), formatDotenv('local emulator', values, functionEntries), 'utf8');
 		}
 	}
 	const missingSecrets = options.checkSecrets ? checkFirebaseSecrets(entries, environment) : [];
@@ -141,5 +166,6 @@ module.exports = {
 	buildFunctionValues,
 	formatDotenv,
 	parseArgs,
+	readGitHubVariableOverrides,
 	resolveEntryValue,
 };

@@ -18,8 +18,14 @@ function parseMetadata(text) {
 function parseEnvironmentContract(contents) {
 	const entries = [];
 	let pendingMetadata = null;
+	let currentSection = '';
 	for (const rawLine of String(contents || '').split(/\r?\n/)) {
 		const line = rawLine.trim();
+		const sectionMatch = line.match(/^#\s+(.+?)\s+-{3,}$/);
+		if (sectionMatch) {
+			currentSection = sectionMatch[1].trim();
+			continue;
+		}
 		if (line.startsWith(metadataPrefix)) {
 			if (pendingMetadata) throw new Error('Environment metadata must be followed by exactly one variable.');
 			pendingMetadata = parseMetadata(line.slice(metadataPrefix.length));
@@ -44,6 +50,7 @@ function parseEnvironmentContract(contents) {
 			source: pendingMetadata.source || '',
 			developmentDefault: pendingMetadata.developmentDefault || '',
 			productionDefault: pendingMetadata.productionDefault || '',
+			section: currentSection,
 		};
 		for (const field of ['scope', 'delivery']) {
 			if (!entry[field]) throw new Error(`${name} is missing ${field} metadata.`);

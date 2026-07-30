@@ -336,6 +336,11 @@ remain only for contextual interface messaging.
 environments, required status, optional source, and safe environment defaults.
 Real values never belong in that file.
 
+Section headings and declaration order in `.env.example` also control the
+organization of generated browser, operations, and Functions dotenv files.
+Generated templates retain empty declared entries so missing configuration is
+visible and can be completed without manually discovering variable names.
+
 Run `yarn env:contract:validate` whenever the application, Functions, scripts,
 or workflows introduce environment configuration. The validation fails when a
 Maintley-owned runtime variable is referenced without a contract declaration.
@@ -489,11 +494,18 @@ Pull requests targeting `beta` use:
 The preview workflow builds against only `DEV_REACT_APP_*` configuration,
 requires the Stripe publishable key to start with `pk_test_`, disables staged
 server-owned feature flags, and deploys only the `beta` Hosting target to a
-seven-day preview channel. Pull requests from forks are not deployed. The build
-job has no Google identity token; the deploy job downloads the static artifact,
-uses the trusted Hosting configuration from the PR base commit, and authenticates
-only immediately before the Firebase CLI deployment. It never deploys Functions,
-Firestore Rules, or Storage Rules.
+seven-day preview channel. The workflow also verifies required non-secret
+Functions configuration from the GitHub `development` environment and required
+secret names in the Maintley Beta project before deploying the preview. Values
+and secret contents are never printed. Pull requests from forks are not
+deployed. The build job has no Google identity token; the deploy job downloads
+the static artifact, uses the trusted Hosting configuration from the PR base
+commit, and authenticates only immediately before the Firebase CLI deployment.
+It never deploys Functions, Firestore Rules, or Storage Rules.
+
+The E2E workflow runs for pull requests targeting either `beta` or `main`.
+Require its `e2e` status on both protected branches only after the workflow has
+reported successfully at least once for that target branch.
 
 The workflow updates one bot comment on the pull request with the preview URL.
 The development customer-portal URL remains pointed at a safe Maintley Beta
