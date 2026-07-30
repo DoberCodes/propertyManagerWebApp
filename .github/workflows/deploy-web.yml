@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - package.json
-      - client/package.json
-      - android/app/build.gradle
   workflow_dispatch:
 
 jobs:

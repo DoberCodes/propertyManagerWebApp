@@ -625,6 +625,33 @@ Migration scripts support schema evolution and data normalization.
 
 Migration scripts should be reviewed before execution.
 
+## Property Taxonomy Migration
+
+```bash
+yarn migrate:property-taxonomy
+```
+
+Runs a production dry-run using `serviceAccountKey.json` and prints aggregate
+canonical type counts. Add `--verbose` through
+`yarn migrate:property-taxonomy:verbose` only when record-level review is
+required.
+
+Apply mode requires an explicit project confirmation in addition to `--apply`:
+
+```bash
+node scripts/migratePropertyTaxonomy.cjs --apply --confirm-project=PROJECT_ID
+```
+
+The migration is repeat-safe. Residential legacy values receive the only safe
+classification inference (`single_family`); Multi-Family and Commercial
+records are canonicalized without guessing a classification.
+
+Risk:
+
+Medium
+
+---
+
 ---
 
 ## Property Membership Migration
