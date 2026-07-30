@@ -1027,7 +1027,9 @@ Medium
 yarn release:notes
 ```
 
-Generates release notes from project history.
+Generates release notes from project history. The latest merged `Release v...`
+commit after the latest version tag is treated as the boundary so an unpublished
+or delayed tag does not cause changes from earlier prepared releases to repeat.
 
 The generator recognizes a matching release-preparation merge at `HEAD` and
 keeps its prepared package version. Subsequent product commits continue to bump

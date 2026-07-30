@@ -199,8 +199,9 @@ These scripts are actively used, referenced by package aliases, or remain part o
 * syncAppVersion.cjs
 
 `generateReleaseNotes.cjs` is the active PR-first release note generator used by
-the Release Notes GitHub Action and local preview commands. It uses the local
-git range from the latest `v*` tag to `HEAD`, enriches merged PRs with GitHub
+the Release Notes GitHub Action and local preview commands. It uses the latest
+merged `Release v...` commit after the latest `v*` tag as its boundary, or the
+tag when there is no newer merged release. It enriches merged PRs with GitHub
 CLI metadata when available, writes customer-facing release notes, and can write
 engineering notes plus structured metadata.
 
@@ -225,8 +226,9 @@ versioning PR itself does not appear as a customer-facing improvement.
 artifact.
 
 `build:signed` does not call this generator directly. It downloads the
-successful `release-notes.yml` artifact for the current `main` commit and uses
-those customer notes as the GitHub Release body.
+successful `release-notes.yml` artifact for the current `main` commit to
+validate the prepared version. The matching GitHub Release must already exist;
+the helper attaches or replaces Android artifacts without changing its notes.
 
 `prepareReleaseVersion.cjs` updates the repo-controlled release version files:
 
@@ -369,13 +371,16 @@ The release workflow uses split ownership:
 * Release Notes Action generates customer and engineering notes.
 * Release Prep Action opens or updates the `release/next` PR with the correct
   version bump.
-* Deploy Web Action publishes the web app to GitHub Pages when release version
-  files land on `main`, normally after the `release/next` PR is merged.
+* Deploy Web Action currently publishes the web app to GitHub Pages on pushes
+  to `main`.
 * `build:signed` remains the local Android signing helper while signing secrets
   stay local. It validates that version files were already prepared, builds the
   signed Android artifacts needed for validation and app-store maintenance, and
-  creates or updates the GitHub Release. Public Android distribution and updates
-  are handled through Google Play.
+  attaches them to an existing GitHub Release without changing its notes. Public
+  Android distribution and updates are handled through Google Play.
+* Automatic version tag and GitHub Release creation will follow a successful
+  production website deploy as part of the Firebase Hosting migration. Firebase
+  preview channels for pull requests will not create releases or tags.
 * After release artifacts are prepared, Publish App Version writes Firestore
   `appConfig/version` with release metadata and the Google Play listing URL.
 
