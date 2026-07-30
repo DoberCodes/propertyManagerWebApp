@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
 	formatControlDotenv,
 	formatDotenv,
+	selectLocalOverrideEntries,
 	selectContractValues,
 	validateEnvironment,
 	valuesWithPrefix,
@@ -89,8 +90,32 @@ test('formats one organized control file for local, beta, and production', () =>
 		['local', entries],
 		['beta', entries],
 		['production', entries],
-	]));
+	]), new Map([
+		['beta', [{ name: 'STRIPE_SECRET_KEY', required: true }]],
+	]), {
+		localRequired: [{ name: 'KEYSTORE_PASSWORD' }],
+		localOptional: [{ name: 'STRIPE_TEST_SECRET_KEY' }],
+		github: [{ name: 'E2E_DEMO_PASSWORD' }],
+	});
 	assert.match(formatted, /LOCAL_REACT_APP_FIREBASE_PROJECT_ID="local"/);
 	assert.match(formatted, /BETA_REACT_APP_FIREBASE_PROJECT_ID="beta"/);
 	assert.match(formatted, /PROD_REACT_APP_FIREBASE_PROJECT_ID="prod"/);
+	assert.match(formatted, /# Required: STRIPE_SECRET_KEY/);
+	assert.match(formatted, /# KEYSTORE_PASSWORD/);
+	assert.match(formatted, /# STRIPE_TEST_SECRET_KEY/);
+	assert.match(formatted, /# E2E_DEMO_PASSWORD/);
+});
+
+test('keeps only local differences and explicitly local-only entries as overrides', () => {
+	const entries = [
+		{ name: 'SHARED', delivery: 'github-variable' },
+		{ name: 'DIFFERENT', delivery: 'github-variable' },
+		{ name: 'EMULATOR', delivery: 'local-only' },
+	];
+	const selected = selectLocalOverrideEntries(
+		entries,
+		new Map([['SHARED', 'same'], ['DIFFERENT', 'local'], ['EMULATOR', 'localhost']]),
+		new Map([['SHARED', 'same'], ['DIFFERENT', 'beta']]),
+	);
+	assert.deepEqual(selected.map(({ name }) => name), ['DIFFERENT', 'EMULATOR']);
 });

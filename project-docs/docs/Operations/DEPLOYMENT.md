@@ -358,12 +358,21 @@ functions/.env.prod
 functions/.env.local
 ```
 
-Local values may match Beta/test configuration but remain independently
-overrideable. Backend values with a declared browser `source` are entered once
+Local application and Functions configuration inherits the complete Beta/test
+baseline. The `LOCAL_` section contains only values that differ from Beta or
+exist solely for local tooling, such as emulator hosts. Backend values with a declared browser `source` are entered once
 in the control file and derived into the matching Functions target. The generic
 `functions/.env`, `.env.production`, and `.env.development.local` names are
 legacy migration inputs only and must not be used by new workflows. Every real
 `.env*` file is ignored and must not be committed.
+
+The control file includes commented inventories for secrets without storing
+their values. Beta and Production Firebase secrets belong in the matching
+Firebase Secret Manager project. E2E secrets belong in the GitHub development
+environment. Android keystore passwords remain in `.env.operations.local`
+because signing is local. Service-account and sandbox credentials are optional
+local tooling inputs needed only when running their related administrative
+scripts.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with

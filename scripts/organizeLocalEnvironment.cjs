@@ -8,16 +8,6 @@ const { defaultFor, entriesFor, loadEnvironmentContract } = require('./environme
 const rootDir = path.resolve(__dirname, '..');
 
 const targets = {
-	local: {
-		prefix: 'LOCAL_',
-		contractEnvironment: 'development',
-		rootFile: '.env.local',
-		functionsFile: 'functions/.env.local',
-		legacyRootFiles: ['.env.local', '.env.development.local'],
-		legacyFunctionsFiles: ['functions/.env.local', 'functions/.env.beta'],
-		projectId: 'maintleybeta',
-		stripePrefix: 'pk_test_',
-	},
 	beta: {
 		prefix: 'BETA_',
 		contractEnvironment: 'development',
@@ -25,6 +15,16 @@ const targets = {
 		functionsFile: 'functions/.env.beta',
 		legacyRootFiles: ['.env.beta', '.env.development.local', '.env.local'],
 		legacyFunctionsFiles: ['functions/.env.beta', 'functions/.env.local'],
+		projectId: 'maintleybeta',
+		stripePrefix: 'pk_test_',
+	},
+	local: {
+		prefix: 'LOCAL_',
+		contractEnvironment: 'development',
+		rootFile: '.env.local',
+		functionsFile: 'functions/.env.local',
+		legacyRootFiles: ['.env.local', '.env.development.local'],
+		legacyFunctionsFiles: ['functions/.env.local', 'functions/.env.beta'],
 		projectId: 'maintleybeta',
 		stripePrefix: 'pk_test_',
 	},
@@ -90,7 +90,7 @@ function formatDotenv(title, values, entries = []) {
 	return `${lines.join('\n')}\n`;
 }
 
-function formatControlDotenv(targetValues, targetEntries) {
+function formatControlDotenv(targetValues, targetEntries, secretEntries = new Map(), externalSecrets = {}) {
 	const lines = [
 		'# Maintley local environment control file',
 		'# Generated structure: .env.example',
@@ -99,7 +99,10 @@ function formatControlDotenv(targetValues, targetEntries) {
 		'',
 	];
 	for (const [targetName, definition] of Object.entries(targets)) {
-		lines.push(`# ${targetName === 'production' ? 'Production' : targetName[0].toUpperCase() + targetName.slice(1)} ---------------------------------------------------------------`);
+		const targetLabel = targetName === 'production'
+			? 'Production'
+			: targetName === 'local' ? 'Local overrides' : 'Beta';
+		lines.push(`# ${targetLabel} ---------------------------------------------------------------`);
 		let currentSection = '';
 		const entries = targetEntries.get(targetName);
 		const values = targetValues.get(targetName);
@@ -111,6 +114,30 @@ function formatControlDotenv(targetValues, targetEntries) {
 			}
 			lines.push(`${definition.prefix}${entry.name}=${JSON.stringify(String(values.get(entry.name) || ''))}`);
 		}
+		const secrets = secretEntries.get(targetName) || [];
+		if (secrets.length) {
+			lines.push('');
+			lines.push('# Firebase-managed secrets (values are not stored in this file)');
+			for (const entry of secrets) lines.push(`# ${entry.required ? 'Required' : 'Optional'}: ${entry.name}`);
+		}
+		lines.push('');
+	}
+	const localRequiredSecrets = externalSecrets.localRequired || [];
+	if (localRequiredSecrets.length) {
+		lines.push('# Local Android signing secrets (store values in .env.operations.local)');
+		for (const entry of localRequiredSecrets) lines.push(`# ${entry.name}`);
+		lines.push('');
+	}
+	const localOptionalSecrets = externalSecrets.localOptional || [];
+	if (localOptionalSecrets.length) {
+		lines.push('# Optional local tooling secrets (only needed when running the related script)');
+		for (const entry of localOptionalSecrets) lines.push(`# ${entry.name}`);
+		lines.push('');
+	}
+	const githubSecrets = externalSecrets.github || [];
+	if (githubSecrets.length) {
+		lines.push('# GitHub Actions secrets (store values in the matching GitHub environment)');
+		for (const entry of githubSecrets) lines.push(`# ${entry.name}`);
 		lines.push('');
 	}
 	return `${lines.join('\n').trimEnd()}\n`;
@@ -127,6 +154,13 @@ function validateEnvironment(values, { projectId, stripePrefix, label }) {
 	}
 }
 
+function selectLocalOverrideEntries(entries, localValues, betaValues) {
+	return entries.filter((entry) => (
+		entry.delivery === 'local-only' ||
+		String(localValues.get(entry.name) || '') !== String(betaValues.get(entry.name) || '')
+	));
+}
+
 function main() {
 	try {
 		const apply = process.argv.slice(2).includes('--apply');
@@ -135,6 +169,8 @@ function main() {
 		const hasNamespacedControl = [...control.keys()].some((name) => /^(LOCAL|BETA|PROD)_/.test(name));
 		const targetValues = new Map();
 		const targetEntries = new Map();
+		const resolvedTargets = new Map();
+		const secretEntries = new Map();
 		const outputs = [];
 
 		for (const [targetName, definition] of Object.entries(targets)) {
@@ -143,7 +179,8 @@ function main() {
 			const legacyRoot = definition.legacyRootFiles.map(readFileValues);
 			const legacyFunctions = definition.legacyFunctionsFiles.map(readFileValues);
 			const legacyControl = !hasNamespacedControl && targetName === 'production' ? control : new Map();
-			const sources = [namespaced, ...legacyRoot, ...legacyFunctions, legacyControl];
+			const inheritedBeta = targetName === 'local' ? resolvedTargets.get('beta') || new Map() : new Map();
+			const sources = [namespaced, inheritedBeta, ...legacyRoot, ...legacyFunctions, legacyControl];
 			const controlEntries = entriesFor(contract, environment, (entry) => (
 				(entry.scope === 'web' && entry.delivery === 'github-variable') ||
 				(targetName === 'local' && entry.scope === 'web' && entry.delivery === 'local-only') ||
@@ -154,8 +191,17 @@ function main() {
 				entry.name,
 				resolveValue(entry, environment, sources),
 			]));
-			targetEntries.set(targetName, controlEntries);
-			targetValues.set(targetName, resolvedControl);
+			resolvedTargets.set(targetName, resolvedControl);
+			const displayedControlEntries = targetName === 'local'
+				? selectLocalOverrideEntries(controlEntries, resolvedControl, inheritedBeta)
+				: controlEntries;
+			targetEntries.set(targetName, displayedControlEntries);
+			targetValues.set(targetName, new Map(displayedControlEntries.map((entry) => [entry.name, resolvedControl.get(entry.name)])));
+			secretEntries.set(targetName, targetName === 'local' ? [] : entriesFor(
+				contract,
+				environment,
+				(entry) => entry.scope === 'functions' && entry.delivery === 'firebase-secret',
+			));
 
 			const rootEntries = entriesFor(contract, environment, (entry) => (
 				(entry.scope === 'web' && entry.delivery === 'github-variable') ||
@@ -191,7 +237,17 @@ function main() {
 		console.log('Values were intentionally omitted.');
 		if (!apply) return;
 
-		fs.writeFileSync(path.join(rootDir, '.env'), formatControlDotenv(targetValues, targetEntries), 'utf8');
+		const uniqueByName = (entries) => [...new Map(entries.map((entry) => [entry.name, entry])).values()];
+		const externalSecrets = {
+			localRequired: uniqueByName(contract.filter((entry) => entry.delivery === 'local-secret' && entry.scope === 'android')),
+			localOptional: uniqueByName(contract.filter((entry) => entry.delivery === 'local-secret' && entry.scope !== 'android')),
+			github: uniqueByName(contract.filter((entry) => entry.delivery === 'github-secret')),
+		};
+		fs.writeFileSync(
+			path.join(rootDir, '.env'),
+			formatControlDotenv(targetValues, targetEntries, secretEntries, externalSecrets),
+			'utf8',
+		);
 		for (const output of outputs) fs.writeFileSync(path.join(rootDir, output.path), output.contents, 'utf8');
 		console.log('Local environment control and generated target files organized successfully.');
 	} catch (error) {
@@ -206,6 +262,7 @@ module.exports = {
 	formatControlDotenv,
 	formatDotenv,
 	resolveValue,
+	selectLocalOverrideEntries,
 	selectContractValues,
 	targets,
 	validateEnvironment,
