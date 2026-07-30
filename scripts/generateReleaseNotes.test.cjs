@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
 	getReleasePrepVersionFromSubject,
+	selectMergedReleaseBoundary,
 	selectAutomaticReleaseVersion,
 } = require('./generateReleaseNotes.cjs');
 
@@ -10,6 +11,36 @@ test('recognizes merged and branch release-preparation commit subjects', () => {
 	assert.equal(getReleasePrepVersionFromSubject('Release v2.8.2 (#69)'), '2.8.2');
 	assert.equal(getReleasePrepVersionFromSubject('release: prepare v2.8.2'), '2.8.2');
 	assert.equal(getReleasePrepVersionFromSubject('Improve public navigation (#68)'), '');
+});
+
+test('uses the latest merged release as the boundary when tags are behind', () => {
+	const result = selectMergedReleaseBoundary(
+		[
+			{ sha: 'feature-2', subject: 'Improve documents (#108)' },
+			{ sha: 'release-123', subject: 'Release v2.12.3 (#107)' },
+			{ sha: 'feature-1', subject: 'Improve team access (#106)' },
+			{ sha: 'release-122', subject: 'Release v2.12.2 (#105)' },
+		],
+		'feature-2',
+	);
+
+	assert.deepEqual(result, {
+		sha: 'release-123',
+		subject: 'Release v2.12.3 (#107)',
+	});
+});
+
+test('skips the target release merge and uses the preceding release boundary', () => {
+	const result = selectMergedReleaseBoundary(
+		[
+			{ sha: 'release-124', subject: 'Release v2.12.4 (#109)' },
+			{ sha: 'feature-2', subject: 'Improve documents (#108)' },
+			{ sha: 'release-123', subject: 'Release v2.12.3 (#107)' },
+		],
+		'release-124',
+	);
+
+	assert.equal(result.sha, 'release-123');
 });
 
 test('keeps the prepared version when HEAD is its matching release merge', () => {

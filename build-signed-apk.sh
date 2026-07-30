@@ -10,7 +10,7 @@
 #   - Automated tests
 #   - Dry-run mode for validation
 #   - Automated Gradle APK and AAB build (no Android Studio needed!)
-#   - GitHub Release creation with APK and AAB attachments
+#   - APK and AAB attachment to an existing GitHub Release
 #   - Slack notifications (optional)
 #
 # Usage:
@@ -334,19 +334,19 @@ print_success "Required files found"
 if [[ "$RELEASE_ONLY" == "--release-only" ]]; then
   print_warning "Release-only mode enabled. Skipping build and version generation."
   if [[ ! -f "RELEASE_NOTES.txt" ]]; then
-    print_error "RELEASE_NOTES.txt not found. Cannot create release in release-only mode."
+    print_error "RELEASE_NOTES.txt not found. Cannot validate release-only mode."
     exit 1
   fi
   if ! has_non_empty_file "RELEASE_NOTES.txt"; then
-    print_error "RELEASE_NOTES.txt is empty. Cannot create release."
+    print_error "RELEASE_NOTES.txt is empty. Cannot validate release-only mode."
     exit 1
   fi
   if [[ ! -f "$APK_FILE" ]]; then
-    print_error "$APK_FILE not found. Cannot create release."
+    print_error "$APK_FILE not found. Cannot update release assets."
     exit 1
   fi
   if [[ ! -f "$AAB_FILE" ]]; then
-    print_error "$AAB_FILE not found. Cannot create release."
+    print_error "$AAB_FILE not found. Cannot update release assets."
     exit 1
   fi
   NEW_VERSION=$(node -p "require('./package.json').version")
@@ -461,7 +461,7 @@ if [[ "$DRY_RUN" == "--dry-run" || "$DRY_RUN" == "-d" ]]; then
   echo "  - Sync Capacitor Android assets"
   echo "  - Build signed APK"
   echo "  - Build signed AAB"
-  echo "  - Create or update the GitHub Release"
+  echo "  - Require the existing GitHub Release created by the website release workflow"
   echo "  - Upload $APK_ASSET_NAME"
   echo "  - Upload $AAB_ASSET_NAME"
   echo ""
@@ -599,48 +599,24 @@ ls -lh "$AAB_FILE"
 print_success "Signed APK and AAB are ready for upload"
 fi
 
-# ========== CREATE GITHUB RELEASE ==========
+# ========== ATTACH ASSETS TO GITHUB RELEASE ==========
 echo ""
-print_header "Step 6: Creating GitHub Release"
+print_header "Step 6: Attaching Android Assets to GitHub Release"
 prepare_versioned_release_assets
 if [ -f "$RELEASE_NOTES_FILE" ] && [ -f "$VERSIONED_APK_FILE" ] && [ -f "$VERSIONED_AAB_FILE" ]; then
-  RELEASE_EXISTS=false
-  if run_gh_with_refresh gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
-    RELEASE_EXISTS=true
-    print_warning "Release v$NEW_VERSION already exists. Updating with new Android artifacts."
+  if ! run_gh_with_refresh gh release view "v$NEW_VERSION" --repo "$REPO_NAME" >/dev/null 2>&1; then
+    print_error "GitHub Release v$NEW_VERSION does not exist."
+    echo "The production website release workflow must deploy successfully and create the tag and release before Android artifacts are uploaded."
+    exit 1
   fi
+  print_success "Found existing GitHub Release v$NEW_VERSION"
 
-  if [ "$RELEASE_EXISTS" = true ]; then
-    # Update existing release notes (only if they changed)
-    if ! run_gh_with_refresh gh release edit "v$NEW_VERSION" --repo "$REPO_NAME" --notes-file "$RELEASE_NOTES_FILE"; then
-      print_warning "Failed to update GitHub release notes. Continuing with APK upload."
-      send_slack_notification "Failed to update GitHub release notes for v$NEW_VERSION" "warning"
-    fi
-  else
-    # Create new release
-    if ! run_gh_with_refresh gh release create "v$NEW_VERSION" \
-      --repo "$REPO_NAME" \
-      --title "Release v$NEW_VERSION" \
-      --target "$(git rev-parse HEAD)" \
-      --notes-file "$RELEASE_NOTES_FILE"; then
-      print_error "Failed to create GitHub release"
-      send_slack_notification "Failed to create GitHub release for v$NEW_VERSION" "error"
-      exit 1
-    fi
-    print_success "GitHub release v$NEW_VERSION created"
-  fi
-
-  # Upload/replace APK and AAB (use --clobber to overwrite existing assets with same name)
-  # This handles both new releases and artifact replacements in existing releases
+  # Upload/replace APK and AAB without changing the website release notes.
   if run_gh_with_refresh gh release upload "v$NEW_VERSION" \
     "$VERSIONED_APK_FILE" \
     "$VERSIONED_AAB_FILE" \
     --repo "$REPO_NAME" --clobber; then
-    if [ "$RELEASE_EXISTS" = true ]; then
-      print_success "APK and AAB replaced in existing GitHub release v$NEW_VERSION"
-    else
-      print_success "APK and AAB uploaded to new GitHub release v$NEW_VERSION"
-    fi
+    print_success "APK and AAB uploaded to existing GitHub release v$NEW_VERSION"
   else
     print_warning "Could not upload APK/AAB to release. You can upload them manually from GitHub."
     send_slack_notification "Failed to upload Android artifacts for v$NEW_VERSION" "warning"

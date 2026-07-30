@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Generate Maintley release notes from the git range since the latest version tag.
+ * Generate Maintley release notes from the git range since the latest release boundary.
  *
  * Defaults:
- * - Previous release: latest semver-like tag matching v*
+ * - Previous release: latest merged release commit after the latest v* tag, or the tag
  * - Target ref: HEAD
  * - Source of truth: local git history
  * - PR enrichment: optional GitHub CLI lookup when PR numbers are found
@@ -269,6 +269,40 @@ const getLatestVersionTag = () => {
 		.map((tag) => tag.trim())
 		.filter(Boolean);
 	return tags[0] || '';
+};
+
+const selectMergedReleaseBoundary = (rows, targetSha) =>
+	rows.find(
+		(row) =>
+			row.sha !== targetSha &&
+			Boolean(getReleasePrepVersionFromSubject(row.subject)),
+	) || null;
+
+const getMergedReleaseBoundary = (fromRef, toRef) => {
+	const range = fromRef ? `${fromRef}..${toRef}` : toRef;
+	const targetSha = tryRun('git', ['rev-parse', toRef]);
+	const output = tryRun('git', [
+		'log',
+		range,
+		'--first-parent',
+		'--pretty=format:%H%x1f%s',
+	]);
+	const rows = output
+		.split(/\r?\n/)
+		.map((row) => {
+			const [sha, subject] = row.split('\x1f');
+			return { sha: sha || '', subject: subject || '' };
+		})
+		.filter((row) => row.sha);
+	const boundary = selectMergedReleaseBoundary(rows, targetSha);
+
+	if (!boundary) return null;
+	const version = getReleasePrepVersionFromSubject(boundary.subject);
+	return {
+		ref: boundary.sha,
+		version,
+		label: `v${version}`,
+	};
 };
 
 const getCommitRows = (fromRef, toRef) => {
@@ -904,11 +938,23 @@ const main = () => {
 
 	const packageVersion = readPackageVersion();
 	const latestVersionTag = getLatestVersionTag();
-	const rangeStartRef = options.from || latestVersionTag;
-	const previousVersionTag = getVersionFromRef(rangeStartRef)
-		? rangeStartRef
-		: latestVersionTag;
 	const targetRef = options.to || 'HEAD';
+	const mergedReleaseBoundary = options.from
+		? null
+		: getMergedReleaseBoundary(latestVersionTag, targetRef);
+	const rangeStartRef =
+		options.from || mergedReleaseBoundary?.ref || latestVersionTag;
+	const rangeStartVersion =
+		getVersionFromRef(options.from) ||
+		mergedReleaseBoundary?.version ||
+		getVersionFromRef(latestVersionTag);
+	const rangeStartLabel =
+		(getVersionFromRef(options.from) && options.from) ||
+		mergedReleaseBoundary?.label ||
+		latestVersionTag;
+	const previousVersionTag = getVersionFromRef(options.from)
+		? options.from
+		: latestVersionTag;
 	const commits = getCommitRows(rangeStartRef, targetRef);
 	const range = rangeStartRef ? `${rangeStartRef}..${targetRef}` : targetRef;
 
@@ -919,7 +965,7 @@ const main = () => {
 	const { entries, warnings } = buildEntries(commits);
 	const inferredBump = inferOverallBump(entries);
 	const selectedBump = options.bump || inferredBump || 'patch';
-	const previousVersion = getVersionFromRef(previousVersionTag);
+	const previousVersion = rangeStartVersion;
 	const targetSubject = tryRun('git', ['log', '-1', '--format=%s', targetRef]);
 	const targetReleasePrepVersion = getReleasePrepVersionFromSubject(targetSubject);
 	const {
@@ -950,7 +996,7 @@ const main = () => {
 	});
 	const engineeringNotes = formatEngineeringReleaseNotes({
 		version,
-		previousTag: rangeStartRef,
+		previousTag: rangeStartLabel,
 		targetRef,
 		entries,
 	});
@@ -962,6 +1008,9 @@ const main = () => {
 		engineeringNotes,
 		previousTag: previousVersionTag || null,
 		rangeStartRef: rangeStartRef || null,
+		rangeStartLabel: rangeStartLabel || null,
+		rangeStartVersion: rangeStartVersion || null,
+		mergedReleaseBoundary: mergedReleaseBoundary || null,
 		targetRef,
 		range,
 		packageVersion,
@@ -1031,5 +1080,6 @@ if (require.main === module) {
 
 module.exports = {
 	getReleasePrepVersionFromSubject,
+	selectMergedReleaseBoundary,
 	selectAutomaticReleaseVersion,
 };

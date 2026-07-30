@@ -763,9 +763,11 @@ current web and Capacitor tooling engines; the job then switches to Node 20 for
 the Functions package, matching the deployed Functions runtime.
 
 If `package.json` is already ahead of the latest `v*` tag because a release was
-prepared but not tagged locally yet, new releaseable changes are bumped from the
-prepared package version. For example, a new patch change after prepared version
-`2.7.30` produces `2.7.31` rather than reusing `2.7.30`.
+prepared but not tagged locally yet, the latest merged `Release v...` commit is
+used as the release-note boundary. New releaseable changes are then bumped from
+that prepared package version. For example, a new patch change after prepared
+version `2.7.30` produces `2.7.31` rather than reusing `2.7.30` or repeating the
+changes already assigned to `2.7.30`.
 
 When the current `main` commit is the matching release-preparation merge, the
 release-note generator keeps that prepared package version. It only bumps from
@@ -853,6 +855,14 @@ https://github.com/DoberFamilyVentures/propertyManagerWebApp/releases/download/v
 ```
 
 The signed release helper derives its repository from `GITHUB_REPOSITORY` when set, or from the authenticated GitHub repository. It should not contain hardcoded organization or download URLs.
+
+The signed Android helper does not create version tags or GitHub Releases. It
+requires the matching GitHub Release to exist, then attaches or replaces the APK
+and AAB assets without changing the customer release notes. Automatic tag and
+GitHub Release creation belongs after a successful production website deploy.
+When Firebase Hosting replaces GitHub Pages, that responsibility moves to the
+production Firebase Hosting workflow; pull requests use separate preview
+channels and must not create version tags or releases.
 
 ---
 
