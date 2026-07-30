@@ -422,9 +422,9 @@ The release restructuring and hosting migration share these validation gates:
 
 ## Phase 0A: Development environment and promotion model
 
-* [ ] Create or confirm the dedicated development Firebase project.
+* [x] Create or confirm the dedicated development Firebase project.
 * [ ] Link a development billing account or budget only where required by deployed services.
-* [ ] Register the development web app and Hosting site.
+* [x] Register the development web app and Hosting site.
 * [ ] Configure separate development Auth, Firestore, Storage, Functions, Hosting, and Analytics resources.
 * [ ] Create least-privilege development and production GitHub deployment environments.
 * [ ] Create separate deployment identities and credentials for development and production.
@@ -437,6 +437,24 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Define the release PR as promotion from `beta` into `main` with prepared version files and notes.
 * [ ] Define a non-destructive post-release synchronization procedure from `main` back to `beta`.
 * [ ] Record environment ownership, cost budgets, secret rotation, and emergency access procedures.
+
+### Development Firebase inventory — 2026-07-30
+
+* Project ID: `maintleybeta`
+* Project number: `638085464341`
+* Project owner account used for bootstrap: `doberfamilyventures@gmail.com`
+* Existing active web app: confirmed
+* Default Hosting site: `maintleybeta.web.app`
+* Analytics measurement configuration: confirmed and separate from production
+* Default Firestore database: created as Standard edition in `nam5`
+* Initial Firestore access: closed until Maintley's reviewed rules are deployed
+* Hosting preview channels: none beyond the live channel
+* Functions: not initialized or not yet available to the development project
+* Storage bucket: referenced by the web SDK, but provisioning remains to be verified
+* Authentication providers and authorized domains: not yet verified
+
+No production customer data, production service credentials, or synthetic seed
+records were copied into the development project during bootstrap.
 
 ## Hosting checklist H1: Final GitHub Pages release and migration freeze
 
