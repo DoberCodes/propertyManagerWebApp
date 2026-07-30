@@ -138,15 +138,15 @@ jobs:
 
           targets=()
 
-          if echo "$CHANGED_FILES" | grep -Eq '(^functions/|^firebase\.json$)'; then
+          if echo "$CHANGED_FILES" | grep -Eq '^functions/'; then
             targets+=("functions")
           fi
 
-          if echo "$CHANGED_FILES" | grep -Eq '(^firestore\.rules$|^firebase\.json$)'; then
+          if echo "$CHANGED_FILES" | grep -Eq '^firestore\.rules$'; then
             targets+=("firestore:rules")
           fi
 
-          if echo "$CHANGED_FILES" | grep -Eq '(^storage\.rules$|^firebase\.json$)'; then
+          if echo "$CHANGED_FILES" | grep -Eq '^storage\.rules$'; then
             targets+=("storage")
           fi
 

@@ -415,6 +415,13 @@ Firebase rules and Functions deploy through:
 The workflow authenticates with `google-github-actions/auth` using the
 `FIREBASE_SERVICE_ACCOUNT_JSON` repository secret.
 
+Automatic backend target selection is source-based: `functions/` changes
+deploy Functions, `firestore.rules` changes deploy Firestore rules, and
+`storage.rules` changes deploy Storage rules. A Hosting-only `firebase.json`
+change does not redeploy the production backend. Changes to Firebase backend
+configuration inside `firebase.json` require an explicit reviewed manual deploy
+until a configuration-aware target detector is introduced.
+
 Recommended setup:
 
 1. Create a dedicated Google Cloud service account for GitHub deploys.
