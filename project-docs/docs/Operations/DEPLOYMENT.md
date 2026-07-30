@@ -501,9 +501,12 @@ the production Stripe publishable key in a development build.
 The Workload Identity provider admits tokens only from
 `DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
 `development` environment. The dedicated service account is scoped to the
-`maintleybeta` project. Its initial permissions are Firebase Hosting Admin and
-API Keys Viewer, which support Hosting preview work without granting Functions,
-Firestore Rules, Storage Rules, Scheduler, Secret Manager, or production access.
+`maintleybeta` project. Its preview-stage permissions are Firebase Hosting
+Admin, API Keys Viewer, Secret Manager Viewer, and Service Usage Viewer. The
+read-only Secret Manager and Service Usage roles allow readiness checks to
+confirm required secret metadata and API availability without reading secret
+values, changing enabled services, or granting Functions, Firestore Rules,
+Storage Rules, Scheduler, or production access.
 
 Do not create or store a JSON key for this development identity. Add further
 roles only when the corresponding development deployment stage is implemented
@@ -516,7 +519,7 @@ Keyless authentication is checked by:
 .github/workflows/verify-development-deployment-identity.yml
 ```
 
-The workflow performs no deployment. On relevant pushes to `beta` or `main`, or
+The workflow performs no deployment. On relevant pushes to `beta`, or
 when manually dispatched after it exists on the default branch, it verifies
 that GitHub can impersonate the development service account and that the
 expected Maintley Beta Hosting site is visible. It intentionally avoids loading
@@ -925,6 +928,13 @@ without requesting an additional, empty version-preparation cycle.
 previews and E2E tests are skipped for that PR, while Build Check runs only
 `yarn version:validate`. After the release PR merges to `main`, Release Prep
 does not open another release PR from the `release: prepare v...` commit.
+
+Feature pull requests targeting `beta` run the same required Build Check jobs
+as ordinary pull requests targeting `main`: entitlement-package policy, unit
+and rules tests, production build validation, and the Functions build. Release
+note previews also run for both targets and derive their comparison boundary
+from the pull request's actual base branch, so a feature PR reports only its
+changes against `beta` while a release PR is evaluated against `main`.
 
 The current app version used by update notifications is derived from
 `package.json` through:

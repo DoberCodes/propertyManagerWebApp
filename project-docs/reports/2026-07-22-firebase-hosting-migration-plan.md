@@ -26,8 +26,7 @@ adding another automation layer.
 
 ### Current pull-request and web flow
 
-* `.github/workflows/deploy-github-pages.yml` is named **Build Check** even
-  though its filename implies deployment. It runs unit, Firestore Rules,
+* `.github/workflows/build-check.yml` is named **Build Check** and runs unit, Firestore Rules,
   Storage Rules, frontend-build, asset-budget, and Functions-build validation,
   with different behavior on `release/next`.
 * `.github/workflows/e2e-tests.yml` supplies the required pull-request smoke
@@ -451,7 +450,7 @@ The release restructuring and hosting migration share these validation gates:
 * Hosting preview channels: none beyond the live channel
 * Blaze billing: confirmed active
 * Functions platform APIs: enabled without deploying application code
-* Functions deployment inventory: empty
+* Functions deployment inventory: 98 expected callable, event, and scheduled Functions deployed and reconciled without unexpected exports
 * Default Firebase Storage bucket: `maintleybeta.firebasestorage.app`, provisioned in `US-CENTRAL1`
 * Cloud Storage for Firebase API: enabled; Firebase linkage verified
 * Storage rules and files: no Maintley rules deployed and no files uploaded during bootstrap
@@ -460,17 +459,17 @@ The release restructuring and hosting migration share these validation gates:
 * Authorized Auth domains: `localhost`, `maintleybeta.firebaseapp.com`, and `maintleybeta.web.app`
 * Authentication user inventory: empty; no production users or credentials copied
 * Authentication email templates and Functions integrations: left at the isolated development baseline pending the email and Functions phases
-* GitHub environment: `development`, with no secrets or reviewer gate configured during the identity bootstrap
+* GitHub environment: `development`, with no GitHub-stored application secrets or reviewer gate configured during the identity bootstrap
 * Development deployment authentication: keyless Workload Identity Federation restricted to this repository and the `development` environment
-* Development deployment service account: dedicated to `maintleybeta`; initially limited to Firebase Hosting Admin and API Keys Viewer
+* Development deployment service account: dedicated to `maintleybeta`; preview-stage access is limited to Firebase Hosting Admin, API Keys Viewer, Secret Manager Viewer, and Service Usage Viewer
 * Development deployment variables: project ID, Workload Identity provider, and service-account identifiers stored as GitHub environment variables
 * Development frontend variables: public Maintley Beta Firebase web configuration stored separately from production in the GitHub `development` environment
-* Deployment identity verification: IAM bindings and provider conditions verified; a non-deploying GitHub smoke workflow is ready to verify runtime impersonation and Hosting visibility after merge
-* Development billing boundary: preview deployment remains blocked from a functional build until a Stripe test publishable key or an approved billing-suppression mode is configured; the production key will not be reused
+* Deployment identity verification: IAM bindings, provider conditions, Secret Manager metadata visibility, Service Usage visibility, and Hosting preview deployment verified in PR #132
+* Development billing boundary: Stripe test-mode publishable and server credentials are configured separately; production Stripe credentials are not reused
 * Development Stripe frontend: test-mode publishable key configured in the GitHub `development` environment; production publishable key remains excluded
 * Hosting targets: explicit `beta` and `prod` target mappings added without deploying either live channel
 * Hosting preview workflow: same-repository pull requests targeting `beta` build without deployment credentials, then deploy only the static artifact to a seven-day Maintley Beta preview channel
-* Hosting preview verification: Beta-configured local production build passed; first GitHub preview deployment remains pending a feature pull request targeting `beta`
+* Hosting preview verification: Beta-configured local production build and PR #132's isolated GitHub preview deployment passed; backend readiness confirmed required non-secret configuration, API availability, and secret metadata without reading secret values
 
 No production customer data, production service credentials, or synthetic seed
 records were copied into the development project during bootstrap.
@@ -566,11 +565,11 @@ records were copied into the development project during bootstrap.
 * [x] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
 * [x] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
 * [x] Keep PR previews on the stable development backend; do not deploy shared Functions or rules per PR.
+* [x] Retain required build, unit, rules, entitlement-package, Functions, E2E, asset-budget, and release-note validation for pull requests targeting `beta`.
 * [ ] Add stable development Hosting, Functions, Firestore rules, and Storage rules deployment after merge to `beta`.
 * [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
 * [ ] Use separate, least-privilege development and production deployment identities.
-* [ ] Configure environment-specific secrets without committing credentials.
-* [ ] Retain build validation, tests, and asset-budget checks.
+* [x] Configure environment-specific secrets without committing credentials.
 * [ ] Update Release Prep so the release branch promotes the approved `beta` state into `main` rather than acting as a version-only branch.
 * [ ] Gate production deployment on an exact `Release vX.Y.Z` merge and synchronized version files.
 * [ ] Generate final customer release notes from the preceding merged release boundary.

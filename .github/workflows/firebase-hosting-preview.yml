@@ -24,10 +24,10 @@ jobs:
 
     steps:
       - name: Checkout pull request
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'yarn'
@@ -89,7 +89,7 @@ jobs:
           yarn check:asset-budgets
 
       - name: Upload preview build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: firebase-preview-${{ github.event.pull_request.number }}
           path: build
@@ -111,7 +111,7 @@ jobs:
 
     steps:
       - name: Checkout trusted Hosting configuration
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Feature PRs use the protected beta branch configuration. The protected
           # main branch is trusted only while synchronizing release foundations
@@ -119,7 +119,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref == 'main' && github.event.pull_request.head.sha || github.event.pull_request.base.sha }}
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
@@ -127,7 +127,7 @@ jobs:
         run: npm install --global firebase-tools@15.22.3
 
       - name: Download preview build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: firebase-preview-${{ github.event.pull_request.number }}
           path: build
@@ -209,10 +209,10 @@ jobs:
 
     steps:
       - name: Checkout pull request
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'yarn'
