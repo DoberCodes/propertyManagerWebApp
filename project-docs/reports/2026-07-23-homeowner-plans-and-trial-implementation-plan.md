@@ -2,7 +2,7 @@
 
 Date: 2026-07-23
 
-Status: Approved implementation plan; Phases 1 and 2 complete; Phases 3 through 8 implemented behind independent disabled rollout flags; Phase 9 deployment, production-like validation, observation, and legacy removal remain operational work
+Status: Historical implementation plan. Its Multi-Homeowner proposal was superseded by ADR 0035; current plan behavior is documented in the Plan Feature Matrix.
 
 Related accepted ADRs:
 
@@ -10,7 +10,7 @@ Related accepted ADRs:
 * `project-docs/ADR/0031-homeowner-plus-trial-lifecycle-and-communication.md`
 * `project-docs/ADR/0032-centralized-entitlement-architecture.md`
 * `project-docs/ADR/0028-firebase-hosting-and-browser-routing-migration.md`
-* `project-docs/ADR/0029-homeowner-multi-property-plan.md`
+* `project-docs/ADR/0035-homeowner-plus-multi-property-consolidation.md`
 
 ## Purpose
 

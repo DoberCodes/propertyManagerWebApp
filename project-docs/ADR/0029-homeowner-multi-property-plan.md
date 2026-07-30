@@ -1,6 +1,6 @@
 # ADR 0029: Homeowner Multi-Property Plan
 
-Status: Accepted
+Status: Superseded by ADR 0035
 
 Date: 2026-07-23
 

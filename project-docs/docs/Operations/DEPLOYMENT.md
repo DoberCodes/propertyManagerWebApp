@@ -130,10 +130,12 @@ GitHub Pages deployment is handled by:
 .github/workflows/deploy-web.yml
 ```
 
-The workflow runs after release version files are pushed to `main`, which
-normally happens when the `release/next` PR is merged. It builds the web app,
-runs asset budget checks, and publishes the existing `build/` folder with
-`gh-pages` using the workflow `GITHUB_TOKEN`.
+The workflow runs after every push to `main`. This intentionally favors a
+current production client over path-filter optimization: frontend behavior can
+depend on shared entitlements, configuration, scripts, or other root files in
+addition to `src/`. It builds the web app, runs asset budget checks, and
+publishes the existing `build/` folder with `gh-pages` using the workflow
+`GITHUB_TOKEN`.
 
 PWA files live in `public/` and are copied to the root of `build/` during
 `npm run build`:

@@ -117,6 +117,7 @@
 		"migrate:property-memberships:cleanup": "node scripts/migratePropertyGroupMemberships.cjs --apply --cleanup-orphans",
 		"migrate:property-taxonomy": "node scripts/migratePropertyTaxonomy.cjs",
 		"migrate:property-taxonomy:apply": "node scripts/migratePropertyTaxonomy.cjs --apply",
+		"migrate:property-taxonomy:verbose": "node scripts/migratePropertyTaxonomy.cjs --verbose",
 		"test:property-taxonomy-migration": "node --test scripts/propertyTaxonomyMigrationCore.test.cjs",
 		"migrate:report-account-integrity": "node scripts/migrateFixReportAccountIntegrity.cjs",
 		"migrate:report-account-integrity:apply": "node scripts/migrateFixReportAccountIntegrity.cjs --apply",
