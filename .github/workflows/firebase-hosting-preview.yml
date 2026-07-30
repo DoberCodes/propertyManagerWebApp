@@ -111,7 +111,10 @@ jobs:
       - name: Checkout trusted Hosting configuration
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          # Feature PRs use the protected beta branch configuration. The protected
+          # main branch is trusted only while synchronizing release foundations
+          # into beta, including the initial Hosting configuration bootstrap.
+          ref: ${{ github.event.pull_request.head.ref == 'main' && github.event.pull_request.head.sha || github.event.pull_request.base.sha }}
 
       - name: Use Node.js
         uses: actions/setup-node@v4
