@@ -1072,17 +1072,21 @@ Potential improvements:
 * Add smoke tests for critical post-deploy flows.
 
 
-## Future Environment Strategy
+## Approved Future Environment Strategy
 
 Maintley currently deploys directly to the production Firebase project.
 
-A separate beta environment was previously evaluated but is not currently active.
+ADR 0028 now governs an approved but not-yet-implemented migration to:
 
-Future growth may justify:
+* A dedicated development Firebase project
+* Feature integration through a protected `beta` branch
+* Expiring development Firebase Hosting previews for feature pull requests
+* Stable development deployment after merge to `beta`
+* Release promotion from `beta` into the production `main` branch
+* Production deployment, tag creation, and GitHub Release publication only after
+  the release merge passes its production gates
+* Separate development Analytics, Stripe test configuration, secrets, and
+  synthetic data
 
-- Dedicated beta Firebase project
-- Beta branch deployments
-- Separate Stripe test environment
-- Staged release process
-
-Until then, deployment remains production-only.
+Until that migration is implemented and validated, the active production-only
+deployment behavior elsewhere in this document remains authoritative.
