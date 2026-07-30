@@ -322,43 +322,15 @@ export const getTrialDaysRemaining = (
  */
 export const createTrialSubscription = (
 	plan: string = 'homeowner',
-	promoCode?: string,
 ): SubscriptionData => {
 	const now = Math.floor(Date.now() / 1000);
-
-	// Check for unlimited access promo code
-	const envPromoCode = process.env.REACT_APP_UNLIMITED_TRIAL_PROMO_CODE;
-	const isUnlimitedTrial =
-		promoCode &&
-		envPromoCode &&
-		promoCode.toLowerCase() === envPromoCode.toLowerCase();
-
-	// Check for expired access promo code (for testing expired access functionality)
-	const expiredPromoCode = process.env.REACT_APP_EXPIRED_TRIAL_PROMO_CODE;
-	const isExpiredTrial =
-		promoCode &&
-		expiredPromoCode &&
-		promoCode.toLowerCase() === expiredPromoCode.toLowerCase();
-
-	const trialEndsAt = isUnlimitedTrial ? null : calculateTrialEndDate();
-
-	// If it's expired access, set status to EXPIRED and trialEndsAt to past date
-	if (isExpiredTrial) {
-		const pastDate = now - 86400; // 1 day ago
-		return {
-			status: SUBSCRIPTION_STATUS.EXPIRED,
-			plan,
-			currentPeriodStart: pastDate,
-			currentPeriodEnd: pastDate,
-			trialEndsAt: pastDate,
-		};
-	}
+	const trialEndsAt = calculateTrialEndDate();
 
 	return {
 		status: SUBSCRIPTION_STATUS.TRIAL,
 		plan,
 		currentPeriodStart: now,
-		currentPeriodEnd: trialEndsAt || now + 365 * 24 * 60 * 60, // 1 year for unlimited
+		currentPeriodEnd: trialEndsAt,
 		trialEndsAt,
 	};
 };
