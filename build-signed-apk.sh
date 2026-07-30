@@ -25,10 +25,23 @@
 
 set -e  # Exit on any error
 
-# Load environment variables from .env file if it exists
-if [ -f ".env" ]; then
-  export $(cat .env | grep -v '^#' | xargs)
+# Release builds use explicit production browser configuration plus local-only
+# operational values such as Android signing credentials. `set -a` exports
+# sourced assignments without the whitespace and quoting loss caused by xargs.
+set -a
+if [ -f ".env.production" ]; then
+  # shellcheck disable=SC1091
+  source ".env.production"
 fi
+if [ -f ".env.production.local" ]; then
+  # shellcheck disable=SC1091
+  source ".env.production.local"
+fi
+if [ -f ".env.operations.local" ]; then
+  # shellcheck disable=SC1091
+  source ".env.operations.local"
+fi
+set +a
 
 # Configuration
 DRY_RUN=""

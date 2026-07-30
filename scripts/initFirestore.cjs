@@ -8,7 +8,9 @@
 
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, doc, setDoc } = require('firebase/firestore');
-require('dotenv').config({ path: '.env' });
+const { loadLocalEnvironment } = require('./loadLocalEnvironment.cjs');
+
+loadLocalEnvironment();
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
