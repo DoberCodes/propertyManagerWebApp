@@ -464,7 +464,9 @@ The release restructuring and hosting migration share these validation gates:
 * Development deployment authentication: keyless Workload Identity Federation restricted to this repository and the `development` environment
 * Development deployment service account: dedicated to `maintleybeta`; initially limited to Firebase Hosting Admin and API Keys Viewer
 * Development deployment variables: project ID, Workload Identity provider, and service-account identifiers stored as GitHub environment variables
-* Deployment identity verification: IAM bindings and provider conditions verified; GitHub runtime authentication remains pending workflow integration
+* Development frontend variables: public Maintley Beta Firebase web configuration stored separately from production in the GitHub `development` environment
+* Deployment identity verification: IAM bindings and provider conditions verified; a non-deploying GitHub smoke workflow is ready to verify runtime impersonation and Hosting visibility after merge
+* Development billing boundary: preview deployment remains blocked from a functional build until a Stripe test publishable key or an approved billing-suppression mode is configured; the production key will not be reused
 
 No production customer data, production service credentials, or synthetic seed
 records were copied into the development project during bootstrap.

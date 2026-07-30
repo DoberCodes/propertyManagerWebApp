@@ -408,6 +408,13 @@ DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER
 DEV_GOOGLE_SERVICE_ACCOUNT
 ```
 
+The public Firebase browser configuration is stored in the same environment as
+`DEV_REACT_APP_FIREBASE_*` variables. These values identify the development
+Firebase app and are embedded in browser builds; they are not service-account
+credentials. A separate Stripe test publishable key is still required before a
+functional development frontend can be built and deployed. Never substitute
+the production Stripe publishable key in a development build.
+
 The Workload Identity provider admits tokens only from
 `DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
 `development` environment. The dedicated service account is scoped to the
@@ -419,6 +426,18 @@ Do not create or store a JSON key for this development identity. Add further
 roles only when the corresponding development deployment stage is implemented
 and validated. The current production workflow continues using its existing
 credential path until the production identity migration is performed.
+
+Keyless authentication is checked by:
+
+```text
+.github/workflows/verify-development-deployment-identity.yml
+```
+
+The workflow performs no deployment. On relevant pushes to `beta` or `main`, or
+when manually dispatched after it exists on the default branch, it verifies
+that GitHub can impersonate the development service account and that the
+expected Maintley Beta Hosting site is visible. It intentionally avoids loading
+application code or printing access tokens.
 
 The GitHub deploy service account must also be allowed to act as the Cloud
 Functions runtime service account. If deploy fails with:
