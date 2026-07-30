@@ -3,9 +3,48 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { loadEnvironmentContract } = require('./environmentContract.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
-const manifestPath = path.join(rootDir, 'config', 'github-environment-sync.json');
+const repository = 'DoberFamilyVentures/propertyManagerWebApp';
+const environmentConfigs = {
+	development: {
+		githubEnvironment: 'development',
+		destinationPrefix: 'DEV_',
+		defaultReactFile: '.env.development.local',
+		defaultFunctionsFile: 'functions/.env.beta',
+		firebaseProjectId: 'maintleybeta',
+		stripePublishablePrefix: 'pk_test_',
+	},
+	production: {
+		githubEnvironment: 'production',
+		destinationPrefix: 'PROD_',
+		defaultReactFile: '.env.production',
+		defaultFunctionsFile: 'functions/.env.prod',
+		firebaseProjectId: 'mypropertymanager-cda42',
+		stripePublishablePrefix: 'pk_live_',
+	},
+};
+
+function contractManifest(entries) {
+	return {
+		requiredReactKeys: entries
+			.filter((entry) => entry.scope === 'web' && entry.delivery === 'github-variable' && entry.required)
+			.map(({ name }) => name),
+		reactVariableKeys: entries
+			.filter((entry) => entry.scope === 'web' && entry.delivery === 'github-variable')
+			.map(({ name }) => name),
+		functionVariableKeys: entries
+			.filter((entry) => entry.scope === 'functions' && entry.delivery === 'github-variable')
+			.map(({ name }) => name),
+		requiredFunctionKeys: entries
+			.filter((entry) => entry.scope === 'functions' && entry.delivery === 'github-variable' && entry.required)
+			.map(({ name }) => name),
+		firebaseSecretKeys: entries
+			.filter((entry) => entry.scope === 'functions' && entry.delivery === 'firebase-secret')
+			.map(({ name }) => name),
+	};
+}
 
 function parseDotenv(contents) {
 	const values = new Map();
@@ -82,11 +121,18 @@ function buildDesiredVariables({ reactValues, functionValues, manifest, environm
 	}
 
 	const desired = new Map();
-	for (const [key, value] of reactValues) {
-		if (!key.startsWith('REACT_APP_') || !String(value).trim()) continue;
+	const reactKeys = manifest.reactVariableKeys || [...reactValues.keys()].filter((key) => key.startsWith('REACT_APP_'));
+	for (const key of reactKeys) {
+		const value = reactValues.get(key);
+		if (!String(value || '').trim()) continue;
 		desired.set(`${environmentConfig.destinationPrefix}${key}`, value);
 	}
 	if (functionValues) {
+		const missingFunctions = (manifest.requiredFunctionKeys || [])
+			.filter((key) => !String(functionValues.get(key) || '').trim());
+		if (missingFunctions.length) {
+			throw new Error(`Functions environment is incomplete. Missing: ${missingFunctions.join(', ')}`);
+		}
 		for (const key of manifest.functionVariableKeys) {
 			const value = functionValues.get(key);
 			if (value && String(value).trim()) desired.set(`${environmentConfig.destinationPrefix}${key}`, value);
@@ -100,10 +146,12 @@ function findFirebaseSecrets(values, manifest) {
 	return manifest.firebaseSecretKeys.filter((key) => String(values.get(key) || '').trim());
 }
 
-function buildPlan({ desired, existingNames, destinationPrefix }) {
+function buildPlan({ desired, existingNames, destinationPrefix, managedVariableNames }) {
 	const desiredNames = [...desired.keys()].sort();
 	const managedExisting = [...existingNames]
-		.filter((name) => name.startsWith(`${destinationPrefix}REACT_APP_`) || name.startsWith(`${destinationPrefix}STRIPE_`))
+		.filter((name) => managedVariableNames
+			? managedVariableNames.has(name)
+			: name.startsWith(`${destinationPrefix}REACT_APP_`) || name.startsWith(`${destinationPrefix}STRIPE_`))
 		.sort();
 	const desiredSet = new Set(desiredNames);
 	return {
@@ -153,6 +201,18 @@ function listEnvironmentVariableNames(repository, environmentName) {
 	return new Set((payload.variables || []).map((variable) => variable.name));
 }
 
+function verifyVariableNames(expectedNames, loadNames, { attempts = 4, delayMs = 2000 } = {}) {
+	let missing = [...expectedNames];
+	for (let attempt = 0; attempt < attempts && missing.length; attempt += 1) {
+		const actual = loadNames();
+		missing = expectedNames.filter((name) => !actual.has(name));
+		if (missing.length && attempt < attempts - 1 && delayMs > 0) {
+			Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+		}
+	}
+	return missing;
+}
+
 function printPlan({ environmentName, reactFile, functionsFile, plan, secretNames, apply, prune }) {
 	console.log(`GitHub environment sync ${apply ? 'apply' : 'dry-run'}: ${environmentName}`);
 	console.log(`React source: ${reactFile}`);
@@ -168,35 +228,40 @@ function printPlan({ environmentName, reactFile, functionsFile, plan, secretName
 
 function main() {
 	try {
-		const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+		const manifest = contractManifest(loadEnvironmentContract());
 		const options = parseArgs();
-		const environmentConfig = manifest.environments[options.environment];
+		const environmentConfig = environmentConfigs[options.environment];
 		if (!environmentConfig) throw new Error(`Unsupported environment: ${options.environment}`);
-		const repository = options.repository || manifest.repository;
+		const targetRepository = options.repository || repository;
 		const reactFile = options.reactFile || environmentConfig.defaultReactFile;
 		const reactValues = readEnvFile(reactFile, 'React environment');
-		const functionValues = options.functionsFile
-			? readEnvFile(options.functionsFile, 'Functions environment')
+		const functionsFile = options.functionsFile || environmentConfig.defaultFunctionsFile;
+		const functionValues = fs.existsSync(path.resolve(rootDir, functionsFile))
+			? readEnvFile(functionsFile, 'Functions environment')
 			: null;
 		const desired = buildDesiredVariables({ reactValues, functionValues, manifest, environmentConfig });
 		const firebaseSecretNames = findFirebaseSecrets(functionValues, manifest);
 
 		let existingNames = new Set();
 		if (options.apply) {
-			ensureEnvironment(repository, environmentConfig.githubEnvironment);
-			existingNames = listEnvironmentVariableNames(repository, environmentConfig.githubEnvironment);
-		} else if (environmentExists(repository, environmentConfig.githubEnvironment)) {
-			existingNames = listEnvironmentVariableNames(repository, environmentConfig.githubEnvironment);
+			ensureEnvironment(targetRepository, environmentConfig.githubEnvironment);
+			existingNames = listEnvironmentVariableNames(targetRepository, environmentConfig.githubEnvironment);
+		} else if (environmentExists(targetRepository, environmentConfig.githubEnvironment)) {
+			existingNames = listEnvironmentVariableNames(targetRepository, environmentConfig.githubEnvironment);
 		}
 		const plan = buildPlan({
 			desired,
 			existingNames,
 			destinationPrefix: environmentConfig.destinationPrefix,
+			managedVariableNames: new Set([
+				...manifest.reactVariableKeys,
+				...manifest.functionVariableKeys,
+			].map((name) => `${environmentConfig.destinationPrefix}${name}`)),
 		});
 		printPlan({
 			environmentName: environmentConfig.githubEnvironment,
 			reactFile,
-			functionsFile: options.functionsFile,
+			functionsFile: functionValues ? functionsFile : '',
 			plan,
 			secretNames: firebaseSecretNames,
 			apply: options.apply,
@@ -212,7 +277,7 @@ function main() {
 				'--env',
 				environmentConfig.githubEnvironment,
 				'--repo',
-				repository,
+				targetRepository,
 			], { input: desired.get(name) });
 		}
 		if (options.prune) {
@@ -224,12 +289,14 @@ function main() {
 					'--env',
 					environmentConfig.githubEnvironment,
 					'--repo',
-					repository,
+					targetRepository,
 				]);
 			}
 		}
-		const verifiedNames = listEnvironmentVariableNames(repository, environmentConfig.githubEnvironment);
-		const missingAfterApply = plan.upsert.filter((name) => !verifiedNames.has(name));
+		const missingAfterApply = verifyVariableNames(
+			plan.upsert,
+			() => listEnvironmentVariableNames(targetRepository, environmentConfig.githubEnvironment),
+		);
 		if (missingAfterApply.length) throw new Error(`GitHub verification failed for: ${missingAfterApply.join(', ')}`);
 		console.log(`GitHub environment sync completed for ${environmentConfig.githubEnvironment}.`);
 	} catch (error) {
@@ -243,7 +310,10 @@ if (require.main === module) main();
 module.exports = {
 	buildDesiredVariables,
 	buildPlan,
+	contractManifest,
+	environmentConfigs,
 	findFirebaseSecrets,
 	parseArgs,
 	parseDotenv,
+	verifyVariableNames,
 };

@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseDotenv } = require('./syncGitHubEnvironment.cjs');
+const { defaultFor, entriesFor, loadEnvironmentContract } = require('./environmentContract.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
 
@@ -28,6 +29,24 @@ function splitRootValues(rootValues) {
 	return { react, operations };
 }
 
+function selectContractValues(entries, environment, scope, sources) {
+	const selected = new Map();
+	for (const entry of entriesFor(entries, environment, (candidate) => candidate.scope === scope)) {
+		for (const values of sources) {
+			const value = values.get(entry.name);
+			if (String(value || '').trim()) {
+				selected.set(entry.name, value);
+				break;
+			}
+		}
+		if (!selected.has(entry.name)) {
+			const fallback = defaultFor(entry, environment) || entry.example;
+			if (String(fallback || '').trim()) selected.set(entry.name, fallback);
+		}
+	}
+	return selected;
+}
+
 function validateEnvironment(values, { projectId, stripePrefix, label }) {
 	const actualProject = String(values.get('REACT_APP_FIREBASE_PROJECT_ID') || '').trim();
 	if (actualProject !== projectId) {
@@ -49,24 +68,35 @@ function readFileValues(relativePath) {
 function main() {
 	try {
 		const apply = process.argv.slice(2).includes('--apply');
+		const contract = loadEnvironmentContract();
 		const rootValues = readFileValues('.env');
 		if (!rootValues.size) throw new Error('Root .env is missing or empty.');
 		const { react: productionReact, operations } = splitRootValues(rootValues);
 		const existingProduction = readFileValues('.env.production');
-		const production = new Map(existingProduction);
-		for (const [key, value] of productionReact) production.set(key, value);
+		const productionSources = [existingProduction, productionReact];
+		const productionOverrides = new Map();
 		for (const [key, value] of Object.entries(process.env)) {
 			if (key.startsWith('PROD_REACT_APP_') && value) {
-				production.set(key.slice(5), value);
+				productionOverrides.set(key.slice(5), value);
 			}
 		}
+		const production = selectContractValues(contract, 'production', 'web', [productionOverrides, ...productionSources]);
 
-		const development = new Map(readFileValues('.env.local'));
+		const developmentOverrides = new Map();
 		for (const [key, value] of Object.entries(process.env)) {
 			if (key.startsWith('DEV_REACT_APP_') && value) {
-				development.set(key.slice(4), value);
+				developmentOverrides.set(key.slice(4), value);
 			}
 		}
+		const development = selectContractValues(contract, 'development', 'web', [
+			developmentOverrides,
+			readFileValues('.env.development.local'),
+			readFileValues('.env.local'),
+		]);
+		const operationsAllowed = new Set(contract
+			.filter((entry) => ['operations', 'android', 'sandbox', 'e2e'].includes(entry.scope))
+			.map(({ name }) => name));
+		const contractOperations = new Map([...operations].filter(([name]) => operationsAllowed.has(name)));
 
 		validateEnvironment(production, {
 			projectId: 'mypropertymanager-cda42',
@@ -92,8 +122,8 @@ function main() {
 			},
 			{
 				path: '.env.operations.local',
-				contents: formatDotenv('Maintley local operations and legacy script configuration', operations),
-				count: operations.size,
+				contents: formatDotenv('Maintley local operations configuration', contractOperations),
+				count: contractOperations.size,
 			},
 		];
 
@@ -117,6 +147,7 @@ if (require.main === module) main();
 
 module.exports = {
 	formatDotenv,
+	selectContractValues,
 	splitRootValues,
 	validateEnvironment,
 };

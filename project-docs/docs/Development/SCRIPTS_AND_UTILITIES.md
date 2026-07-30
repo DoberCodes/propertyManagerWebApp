@@ -1279,6 +1279,30 @@ Do not use unless intentionally abandoning the CRA-managed configuration.
 
 # Script Development Guidelines
 
+## Environment contract automation
+
+```bash
+yarn env:contract:validate
+yarn env:organize --apply
+yarn env:bootstrap --environment all --apply
+yarn env:validate
+yarn github-env:sync --environment development
+yarn github-env:sync --environment production
+```
+
+`.env.example` is the only committed variable manifest. The contract validator
+checks source coverage. The organizer creates browser and operations files. The
+bootstrapper creates project-specific non-secret Functions dotenv files. The
+GitHub sync command uploads only declared non-secret variables and is dry-run by
+default. Firebase secret values remain in the target project's Secret Manager
+and are never copied into GitHub variables or generated dotenv files.
+
+When adding configuration, declare it in `.env.example` first. Include its
+scope, delivery method, environments, required status, and any safe defaults or
+source mapping. CI rejects undeclared Maintley-owned runtime variables.
+
+---
+
 New scripts should:
 
 * Have descriptive names

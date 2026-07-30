@@ -331,9 +331,27 @@ make the trusted writer mandatory, tighten rules to reject every direct client
 recurrence write, and remove the rollout flag. Client entitlement checks may
 remain only for contextual interface messaging.
 
-Local development uses the destination names shown above in `.env` or
-`functions/.env`. The repository commits only `.env.example`; `.env*` files are
-ignored, and generated CI `functions/.env` files must never be committed.
+`.env.example` is the committed environment contract. Each entry includes
+`@maintley-env` metadata defining its scope, delivery system, applicable
+environments, required status, optional source, and safe environment defaults.
+Real values never belong in that file.
+
+Run `yarn env:contract:validate` whenever the application, Functions, scripts,
+or workflows introduce environment configuration. The validation fails when a
+Maintley-owned runtime variable is referenced without a contract declaration.
+Run `yarn env:organize --apply` to regenerate local browser and operations files
+from declared entries, and `yarn env:bootstrap --environment all --apply` to
+generate non-secret project-specific Functions files:
+
+```text
+functions/.env.beta
+functions/.env.prod
+functions/.env.local
+```
+
+The local emulator file follows Beta/test configuration. The generic
+`functions/.env` is a legacy migration source only and must not be used by new
+deployments. Every generated `.env*` file is ignored and must not be committed.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
@@ -360,10 +378,22 @@ build`. Missing values or placeholder values such as `YOUR_STORAGE_BUCKET`
 block the build so production cannot publish a bundle pointed at a placeholder
 Firebase project or Storage bucket.
 
-During CI, these Stripe price IDs are written into a temporary
-`functions/.env` file before `firebase deploy` runs. This is required because
-Firebase Functions params are resolved from dotenv files during non-interactive
-deploys. The file is ignored by git and should not be committed.
+During production CI, the contract-managed Functions values are written into a
+temporary `functions/.env.prod` file before `firebase deploy --project prod`
+runs. Firebase loads the project-alias-specific file during non-interactive
+deployment. Beta Functions deployments use `.env.beta`; emulator overrides use
+`.env.local`.
+
+`yarn github-env:sync --environment <development|production>` performs a
+values-hidden dry run against the corresponding GitHub environment. Add
+`--apply` to upsert declared non-secret values. Pruning additionally requires
+`--prune --confirm-prune <environment>`. The tool derives its managed variable
+set from `.env.example`, validates Firebase project and Stripe mode boundaries,
+and retries GitHub verification while environment-variable writes propagate.
+
+`yarn env:bootstrap --environment all --strict --check-secrets` provides the
+full readiness gate. It checks required non-secret values and verifies required
+secret names in each Firebase project without displaying secret contents.
 
 The shared `@maintley/entitlements` package is stored at
 `functions/packages/entitlements`. Firebase uploads only the configured

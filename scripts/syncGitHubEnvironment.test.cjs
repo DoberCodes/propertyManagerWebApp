@@ -7,6 +7,7 @@ const {
 	findFirebaseSecrets,
 	parseArgs,
 	parseDotenv,
+	verifyVariableNames,
 } = require('./syncGitHubEnvironment.cjs');
 
 const manifest = {
@@ -119,4 +120,14 @@ test('prunes only managed environment-prefixed names', () => {
 		destinationPrefix: 'DEV_',
 	});
 	assert.deepEqual(plan.stale, ['DEV_REACT_APP_OLD']);
+});
+
+test('retries verification while GitHub environment writes propagate', () => {
+	let attempt = 0;
+	const missing = verifyVariableNames(['ONE', 'TWO'], () => {
+		attempt += 1;
+		return new Set(attempt === 1 ? ['ONE'] : ['ONE', 'TWO']);
+	}, { attempts: 2, delayMs: 0 });
+	assert.deepEqual(missing, []);
+	assert.equal(attempt, 2);
 });

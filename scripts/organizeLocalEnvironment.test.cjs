@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
 	formatDotenv,
+	selectContractValues,
 	splitRootValues,
 	validateEnvironment,
 } = require('./organizeLocalEnvironment.cjs');
@@ -42,4 +43,19 @@ test('rejects project and Stripe mode mismatches', () => {
 test('formats values without printing them in metadata', () => {
 	const formatted = formatDotenv('Example', new Map([['TOKEN', 'value with spaces']]));
 	assert.match(formatted, /TOKEN="value with spaces"/);
+});
+
+test('selects only declared values and fills safe defaults', () => {
+	const entries = [
+		{ name: 'REACT_APP_ONE', scope: 'web', environments: ['development'], developmentDefault: '', example: '' },
+		{ name: 'REACT_APP_TWO', scope: 'web', environments: ['development'], developmentDefault: 'false', example: '' },
+	];
+	const selected = selectContractValues(entries, 'development', 'web', [new Map([
+		['REACT_APP_ONE', 'configured'],
+		['REACT_APP_LEGACY', 'ignored'],
+	])]);
+	assert.deepEqual(Object.fromEntries(selected), {
+		REACT_APP_ONE: 'configured',
+		REACT_APP_TWO: 'false',
+	});
 });
