@@ -49,7 +49,8 @@
 	},
 	"scripts": {
 		"start": "node ./node_modules/react-scripts/bin/react-scripts.js start",
-		"build": "node scripts/validateFrontendEnv.cjs && node scripts/checkEntitlementBoundaries.cjs && node ./node_modules/react-scripts/bin/react-scripts.js build",
+		"build": "node scripts/runFrontendBuild.cjs",
+		"build:beta": "node scripts/runFrontendBuild.cjs --beta",
 		"validate:frontend-env": "node scripts/validateFrontendEnv.cjs",
 		"validate:deployment-freeze": "node scripts/validateDeploymentFreeze.cjs",
 		"validate:seo": "node scripts/validatePublicSeo.cjs && node scripts/validatePublicNavigation.cjs && node scripts/validatePublicPricing.cjs",

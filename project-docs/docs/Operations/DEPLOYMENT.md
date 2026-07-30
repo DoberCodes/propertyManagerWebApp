@@ -344,19 +344,26 @@ visible and can be completed without manually discovering variable names.
 Run `yarn env:contract:validate` whenever the application, Functions, scripts,
 or workflows introduce environment configuration. The validation fails when a
 Maintley-owned runtime variable is referenced without a contract declaration.
-Run `yarn env:organize --apply` to regenerate local browser and operations files
-from declared entries, and `yarn env:bootstrap --environment all --apply` to
-generate non-secret project-specific Functions files:
+The ignored root `.env` is the single local control file for actual non-secret
+values. It is organized into `LOCAL_`, `BETA_`, and `PROD_` sections. Run
+`yarn env:organize --apply` to preserve those values while regenerating the
+standard target files for both the application and Functions:
 
 ```text
+.env.local
+.env.beta
+.env.prod
 functions/.env.beta
 functions/.env.prod
 functions/.env.local
 ```
 
-The local emulator file follows Beta/test configuration. The generic
-`functions/.env` is a legacy migration source only and must not be used by new
-deployments. Every generated `.env*` file is ignored and must not be committed.
+Local values may match Beta/test configuration but remain independently
+overrideable. Backend values with a declared browser `source` are entered once
+in the control file and derived into the matching Functions target. The generic
+`functions/.env`, `.env.production`, and `.env.development.local` names are
+legacy migration inputs only and must not be used by new workflows. Every real
+`.env*` file is ignored and must not be committed.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
@@ -386,8 +393,10 @@ Firebase project or Storage bucket.
 During production CI, the contract-managed Functions values are written into a
 temporary `functions/.env.prod` file before `firebase deploy --project prod`
 runs. Firebase loads the project-alias-specific file during non-interactive
-deployment. Beta Functions deployments use `.env.beta`; emulator overrides use
-`.env.local`.
+deployment. Beta Functions deployments use `functions/.env.beta`; emulator
+overrides use `functions/.env.local`. Local application builds use the matching
+root `.env.prod`, `.env.beta`, or `.env.local` file through Maintley's build and
+runtime helpers rather than relying on framework-specific naming differences.
 
 `yarn github-env:sync --environment <development|production>` performs a
 values-hidden dry run against the corresponding GitHub environment. Add

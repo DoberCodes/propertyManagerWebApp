@@ -11,7 +11,7 @@ const environmentConfigs = {
 	development: {
 		githubEnvironment: 'development',
 		destinationPrefix: 'DEV_',
-		defaultReactFile: '.env.development.local',
+		defaultReactFile: '.env.beta',
 		defaultFunctionsFile: 'functions/.env.beta',
 		firebaseProjectId: 'maintleybeta',
 		stripePublishablePrefix: 'pk_test_',
@@ -19,7 +19,7 @@ const environmentConfigs = {
 	production: {
 		githubEnvironment: 'production',
 		destinationPrefix: 'PROD_',
-		defaultReactFile: '.env.production',
+		defaultReactFile: '.env.prod',
 		defaultFunctionsFile: 'functions/.env.prod',
 		firebaseProjectId: 'mypropertymanager-cda42',
 		stripePublishablePrefix: 'pk_live_',

@@ -2,22 +2,19 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+	formatControlDotenv,
 	formatDotenv,
 	selectContractValues,
-	splitRootValues,
 	validateEnvironment,
+	valuesWithPrefix,
 } = require('./organizeLocalEnvironment.cjs');
 
-test('separates browser values from operational values', () => {
-	const result = splitRootValues(new Map([
-		['REACT_APP_FIREBASE_PROJECT_ID', 'project'],
-		['GITHUB_TOKEN', 'secret'],
-	]));
-	assert.deepEqual(Object.fromEntries(result.react), {
-		REACT_APP_FIREBASE_PROJECT_ID: 'project',
-	});
-	assert.deepEqual(Object.fromEntries(result.operations), {
-		GITHUB_TOKEN: 'secret',
+test('selects only values for the requested environment prefix', () => {
+	assert.deepEqual(Object.fromEntries(valuesWithPrefix(new Map([
+		['BETA_REACT_APP_FIREBASE_PROJECT_ID', 'maintleybeta'],
+		['PROD_REACT_APP_FIREBASE_PROJECT_ID', 'production'],
+	]), 'BETA_')), {
+		REACT_APP_FIREBASE_PROJECT_ID: 'maintleybeta',
 	});
 });
 
@@ -50,7 +47,7 @@ test('selects every declared value, retaining empty placeholders and safe defaul
 		{ name: 'REACT_APP_ONE', scope: 'web', environments: ['development'], developmentDefault: '', example: '' },
 		{ name: 'REACT_APP_TWO', scope: 'web', environments: ['development'], developmentDefault: 'false', example: '' },
 	];
-	const selected = selectContractValues(entries, 'development', 'web', [new Map([
+	const selected = selectContractValues(entries, 'development', () => true, [new Map([
 		['REACT_APP_ONE', 'configured'],
 		['REACT_APP_LEGACY', 'ignored'],
 	])]);
@@ -64,7 +61,7 @@ test('retains an empty placeholder for an unconfigured declared value', () => {
 	const entries = [
 		{ name: 'REACT_APP_REQUIRED', scope: 'web', environments: ['development'], developmentDefault: '', example: '' },
 	];
-	assert.deepEqual(Object.fromEntries(selectContractValues(entries, 'development', 'web', [new Map()])), {
+	assert.deepEqual(Object.fromEntries(selectContractValues(entries, 'development', () => true, [new Map()])), {
 		REACT_APP_REQUIRED: '',
 	});
 });
@@ -80,4 +77,20 @@ test('formats values in manifest order with section headings', () => {
 	]);
 	assert.ok(formatted.indexOf('# Browser Firebase') < formatted.indexOf('# Browser Stripe'));
 	assert.match(formatted, /REACT_APP_STRIPE_PRICE_ID=""/);
+});
+
+test('formats one organized control file for local, beta, and production', () => {
+	const entries = [{ name: 'REACT_APP_FIREBASE_PROJECT_ID', section: 'Browser Firebase' }];
+	const formatted = formatControlDotenv(new Map([
+		['local', new Map([['REACT_APP_FIREBASE_PROJECT_ID', 'local']])],
+		['beta', new Map([['REACT_APP_FIREBASE_PROJECT_ID', 'beta']])],
+		['production', new Map([['REACT_APP_FIREBASE_PROJECT_ID', 'prod']])],
+	]), new Map([
+		['local', entries],
+		['beta', entries],
+		['production', entries],
+	]));
+	assert.match(formatted, /LOCAL_REACT_APP_FIREBASE_PROJECT_ID="local"/);
+	assert.match(formatted, /BETA_REACT_APP_FIREBASE_PROJECT_ID="beta"/);
+	assert.match(formatted, /PROD_REACT_APP_FIREBASE_PROJECT_ID="prod"/);
 });

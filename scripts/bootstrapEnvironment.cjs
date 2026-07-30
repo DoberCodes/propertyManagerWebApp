@@ -126,9 +126,6 @@ function runEnvironment(entries, environment, options) {
 	const { values, missing } = buildFunctionValues(entries, environment, [overrides, existing, react, legacyProduction]);
 	if (options.apply) {
 		fs.writeFileSync(path.resolve(rootDir, files.functions), formatDotenv(environment, values, functionEntries), 'utf8');
-		if (environment === 'development') {
-			fs.writeFileSync(path.resolve(rootDir, 'functions/.env.local'), formatDotenv('local emulator', values, functionEntries), 'utf8');
-		}
 	}
 	const missingSecrets = options.checkSecrets ? checkFirebaseSecrets(entries, environment) : [];
 	console.log(`${environment}: ${options.apply ? 'generated' : 'dry-run'} ${files.functions}`);
