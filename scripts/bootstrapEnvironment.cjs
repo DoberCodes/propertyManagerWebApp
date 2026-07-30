@@ -95,13 +95,30 @@ function checkFirebaseSecrets(entries, environment) {
 		environment,
 		(entry) => entry.scope === 'functions' && entry.delivery === 'firebase-secret' && entry.required,
 	);
-	return required
-		.filter((entry) => spawnSync(process.execPath, [firebaseBin, 'functions:secrets:get', entry.name, '--project', alias], {
+	const missing = [];
+	const verificationFailures = [];
+	for (const entry of required) {
+		const result = spawnSync(process.execPath, [firebaseBin, 'functions:secrets:get', entry.name, '--project', alias], {
 			cwd: rootDir,
 			encoding: 'utf8',
 			windowsHide: true,
-		}).status !== 0)
-		.map(({ name }) => name);
+		});
+		if (result.status === 0) continue;
+		const detail = summarizeFirebaseCommandFailure(result);
+		if (/\b404\b|not found|does not exist/i.test(detail)) missing.push(entry.name);
+		else verificationFailures.push({ name: entry.name, detail });
+	}
+	return { missing, verificationFailures };
+}
+
+function summarizeFirebaseCommandFailure(result) {
+	const lines = `${result.stderr || ''}\n${result.stdout || ''}`
+		.replace(/\u001b\[[0-9;]*m/g, '')
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	const useful = lines.find((line) => /error|permission|denied|forbidden|failed|unauthenticated/i.test(line));
+	return String(useful || `Firebase CLI exited with status ${result.status ?? 'unknown'}`).slice(0, 500);
 }
 
 function environmentFiles(environment) {
@@ -127,7 +144,10 @@ function runEnvironment(entries, environment, options) {
 	if (options.apply) {
 		fs.writeFileSync(path.resolve(rootDir, files.functions), formatDotenv(environment, values, functionEntries), 'utf8');
 	}
-	const missingSecrets = options.checkSecrets ? checkFirebaseSecrets(entries, environment) : [];
+	const secretCheck = options.checkSecrets
+		? checkFirebaseSecrets(entries, environment)
+		: { missing: [], verificationFailures: [] };
+	const missingSecrets = secretCheck.missing;
 	console.log(`${environment}: ${options.apply ? 'generated' : 'dry-run'} ${files.functions}`);
 	console.log(`- configured non-secret Functions values: ${values.size - missing.length}`);
 	console.log(`- missing required non-secret values: ${missing.length}`);
@@ -135,10 +155,12 @@ function runEnvironment(entries, environment, options) {
 	if (options.checkSecrets) {
 		console.log(`- missing required Firebase secrets: ${missingSecrets.length}`);
 		for (const name of missingSecrets) console.log(`  - ${name}`);
+		console.log(`- Firebase secret verification failures: ${secretCheck.verificationFailures.length}`);
+		for (const { name, detail } of secretCheck.verificationFailures) console.log(`  - ${name}: ${detail}`);
 	} else {
 		console.log('- Firebase secrets: not checked (use --check-secrets)');
 	}
-	return { missing, missingSecrets };
+	return { missing, missingSecrets, secretVerificationFailures: secretCheck.verificationFailures };
 }
 
 function main() {
@@ -148,7 +170,9 @@ function main() {
 		const environments = options.environment === 'all' ? ['development', 'production'] : [options.environment];
 		const results = environments.map((environment) => runEnvironment(entries, environment, options));
 		console.log('Values and secret contents were intentionally omitted.');
-		if (options.strict && results.some(({ missing, missingSecrets }) => missing.length || missingSecrets.length)) {
+		if (options.strict && results.some(({ missing, missingSecrets, secretVerificationFailures }) => (
+			missing.length || missingSecrets.length || secretVerificationFailures.length
+		))) {
 			throw new Error('Environment readiness validation found missing required configuration.');
 		}
 	} catch (error) {
@@ -165,4 +189,5 @@ module.exports = {
 	parseArgs,
 	readGitHubVariableOverrides,
 	resolveEntryValue,
+	summarizeFirebaseCommandFailure,
 };

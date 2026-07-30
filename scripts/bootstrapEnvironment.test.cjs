@@ -5,6 +5,7 @@ const {
 	formatDotenv,
 	parseArgs,
 	readGitHubVariableOverrides,
+	summarizeFirebaseCommandFailure,
 } = require('./bootstrapEnvironment.cjs');
 
 const entries = [
@@ -58,4 +59,12 @@ test('groups generated Functions values in manifest order', () => {
 	]);
 	assert.ok(formatted.indexOf('# Functions Stripe pricing') < formatted.indexOf('# Functions application identity'));
 	assert.match(formatted, /STRIPE_PRICE_ID=""/);
+});
+
+test('summarizes Firebase authorization failures without requiring command output passthrough', () => {
+	assert.equal(summarizeFirebaseCommandFailure({
+		status: 1,
+		stdout: '',
+		stderr: "Error: Permission 'secretmanager.secrets.get' denied for resource.",
+	}), "Error: Permission 'secretmanager.secrets.get' denied for resource.");
 });
