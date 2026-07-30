@@ -455,7 +455,11 @@ The release restructuring and hosting migration share these validation gates:
 * Default Firebase Storage bucket: `maintleybeta.firebasestorage.app`, provisioned in `US-CENTRAL1`
 * Cloud Storage for Firebase API: enabled; Firebase linkage verified
 * Storage rules and files: no Maintley rules deployed and no files uploaded during bootstrap
-* Authentication providers and authorized domains: not yet verified
+* Authentication: initialized with email/password sign-in and improved email privacy enabled
+* Authentication exclusions: anonymous sign-in and MFA disabled; no federated providers configured
+* Authorized Auth domains: `localhost`, `maintleybeta.firebaseapp.com`, and `maintleybeta.web.app`
+* Authentication user inventory: empty; no production users or credentials copied
+* Authentication email templates and Functions integrations: left at the isolated development baseline pending the email and Functions phases
 
 No production customer data, production service credentials, or synthetic seed
 records were copied into the development project during bootstrap.
