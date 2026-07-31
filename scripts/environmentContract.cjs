@@ -50,6 +50,7 @@ function parseEnvironmentContract(contents) {
 			source: pendingMetadata.source || '',
 			developmentDefault: pendingMetadata.developmentDefault || '',
 			productionDefault: pendingMetadata.productionDefault || '',
+			localDefault: pendingMetadata.localDefault || '',
 			section: currentSection,
 		};
 		for (const field of ['scope', 'delivery']) {

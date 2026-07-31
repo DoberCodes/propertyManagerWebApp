@@ -7,6 +7,7 @@ const {
 	selectLocalOverrideEntries,
 	selectContractValues,
 	validateEnvironment,
+	valuesWithLocalDefaults,
 	valuesWithPrefix,
 } = require('./organizeLocalEnvironment.cjs');
 
@@ -16,6 +17,15 @@ test('selects only values for the requested environment prefix', () => {
 		['PROD_REACT_APP_FIREBASE_PROJECT_ID', 'production'],
 	]), 'BETA_')), {
 		REACT_APP_FIREBASE_PROJECT_ID: 'maintleybeta',
+	});
+});
+
+test('selects declared localhost defaults independently from Beta defaults', () => {
+	assert.deepEqual(Object.fromEntries(valuesWithLocalDefaults([
+		{ name: 'REACT_APP_ENABLE_ANALYTICS', localDefault: 'false' },
+		{ name: 'REACT_APP_SHARED', localDefault: '' },
+	])), {
+		REACT_APP_ENABLE_ANALYTICS: 'false',
 	});
 });
 

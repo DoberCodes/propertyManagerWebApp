@@ -428,6 +428,13 @@ restart the development server to return localhost to the deployed Beta
 Functions. Automated Firestore and Storage rules tests continue to manage their
 own emulator configuration independently.
 
+Analytics is the intentional exception to the shared Beta baseline. Stable Beta
+uses the Beta Analytics property, while localhost defaults
+`REACT_APP_ENABLE_ANALYTICS=false` so developer navigation does not affect Beta
+reporting or require analytics scripts during local work. The environment
+contract's `localDefault` metadata records this difference and the organizer
+persists it as a generated local override.
+
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
 `firebase functions:secrets:set COMPLIMENTARY_ACCESS_CODE_PEPPER` using at least
