@@ -2,6 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  validateNoPlaintextFirebaseSecrets,
+} = require('./functionsEnvironmentSafety.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
 const functionsDir = path.join(rootDir, 'functions');
@@ -35,6 +38,12 @@ const rootPackage = readJson(path.join(rootDir, 'package.json'));
 const functionsPackage = readJson(path.join(functionsDir, 'package.json'));
 const entitlementPackage = readJson(path.join(packageDir, 'package.json'));
 const entitlementModule = require(path.join(packageDir, 'index.js'));
+
+try {
+  validateNoPlaintextFirebaseSecrets({ functionsDir });
+} catch (error) {
+  fail(error.message);
+}
 
 if (
   rootPackage.dependencies?.['@maintley/entitlements'] !==

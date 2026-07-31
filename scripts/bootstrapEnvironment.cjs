@@ -133,14 +133,13 @@ function runEnvironment(entries, environment, options) {
 	const files = environmentFiles(environment);
 	const existing = readValues(files.functions);
 	const react = readValues(files.react);
-	const legacyProduction = environment === 'production' ? readValues('functions/.env') : new Map();
 	const overrides = readGitHubVariableOverrides(environment);
 	const functionEntries = entriesFor(
 		entries,
 		environment,
 		(entry) => entry.scope === 'functions' && entry.delivery === 'github-variable',
 	);
-	const { values, missing } = buildFunctionValues(entries, environment, [overrides, existing, react, legacyProduction]);
+	const { values, missing } = buildFunctionValues(entries, environment, [overrides, existing, react]);
 	if (options.apply) {
 		fs.writeFileSync(path.resolve(rootDir, files.functions), formatDotenv(environment, values, functionEntries), 'utf8');
 	}

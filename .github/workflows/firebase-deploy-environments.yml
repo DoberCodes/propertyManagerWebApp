@@ -139,7 +139,7 @@ jobs:
           targets=("hosting:beta")
           backend_targets=()
 
-          if echo "$CHANGED_FILES" | grep -Eq '^functions/'; then
+          if echo "$CHANGED_FILES" | grep -Eq '^(functions/|firebase\.json$|\.env\.example$|\.github/workflows/firebase-deploy-environments\.yml$|scripts/(bootstrapEnvironment|environmentContract|ensureFirebaseFunctionInvokers|functionsEnvironmentSafety|validateCallableFunctionsPreflight|validateFirebaseDevelopmentSecrets|validateFunctionsDeployPackage)\.cjs$)'; then
             targets+=("functions")
             backend_targets+=("functions")
           fi
@@ -220,6 +220,10 @@ jobs:
           workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
 
+      - name: Install Google Cloud CLI for Function IAM
+        if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
+        uses: google-github-actions/setup-gcloud@v3
+
       - name: Verify stable development target
         shell: bash
         env:
@@ -240,6 +244,10 @@ jobs:
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.22.3
 
+      - name: Validate Maintley Beta Firebase secrets
+        if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
+        run: node scripts/validateFirebaseDevelopmentSecrets.cjs --project maintleybeta
+
       - name: Deploy stable development environment
         run: |
           firebase deploy \
@@ -247,6 +255,18 @@ jobs:
             --only "${{ steps.deploy-targets.outputs.targets }}" \
             --non-interactive \
             --force
+
+      - name: Ensure HTTPS and callable Function invokers
+        if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
+        run: node scripts/ensureFirebaseFunctionInvokers.cjs --project maintleybeta
+
+      - name: Validate callable Function preflight
+        if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
+        run: >-
+          node scripts/validateCallableFunctionsPreflight.cjs
+          --project maintleybeta
+          --origin https://maintleybeta.web.app
+          --functions recordUserActivity,getFamilyMembers
 
   development-release-prep:
     name: Update release candidate
