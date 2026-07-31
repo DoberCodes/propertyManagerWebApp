@@ -63,6 +63,8 @@ Current capabilities:
 * Associate contractors with properties.
 * Associate tenants with properties.
 * Track property type classifications.
+* Add and manage Spaces such as interior areas, utility locations, exterior
+  surfaces, grounds, and amenities from Property Details.
 
 Homeowner plans keep property setup focused on personal and family homes. They
 may choose a residential classification but cannot create Multi-unit or
@@ -82,6 +84,12 @@ Apartment. Multi-unit and Commercial use their own building classifications.
 Classification describes the physical property; `isRental` independently
 controls rental-management behavior. A residential Apartment classification
 does not activate resident or business workflows.
+
+Spaces are descriptive property locations rather than access or occupancy
+boundaries. They use consistent Space terminology so places such as a Roof,
+Lawn, Exterior, or Pool fit alongside interior areas without being described as
+rooms. Existing task and equipment location fields remain available during the
+phased connected-knowledge migration.
 
 ---
 

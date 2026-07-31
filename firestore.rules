@@ -653,6 +653,94 @@ service cloud.firestore {
         hasPropertyCounterDeleteDecrement(resource.data.accountId);
     }
 
+    function propertySpaceDataIsValid(data) {
+      return data.keys().hasAll([
+          'accountId',
+          'propertyId',
+          'name',
+          'type',
+          'isArchived',
+          'source',
+          'createdBy',
+          'updatedBy',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'accountId',
+          'propertyId',
+          'name',
+          'type',
+          'notes',
+          'sortOrder',
+          'isArchived',
+          'source',
+          'createdBy',
+          'updatedBy',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.accountId is string &&
+        data.propertyId is string &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 80 &&
+        data.type in [
+          'interior',
+          'utility',
+          'storage',
+          'exterior',
+          'grounds',
+          'amenity',
+          'other'
+        ] &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+        (!('sortOrder' in data) || (data.sortOrder is number && data.sortOrder >= 0)) &&
+        data.isArchived is bool &&
+        data.source in [
+          'manual',
+          'document_review',
+          'intelligence_review',
+          'migration'
+        ] &&
+        data.createdBy is string &&
+        data.updatedBy is string &&
+        data.createdAt is string &&
+        data.updatedAt is string;
+    }
+
+    function propertySpaceMatchesProperty(data) {
+      return exists(/databases/$(database)/documents/properties/$(data.propertyId)) &&
+        get(/databases/$(database)/documents/properties/$(data.propertyId)).data.accountId == data.accountId;
+    }
+
+    match /propertySpaces/{spaceId} {
+      allow read: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canReadAccount(resource.data.accountId);
+      allow create: if isAuthenticated() &&
+        propertySpaceDataIsValid(request.resource.data) &&
+        propertySpaceMatchesProperty(request.resource.data) &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        canManageAccount(request.resource.data.accountId);
+      allow update: if isAuthenticated() &&
+        propertySpaceDataIsValid(resource.data) &&
+        propertySpaceDataIsValid(request.resource.data) &&
+        propertySpaceMatchesProperty(request.resource.data) &&
+        request.resource.data.accountId == resource.data.accountId &&
+        request.resource.data.propertyId == resource.data.propertyId &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.source == resource.data.source &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        canManageAccount(resource.data.accountId);
+      allow delete: if isAuthenticated() &&
+        propertySpaceDataIsValid(resource.data) &&
+        propertySpaceMatchesProperty(resource.data) &&
+        canManageAccount(resource.data.accountId);
+    }
+
     match /propertyDocuments/{documentId} {
       allow read: if isAuthenticated() &&
         ('accountId' in resource.data) &&

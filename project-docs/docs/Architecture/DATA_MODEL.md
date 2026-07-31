@@ -166,6 +166,7 @@ Core collections include:
 * familyAccounts
 * accountMemberships
 * properties
+* propertySpaces
 * devices
 * tasks
 * maintenanceEvents
@@ -347,6 +348,7 @@ Properties are the primary organizational record in Maintley.
 
 Properties provide context for:
 
+* Spaces
 * Equipment
 * Tasks
 * Maintenance Events
@@ -399,6 +401,58 @@ the ADR 0033 migration writes canonical values without guessing an unknown
 Multi-unit or Commercial classification.
 
 Operational history belongs in Maintenance Events.
+
+## propertySpaces
+
+Represents a descriptive physical place within one property. Spaces are
+independent property-owned records and do not create tenancy, access, billing,
+door-count, or Unit boundaries.
+
+Required fields:
+
+* accountId
+* propertyId
+* name
+* type
+* isArchived
+* source
+* createdBy
+* updatedBy
+* createdAt
+* updatedAt
+
+Optional fields:
+
+* notes
+* sortOrder
+
+Supported `type` values:
+
+```text
+interior
+utility
+storage
+exterior
+grounds
+amenity
+other
+```
+
+`name` remains flexible and homeowner-readable. Examples include Living Room,
+Garage, Mechanical Room, Roof, Lawn, and Pool. `sortOrder` provides stable
+display ordering without making ordering part of ownership. `isArchived`
+allows a future linked Space to remain available after removal from ordinary
+views.
+
+Spaces are stored in the top-level `propertySpaces` collection. Firestore rules
+validate that the referenced Property exists and carries the same `accountId`.
+Account readers may view Spaces; account managers may create, edit, archive, or
+delete them.
+
+Existing task location text and equipment `unitId` or `suiteId` fields remain
+temporary compatibility fields. They are not canonical Space relationships and
+remain readable until a future relationship phase provides accepted links and
+validated migration behavior.
 
 ## Property Groups
 

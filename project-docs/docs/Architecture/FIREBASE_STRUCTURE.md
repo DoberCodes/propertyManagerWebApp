@@ -96,6 +96,7 @@ Permissions are determined through account membership and role-based access cont
 Used for:
 
 * Properties
+* Spaces
 * Equipment
 * Tasks
 * Maintenance Events
@@ -306,6 +307,7 @@ Primary collections:
   * accessLifecycleDeliveries (server-written message idempotency and outcomes)
 * accountMemberships
 * properties
+* propertySpaces
 * propertyGroups
 * propertyGroupMemberships
 * devices

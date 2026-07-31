@@ -1,6 +1,6 @@
 # ADR 0036: Connected Property Knowledge Model
 
-Status: Accepted - planned
+Status: Accepted - phased implementation
 
 Date: 2026-07-31
 
@@ -43,12 +43,12 @@ Modeling these relationships through nested ownership would duplicate records,
 make updates inconsistent, and force new property knowledge into whichever
 feature happened to introduce it.
 
-The current implementation is only partially aligned with this direction.
-Equipment and tasks are property-scoped, Property Documents are moving toward
-first-class records under ADR 0023, and several compatibility paths still use
-embedded arrays or unstructured location fields. This ADR defines the target
-model; it does not claim that Spaces, Supplies, or the complete relationship
-contract already exist.
+The current implementation is partially aligned with this direction. Equipment
+and tasks are property-scoped, Property Documents are moving toward first-class
+records under ADR 0023, and first-class property Spaces now provide descriptive
+location records. Several compatibility paths still use embedded arrays or
+unstructured location fields. Supplies and the complete relationship contract
+do not yet exist.
 
 ## Decision
 
@@ -216,6 +216,45 @@ Unit model and do not create ownership, tenancy, billing, door-count, access,
 or separate-property boundaries. A business property may describe a physical
 area as a Space without turning that Space into an independently managed Unit.
 
+The first implemented Space contract uses the top-level `propertySpaces`
+collection. Each record contains:
+
+```text
+accountId
+propertyId
+name
+type
+notes (optional)
+sortOrder (optional)
+isArchived
+source
+createdBy
+updatedBy
+createdAt
+updatedAt
+```
+
+Supported `type` values are `interior`, `utility`, `storage`, `exterior`,
+`grounds`, `amenity`, and `other`. The record name remains flexible so a user
+can describe a Living Room, Mechanical Room, Roof, Lawn, Pool, or another place
+without forcing every real-world location into a large taxonomy.
+
+Maintley uses **Space** and **Spaces** consistently in implementation,
+documentation, and user-facing language. It does not use "Room" as the name
+of this entity because many valid Spaces are not rooms.
+
+`sortOrder` supports deliberate future ordering without requiring drag and drop
+in the first experience. `isArchived` is present from the first schema version
+so referenced Spaces can later be retained instead of deleted. Iconography may
+be added as presentation metadata in a future phase, but this implementation
+does not prematurely define an icon contract.
+
+Existing task location text and equipment `unitId` or `suiteId` location fields
+are temporary compatibility fields. They remain available until canonical
+entity relationships, migration validation, and correction workflows are
+introduced in a future phase. The first Space implementation does not silently
+convert or hide them.
+
 ## Supplies
 
 Supplies represent durable property knowledge about materials, parts,
@@ -337,14 +376,15 @@ must remain until backfill and validation prove that the new records are complet
 ## Implementation Tracking
 
 - [x] Accept the Connected Property Knowledge Model as Maintley's target ownership philosophy.
-- [ ] Approve the Space record and classification contract.
+- [x] Approve the Space record and type contract.
 - [ ] Approve the Supply record and identifier contract.
 - [ ] Approve the canonical property relationship contract and allowed endpoint types.
 - [ ] Implement permission rules, indexes, and trusted relationship writes.
 - [ ] Add compatibility adapters and migration validation for existing locations and document links.
-- [ ] Add progressive Space, Supply, and relationship-management experiences.
+- [x] Add the first progressive Space management experience to Property Details.
+- [ ] Add Supply and relationship-management experiences.
 - [ ] Connect accepted relationships to explainable Maintley Intelligence consumers.
-- [ ] Update current data-model documentation as each implementation phase ships.
+- [x] Update current data-model documentation for the first Space phase.
 
 ## Deferred
 

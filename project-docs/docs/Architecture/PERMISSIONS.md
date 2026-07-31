@@ -644,6 +644,24 @@ immutable revision in the same batch.
 
 ---
 
+## propertySpaces
+
+Read:
+
+* Account readers through an account- and property-scoped query
+
+Create, update, archive, delete:
+
+* Account managers
+
+Create and update rules validate that the referenced Property exists in the
+same account, validate the Space field contract, keep `accountId`,
+`propertyId`, creation attribution, and source immutable, and require the
+referenced Property to exist within the same account. Spaces do not create a
+separate permission boundary.
+
+---
+
 ## maintenanceEventRevisions
 
 Read:
@@ -1102,6 +1120,7 @@ When permissions and subscriptions intersect:
 * Subscriptions determine capabilities.
 
 These responsibilities should remain separate.
+
 # Personal assistant credentials
 
 Personal-assistant setup requires the server-managed Maintley Owner role; customer account ownership does not grant access. Credential, rate-limit, and API audit collections deny all direct client reads and writes. Only the Owner-gated callable manages credentials, and every API request is independently constrained by its stored property allowlist and read scopes.
