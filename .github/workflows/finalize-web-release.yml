@@ -11,6 +11,11 @@ on:
         description: Hosting platform that completed the deployment.
         required: true
         type: string
+      align_beta:
+        description: Fast-forward Beta to the deployed Main release after publication.
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -161,3 +166,40 @@ jobs:
           --target "$DEPLOYED_SHA"
           --title "Release v$VERSION"
           --notes-file tmp/release-notes.customer.md
+
+      - name: Fast-forward Beta to the published release
+        if: inputs.align_beta
+        env:
+          DEPLOYED_SHA: ${{ inputs.deployed_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          git fetch origin main beta
+          MAIN_SHA="$(git rev-parse origin/main)"
+          BETA_SHA="$(git rev-parse origin/beta)"
+
+          if [[ "$MAIN_SHA" != "$DEPLOYED_SHA" ]]; then
+            echo "::error::Main advanced to $MAIN_SHA after release deployment $DEPLOYED_SHA; Beta was not moved."
+            exit 1
+          fi
+
+          if [[ "$BETA_SHA" == "$DEPLOYED_SHA" ]]; then
+            echo "Beta already points to published release $DEPLOYED_SHA."
+            exit 0
+          fi
+
+          if ! git merge-base --is-ancestor "$BETA_SHA" "$DEPLOYED_SHA"; then
+            echo "::error::Beta $BETA_SHA cannot fast-forward to published release $DEPLOYED_SHA."
+            exit 1
+          fi
+
+          gh api \
+            --method PATCH \
+            "repos/$REPOSITORY/git/refs/heads/beta" \
+            -f sha="$DEPLOYED_SHA" \
+            -F force=false >/dev/null
+
+          UPDATED_BETA_SHA="$(gh api "repos/$REPOSITORY/git/ref/heads/beta" --jq '.object.sha')"
+          test "$UPDATED_BETA_SHA" = "$DEPLOYED_SHA"
+          echo "Beta fast-forwarded from $BETA_SHA to published release $DEPLOYED_SHA."

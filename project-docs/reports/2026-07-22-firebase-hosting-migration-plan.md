@@ -434,10 +434,10 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Create and protect the `beta` integration branch.
 * [ ] Require feature pull requests to target `beta` under the normal development flow.
 * [ ] Define the release PR as promotion from `beta` into `main` with prepared version files and notes.
-* [x] Define a non-destructive post-release synchronization procedure from `main` back to `beta`.
-  * Use a protected `main` to `beta` pull request completed with **Create a
-    merge commit**. Feature PRs may remain squash-merged, but long-lived branch
-    synchronization must preserve ancestry and must never force-push `beta`.
+* [x] Define a non-destructive post-release alignment procedure for `beta`.
+  * The release finalizer advances `beta` to the published Main commit through
+    a non-forced reference fast-forward. It creates no reverse synchronization
+    PR or merge commit and fails if Beta diverged.
 * [ ] Record environment ownership, cost budgets, secret rotation, and emergency access procedures.
 
 ### Development Firebase inventory — 2026-07-30
@@ -594,6 +594,7 @@ before the items below are marked complete.
     conditional backend target has been exercised with its least-privilege IAM
     grants.
 * [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
+* [x] Enforce one-way feature promotion and fast-forward `beta` to the published Main release without a reverse merge PR.
 * [ ] Use separate, least-privilege development and production deployment identities.
 * [x] Configure environment-specific secrets without committing credentials.
 * [ ] Update Release Prep so the release branch promotes the approved `beta` state into `main` rather than acting as a version-only branch.
