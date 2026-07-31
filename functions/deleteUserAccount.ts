@@ -1,10 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
-import * as dotenv from 'dotenv';
-
-// Load environment variables from .env file
-dotenv.config();
+import { defineSecret } from 'firebase-functions/params';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -12,9 +9,12 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 const auth = admin.auth();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-	apiVersion: '2023-10-16',
-});
+const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
+
+const getStripeClient = (): Stripe =>
+	new Stripe(STRIPE_SECRET_KEY.value(), {
+		apiVersion: '2023-10-16',
+	});
 
 const PAID_SUBSCRIPTION_PLANS = new Set([
 	'homeowner_plus',
@@ -31,7 +31,9 @@ const PAID_SUBSCRIPTION_PLANS = new Set([
  * Only the original owner of properties can delete everything.
  * Co-owners/shared users only lose access but properties remain.
  */
-export const deleteUserAccount = functions.https.onCall(
+export const deleteUserAccount = functions
+	.runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+	.https.onCall(
 	async (data, context) => {
 		// Verify user is authenticated
 		if (!context.auth) {
@@ -106,7 +108,7 @@ export const deleteUserAccount = functions.https.onCall(
 						console.log(
 							`Cancelling trial subscription: ${subscription.stripeSubscriptionId}`,
 						);
-						await stripe.subscriptions.cancel(
+						await getStripeClient().subscriptions.cancel(
 							subscription.stripeSubscriptionId,
 						);
 						console.log('Trial subscription cancelled successfully');

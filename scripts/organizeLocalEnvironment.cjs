@@ -34,7 +34,7 @@ const targets = {
 		rootFile: '.env.prod',
 		functionsFile: 'functions/.env.prod',
 		legacyRootFiles: ['.env.prod', '.env.production'],
-		legacyFunctionsFiles: ['functions/.env.prod', 'functions/.env'],
+		legacyFunctionsFiles: ['functions/.env.prod'],
 		projectId: 'mypropertymanager-cda42',
 		stripePrefix: 'pk_live_',
 	},

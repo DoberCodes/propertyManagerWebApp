@@ -396,9 +396,11 @@ Local application and Functions configuration inherits the complete Beta/test
 baseline. The `LOCAL_` section contains only values that differ from Beta or
 exist solely for local tooling, such as emulator hosts. Backend values with a declared browser `source` are entered once
 in the control file and derived into the matching Functions target. The generic
-`functions/.env`, `.env.production`, and `.env.development.local` names are
-legacy migration inputs only and must not be used by new workflows. Every real
-`.env*` file is ignored and must not be committed.
+`.env.production` and `.env.development.local` are legacy migration inputs only
+and must not be used by new workflows. The ambiguous `functions/.env` file is
+prohibited because Firebase can merge it into project-specific deployments; it
+must be removed after the standardized files are generated. Every real `.env*`
+file is ignored and must not be committed.
 
 The control file includes commented inventories for secrets without storing
 their values. Beta and Production Firebase secrets belong in the matching
@@ -407,6 +409,12 @@ environment. Android keystore passwords remain in `.env.operations.local`
 because signing is local. Service-account and sandbox credentials are optional
 local tooling inputs needed only when running their related administrative
 scripts.
+
+Firebase Secret Manager values must never be copied into `functions/.env*`.
+The Functions deploy-package validator rejects any declared Firebase secret
+with a non-empty dotenv assignment. Run `yarn env:functions:sanitize` to remove
+legacy plaintext assignments without printing their contents. Emulator-only
+secret overrides belong in `functions/.secret.local`, using test credentials.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
@@ -457,6 +465,9 @@ and retries GitHub verification while environment-variable writes propagate.
 `yarn env:bootstrap --environment all --strict --check-secrets` provides the
 full readiness gate. It checks required non-secret values and verifies required
 secret names in each Firebase project without displaying secret contents.
+Before a Beta Functions deployment, CI also reads the Beta
+`STRIPE_SECRET_KEY` without printing it and requires the `sk_test_` prefix. A
+live Stripe secret blocks the deployment.
 
 The shared `@maintley/entitlements` package is stored at
 `functions/packages/entitlements`. Firebase uploads only the configured
@@ -507,6 +518,13 @@ If Beta advances after a release candidate is prepared, production deployment
 fails before publishing and the release PR must be refreshed. If Beta has
 diverged when alignment runs, alignment fails without changing either branch.
 Force updates are never allowed.
+
+The Beta ruleset does not enforce a pull-request-only update rule. That rule
+would also reject the finalizer's direct reference fast-forward. Feature work
+still targets Beta through pull requests as the normal operating policy so it
+receives preview, review, and required-check coverage. Direct Beta updates are
+reserved for the guarded alignment workflow. Required checks remain enabled;
+force updates and branch deletion remain blocked.
 
 `.github/workflows/align-beta-with-main.yml` provides an explicit Main-only
 alignment command for exceptional operational fixes that landed directly in
@@ -628,7 +646,12 @@ Hosting site. The job refuses to continue unless both Firebase project IDs are
 exactly `maintleybeta` and the Stripe browser key is a test key. Functions use a
 generated `functions/.env.beta` file from contract-managed GitHub development
 variables; required Firebase secret names are checked without exposing their
-contents. Ordinary `beta` merges cannot select the `prod` Firebase alias.
+contents. When Functions deploy, the workflow enforces infrastructure-level
+public invocation only for HTTPS and callable Functions, then verifies
+`recordUserActivity` and `getFamilyMembers` return a valid callable preflight
+from `https://maintleybeta.web.app`. Application authentication and permission
+checks remain inside each callable. Ordinary `beta` merges cannot select the
+`prod` Firebase alias.
 
 The E2E workflow runs for pull requests targeting either `beta` or `main`.
 Require its `e2e` status on both protected branches only after the workflow has
@@ -659,6 +682,21 @@ PROJECT_ID@appspot.gserviceaccount.com
 
 This permission should be granted to the GitHub deploy service account, not to
 the runtime service account itself.
+
+The development deploy identity must also be able to update IAM policy on
+Maintley Beta HTTPS Functions. Grant a role containing
+`cloudfunctions.functions.getIamPolicy` and
+`cloudfunctions.functions.setIamPolicy`; `Cloud Functions Admin` is the
+practical predefined role. Generation 2 HTTPS Functions additionally require
+permission to update Cloud Run service IAM. The workflow grants only
+`roles/cloudfunctions.invoker` or `roles/run.invoker` to `allUsers`, which lets
+the Firebase callable protocol reach the handler; it does not bypass Maintley's
+Firebase Auth, role, ownership, or token checks.
+
+If the browser reports a callable CORS failure, probe the endpoint before
+adding application CORS code. An infrastructure `403` without an
+`Access-Control-Allow-Origin` header means the invoker policy is missing. The
+post-deploy preflight gate treats that state as a failed deployment.
 
 Firestore rules deployment also requires permission to test and release rules
 through the Firebase Rules API. If deploy fails with:
@@ -936,6 +974,21 @@ Maintley now shows clearer dashboard focus controls for each user.
 Maintley's pull request template includes a `Customer Release Note` section so
 user-visible changes can be captured before merge.
 
+Pull requests targeting `beta` receive a deterministic engineering summary from
+`.github/workflows/pull-request-summary.yml`. The workflow updates only the
+content between `maintley-pr-summary` markers and preserves every manually
+written section outside that block. It derives the summary from GitHub's changed
+file metadata and commit subjects; it does not read changed-file contents or
+dotenv values. Live build and test conclusions remain authoritative in the PR's
+required checks.
+
+The updater uses `pull_request_target` so the write-capable job runs trusted
+workflow and generator code rather than code from the feature branch. It checks
+out the exact Beta base commit and does not check out or execute the PR head.
+Because GitHub evaluates `pull_request_target` workflows from the repository's
+default branch, the automation becomes active after this workflow has reached
+`main`; its branch filter still limits updates to PRs whose base is `beta`.
+
 `build:signed` does not regenerate release notes. It downloads the successful
 `release-notes.yml` artifact for the current `main` commit and reads release
 metadata from:
@@ -1050,10 +1103,11 @@ advances Beta directly to the published Main release only when Git proves the
 move is a fast-forward. The update uses GitHub's reference API with
 `force=false`; divergence therefore fails without overwriting Beta work.
 
-Feature pull requests targeting `beta` may continue using the normal squash
-policy. Never force-push either protected branch to repair ancestry. Use the
-explicit alignment workflow only for an exceptional operational Main change
-and only while Beta remains an ancestor of Main.
+Feature work continues to target `beta` through pull requests and may use the
+normal squash policy even though Beta does not enforce PR-only updates at the
+ruleset level. Never force-push either protected branch to repair ancestry. Use
+the explicit alignment workflow only for an exceptional operational Main
+change and only while Beta remains an ancestor of Main.
 
 Feature pull requests targeting `beta` run the same required Build Check jobs
 as ordinary pull requests targeting `main`: entitlement-package policy, unit

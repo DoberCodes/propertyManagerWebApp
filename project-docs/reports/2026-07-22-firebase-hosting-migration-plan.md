@@ -431,13 +431,15 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Configure development AI, OCR, email, and other provider credentials or explicit feature suppression.
 * [ ] Disable or redirect customer lifecycle communications in development.
 * [ ] Create synthetic development seed data; do not copy production customer data.
-* [ ] Create and protect the `beta` integration branch.
-* [ ] Require feature pull requests to target `beta` under the normal development flow.
-* [ ] Define the release PR as promotion from `beta` into `main` with prepared version files and notes.
+* [x] Create and protect the `beta` integration branch.
+* [x] Establish feature pull requests targeting `beta` as the normal development flow without enforcing PR-only reference updates.
+* [x] Define the release PR as promotion from `beta` into `main` with prepared version files and notes.
 * [x] Define a non-destructive post-release alignment procedure for `beta`.
   * The release finalizer advances `beta` to the published Main commit through
     a non-forced reference fast-forward. It creates no reverse synchronization
     PR or merge commit and fails if Beta diverged.
+  * Verified after v2.12.6: Main, Beta, and the release tag resolved to the same
+    commit without triggering a second Beta deployment or release-prep cycle.
 * [ ] Record environment ownership, cost budgets, secret rotation, and emergency access procedures.
 
 ### Development Firebase inventory — 2026-07-30
@@ -593,6 +595,12 @@ before the items below are marked complete.
     merged Beta commit has deployed stable Hosting successfully and each
     conditional backend target has been exercised with its least-privilege IAM
     grants.
+  * A 2026-07-31 validation found Beta callable Functions returning an
+    infrastructure-level `403` and legacy plaintext provider credentials in
+    the deployed environment. The repair adds Secret Manager-only dotenv
+    enforcement, test-mode Stripe validation, HTTPS/callable invoker repair,
+    and post-deploy preflight checks. Keep this item open until the clean full
+    Functions deployment and authenticated Beta smoke test pass.
 * [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
 * [x] Enforce one-way feature promotion and fast-forward `beta` to the published Main release without a reverse merge PR.
 * [ ] Use separate, least-privilege development and production deployment identities.
@@ -667,7 +675,7 @@ before the items below are marked complete.
 * [ ] Update PWA, SEO, testing, scripts, and contributor documentation.
 * [ ] Archive superseded GitHub Pages instructions.
 * [ ] Record the completed migration date in ADR 0028.
-* [ ] Confirm branch protections enforce the `feature → beta → main release` promotion path.
+* [x] Confirm branch rules and operating policy support the `feature → beta → main release` promotion path while allowing guarded post-release alignment.
 * [ ] Confirm stale preview channels are expired or removed.
 
 ## Rollback criteria
