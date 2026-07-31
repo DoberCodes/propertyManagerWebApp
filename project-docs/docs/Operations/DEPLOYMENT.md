@@ -958,6 +958,13 @@ unit and rules tests, Functions validation, E2E smoke test, release-note
 preview, entitlement-package policy, and `yarn version:validate`. A failed
 stable Beta deployment cannot update the release branch.
 
+Release Prep explicitly dispatches those validation workflows after pushing
+`release/next`. GitHub intentionally prevents a branch push made by the default
+Actions token from recursively triggering other workflows, so relying on the
+pull-request synchronization event would leave the updated release commit with
+no checks. The dispatches run against the exact `release/next` head and retain
+the normal check names used by branch protection.
+
 Feature pull requests targeting `beta` run the same required Build Check jobs
 as ordinary pull requests targeting `main`: entitlement-package policy, unit
 and rules tests, production build validation, and the Functions build. Release
