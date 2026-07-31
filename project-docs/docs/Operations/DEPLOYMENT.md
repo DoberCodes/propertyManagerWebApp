@@ -965,6 +965,19 @@ pull-request synchronization event would leave the updated release commit with
 no checks. The dispatches run against the exact `release/next` head and retain
 the normal check names used by branch protection.
 
+### Main and Beta branch synchronization
+
+Synchronization from `main` back into `beta` must preserve Git ancestry. Open a
+pull request from `main` to `beta` and complete it with **Create a merge
+commit**. Do not squash or rebase that synchronization PR: those methods can
+copy identical files into Beta without recording `main` as an ancestor, which
+causes the later `release/next` promotion back to `main` to conflict.
+
+Feature pull requests targeting `beta` may continue using the normal squash
+policy. The merge-commit requirement applies specifically to synchronization
+between the two protected long-lived branches. Never force-push either branch
+to repair ancestry.
+
 Feature pull requests targeting `beta` run the same required Build Check jobs
 as ordinary pull requests targeting `main`: entitlement-package policy, unit
 and rules tests, production build validation, and the Functions build. Release
