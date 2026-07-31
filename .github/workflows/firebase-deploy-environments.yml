@@ -249,6 +249,7 @@ jobs:
     if: github.event_name == 'push' && github.ref_name == 'beta'
     needs: development-deploy
     permissions:
+      actions: write
       contents: write
       pull-requests: write
     uses: ./.github/workflows/release-prep.yml

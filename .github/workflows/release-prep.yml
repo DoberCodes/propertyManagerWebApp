@@ -17,6 +17,7 @@ jobs:
   prepare-release-pr:
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
       pull-requests: write
 
@@ -134,6 +135,16 @@ jobs:
               --title "Release v$VERSION" \
               --body-file tmp/release-prep-pr-body.md
           fi
+
+      - name: Dispatch release candidate validation
+        if: steps.prep.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run build-check.yml --ref release/next
+          gh workflow run e2e-tests.yml --ref release/next -f suite=smoke
+          gh workflow run release-notes.yml --ref release/next
 
       - name: Write summary
         if: steps.notes.outputs.has_metadata == 'true'
