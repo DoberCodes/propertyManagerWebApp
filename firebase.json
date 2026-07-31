@@ -6,20 +6,20 @@
 			"ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
 			"headers": [
 				{
+					"source": "/**",
+					"headers": [
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, must-revalidate"
+						}
+					]
+				},
+				{
 					"source": "/static/**",
 					"headers": [
 						{
 							"key": "Cache-Control",
 							"value": "public,max-age=31536000,immutable"
-						}
-					]
-				},
-				{
-					"source": "/@(index.html|service-worker.js|manifest.json)",
-					"headers": [
-						{
-							"key": "Cache-Control",
-							"value": "no-cache, no-store, must-revalidate"
 						}
 					]
 				}
@@ -32,20 +32,20 @@
 			"ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
 			"headers": [
 				{
+					"source": "/**",
+					"headers": [
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, must-revalidate"
+						}
+					]
+				},
+				{
 					"source": "/static/**",
 					"headers": [
 						{
 							"key": "Cache-Control",
 							"value": "public,max-age=31536000,immutable"
-						}
-					]
-				},
-				{
-					"source": "/@(index.html|service-worker.js|manifest.json)",
-					"headers": [
-						{
-							"key": "Cache-Control",
-							"value": "no-cache, no-store, must-revalidate"
 						}
 					]
 				}
@@ -55,6 +55,7 @@
 	],
 	"functions": {
 		"source": "functions",
+		"runtime": "nodejs22",
 		"predeploy": ["node scripts/validateFunctionsDeployPackage.cjs"]
 	},
 	"firestore": {

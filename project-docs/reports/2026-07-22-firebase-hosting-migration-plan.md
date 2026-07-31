@@ -26,8 +26,7 @@ adding another automation layer.
 
 ### Current pull-request and web flow
 
-* `.github/workflows/deploy-github-pages.yml` is named **Build Check** even
-  though its filename implies deployment. It runs unit, Firestore Rules,
+* `.github/workflows/build-check.yml` is named **Build Check** and runs unit, Firestore Rules,
   Storage Rules, frontend-build, asset-budget, and Functions-build validation,
   with different behavior on `release/next`.
 * `.github/workflows/e2e-tests.yml` supplies the required pull-request smoke
@@ -435,7 +434,10 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Create and protect the `beta` integration branch.
 * [ ] Require feature pull requests to target `beta` under the normal development flow.
 * [ ] Define the release PR as promotion from `beta` into `main` with prepared version files and notes.
-* [ ] Define a non-destructive post-release synchronization procedure from `main` back to `beta`.
+* [x] Define a non-destructive post-release synchronization procedure from `main` back to `beta`.
+  * Use a protected `main` to `beta` pull request completed with **Create a
+    merge commit**. Feature PRs may remain squash-merged, but long-lived branch
+    synchronization must preserve ancestry and must never force-push `beta`.
 * [ ] Record environment ownership, cost budgets, secret rotation, and emergency access procedures.
 
 ### Development Firebase inventory — 2026-07-30
@@ -447,30 +449,30 @@ The release restructuring and hosting migration share these validation gates:
 * Default Hosting site: `maintleybeta.web.app`
 * Analytics measurement configuration: confirmed and separate from production
 * Default Firestore database: created as Standard edition in `nam5`
-* Initial Firestore access: closed until Maintley's reviewed rules are deployed
+* Firestore access: Maintley's reviewed rules deployed successfully on 2026-07-30 after emulator-backed Build Check validation
 * Hosting preview channels: none beyond the live channel
 * Blaze billing: confirmed active
 * Functions platform APIs: enabled without deploying application code
-* Functions deployment inventory: empty
+* Functions deployment inventory: 98 expected callable, event, and scheduled Functions deployed and reconciled without unexpected exports
 * Default Firebase Storage bucket: `maintleybeta.firebasestorage.app`, provisioned in `US-CENTRAL1`
 * Cloud Storage for Firebase API: enabled; Firebase linkage verified
-* Storage rules and files: no Maintley rules deployed and no files uploaded during bootstrap
+* Storage rules and files: Maintley's reviewed Storage rules deployed successfully on 2026-07-30; no production files were copied during bootstrap
 * Authentication: initialized with email/password sign-in and improved email privacy enabled
 * Authentication exclusions: anonymous sign-in and MFA disabled; no federated providers configured
 * Authorized Auth domains: `localhost`, `maintleybeta.firebaseapp.com`, and `maintleybeta.web.app`
 * Authentication user inventory: empty; no production users or credentials copied
 * Authentication email templates and Functions integrations: left at the isolated development baseline pending the email and Functions phases
-* GitHub environment: `development`, with no secrets or reviewer gate configured during the identity bootstrap
+* GitHub environment: `development`, with no GitHub-stored application secrets or reviewer gate configured during the identity bootstrap
 * Development deployment authentication: keyless Workload Identity Federation restricted to this repository and the `development` environment
-* Development deployment service account: dedicated to `maintleybeta`; initially limited to Firebase Hosting Admin and API Keys Viewer
+* Development deployment service account: dedicated to `maintleybeta`; preview-stage access is limited to Firebase Hosting Admin, API Keys Viewer, Secret Manager Viewer, and Service Usage Viewer
 * Development deployment variables: project ID, Workload Identity provider, and service-account identifiers stored as GitHub environment variables
 * Development frontend variables: public Maintley Beta Firebase web configuration stored separately from production in the GitHub `development` environment
-* Deployment identity verification: IAM bindings and provider conditions verified; a non-deploying GitHub smoke workflow is ready to verify runtime impersonation and Hosting visibility after merge
-* Development billing boundary: preview deployment remains blocked from a functional build until a Stripe test publishable key or an approved billing-suppression mode is configured; the production key will not be reused
+* Deployment identity verification: IAM bindings, provider conditions, Secret Manager metadata visibility, Service Usage visibility, and Hosting preview deployment verified in PR #132
+* Development billing boundary: Stripe test-mode publishable and server credentials are configured separately; production Stripe credentials are not reused
 * Development Stripe frontend: test-mode publishable key configured in the GitHub `development` environment; production publishable key remains excluded
 * Hosting targets: explicit `beta` and `prod` target mappings added without deploying either live channel
 * Hosting preview workflow: same-repository pull requests targeting `beta` build without deployment credentials, then deploy only the static artifact to a seven-day Maintley Beta preview channel
-* Hosting preview verification: Beta-configured local production build passed; first GitHub preview deployment remains pending a feature pull request targeting `beta`
+* Hosting preview verification: Beta-configured local production build and PR #132's isolated GitHub preview deployment passed; backend readiness confirmed required non-secret configuration, API availability, and secret metadata without reading secret values
 
 No production customer data, production service credentials, or synthetic seed
 records were copied into the development project during bootstrap.
@@ -502,6 +504,16 @@ records were copied into the development project during bootstrap.
 * [ ] Verify no preview build contains production Firebase or Analytics configuration.
 
 ## Hosting checklist H3: BrowserRouter and build behavior
+
+Implementation note (2026-07-30): Firebase web builds now select
+`BrowserRouter` and root-relative assets. Packaged Android uses an explicit,
+temporary hash-routing profile until H6 native validation is complete. This
+does not preserve hash routes on either Firebase web host.
+
+The Hosting-only stage intentionally leaves Function-generated checkout,
+email, invitation, and support URLs unchanged. Those producers move with the
+Functions routing and DNS phase so deployed backend links cannot lead users to
+an uncut-over custom domain.
 
 * [ ] Replace `HashRouter` with `BrowserRouter`.
 * [ ] Remove hash-routing helpers and assumptions.
@@ -563,15 +575,28 @@ records were copied into the development project during bootstrap.
 
 ## Hosting checklist H7: Firebase web deployment
 
+Implementation note (2026-07-30): the production release workflow uploads the
+validated web artifact, requires an exact release merge, deploys
+`hosting:prod`, conditionally adds changed backend targets, and invokes the
+idempotent finalizer only after deployment succeeds. The first production
+execution remains a validation gate before the items below are marked complete.
+
 * [x] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
 * [x] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
 * [x] Keep PR previews on the stable development backend; do not deploy shared Functions or rules per PR.
+* [x] Retain required build, unit, rules, entitlement-package, Functions, E2E, asset-budget, and release-note validation for pull requests targeting `beta`.
 * [ ] Add stable development Hosting, Functions, Firestore rules, and Storage rules deployment after merge to `beta`.
+  * The deployment workflow is implemented; keep this item open until the first
+    merged Beta commit has deployed stable Hosting successfully and each
+    conditional backend target has been exercised with its least-privilege IAM
+    grants.
 * [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
 * [ ] Use separate, least-privilege development and production deployment identities.
-* [ ] Configure environment-specific secrets without committing credentials.
-* [ ] Retain build validation, tests, and asset-budget checks.
+* [x] Configure environment-specific secrets without committing credentials.
 * [ ] Update Release Prep so the release branch promotes the approved `beta` state into `main` rather than acting as a version-only branch.
+  * The reusable promotion workflow is implemented; keep this item open until
+    the first successful stable Beta deployment updates the existing
+    `release/next` PR and its full release validation passes.
 * [ ] Gate production deployment on an exact `Release vX.Y.Z` merge and synchronized version files.
 * [ ] Generate final customer release notes from the preceding merged release boundary.
 * [ ] Create the matching Git tag and GitHub Release only after every required production deployment succeeds.

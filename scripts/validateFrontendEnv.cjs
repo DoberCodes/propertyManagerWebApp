@@ -24,8 +24,8 @@ const placeholderPatterns = [
 const envFiles = [
 	'.env',
 	'.env.local',
-	'.env.production',
-	'.env.production.local',
+	'.env.beta',
+	'.env.prod',
 ];
 
 const parseEnvLine = (line) => {

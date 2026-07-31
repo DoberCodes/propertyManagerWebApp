@@ -11,7 +11,7 @@ const environmentConfigs = {
 	development: {
 		githubEnvironment: 'development',
 		destinationPrefix: 'DEV_',
-		defaultReactFile: '.env.development.local',
+		defaultReactFile: '.env.beta',
 		defaultFunctionsFile: 'functions/.env.beta',
 		firebaseProjectId: 'maintleybeta',
 		stripePublishablePrefix: 'pk_test_',
@@ -19,7 +19,7 @@ const environmentConfigs = {
 	production: {
 		githubEnvironment: 'production',
 		destinationPrefix: 'PROD_',
-		defaultReactFile: '.env.production',
+		defaultReactFile: '.env.prod',
 		defaultFunctionsFile: 'functions/.env.prod',
 		firebaseProjectId: 'mypropertymanager-cda42',
 		stripePublishablePrefix: 'pk_live_',
@@ -195,10 +195,15 @@ function environmentExists(repository, environmentName) {
 function listEnvironmentVariableNames(repository, environmentName) {
 	const result = runGh([
 		'api',
-		`repos/${repository}/environments/${environmentName}/variables?per_page=100`,
+		'--paginate',
+		`repos/${repository}/environments/${environmentName}/variables`,
+		'--jq',
+		'.variables[].name',
 	]);
-	const payload = JSON.parse(result.stdout || '{}');
-	return new Set((payload.variables || []).map((variable) => variable.name));
+	return new Set(String(result.stdout || '')
+		.split(/\r?\n/)
+		.map((name) => name.trim())
+		.filter(Boolean));
 }
 
 function verifyVariableNames(expectedNames, loadNames, { attempts = 4, delayMs = 2000 } = {}) {

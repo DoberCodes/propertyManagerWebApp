@@ -54,13 +54,13 @@ export const getPublicWebBaseUrl = (): string => {
 	return CANONICAL_PUBLIC_WEB_URL;
 };
 
-export const getRegistrationUrl = (): string => `${getPublicWebBaseUrl()}/#/registration`;
+export const getRegistrationUrl = (): string => `${getPublicWebBaseUrl()}/registration`;
 
 export const getAccountManagementUrl = (): string =>
-	`${getPublicWebBaseUrl()}/#/settings?category=account`;
+	`${getPublicWebBaseUrl()}/settings?category=account`;
 
 export const getSubscriptionManagementUrl = (): string =>
-	`${getPublicWebBaseUrl()}/#/${auth.currentUser ? 'paywall' : 'login'}`;
+	`${getPublicWebBaseUrl()}/${auth.currentUser ? 'paywall' : 'login'}`;
 
 export const getCustomerBillingPortalUrl = (): string =>
 	STRIPE_CUSTOMER_PORTAL_URL;

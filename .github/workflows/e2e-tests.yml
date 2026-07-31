@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - beta
   workflow_dispatch:
     inputs:
       suite:
@@ -18,7 +19,7 @@ on:
 
 jobs:
   e2e:
-    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref != 'release/next')
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     env:
       E2E_DEMO_EMAIL: ${{ secrets.E2E_DEMO_EMAIL }}
@@ -36,10 +37,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'yarn'
@@ -105,7 +106,7 @@ jobs:
           echo "suite=$SUITE" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/yarn.lock') }}
@@ -135,7 +136,7 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report-${{ steps.suite.outputs.suite }}
           path: playwright-report
@@ -143,7 +144,7 @@ jobs:
 
       - name: Upload Playwright results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-results-${{ steps.suite.outputs.suite }}
           path: test-results

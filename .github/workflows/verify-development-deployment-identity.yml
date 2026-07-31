@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - beta
-      - main
     paths:
       - '.github/workflows/verify-development-deployment-identity.yml'
       - '.firebaserc'

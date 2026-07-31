@@ -1,9 +1,9 @@
 {
 	"name": "Maintley",
-	"version": "2.12.4",
+	"version": "2.12.5",
 	"private": true,
 	"type": "module",
-	"homepage": "./",
+	"homepage": "/",
 	"dependencies": {
 		"@maintley/entitlements": "file:functions/packages/entitlements",
 		"@capacitor/android": "^8.4.1",
@@ -49,7 +49,9 @@
 	},
 	"scripts": {
 		"start": "node ./node_modules/react-scripts/bin/react-scripts.js start",
-		"build": "node scripts/validateFrontendEnv.cjs && node scripts/checkEntitlementBoundaries.cjs && node ./node_modules/react-scripts/bin/react-scripts.js build",
+		"build": "node scripts/runFrontendBuild.cjs",
+		"build:beta": "node scripts/runFrontendBuild.cjs --beta",
+		"build:android": "node scripts/runFrontendBuild.cjs --android",
 		"validate:frontend-env": "node scripts/validateFrontendEnv.cjs",
 		"validate:deployment-freeze": "node scripts/validateDeploymentFreeze.cjs",
 		"validate:seo": "node scripts/validatePublicSeo.cjs && node scripts/validatePublicNavigation.cjs && node scripts/validatePublicPricing.cjs",
@@ -62,6 +64,7 @@
 		"analyze:bundle": "node scripts/reportBuildAssets.cjs",
 		"analyze:media": "node scripts/reportMediaAssets.cjs",
 		"check:asset-budgets": "node scripts/checkAssetBudgets.cjs",
+		"check:clean-web-routes": "node scripts/checkCleanWebRoutes.cjs",
 		"check:entitlement-boundaries": "node scripts/checkEntitlementBoundaries.cjs",
 		"check:entitlement-package-version": "node scripts/checkEntitlementPackageVersion.cjs",
 		"test:entitlement-package-version": "node --test scripts/checkEntitlementPackageVersion.test.cjs",
@@ -152,9 +155,9 @@
 		"test:rules:all": "yarn test:rules && yarn test:storage",
 		"test:notifications": "npm --prefix functions run build && node scripts/testMaintleyEventEngine.cjs",
 		"test:email-templates": "npm --prefix functions run build && node scripts/testEmailTemplates.cjs",
-		"cap:sync": "yarn build && npx cap sync android",
+		"cap:sync": "yarn build:android && npx cap sync android",
 		"cap:open": "npx cap open android",
-		"build:apk": "node scripts/initAppVersion.cjs && yarn build && npx cap sync android",
+		"build:apk": "node scripts/initAppVersion.cjs && yarn build:android && npx cap sync android",
 		"version:init": "node scripts/initAppVersion.cjs",
 		"version:update": "node scripts/updateAppVersion.cjs",
 		"version:prepare": "node scripts/prepareReleaseVersion.cjs",
@@ -171,7 +174,9 @@
 		"test:stripe:e2e": "node ./node_modules/@playwright/test/cli.js test e2e/payment.spec.ts e2e/stripe-hosted-checkout.spec.ts --project=chromium",
 		"test:stripe:webhook:sandbox": "npm --prefix functions run test:webhook:sandbox",
 		"test:stripe:all": "yarn test:stripe:sandbox && yarn test:stripe:cards:sandbox && yarn test:stripe:webhook:sandbox && yarn test:stripe:e2e",
-		"test:release-version": "node --test scripts/generateReleaseNotes.test.cjs"
+		"test:release-version": "node --test scripts/generateReleaseNotes.test.cjs",
+		"test:frontend-build-profile": "node --test scripts/frontendBuildProfile.test.cjs",
+		"test:hosting-routes": "node ./node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --only hosting:prod --project prod \"node scripts/testHostingRoutes.cjs\""
 	},
 	"browserslist": {
 		"production": [

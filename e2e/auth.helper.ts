@@ -163,8 +163,8 @@ export async function registerNewAccount(
 ) {
 	const { submitFinalStep = true } = options;
 
-	// Navigate directly to registration page (app uses hash routing)
-	await page.goto('/#/registration', {
+	// Navigate directly to the clean registration route.
+	await page.goto('/registration', {
 		waitUntil: 'domcontentloaded',
 		timeout: 40000,
 	});
@@ -338,8 +338,8 @@ export async function registerNewAccount(
  * Login to an existing account
  */
 export async function login(page: Page, email: string, password: string) {
-	// Navigate directly to login page (app uses hash routing)
-	await page.goto('/#/login', {
+	// Navigate directly to the clean login route.
+	await page.goto('/login', {
 		waitUntil: 'domcontentloaded',
 		timeout: 40000,
 	});
@@ -374,7 +374,7 @@ export async function login(page: Page, email: string, password: string) {
 	await submitButton.click();
 
 	const navigatedAfterLogin = await page
-		.waitForFunction(() => !window.location.hash.includes('/login'), {
+		.waitForFunction(() => !window.location.pathname.includes('/login'), {
 			timeout: 15000,
 		})
 		.then(() => true)
@@ -390,7 +390,7 @@ export async function login(page: Page, email: string, password: string) {
 		throw new Error(
 			authError?.trim()
 				? `Login failed: ${authError.trim()}`
-				: 'Login failed: still on /#/login after submitting credentials. Verify E2E_DEMO_EMAIL/E2E_DEMO_PASSWORD.',
+				: 'Login failed: still on /login after submitting credentials. Verify E2E_DEMO_EMAIL/E2E_DEMO_PASSWORD.',
 		);
 	}
 
@@ -398,13 +398,13 @@ export async function login(page: Page, email: string, password: string) {
 
 	await dismissGuidedSetupIfPresent(page);
 
-	await page.goto('/#/dashboard', {
+	await page.goto('/dashboard', {
 		waitUntil: 'domcontentloaded',
 		timeout: 40000,
 	});
 	await waitForPageLoaded(page);
 
-	if (page.url().includes('/#/login')) {
+	if (page.url().includes('/login')) {
 		throw new Error(
 			'Login failed: authenticated dashboard access was not established after login.',
 		);
@@ -468,7 +468,7 @@ export async function logout(page: Page) {
 
 	await logoutButton.click();
 	const didLeaveDashboard = await page
-		.waitForFunction(() => !window.location.hash.includes('/dashboard'), {
+		.waitForFunction(() => !window.location.pathname.includes('/dashboard'), {
 			timeout: 10000,
 		})
 		.then(() => true)
@@ -486,18 +486,18 @@ export async function logout(page: Page) {
  */
 export async function isLoggedIn(page: Page): Promise<boolean> {
 	try {
-		await page.goto('/#/dashboard', {
+		await page.goto('/dashboard', {
 			waitUntil: 'domcontentloaded',
 			timeout: 40000,
 		});
 		await waitForPageLoaded(page);
 		const currentUrl = page.url();
 
-		if (currentUrl.includes('/#/login')) {
+		if (currentUrl.includes('/login')) {
 			return false;
 		}
 
-		if (currentUrl.includes('/#/dashboard')) {
+		if (currentUrl.includes('/dashboard')) {
 			return true;
 		}
 
@@ -600,7 +600,7 @@ export async function createPropertyForTest(
 
 		await page.getByRole('button', { name: /save property/i }).click();
 		await page.waitForTimeout(1200);
-		await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+		await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
 		const countAfter = await page.getByText('⋮').count();
@@ -657,7 +657,7 @@ export async function createPropertyForTest(
 	const propertyAddress =
 		options.address || `${timestamp} Test Ave, Springfield, IL 62701`;
 
-	await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+	await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 	await waitForPageLoaded(page);
 
 	const createdFirstTry = await tryCreate(propertyName, propertyAddress);
@@ -671,7 +671,7 @@ export async function createPropertyForTest(
 		return false;
 	}
 
-	await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+	await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 	await waitForPageLoaded(page);
 	const retryCreated = await tryCreate(`${propertyName} Retry`, propertyAddress);
 	console.log(`[e2e] createPropertyForTest retry result: ${retryCreated}`);
@@ -695,7 +695,7 @@ export async function createTaskForTest(
 	const taskDescription =
 		options.description || 'Automatically created by Playwright for deterministic coverage.';
 
-	await page.goto('/#/tasks', { waitUntil: 'domcontentloaded' });
+	await page.goto('/tasks', { waitUntil: 'domcontentloaded' });
 	await waitForPageLoaded(page);
 
 	const createButton = page

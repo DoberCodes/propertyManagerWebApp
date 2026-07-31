@@ -144,13 +144,13 @@ const LandingPageComponent = () => {
 								<FooterLegalLink as="a" href="/legal/">
 									Legal Hub
 								</FooterLegalLink>
-								<FooterLegalLink as="a" href="/#/legal/privacy-policy">
+								<FooterLegalLink as="a" href="/legal/privacy-policy">
 									Privacy
 								</FooterLegalLink>
-								<FooterLegalLink as="a" href="/#/legal/terms-of-service">
+								<FooterLegalLink as="a" href="/legal/terms-of-service">
 									Terms
 								</FooterLegalLink>
-								<FooterLegalLink as="a" href="/#/legal/user-content-policy">
+								<FooterLegalLink as="a" href="/legal/user-content-policy">
 									Policies
 								</FooterLegalLink>
 							</FooterGroup>

@@ -38,6 +38,7 @@ function listSourceFiles(directory) {
 	const files = [];
 	for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
 		if (item.isDirectory() && ignoredDirectories.has(item.name)) continue;
+		if (!item.isDirectory() && item.name.includes('.test.')) continue;
 		const absolutePath = path.join(directory, item.name);
 		if (item.isDirectory()) files.push(...listSourceFiles(absolutePath));
 		else if (extensions.has(path.extname(item.name))) files.push(absolutePath);
@@ -55,11 +56,33 @@ function collectProcessEnvironmentNames(files) {
 	return names;
 }
 
+function extractDefinedFirebaseSecretNames(contents) {
+	const names = new Set();
+	const expression = /\bdefine(?:Json)?Secret(?:<[^()]+>)?\s*\(\s*['"]([A-Z][A-Z0-9_]*)['"]/g;
+	for (const match of String(contents || '').matchAll(expression)) names.add(match[1]);
+	return names;
+}
+
+function collectDefinedFirebaseSecretNames(files) {
+	const names = new Set();
+	for (const file of files) {
+		for (const name of extractDefinedFirebaseSecretNames(fs.readFileSync(file, 'utf8'))) names.add(name);
+	}
+	return names;
+}
+
 function validateContractCoverage(entries, referencedNames) {
 	const declared = new Set(entries.map(({ name }) => name));
 	return [...referencedNames]
 		.filter((name) => !declared.has(name) && !platformProvided.has(name) && !legacyCompatibility.has(name))
 		.sort();
+}
+
+function validateFirebaseSecretCoverage(entries, definedNames) {
+	const declaredSecrets = new Set(entries
+		.filter(({ scope, delivery }) => scope === 'functions' && delivery === 'firebase-secret')
+		.map(({ name }) => name));
+	return [...definedNames].filter((name) => !declaredSecrets.has(name)).sort();
 }
 
 function validateWorkflowMappings(entries) {
@@ -94,6 +117,10 @@ function main() {
 		const files = sourceRoots.flatMap((directory) => listSourceFiles(path.join(rootDir, directory)));
 		const missing = validateContractCoverage(entries, collectProcessEnvironmentNames(files));
 		if (missing.length) throw new Error(`Referenced variables missing from .env.example: ${missing.join(', ')}`);
+		const missingSecrets = validateFirebaseSecretCoverage(entries, collectDefinedFirebaseSecretNames(files));
+		if (missingSecrets.length) {
+			throw new Error(`Firebase secrets missing from .env.example: ${missingSecrets.join(', ')}`);
+		}
 		const missingMappings = validateWorkflowMappings(entries);
 		if (missingMappings.length) throw new Error(`Workflow mappings missing from environment contract delivery: ${missingMappings.join(', ')}`);
 		console.log(`Environment contract validated: ${entries.length} declared variables cover Maintley-owned runtime references.`);
@@ -106,7 +133,10 @@ function main() {
 if (require.main === module) main();
 
 module.exports = {
+	collectDefinedFirebaseSecretNames,
 	collectProcessEnvironmentNames,
+	extractDefinedFirebaseSecretNames,
 	validateContractCoverage,
+	validateFirebaseSecretCoverage,
 	validateWorkflowMappings,
 };

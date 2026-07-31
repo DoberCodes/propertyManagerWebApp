@@ -1,13 +1,12 @@
 name: Release Prep
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - package.json
-      - client/package.json
-      - android/app/build.gradle
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact successfully deployed Beta commit to promote.
+        required: true
+        type: string
   workflow_dispatch:
 
 concurrency:
@@ -16,20 +15,21 @@ concurrency:
 
 jobs:
   prepare-release-pr:
-    if: "${{ github.event_name != 'push' || startsWith(github.event.head_commit.message, 'release: prepare v') == false }}"
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
       pull-requests: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_call' && inputs.source_sha || 'beta' }}
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
@@ -135,6 +135,16 @@ jobs:
               --title "Release v$VERSION" \
               --body-file tmp/release-prep-pr-body.md
           fi
+
+      - name: Dispatch release candidate validation
+        if: steps.prep.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run build-check.yml --ref release/next
+          gh workflow run e2e-tests.yml --ref release/next -f suite=smoke
+          gh workflow run release-notes.yml --ref release/next
 
       - name: Write summary
         if: steps.notes.outputs.has_metadata == 'true'

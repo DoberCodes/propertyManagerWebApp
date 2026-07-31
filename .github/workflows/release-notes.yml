@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - beta
   push:
     branches:
       - main
@@ -11,7 +12,6 @@ on:
 
 jobs:
   generate-release-notes:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -31,19 +31,22 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
       - name: Determine release note range
         id: range
         shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            git fetch origin main --tags
-            FROM_REF="$(git merge-base origin/main HEAD)"
+            git check-ref-format --branch "$BASE_REF" > /dev/null
+            git fetch origin "$BASE_REF" --tags
+            FROM_REF="$(git merge-base "origin/$BASE_REF" HEAD)"
             echo "from_ref=$FROM_REF" >> "$GITHUB_OUTPUT"
-            echo "range_label=PR changes against main" >> "$GITHUB_OUTPUT"
+            echo "range_label=PR changes against $BASE_REF" >> "$GITHUB_OUTPUT"
           else
             git fetch --tags
             echo "from_ref=" >> "$GITHUB_OUTPUT"
@@ -93,7 +96,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload release note artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-notes-${{ steps.commit.outputs.sha }}
           path: |

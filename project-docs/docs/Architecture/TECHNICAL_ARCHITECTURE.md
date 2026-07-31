@@ -185,17 +185,22 @@ functions/index.ts
 
 # Routing Architecture
 
-Maintley uses:
+Maintley uses an explicit routing build profile:
 
 ```text
-HashRouter
+Web / Firebase Hosting     BrowserRouter + root-relative assets
+Packaged Android          HashRouter + relative assets
 ```
+
+The transitional Android profile prevents the Hosting migration from changing
+the installed Capacitor application before native deep-link and callback
+validation is complete. Web builds do not support `/#/` application routes.
 
 This supports:
 
-* Static hosting
-* Android packaging
-* Client-side routing
+* clean, refreshable Firebase Hosting routes
+* safe Android packaging during the staged migration
+* an explicit later removal of the Android hash profile after native validation
 
 ---
 

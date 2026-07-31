@@ -49,7 +49,7 @@ const offers = plans.flatMap((plan) => {
 		name: plan.priceMonthly === 0 ? plan.name : `${plan.name} monthly`,
 		price: String(plan.priceMonthly),
 		priceCurrency: 'USD',
-		url: 'https://maintleyapp.com/#/register',
+		url: 'https://maintleyapp.com/register',
 	};
 	if (plan.priceYearly === 0) return [monthly];
 	return [monthly, {
@@ -57,7 +57,7 @@ const offers = plans.flatMap((plan) => {
 		name: `${plan.name} yearly`,
 		price: String(plan.priceYearly),
 		priceCurrency: 'USD',
-		url: 'https://maintleyapp.com/#/register',
+		url: 'https://maintleyapp.com/register',
 	}];
 });
 

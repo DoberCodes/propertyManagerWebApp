@@ -46,7 +46,7 @@ test.describe('Account RBAC write regression', () => {
 		await loginWithDemoUser(page);
 
 		// Flow 1: Property create
-		await page.goto('/#/properties');
+		await page.goto('/properties');
 		await waitForPageLoaded(page);
 
 		const createPropertyButton = page
@@ -85,7 +85,7 @@ test.describe('Account RBAC write regression', () => {
 		}
 
 		// Flow 2: Task create
-		await page.goto('/#/tasks');
+		await page.goto('/tasks');
 		await waitForPageLoaded(page);
 
 		const createTaskButton = page

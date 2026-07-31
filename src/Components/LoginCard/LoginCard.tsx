@@ -21,7 +21,7 @@ import {
 	faEye,
 	faEyeSlash,
 } from '@fortawesome/free-regular-svg-icons';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { signInWithEmail } from '../../services/authService';
 import { USER_ROLES } from '../../constants/roles';
@@ -155,20 +155,17 @@ export const LoginCard = () => {
 				</CheckboxLabel>
 			</CheckboxWrapper>
 			<div style={{ textAlign: 'right', marginBottom: '16px' }}>
-				<a
-					href='#/forgot-password'
+				<Link
+					to='/forgot-password'
 					style={{
 						color: COLORS.primary,
 						textDecoration: 'none',
 						fontSize: '14px',
 						fontWeight: '500',
 					}}
-					onClick={(e) => {
-						e.preventDefault();
-						navigate('/forgot-password');
-					}}>
+				>
 					Forgot password?
-				</a>
+				</Link>
 			</div>
 			<Submit onClick={(event) => login(event)} disabled={loading}>
 				{loading && <LoadingSpinner />}
@@ -178,15 +175,18 @@ export const LoginCard = () => {
 			<RegisterWrapper>
 				<p>
 					Don't have an account?{' '}
-					<a
-						href={nativeApp ? getRegistrationUrl() : '#/registration'}
-						onClick={(event) => {
-							if (!nativeApp) return;
-							event.preventDefault();
-							void openRegistrationInBrowser();
-						}}>
-						{nativeApp ? 'Create account in browser' : 'Sign up here'}
-					</a>
+					{nativeApp ? (
+						<a
+							href={getRegistrationUrl()}
+							onClick={(event) => {
+								event.preventDefault();
+								void openRegistrationInBrowser();
+							}}>
+							Create account in browser
+						</a>
+					) : (
+						<Link to='/registration'>Sign up here</Link>
+					)}
 				</p>
 				<div
 					style={{
@@ -196,15 +196,11 @@ export const LoginCard = () => {
 						textAlign: 'center',
 					}}>
 					By signing in, you agree to our{' '}
-					<a
-						href='#/legal'
-						onClick={(e) => {
-							e.preventDefault();
-							window.location.href = '#/legal';
-						}}
+					<Link
+						to='/legal'
 						style={{ color: COLORS.primary, textDecoration: 'none' }}>
 						Terms of Service and Privacy Policy
-					</a>
+					</Link>
 				</div>
 			</RegisterWrapper>
 		</Wrapper>

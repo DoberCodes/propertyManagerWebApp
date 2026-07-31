@@ -7,26 +7,27 @@ on:
   pull_request:
     branches:
       - main
+      - beta
   workflow_dispatch:
 
 jobs:
   entitlement-package-version:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'release/next')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
       - name: Require an entitlement package version bump
         env:
-          ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event.pull_request.base.sha }}
+          ENTITLEMENT_PACKAGE_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'origin/main' }}
         run: yarn check:entitlement-package-version
 
       - name: Check entitlement lock synchronization
@@ -36,14 +37,14 @@ jobs:
         run: yarn test:entitlement-package-version && yarn test:entitlement-locks
 
   version-validate:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next'
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'release/next')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'yarn'
@@ -58,14 +59,13 @@ jobs:
         run: yarn validate:deployment-freeze
 
   unit-test:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'yarn'
@@ -86,7 +86,7 @@ jobs:
         run: yarn test:release-version
 
       - name: Use Java for Firebase emulators
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -98,15 +98,14 @@ jobs:
         run: yarn test:storage
 
   build:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     environment: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'yarn'
@@ -152,16 +151,15 @@ jobs:
         run: yarn check:asset-budgets
 
   functions-build:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.ref != 'release/next'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
           cache-dependency-path: functions/yarn.lock
 
@@ -207,7 +205,7 @@ jobs:
         run: node scripts/testMaintleyEventEngine.cjs
 
       - name: Use Java for Firebase emulators
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'

@@ -11,6 +11,9 @@ Companion report: `project-docs/reports/2026-07-22-firebase-hosting-migration-pl
 Amended: 2026-07-30 — development environment, beta branch, preview channels,
 and release-gated production deployment
 
+Amended: 2026-07-30 - staged web routing cutover and transitional Android build
+profile
+
 ## Context
 
 Maintley's web application currently deploys through GitHub Actions to GitHub
@@ -79,6 +82,12 @@ resources deploy only after approved changes merge into `beta`.
 
 `HashRouter` will be removed completely. Maintley will not maintain a
 permanent compatibility layer for legacy `/#/` application URLs.
+
+The web cutover may precede the native cutover. During that bounded migration
+window, Firebase Hosting builds use `BrowserRouter` exclusively while packaged
+Android builds retain an explicit `HashRouter` profile with relative assets.
+That profile is not used by web builds and must be removed after the native URL
+open, callback, back-navigation, and Play-installed release gates pass.
 
 ## Architectural principle
 
@@ -347,6 +356,8 @@ Branch protection must require validated feature work to enter `beta` through a
 pull request. The release PR promotes the accumulated, reviewed `beta` state to
 `main`; it is not merely a version-only administrative change. After release,
 `beta` must be synchronized with `main` without rewriting shared branch history.
+That synchronization must use a true merge commit; squash and rebase merges do
+not preserve the ancestry required for the next Beta-to-main release promotion.
 
 The production workflow must verify that the target commit is the approved
 `Release vX.Y.Z` merge and that repository-controlled version files agree before

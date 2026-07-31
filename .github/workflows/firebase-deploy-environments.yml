@@ -3,6 +3,7 @@ name: Deploy Firebase Environments
 on:
   push:
     branches:
+      - beta
       - main
   workflow_dispatch:
     inputs:
@@ -12,7 +13,251 @@ on:
         default: functions,firestore:rules
 
 jobs:
+  development-build:
+    name: Build stable development app
+    if: github.event_name == 'push' && github.ref_name == 'beta'
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Use Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Validate environment contract
+        run: yarn env:contract:validate
+
+      - name: Validate development deployment boundary
+        shell: bash
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          REACT_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
+          STRIPE_PUBLIC_KEY: ${{ vars.DEV_REACT_APP_STRIPE_PUBLIC_KEY }}
+        run: |
+          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" || "$REACT_FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
+            echo "Refusing to build a stable development release outside Maintley Beta."
+            exit 1
+          fi
+
+          if [[ "$STRIPE_PUBLIC_KEY" != pk_test_* ]]; then
+            echo "Stable development releases require a Stripe pk_test_ publishable key."
+            exit 1
+          fi
+
+      - name: Build stable Maintley Beta app
+        env:
+          CI: false
+          REACT_APP_FIREBASE_API_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_API_KEY }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.DEV_REACT_APP_FIREBASE_AUTH_DOMAIN }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ vars.DEV_REACT_APP_FIREBASE_STORAGE_BUCKET }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.DEV_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
+          REACT_APP_FIREBASE_APP_ID: ${{ vars.DEV_REACT_APP_FIREBASE_APP_ID }}
+          REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_MEASUREMENT_ID }}
+          REACT_APP_ENABLE_ANALYTICS: ${{ vars.DEV_REACT_APP_ENABLE_ANALYTICS }}
+          REACT_APP_ANALYTICS_DEBUG: ${{ vars.DEV_REACT_APP_ANALYTICS_DEBUG || 'false' }}
+          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
+          REACT_APP_STRIPE_PUBLIC_KEY: ${{ vars.DEV_REACT_APP_STRIPE_PUBLIC_KEY }}
+          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.DEV_REACT_APP_STRIPE_CUSTOMER_PORTAL_URL }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
+          REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
+          REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
+          REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ vars.DEV_REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID }}
+          REACT_APP_WEATHER_API_KEY: ${{ vars.DEV_REACT_APP_WEATHER_API_KEY }}
+          REACT_APP_PUBLIC_WEB_URL: ${{ vars.DEV_REACT_APP_PUBLIC_WEB_URL }}
+          REACT_APP_PLAY_STORE_URL: ${{ vars.DEV_REACT_APP_PLAY_STORE_URL }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.DEV_REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.DEV_REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.DEV_REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.DEV_REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
+          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.DEV_REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.DEV_REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
+        run: |
+          yarn sync:public-pricing
+          yarn build
+          yarn check:asset-budgets
+
+      - name: Upload stable development build
+        uses: actions/upload-artifact@v6
+        with:
+          name: firebase-stable-development-${{ github.sha }}
+          path: build
+          if-no-files-found: error
+          retention-days: 1
+
+  development-deploy:
+    name: Deploy stable development environment
+    if: github.event_name == 'push' && github.ref_name == 'beta'
+    needs: development-build
+    runs-on: ubuntu-latest
+    environment: development
+    concurrency:
+      group: firebase-stable-development
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve changed backend targets
+        id: deploy-targets
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          if [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
+          else
+            CHANGED_FILES="$(git diff --name-only HEAD~1 HEAD)"
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          targets=("hosting:beta")
+          backend_targets=()
+
+          if echo "$CHANGED_FILES" | grep -Eq '^functions/'; then
+            targets+=("functions")
+            backend_targets+=("functions")
+          fi
+
+          if echo "$CHANGED_FILES" | grep -Eq '^firestore\.rules$'; then
+            targets+=("firestore:rules")
+            backend_targets+=("firestore:rules")
+          fi
+
+          if echo "$CHANGED_FILES" | grep -Eq '^storage\.rules$'; then
+            targets+=("storage")
+            backend_targets+=("storage")
+          fi
+
+          TARGETS="$(IFS=,; echo "${targets[*]}")"
+          BACKEND_TARGETS="$(IFS=,; echo "${backend_targets[*]}")"
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          echo "backend_targets=$BACKEND_TARGETS" >> "$GITHUB_OUTPUT"
+          echo "has_backend_targets=$([[ ${#backend_targets[@]} -gt 0 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "Stable development deploy targets: $TARGETS"
+
+      - name: Use Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Download stable development build
+        uses: actions/download-artifact@v6
+        with:
+          name: firebase-stable-development-${{ github.sha }}
+          path: build
+
+      - name: Install root validation dependencies
+        if: steps.deploy-targets.outputs.has_backend_targets == 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Use Node.js for Functions
+        if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'yarn'
+          cache-dependency-path: functions/yarn.lock
+
+      - name: Install Functions dependencies
+        if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
+        run: yarn --cwd functions install --frozen-lockfile
+
+      - name: Validate Functions deploy package
+        if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
+        run: |
+          yarn check:entitlement-locks
+          yarn validate:functions-package
+          yarn --cwd functions build
+
+      - name: Use Java for Firebase emulators
+        if: steps.deploy-targets.outputs.has_backend_targets == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Validate changed Firebase rules
+        if: steps.deploy-targets.outputs.has_backend_targets == 'true'
+        run: |
+          if [[ "${{ steps.deploy-targets.outputs.backend_targets }}" == *"firestore"* || "${{ steps.deploy-targets.outputs.backend_targets }}" == *"functions"* ]]; then
+            yarn test:rules
+          fi
+          if [[ "${{ steps.deploy-targets.outputs.backend_targets }}" == *"storage"* || "${{ steps.deploy-targets.outputs.backend_targets }}" == *"functions"* ]]; then
+            yarn test:storage
+          fi
+
+      - name: Authenticate to Maintley Beta
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
+
+      - name: Verify stable development target
+        shell: bash
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          REACT_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
+        run: |
+          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" || "$REACT_FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
+            echo "Refusing to deploy outside Maintley Beta."
+            exit 1
+          fi
+
+      - name: Write stable development Functions environment
+        if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
+        env:
+          MAINTLEY_GITHUB_VARIABLES_JSON: ${{ toJSON(vars) }}
+        run: yarn env:bootstrap --environment development --apply --strict --check-secrets
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.22.3
+
+      - name: Deploy stable development environment
+        run: |
+          firebase deploy \
+            --project beta \
+            --only "${{ steps.deploy-targets.outputs.targets }}" \
+            --non-interactive \
+            --force
+
+  development-release-prep:
+    name: Update release candidate
+    if: github.event_name == 'push' && github.ref_name == 'beta'
+    needs: development-deploy
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/release-prep.yml
+    with:
+      source_sha: ${{ github.sha }}
+
   build-check:
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -20,10 +265,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'yarn'
@@ -71,7 +316,16 @@ jobs:
           yarn sync:public-pricing
           yarn build
 
+      - name: Upload production Hosting build
+        uses: actions/upload-artifact@v6
+        with:
+          name: firebase-production-hosting-${{ github.sha }}
+          path: build
+          if-no-files-found: error
+          retention-days: 1
+
   deploy:
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     environment: production
     needs: [build-check]
@@ -80,9 +334,21 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      - name: Require an exact release merge for production Hosting
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          SUBJECT="$(git log -1 --format=%s HEAD)"
+          ESCAPED_VERSION="${VERSION//./\\.}"
+          if ! printf '%s\n' "$SUBJECT" | grep -Eq "^Release v${ESCAPED_VERSION} \\(#[0-9]+\\)$"; then
+            echo "::error::Production deployment requires the Release v$VERSION pull-request merge. Found: $SUBJECT"
+            exit 1
+          fi
 
 
       - name: Resolve target Firebase project
@@ -119,6 +385,11 @@ jobs:
               TARGETS="functions,firestore:rules"
             fi
 
+            if [[ "$TARGETS" == *"hosting"* ]]; then
+              echo "::error::Production Hosting deploys only from an exact release merge to main."
+              exit 1
+            fi
+
             echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
             echo "has_targets=true" >> "$GITHUB_OUTPUT"
             echo "Manual Firebase deploy targets: $TARGETS"
@@ -134,7 +405,7 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          targets=()
+          targets=("hosting:prod")
 
           if echo "$CHANGED_FILES" | grep -Eq '^functions/'; then
             targets+=("functions")
@@ -148,21 +419,21 @@ jobs:
             targets+=("storage")
           fi
 
-          if [[ "${#targets[@]}" -eq 0 ]]; then
-            echo "targets=" >> "$GITHUB_OUTPUT"
-            echo "has_targets=false" >> "$GITHUB_OUTPUT"
-            echo "No Firebase deploy targets changed."
-            exit 0
-          fi
-
           TARGETS="$(IFS=,; echo "${targets[*]}")"
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
           echo "has_targets=true" >> "$GITHUB_OUTPUT"
           echo "Firebase deploy targets: $TARGETS"
 
+      - name: Download production Hosting build
+        if: github.event_name == 'push'
+        uses: actions/download-artifact@v6
+        with:
+          name: firebase-production-hosting-${{ github.sha }}
+          path: build
+
       - name: Use Node.js for root validation dependencies
         if: steps.deploy-targets.outputs.has_targets == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'yarn'
@@ -172,16 +443,20 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Use Node.js for Functions
-        if: steps.deploy-targets.outputs.has_targets == 'true'
-        uses: actions/setup-node@v4
+        if: contains(steps.deploy-targets.outputs.targets, 'functions')
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
           cache-dependency-path: functions/yarn.lock
 
       - name: Install functions dependencies
-        if: steps.deploy-targets.outputs.has_targets == 'true'
+        if: contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions install --frozen-lockfile
+
+      - name: Install pinned Firebase CLI
+        if: steps.deploy-targets.outputs.has_targets == 'true'
+        run: npm install --global firebase-tools@15.22.3
 
       - name: Require an entitlement package version bump
         if: github.event_name == 'push' && steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
@@ -235,7 +510,7 @@ jobs:
 
       - name: Use Java for Firebase emulators
         if: steps.deploy-targets.outputs.has_targets == 'true' && (contains(steps.deploy-targets.outputs.targets, 'functions') || contains(steps.deploy-targets.outputs.targets, 'firestore') || contains(steps.deploy-targets.outputs.targets, 'storage'))
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -334,11 +609,22 @@ jobs:
             echo "STRIPE_PORTFOLIO_ANNUAL_PRICE_ID=$STRIPE_PORTFOLIO_ANNUAL_PRICE_ID"
           } > functions/.env.prod
 
-      - name: Deploy Firebase rules and Functions
+      - name: Deploy selected production Firebase targets
         if: steps.deploy-targets.outputs.has_targets == 'true'
         run: |
-          ./functions/node_modules/.bin/firebase deploy \
+          firebase deploy \
             --project "${{ steps.target.outputs.target }}" \
             --only "${{ steps.deploy-targets.outputs.targets }}" \
             --non-interactive \
             --force
+
+  finalize-release:
+    name: Publish deployed web release
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    needs: deploy
+    permissions:
+      contents: write
+    uses: ./.github/workflows/finalize-web-release.yml
+    with:
+      deployed_sha: ${{ github.sha }}
+      hosting_target: firebase-hosting

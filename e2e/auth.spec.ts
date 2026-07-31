@@ -38,7 +38,7 @@ test.describe('Authentication', () => {
 
 			await logout(page);
 			await expect(page).not.toHaveURL(/dashboard/i);
-			await expect(page).toHaveURL(/login|signin|localhost:3000\/?(#\/)?$/i);
+			await expect(page).toHaveURL(/login|signin|localhost:3000\/?$/i);
 			console.log('Demo user login redirect and logout redirect verified');
 		});
 	});

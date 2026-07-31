@@ -1256,7 +1256,7 @@ function buildDemoData(target, args) {
 			readAt: index < 4 ? isoDateTime(addDays(asOfDate, -1)) : null,
 			createdAt: isoDateTime(addDays(asOfDate, -index - 1)),
 			updatedAt: isoDateTime(addDays(asOfDate, -index - 1)),
-			actionUrl: `#/property/${slugify(property.title)}`,
+			actionUrl: `/property/${slugify(property.title)}`,
 		});
 	}
 

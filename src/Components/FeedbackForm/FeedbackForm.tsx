@@ -60,22 +60,17 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
 const resolvePropertyIdFromUrl = (): string => {
 	if (typeof window === 'undefined') return '';
 
-	const fullUrl = window.location.href;
-	const hashValue = window.location.hash || '';
-	const urlObject = new URL(fullUrl);
-	const hashQuery = hashValue.includes('?') ? hashValue.split('?')[1] : '';
-	const hashSearchParams = new URLSearchParams(hashQuery);
+	const urlObject = new URL(window.location.href);
 
 	const directPropertyId =
 		urlObject.searchParams.get('propertyId') ||
 		urlObject.searchParams.get('property') ||
-		hashSearchParams.get('propertyId') ||
-		hashSearchParams.get('property') ||
 		'';
 	if (directPropertyId.trim()) return directPropertyId.trim();
 
-	const hashPath = hashValue.replace(/^#/, '').split('?')[0] || '';
-	const propertyPathMatch = hashPath.match(/\/properties\/([^/?#]+)/i);
+	const propertyPathMatch = urlObject.pathname.match(
+		/\/propert(?:y|ies)\/([^/?#]+)/i,
+	);
 	return propertyPathMatch?.[1] ? String(propertyPathMatch[1]).trim() : '';
 };
 

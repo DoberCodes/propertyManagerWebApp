@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
 	Input,
 	Wrapper,
@@ -89,9 +89,9 @@ export const ForgotPasswordCard = () => {
 			<RegisterWrapper>
 				<p>
 					Remember your password?{' '}
-					<a href='#/login' onClick={handleBackToLogin}>
+					<Link to='/login'>
 						Back to Login
-					</a>
+					</Link>
 				</p>
 			</RegisterWrapper>
 		</Wrapper>

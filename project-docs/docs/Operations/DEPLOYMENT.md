@@ -98,16 +98,30 @@ No repository-supported command may update the `gh-pages` branch during the
 migration freeze. The last verified GitHub Pages build remains online as the
 current site and future rollback target until Firebase cutover is complete.
 
-Firebase Hosting is not yet configured as the production deployment path.
+The production Firebase default Hosting site receives release builds before
+the custom-domain cutover. DNS continues to serve the frozen GitHub Pages build
+until the routing, authentication, billing-return, PWA, and Android gates pass.
 
 ---
 
 # Firebase Hosting
 
-Firebase Hosting is not part of the active deployment path.
+Firebase Hosting is the release-gated web deployment path. Stable Beta builds
+deploy to `hosting:beta`. An exact `Release vX.Y.Z (#N)` merge into `main`
+deploys the uploaded production artifact to `hosting:prod`.
 
-Do not run `firebase deploy --only hosting` unless Firebase Hosting is
-intentionally reintroduced.
+Production Hosting must not be deployed through the generic manual backend
+target input. The release merge, synchronized version files, production build,
+and production environment approval form its deployment boundary.
+
+Until DNS cutover, `maintleyapp.com` remains on the frozen GitHub Pages build;
+the Firebase default production hostname is the candidate validation surface.
+
+Function-generated links and callbacks remain on their currently deployed hash
+URL behavior during this Hosting-only stage. Do not treat Stripe, lifecycle
+email, invitation, or Function-generated support-link returns as migrated until
+the coordinated Functions and DNS phase updates and deploys those producers.
+Client-generated and static-site links use clean routes in the Hosting build.
 
 ---
 
@@ -331,27 +345,61 @@ make the trusted writer mandatory, tighten rules to reject every direct client
 recurrence write, and remove the rollout flag. Client entitlement checks may
 remain only for contextual interface messaging.
 
+Production rollout state approved on 2026-07-30 enables the Homeowner+ product
+trial, internal entitlement-grant issuance, grant-aware paid transitions,
+access-lifecycle communication, trusted setup-plan activation, trusted recurring
+task writes, and trusted storage quota. The first-property trial eligibility
+boundary is `2026-07-25T16:19:46-04:00`; accounts created before that instant are
+not automatically enrolled. Customer-entered complimentary access-code
+redemption remains disabled because Maintley uses the admin grant flow.
+`ENTITLEMENT_COMPARE_MODE` also remains disabled because it is diagnostic only.
+
+These enabled flags are migration controls, not permanent configuration. After
+the Firebase migration is stable, remove each completed rollout flag and its
+obsolete fallback so the validated trusted path becomes standard behavior.
+
 `.env.example` is the committed environment contract. Each entry includes
 `@maintley-env` metadata defining its scope, delivery system, applicable
 environments, required status, optional source, and safe environment defaults.
 Real values never belong in that file.
 
+Section headings and declaration order in `.env.example` also control the
+organization of generated browser, operations, and Functions dotenv files.
+Generated templates retain empty declared entries so missing configuration is
+visible and can be completed without manually discovering variable names.
+
 Run `yarn env:contract:validate` whenever the application, Functions, scripts,
 or workflows introduce environment configuration. The validation fails when a
 Maintley-owned runtime variable is referenced without a contract declaration.
-Run `yarn env:organize --apply` to regenerate local browser and operations files
-from declared entries, and `yarn env:bootstrap --environment all --apply` to
-generate non-secret project-specific Functions files:
+The ignored root `.env` is the single local control file for actual non-secret
+values. It is organized into `LOCAL_`, `BETA_`, and `PROD_` sections. Run
+`yarn env:organize --apply` to preserve those values while regenerating the
+standard target files for both the application and Functions:
 
 ```text
+.env.local
+.env.beta
+.env.prod
 functions/.env.beta
 functions/.env.prod
 functions/.env.local
 ```
 
-The local emulator file follows Beta/test configuration. The generic
-`functions/.env` is a legacy migration source only and must not be used by new
-deployments. Every generated `.env*` file is ignored and must not be committed.
+Local application and Functions configuration inherits the complete Beta/test
+baseline. The `LOCAL_` section contains only values that differ from Beta or
+exist solely for local tooling, such as emulator hosts. Backend values with a declared browser `source` are entered once
+in the control file and derived into the matching Functions target. The generic
+`functions/.env`, `.env.production`, and `.env.development.local` names are
+legacy migration inputs only and must not be used by new workflows. Every real
+`.env*` file is ignored and must not be committed.
+
+The control file includes commented inventories for secrets without storing
+their values. Beta and Production Firebase secrets belong in the matching
+Firebase Secret Manager project. E2E secrets belong in the GitHub development
+environment. Android keystore passwords remain in `.env.operations.local`
+because signing is local. Service-account and sandbox credentials are optional
+local tooling inputs needed only when running their related administrative
+scripts.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
@@ -359,6 +407,12 @@ Actions variable and not a normal dotenv value in production. Create it with
 32 random characters before deploying the access-code callables. `RESEND_API_KEY`
 remains the Firebase Functions secret used by lifecycle delivery. Do not copy
 either value into repository Variables.
+
+`FUNCTIONS_CONFIG_EXPORT` is a required JSON secret retained only as a
+compatibility fallback for legacy `functions.config()` Stripe values. New
+environments using the dedicated Stripe secrets and price parameters must set it
+to an empty JSON object (`{}`); do not duplicate current Stripe credentials into
+the compatibility payload.
 
 Trusted storage quota rollout has three deliberate steps: deploy the callable,
 triggers, and compatible clients while both rollout controls are disabled; set
@@ -381,8 +435,10 @@ Firebase project or Storage bucket.
 During production CI, the contract-managed Functions values are written into a
 temporary `functions/.env.prod` file before `firebase deploy --project prod`
 runs. Firebase loads the project-alias-specific file during non-interactive
-deployment. Beta Functions deployments use `.env.beta`; emulator overrides use
-`.env.local`.
+deployment. Beta Functions deployments use `functions/.env.beta`; emulator
+overrides use `functions/.env.local`. Local application builds use the matching
+root `.env.prod`, `.env.beta`, or `.env.local` file through Maintley's build and
+runtime helpers rather than relying on framework-specific naming differences.
 
 `yarn github-env:sync --environment <development|production>` performs a
 values-hidden dry run against the corresponding GitHub environment. Add
@@ -406,21 +462,34 @@ Review environment setup before deploying billing, email, or notification change
 
 ## GitHub Actions Firebase Deploy Authentication
 
-Firebase rules and Functions deploy through:
+Stable Firebase Hosting, rules, and Functions deploy through:
 
 ```text
 .github/workflows/firebase-deploy-environments.yml
 ```
 
-The workflow authenticates with `google-github-actions/auth` using the
-`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret.
+Merges into `beta` use keyless Workload Identity Federation and the GitHub
+`development` environment. The existing production path on `main` continues to
+authenticate with `google-github-actions/auth` using the
+`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret until the production
+identity migration is completed.
 
-Automatic backend target selection is source-based: `functions/` changes
-deploy Functions, `firestore.rules` changes deploy Firestore rules, and
-`storage.rules` changes deploy Storage rules. A Hosting-only `firebase.json`
-change does not redeploy the production backend. Changes to Firebase backend
-configuration inside `firebase.json` require an explicit reviewed manual deploy
-until a configuration-aware target detector is introduced.
+Every merge into `beta` builds and deploys the stable `hosting:beta` target.
+Backend selection remains source-based: `functions/` changes deploy Functions,
+`firestore.rules` changes deploy Firestore rules, and `storage.rules` changes
+deploy Storage rules. The stable build artifact must complete before the deploy
+job can authenticate. Deployments are serialized so two merges cannot update
+the shared development environment concurrently.
+
+An exact release merge into `main` always deploys `hosting:prod`. Functions,
+Firestore rules, and Storage rules retain source-based target detection and are
+added only when their owned files changed. Hosting-only releases therefore
+cannot redeploy Functions or rules. The matching tag and GitHub Release are
+created idempotently only after every selected Firebase target succeeds.
+
+The production default Hosting hostname is intentionally populated before DNS
+cutover. This does not move customer traffic: the custom domain continues to
+resolve to the frozen GitHub Pages deployment until the later DNS phase.
 
 Recommended setup:
 
@@ -459,14 +528,23 @@ the production Stripe publishable key in a development build.
 The Workload Identity provider admits tokens only from
 `DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
 `development` environment. The dedicated service account is scoped to the
-`maintleybeta` project. Its initial permissions are Firebase Hosting Admin and
-API Keys Viewer, which support Hosting preview work without granting Functions,
-Firestore Rules, Storage Rules, Scheduler, Secret Manager, or production access.
+`maintleybeta` project. Its baseline permissions are Firebase Hosting Admin,
+API Keys Viewer, Secret Manager Viewer, and Service Usage Viewer. The read-only
+Secret Manager and Service Usage roles allow readiness checks to confirm
+required secret metadata and API availability without printing secret values.
+
+Stable backend deployment extends that same identity only within
+`maintleybeta`. Grant Firebase Rules Admin and Cloud Storage for Firebase Admin
+before the workflow must publish those rule targets. Functions deployment also
+requires the applicable Cloud Functions deployment permissions, Service Account
+User on the runtime service account, and the targeted supporting roles described
+below for Scheduler, Extensions, billing inspection, and secret access. These
+roles do not grant access to the production project.
 
 Do not create or store a JSON key for this development identity. Add further
-roles only when the corresponding development deployment stage is implemented
-and validated. The current production workflow continues using its existing
-credential path until the production identity migration is performed.
+roles only when a changed Beta target requires them. The current production
+workflow continues using its existing credential path until the production
+identity migration is performed.
 
 Keyless authentication is checked by:
 
@@ -474,7 +552,7 @@ Keyless authentication is checked by:
 .github/workflows/verify-development-deployment-identity.yml
 ```
 
-The workflow performs no deployment. On relevant pushes to `beta` or `main`, or
+The workflow performs no deployment. On relevant pushes to `beta`, or
 when manually dispatched after it exists on the default branch, it verifies
 that GitHub can impersonate the development service account and that the
 expected Maintley Beta Hosting site is visible. It intentionally avoids loading
@@ -489,11 +567,26 @@ Pull requests targeting `beta` use:
 The preview workflow builds against only `DEV_REACT_APP_*` configuration,
 requires the Stripe publishable key to start with `pk_test_`, disables staged
 server-owned feature flags, and deploys only the `beta` Hosting target to a
-seven-day preview channel. Pull requests from forks are not deployed. The build
-job has no Google identity token; the deploy job downloads the static artifact,
-uses the trusted Hosting configuration from the PR base commit, and authenticates
-only immediately before the Firebase CLI deployment. It never deploys Functions,
-Firestore Rules, or Storage Rules.
+seven-day preview channel. The workflow also verifies required non-secret
+Functions configuration from the GitHub `development` environment and required
+secret names in the Maintley Beta project before deploying the preview. Values
+and secret contents are never printed. Pull requests from forks are not
+deployed. The build job has no Google identity token; the deploy job downloads
+the static artifact, uses the trusted Hosting configuration from the PR base
+commit, and authenticates only immediately before the Firebase CLI deployment.
+It never deploys Functions, Firestore Rules, or Storage Rules.
+
+After a pull request merges, `firebase-deploy-environments.yml` rebuilds the
+approved `beta` commit and promotes that artifact to the stable Maintley Beta
+Hosting site. The job refuses to continue unless both Firebase project IDs are
+exactly `maintleybeta` and the Stripe browser key is a test key. Functions use a
+generated `functions/.env.beta` file from contract-managed GitHub development
+variables; required Firebase secret names are checked without exposing their
+contents. Ordinary `beta` merges cannot select the `prod` Firebase alias.
+
+The E2E workflow runs for pull requests targeting either `beta` or `main`.
+Require its `e2e` status on both protected branches only after the workflow has
+reported successfully at least once for that target branch.
 
 The workflow updates one bot comment on the pull request with the preview URL.
 The development customer-portal URL remains pointed at a safe Maintley Beta
@@ -834,9 +927,11 @@ Release version changes are prepared by:
 .github/workflows/release-prep.yml
 ```
 
-The Release Prep workflow runs after pushes to `main`, computes the highest
-required bump across the unreleased range, and opens or updates the `release/next`
-PR. That PR updates:
+The stable development deployment calls Release Prep only after a merged
+`beta` commit has built and deployed successfully. Release Prep computes the
+highest required bump across the unreleased range and opens or updates the
+single `release/next` PR targeting `main`. The release branch is rebuilt from
+the exact deployed Beta commit before these version files are updated:
 
 * `package.json`
 * `client/package.json`
@@ -844,9 +939,12 @@ PR. That PR updates:
 * `android/app/build.gradle` `versionCode`
 
 The workflow uses `scripts/prepareReleaseVersion.cjs` and
-`scripts/validateReleaseVersion.cjs`. If a patch-only release PR is open and a
-feature or breaking change later lands on `main`, the same `release/next` PR is
-updated with the higher required bump.
+`scripts/validateReleaseVersion.cjs`. If PR `release/next` already exists, its
+branch, title, body, version, and release-note preview are updated. Otherwise
+the workflow creates it. A later successfully deployed Beta feature or breaking
+change updates that same PR with the higher required bump; it does not create a
+second release PR or reset the release boundary merely because a new Beta merge
+arrived.
 
 Firebase deployment jobs install both the root validation dependencies and the
 Functions deployment dependencies. Firestore and Storage emulator gates use
@@ -854,15 +952,32 @@ the root rules-testing package, while Functions builds and callable emulator
 tests use `functions/node_modules`; neither dependency set may be omitted from
 the deployment job merely because the earlier build-check job installed it in a
 separate runner. Root dependencies are installed under Node 24 to satisfy the
-current web and Capacitor tooling engines; the job then switches to Node 20 for
-the Functions package, matching the deployed Functions runtime.
+current web and Capacitor tooling engines; the job then switches to Node 22 for
+the Functions package. `firebase.json` declares `nodejs22` as the authoritative
+deployed Functions runtime, while the Functions package accepts Node 22 or newer
+so root workspace tooling can continue to run under Node 24.
 
 If `package.json` is already ahead of the latest `v*` tag because a release was
-prepared but not tagged locally yet, the latest merged `Release v...` commit is
-used as the release-note boundary. New releaseable changes are then bumped from
-that prepared package version. For example, a new patch change after prepared
-version `2.7.30` produces `2.7.31` rather than reusing `2.7.30` or repeating the
-changes already assigned to `2.7.30`.
+prepared but not tagged locally yet, the highest versioned reachable
+`Release v...` commit is used as the release-note boundary. Boundary discovery
+examines merged ancestry rather than only the first-parent chain so a preserved
+long-lived-branch synchronization merge cannot make prior release work appear
+new again. New releaseable changes are then bumped from that prepared package
+version.
+
+## Web and Android routing build profiles
+
+`yarn build` and `yarn build:beta` produce Firebase Hosting artifacts with
+`BrowserRouter`, `PUBLIC_URL=/`, and clean application routes. `yarn
+build:android` produces the transitional Capacitor artifact with `HashRouter`
+and relative assets. `cap:sync`, `build:apk`, and `build:signed` invoke the
+Android profile explicitly; they must not reuse a previously generated web
+artifact.
+
+The Android hash profile is a migration boundary, not a second permanent web
+routing system. It will be removed only after App Links, callback handling,
+hardware back navigation, and the Play-installed candidate pass the Android
+gate in ADR 0028.
 
 When the current `main` commit is the matching release-preparation merge, the
 release-note generator keeps that prepared package version. It only bumps from
@@ -870,10 +985,38 @@ the prepared version after another product change lands. This allows
 `build:signed` to consume the release-notes artifact from the release merge
 without requesting an additional, empty version-preparation cycle.
 
-`release/next` is treated as a version-only administrative PR. Release note
-previews and E2E tests are skipped for that PR, while Build Check runs only
-`yarn version:validate`. After the release PR merges to `main`, Release Prep
-does not open another release PR from the `release: prepare v...` commit.
+`release/next` promotes the complete approved Beta state, so it is not treated
+as a version-only administrative PR. It runs the production-configured build,
+unit and rules tests, Functions validation, E2E smoke test, release-note
+preview, entitlement-package policy, and `yarn version:validate`. A failed
+stable Beta deployment cannot update the release branch.
+
+Release Prep explicitly dispatches those validation workflows after pushing
+`release/next`. GitHub intentionally prevents a branch push made by the default
+Actions token from recursively triggering other workflows, so relying on the
+pull-request synchronization event would leave the updated release commit with
+no checks. The dispatches run against the exact `release/next` head and retain
+the normal check names used by branch protection.
+
+### Main and Beta branch synchronization
+
+Synchronization from `main` back into `beta` must preserve Git ancestry. Open a
+pull request from `main` to `beta` and complete it with **Create a merge
+commit**. Do not squash or rebase that synchronization PR: those methods can
+copy identical files into Beta without recording `main` as an ancestor, which
+causes the later `release/next` promotion back to `main` to conflict.
+
+Feature pull requests targeting `beta` may continue using the normal squash
+policy. The merge-commit requirement applies specifically to synchronization
+between the two protected long-lived branches. Never force-push either branch
+to repair ancestry.
+
+Feature pull requests targeting `beta` run the same required Build Check jobs
+as ordinary pull requests targeting `main`: entitlement-package policy, unit
+and rules tests, production build validation, and the Functions build. Release
+note previews also run for both targets and derive their comparison boundary
+from the pull request's actual base branch, so a feature PR reports only its
+changes against `beta` while a release PR is evaluated against `main`.
 
 The current app version used by update notifications is derived from
 `package.json` through:
