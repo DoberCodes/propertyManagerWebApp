@@ -1,0 +1,78 @@
+name: Pull Request Summary
+
+on:
+  pull_request_target:
+    branches:
+      - beta
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+concurrency:
+  group: pr-summary-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  update-summary:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout trusted base branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Collect pull request metadata
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.issue.number;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+            fs.writeFileSync('pr-summary-metadata.json', JSON.stringify({ files, commits }));
+            fs.writeFileSync('pr-summary-body.md', context.payload.pull_request.body || '');
+
+      - name: Generate protected summary block
+        run: >-
+          node scripts/generatePullRequestSummary.cjs
+          --metadata pr-summary-metadata.json
+          --body pr-summary-body.md
+          --output pr-summary-updated.md
+
+      - name: Update pull request body
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('pr-summary-updated.md', 'utf8');
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              body,
+            });

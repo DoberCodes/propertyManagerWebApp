@@ -974,6 +974,21 @@ Maintley now shows clearer dashboard focus controls for each user.
 Maintley's pull request template includes a `Customer Release Note` section so
 user-visible changes can be captured before merge.
 
+Pull requests targeting `beta` receive a deterministic engineering summary from
+`.github/workflows/pull-request-summary.yml`. The workflow updates only the
+content between `maintley-pr-summary` markers and preserves every manually
+written section outside that block. It derives the summary from GitHub's changed
+file metadata and commit subjects; it does not read changed-file contents or
+dotenv values. Live build and test conclusions remain authoritative in the PR's
+required checks.
+
+The updater uses `pull_request_target` so the write-capable job runs trusted
+workflow and generator code rather than code from the feature branch. It checks
+out the exact Beta base commit and does not check out or execute the PR head.
+Because GitHub evaluates `pull_request_target` workflows from the repository's
+default branch, the automation becomes active after this workflow has reached
+`main`; its branch filter still limits updates to PRs whose base is `beta`.
+
 `build:signed` does not regenerate release notes. It downloads the successful
 `release-notes.yml` artifact for the current `main` commit and reads release
 metadata from:

@@ -1020,6 +1020,33 @@ High
 
 ---
 
+## Pull Request Summary
+
+```bash
+yarn pr:summary:test
+```
+
+`scripts/generatePullRequestSummary.cjs` creates the protected automated summary
+block used on pull requests targeting `beta`. Inputs are limited to GitHub file
+metadata, commit subjects, and the existing PR body. The generator never reads
+the contents of changed files, redacts common provider-secret patterns from
+commit subjects, neutralizes marker injection, and changes only the content
+between these markers:
+
+```text
+<!-- maintley-pr-summary:start -->
+<!-- maintley-pr-summary:end -->
+```
+
+If an older PR does not contain the markers, the block is appended. Incomplete
+or malformed markers fail closed so manual PR content is not overwritten.
+
+Risk:
+
+Low
+
+---
+
 ## Release Notes
 
 ```bash
