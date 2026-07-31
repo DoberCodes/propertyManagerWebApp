@@ -567,10 +567,17 @@ records were copied into the development project during bootstrap.
 * [x] Keep PR previews on the stable development backend; do not deploy shared Functions or rules per PR.
 * [x] Retain required build, unit, rules, entitlement-package, Functions, E2E, asset-budget, and release-note validation for pull requests targeting `beta`.
 * [ ] Add stable development Hosting, Functions, Firestore rules, and Storage rules deployment after merge to `beta`.
+  * The deployment workflow is implemented; keep this item open until the first
+    merged Beta commit has deployed stable Hosting successfully and each
+    conditional backend target has been exercised with its least-privilege IAM
+    grants.
 * [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
 * [ ] Use separate, least-privilege development and production deployment identities.
 * [x] Configure environment-specific secrets without committing credentials.
 * [ ] Update Release Prep so the release branch promotes the approved `beta` state into `main` rather than acting as a version-only branch.
+  * The reusable promotion workflow is implemented; keep this item open until
+    the first successful stable Beta deployment updates the existing
+    `release/next` PR and its full release validation passes.
 * [ ] Gate production deployment on an exact `Release vX.Y.Z` merge and synchronized version files.
 * [ ] Generate final customer release notes from the preceding merged release boundary.
 * [ ] Create the matching Git tag and GitHub Release only after every required production deployment succeeds.
