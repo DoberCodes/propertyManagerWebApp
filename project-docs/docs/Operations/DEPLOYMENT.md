@@ -448,21 +448,30 @@ Review environment setup before deploying billing, email, or notification change
 
 ## GitHub Actions Firebase Deploy Authentication
 
-Firebase rules and Functions deploy through:
+Stable Firebase Hosting, rules, and Functions deploy through:
 
 ```text
 .github/workflows/firebase-deploy-environments.yml
 ```
 
-The workflow authenticates with `google-github-actions/auth` using the
-`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret.
+Merges into `beta` use keyless Workload Identity Federation and the GitHub
+`development` environment. The existing production path on `main` continues to
+authenticate with `google-github-actions/auth` using the
+`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret until the production
+identity migration is completed.
 
-Automatic backend target selection is source-based: `functions/` changes
-deploy Functions, `firestore.rules` changes deploy Firestore rules, and
-`storage.rules` changes deploy Storage rules. A Hosting-only `firebase.json`
-change does not redeploy the production backend. Changes to Firebase backend
-configuration inside `firebase.json` require an explicit reviewed manual deploy
-until a configuration-aware target detector is introduced.
+Every merge into `beta` builds and deploys the stable `hosting:beta` target.
+Backend selection remains source-based: `functions/` changes deploy Functions,
+`firestore.rules` changes deploy Firestore rules, and `storage.rules` changes
+deploy Storage rules. The stable build artifact must complete before the deploy
+job can authenticate. Deployments are serialized so two merges cannot update
+the shared development environment concurrently.
+
+The production path retains its existing source-based backend behavior and
+does not deploy Hosting during this migration phase. A Hosting-only
+`firebase.json` change does not redeploy the backend. Changes to Firebase
+backend configuration inside `firebase.json` require an explicit reviewed
+manual deploy until a configuration-aware target detector is introduced.
 
 Recommended setup:
 
@@ -501,17 +510,23 @@ the production Stripe publishable key in a development build.
 The Workload Identity provider admits tokens only from
 `DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
 `development` environment. The dedicated service account is scoped to the
-`maintleybeta` project. Its preview-stage permissions are Firebase Hosting
-Admin, API Keys Viewer, Secret Manager Viewer, and Service Usage Viewer. The
-read-only Secret Manager and Service Usage roles allow readiness checks to
-confirm required secret metadata and API availability without reading secret
-values, changing enabled services, or granting Functions, Firestore Rules,
-Storage Rules, Scheduler, or production access.
+`maintleybeta` project. Its baseline permissions are Firebase Hosting Admin,
+API Keys Viewer, Secret Manager Viewer, and Service Usage Viewer. The read-only
+Secret Manager and Service Usage roles allow readiness checks to confirm
+required secret metadata and API availability without printing secret values.
+
+Stable backend deployment extends that same identity only within
+`maintleybeta`. Grant Firebase Rules Admin and Cloud Storage for Firebase Admin
+before the workflow must publish those rule targets. Functions deployment also
+requires the applicable Cloud Functions deployment permissions, Service Account
+User on the runtime service account, and the targeted supporting roles described
+below for Scheduler, Extensions, billing inspection, and secret access. These
+roles do not grant access to the production project.
 
 Do not create or store a JSON key for this development identity. Add further
-roles only when the corresponding development deployment stage is implemented
-and validated. The current production workflow continues using its existing
-credential path until the production identity migration is performed.
+roles only when a changed Beta target requires them. The current production
+workflow continues using its existing credential path until the production
+identity migration is performed.
 
 Keyless authentication is checked by:
 
@@ -542,6 +557,14 @@ deployed. The build job has no Google identity token; the deploy job downloads
 the static artifact, uses the trusted Hosting configuration from the PR base
 commit, and authenticates only immediately before the Firebase CLI deployment.
 It never deploys Functions, Firestore Rules, or Storage Rules.
+
+After a pull request merges, `firebase-deploy-environments.yml` rebuilds the
+approved `beta` commit and promotes that artifact to the stable Maintley Beta
+Hosting site. The job refuses to continue unless both Firebase project IDs are
+exactly `maintleybeta` and the Stripe browser key is a test key. Functions use a
+generated `functions/.env.beta` file from contract-managed GitHub development
+variables; required Firebase secret names are checked without exposing their
+contents. Ordinary `beta` merges cannot select the `prod` Firebase alias.
 
 The E2E workflow runs for pull requests targeting either `beta` or `main`.
 Require its `e2e` status on both protected branches only after the workflow has
