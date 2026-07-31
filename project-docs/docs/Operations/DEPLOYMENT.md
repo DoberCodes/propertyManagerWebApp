@@ -102,13 +102,20 @@ The production Firebase default Hosting site receives release builds before
 the custom-domain cutover. DNS continues to serve the frozen GitHub Pages build
 until the routing, authentication, billing-return, PWA, and Android gates pass.
 
+Release identity is verified from GitHub pull-request metadata rather than from
+one merge-subject format. The merge must belong to a merged `Release vX.Y.Z`
+pull request from `release/next` into `main`, its merge SHA must equal the build
+source, and repository-controlled versions must agree. This accepts GitHub's
+standard `Merge pull request #N from ...` subject without weakening the release
+boundary.
+
 ---
 
 # Firebase Hosting
 
 Firebase Hosting is the release-gated web deployment path. Stable Beta builds
-deploy to `hosting:beta`. An exact `Release vX.Y.Z (#N)` merge into `main`
-deploys the uploaded production artifact to `hosting:prod`.
+deploy to `hosting:beta`. A metadata-validated `Release vX.Y.Z` PR merge into
+`main` deploys the uploaded production artifact to `hosting:prod`.
 
 Production Hosting must not be deployed through the generic manual backend
 target input. The release merge, synchronized version files, production build,
@@ -481,11 +488,24 @@ deploy Storage rules. The stable build artifact must complete before the deploy
 job can authenticate. Deployments are serialized so two merges cannot update
 the shared development environment concurrently.
 
-An exact release merge into `main` always deploys `hosting:prod`. Functions,
+An authenticated release-PR merge into `main` always deploys `hosting:prod`. Functions,
 Firestore rules, and Storage rules retain source-based target detection and are
 added only when their owned files changed. Hosting-only releases therefore
 cannot redeploy Functions or rules. The matching tag and GitHub Release are
 created idempotently only after every selected Firebase target succeeds.
+
+If a valid release merge passes its build but Hosting fails before deployment,
+the same workflow supports an explicit recovery dispatch. Set
+`deploy_targets` to only `hosting:prod` and `release_recovery_sha` to the exact
+failed release merge SHA. The workflow checks out and rebuilds that immutable
+commit, validates its release PR through GitHub, deploys only production
+Hosting, and finalizes the tag and GitHub Release against that same SHA. A
+manual Hosting dispatch without both constraints is rejected.
+
+A non-release operational merge into `main` still runs the production build
+checks but selects no Firebase targets and does not invoke release finalization.
+This permits a deployment-workflow repair to land without accidentally
+publishing that repair commit as an application release.
 
 The production default Hosting hostname is intentionally populated before DNS
 cutover. This does not move customer traffic: the custom domain continues to

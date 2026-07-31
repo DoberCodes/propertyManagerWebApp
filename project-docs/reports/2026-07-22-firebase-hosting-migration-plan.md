@@ -575,11 +575,14 @@ an uncut-over custom domain.
 
 ## Hosting checklist H7: Firebase web deployment
 
-Implementation note (2026-07-30): the production release workflow uploads the
-validated web artifact, requires an exact release merge, deploys
+Implementation note (2026-07-31): the production release workflow uploads the
+validated web artifact, verifies the exact release merge through GitHub PR
+metadata, deploys
 `hosting:prod`, conditionally adds changed backend targets, and invokes the
-idempotent finalizer only after deployment succeeds. The first production
-execution remains a validation gate before the items below are marked complete.
+idempotent finalizer only after deployment succeeds. A Hosting-only recovery
+dispatch can rebuild the exact failed release SHA; it rejects other manual
+Hosting targets. The first production execution remains a validation gate
+before the items below are marked complete.
 
 * [x] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
 * [x] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
@@ -597,7 +600,7 @@ execution remains a validation gate before the items below are marked complete.
   * The reusable promotion workflow is implemented; keep this item open until
     the first successful stable Beta deployment updates the existing
     `release/next` PR and its full release validation passes.
-* [ ] Gate production deployment on an exact `Release vX.Y.Z` merge and synchronized version files.
+* [x] Gate production deployment on an exact, PR-metadata-validated `Release vX.Y.Z` merge and synchronized version files.
 * [ ] Generate final customer release notes from the preceding merged release boundary.
 * [ ] Create the matching Git tag and GitHub Release only after every required production deployment succeeds.
 * [ ] Make release publication idempotent and fail if an existing tag points to a different commit.
