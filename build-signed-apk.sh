@@ -497,12 +497,7 @@ node scripts/validateReleaseVersion.cjs
 
 echo ""
 print_header "Step 2: Building React App"
-ORIGINAL_ROOT_HOMEPAGE=$(node -p "require('./package.json').homepage || ''")
-ORIGINAL_CLIENT_HOMEPAGE=$(node -p "require('./client/package.json').homepage || ''")
-node -e "const fs=require('fs'); for (const file of ['./package.json','./client/package.json']) { const pkg=require(file); pkg.homepage='./'; fs.writeFileSync(file, JSON.stringify(pkg, null, '\t') + '\n'); }"
-print_success "Homepages changed to relative paths"
-
-if ! yarn build; then
+if ! yarn build:android; then
   print_error "Build failed!"
   send_slack_notification "Build failed for v$NEW_VERSION" "error"
   exit 1
@@ -526,10 +521,6 @@ if ! npx cap sync android; then
   exit 1
 fi
 print_success "Capacitor synced successfully - web assets copied to Android"
-
-# Restore homepage values after mobile assets have been copied.
-ORIGINAL_ROOT_HOMEPAGE="$ORIGINAL_ROOT_HOMEPAGE" ORIGINAL_CLIENT_HOMEPAGE="$ORIGINAL_CLIENT_HOMEPAGE" node -e "const fs=require('fs'); const restore=(file, homepage) => { const pkg=require(file); if (homepage) pkg.homepage=homepage; else delete pkg.homepage; fs.writeFileSync(file, JSON.stringify(pkg, null, '\t') + '\n'); }; restore('./package.json', process.env.ORIGINAL_ROOT_HOMEPAGE); restore('./client/package.json', process.env.ORIGINAL_CLIENT_HOMEPAGE);"
-print_success "Original web homepages restored"
 
 # Check keystore file
 if [ ! -f "my-release-key.keystore" ]; then

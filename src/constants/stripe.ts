@@ -117,6 +117,6 @@ export const BILLING_INTERVALS = {
 // Stripe checkout session config
 export const STRIPE_CHECKOUT_CONFIG = {
 	MODE: 'subscription',
-	SUCCESS_URL: `${window.location.origin}/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}`,
-	CANCEL_URL: `${window.location.origin}/#/paywall?checkout=cancelled`,
+	SUCCESS_URL: `${window.location.origin}/checkout/complete?session_id={CHECKOUT_SESSION_ID}`,
+	CANCEL_URL: `${window.location.origin}/paywall?checkout=cancelled`,
 };

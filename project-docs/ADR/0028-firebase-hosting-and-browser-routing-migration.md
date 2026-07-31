@@ -11,6 +11,9 @@ Companion report: `project-docs/reports/2026-07-22-firebase-hosting-migration-pl
 Amended: 2026-07-30 — development environment, beta branch, preview channels,
 and release-gated production deployment
 
+Amended: 2026-07-30 - staged web routing cutover and transitional Android build
+profile
+
 ## Context
 
 Maintley's web application currently deploys through GitHub Actions to GitHub
@@ -79,6 +82,12 @@ resources deploy only after approved changes merge into `beta`.
 
 `HashRouter` will be removed completely. Maintley will not maintain a
 permanent compatibility layer for legacy `/#/` application URLs.
+
+The web cutover may precede the native cutover. During that bounded migration
+window, Firebase Hosting builds use `BrowserRouter` exclusively while packaged
+Android builds retain an explicit `HashRouter` profile with relative assets.
+That profile is not used by web builds and must be removed after the native URL
+open, callback, back-navigation, and Play-installed release gates pass.
 
 ## Architectural principle
 

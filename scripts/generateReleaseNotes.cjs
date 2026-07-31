@@ -223,6 +223,13 @@ const getReleasePrepVersionFromSubject = (subject) => {
 	return match ? match[1] : '';
 };
 
+const getMergedReleaseVersionFromSubject = (subject) => {
+	const match = String(subject || '')
+		.trim()
+		.match(/^Release v(\d+\.\d+\.\d+) \(#[0-9]+\)$/i);
+	return match ? match[1] : '';
+};
+
 const selectAutomaticReleaseVersion = ({
 	packageVersion,
 	previousVersion,
@@ -272,11 +279,18 @@ const getLatestVersionTag = () => {
 };
 
 const selectMergedReleaseBoundary = (rows, targetSha) =>
-	rows.find(
-		(row) =>
-			row.sha !== targetSha &&
-			Boolean(getReleasePrepVersionFromSubject(row.subject)),
-	) || null;
+	rows
+		.filter(
+			(row) =>
+				row.sha !== targetSha &&
+				Boolean(getMergedReleaseVersionFromSubject(row.subject)),
+		)
+		.sort((left, right) =>
+			compareVersions(
+				getMergedReleaseVersionFromSubject(right.subject),
+				getMergedReleaseVersionFromSubject(left.subject),
+			),
+		)[0] || null;
 
 const getMergedReleaseBoundary = (fromRef, toRef) => {
 	const range = fromRef ? `${fromRef}..${toRef}` : toRef;
@@ -284,7 +298,6 @@ const getMergedReleaseBoundary = (fromRef, toRef) => {
 	const output = tryRun('git', [
 		'log',
 		range,
-		'--first-parent',
 		'--pretty=format:%H%x1f%s',
 	]);
 	const rows = output

@@ -505,6 +505,16 @@ records were copied into the development project during bootstrap.
 
 ## Hosting checklist H3: BrowserRouter and build behavior
 
+Implementation note (2026-07-30): Firebase web builds now select
+`BrowserRouter` and root-relative assets. Packaged Android uses an explicit,
+temporary hash-routing profile until H6 native validation is complete. This
+does not preserve hash routes on either Firebase web host.
+
+The Hosting-only stage intentionally leaves Function-generated checkout,
+email, invitation, and support URLs unchanged. Those producers move with the
+Functions routing and DNS phase so deployed backend links cannot lead users to
+an uncut-over custom domain.
+
 * [ ] Replace `HashRouter` with `BrowserRouter`.
 * [ ] Remove hash-routing helpers and assumptions.
 * [ ] Review `package.json` `homepage`, `PUBLIC_URL`, and generated asset paths.
@@ -564,6 +574,12 @@ records were copied into the development project during bootstrap.
 * [ ] Confirm APK generation is not required by the normal release path.
 
 ## Hosting checklist H7: Firebase web deployment
+
+Implementation note (2026-07-30): the production release workflow uploads the
+validated web artifact, requires an exact release merge, deploys
+`hosting:prod`, conditionally adds changed backend targets, and invokes the
+idempotent finalizer only after deployment succeeds. The first production
+execution remains a validation gate before the items below are marked complete.
 
 * [x] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
 * [x] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
