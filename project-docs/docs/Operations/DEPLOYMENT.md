@@ -98,16 +98,30 @@ No repository-supported command may update the `gh-pages` branch during the
 migration freeze. The last verified GitHub Pages build remains online as the
 current site and future rollback target until Firebase cutover is complete.
 
-Firebase Hosting is not yet configured as the production deployment path.
+The production Firebase default Hosting site receives release builds before
+the custom-domain cutover. DNS continues to serve the frozen GitHub Pages build
+until the routing, authentication, billing-return, PWA, and Android gates pass.
 
 ---
 
 # Firebase Hosting
 
-Firebase Hosting is not part of the active deployment path.
+Firebase Hosting is the release-gated web deployment path. Stable Beta builds
+deploy to `hosting:beta`. An exact `Release vX.Y.Z (#N)` merge into `main`
+deploys the uploaded production artifact to `hosting:prod`.
 
-Do not run `firebase deploy --only hosting` unless Firebase Hosting is
-intentionally reintroduced.
+Production Hosting must not be deployed through the generic manual backend
+target input. The release merge, synchronized version files, production build,
+and production environment approval form its deployment boundary.
+
+Until DNS cutover, `maintleyapp.com` remains on the frozen GitHub Pages build;
+the Firebase default production hostname is the candidate validation surface.
+
+Function-generated links and callbacks remain on their currently deployed hash
+URL behavior during this Hosting-only stage. Do not treat Stripe, lifecycle
+email, invitation, or Function-generated support-link returns as migrated until
+the coordinated Functions and DNS phase updates and deploys those producers.
+Client-generated and static-site links use clean routes in the Hosting build.
 
 ---
 
@@ -467,11 +481,15 @@ deploy Storage rules. The stable build artifact must complete before the deploy
 job can authenticate. Deployments are serialized so two merges cannot update
 the shared development environment concurrently.
 
-The production path retains its existing source-based backend behavior and
-does not deploy Hosting during this migration phase. A Hosting-only
-`firebase.json` change does not redeploy the backend. Changes to Firebase
-backend configuration inside `firebase.json` require an explicit reviewed
-manual deploy until a configuration-aware target detector is introduced.
+An exact release merge into `main` always deploys `hosting:prod`. Functions,
+Firestore rules, and Storage rules retain source-based target detection and are
+added only when their owned files changed. Hosting-only releases therefore
+cannot redeploy Functions or rules. The matching tag and GitHub Release are
+created idempotently only after every selected Firebase target succeeds.
+
+The production default Hosting hostname is intentionally populated before DNS
+cutover. This does not move customer traffic: the custom domain continues to
+resolve to the frozen GitHub Pages deployment until the later DNS phase.
 
 Recommended setup:
 
@@ -940,11 +958,26 @@ deployed Functions runtime, while the Functions package accepts Node 22 or newer
 so root workspace tooling can continue to run under Node 24.
 
 If `package.json` is already ahead of the latest `v*` tag because a release was
-prepared but not tagged locally yet, the latest merged `Release v...` commit is
-used as the release-note boundary. New releaseable changes are then bumped from
-that prepared package version. For example, a new patch change after prepared
-version `2.7.30` produces `2.7.31` rather than reusing `2.7.30` or repeating the
-changes already assigned to `2.7.30`.
+prepared but not tagged locally yet, the highest versioned reachable
+`Release v...` commit is used as the release-note boundary. Boundary discovery
+examines merged ancestry rather than only the first-parent chain so a preserved
+long-lived-branch synchronization merge cannot make prior release work appear
+new again. New releaseable changes are then bumped from that prepared package
+version.
+
+## Web and Android routing build profiles
+
+`yarn build` and `yarn build:beta` produce Firebase Hosting artifacts with
+`BrowserRouter`, `PUBLIC_URL=/`, and clean application routes. `yarn
+build:android` produces the transitional Capacitor artifact with `HashRouter`
+and relative assets. `cap:sync`, `build:apk`, and `build:signed` invoke the
+Android profile explicitly; they must not reuse a previously generated web
+artifact.
+
+The Android hash profile is a migration boundary, not a second permanent web
+routing system. It will be removed only after App Links, callback handling,
+hardware back navigation, and the Play-installed candidate pass the Android
+gate in ADR 0028.
 
 When the current `main` commit is the matching release-preparation merge, the
 release-note generator keeps that prepared package version. It only bumps from

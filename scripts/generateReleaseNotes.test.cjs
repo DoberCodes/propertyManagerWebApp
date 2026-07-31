@@ -43,6 +43,21 @@ test('skips the target release merge and uses the preceding release boundary', (
 	assert.equal(result.sha, 'release-123');
 });
 
+test('selects the highest reachable release when merge ancestry is not first-parent ordered', () => {
+	const result = selectMergedReleaseBoundary(
+		[
+			{ sha: 'prep-125', subject: 'release: prepare v2.12.5' },
+			{ sha: 'release-122', subject: 'Release v2.12.2 (#105)' },
+			{ sha: 'feature-2', subject: 'Repair branch ancestry (#135)' },
+			{ sha: 'release-124', subject: 'Release v2.12.4 (#109)' },
+			{ sha: 'release-123', subject: 'Release v2.12.3 (#107)' },
+		],
+		'feature-2',
+	);
+
+	assert.equal(result.sha, 'release-124');
+});
+
 test('keeps the prepared version when HEAD is its matching release merge', () => {
 	const result = selectAutomaticReleaseVersion({
 		packageVersion: '2.8.2',

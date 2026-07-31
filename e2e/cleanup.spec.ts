@@ -21,13 +21,13 @@ test.describe('Data Cleanup & Lifecycle @destructive', () => {
 		await loginWithDemoUser(page);
 
 		// Step 2: Verify we're logged in
-		await page.goto('/#/dashboard', { waitUntil: 'domcontentloaded' });
+		await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 		expect(await isLoggedIn(page)).toBeTruthy();
 		console.log('✅ Account created and logged in successfully');
 
 		// Step 3: Create some test data to be cleaned up
-		await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+		await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 		const createButton = page.getByRole('button', {
 			name: /add property|new property|create/i,
@@ -55,7 +55,7 @@ test.describe('Data Cleanup & Lifecycle @destructive', () => {
 		console.log(`\n🔄 Attempting demo login again`);
 		await loginWithDemoUser(page);
 		await page.waitForTimeout(1500);
-		await page.goto('/#/dashboard', { waitUntil: 'domcontentloaded' });
+		await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 		const loggedIn = await isLoggedIn(page);
 		console.log(
@@ -75,7 +75,7 @@ test.describe('Data Cleanup & Lifecycle @destructive', () => {
 			await loginWithDemoUser(page);
 
 			// Verify logged in
-			await page.goto('/#/dashboard', { waitUntil: 'domcontentloaded' });
+			await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 			await waitForPageLoaded(page);
 			const loggedIn = await isLoggedIn(page);
 			expect(loggedIn || /dashboard/i.test(page.url())).toBeTruthy();

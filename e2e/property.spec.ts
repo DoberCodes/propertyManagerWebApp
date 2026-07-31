@@ -33,7 +33,7 @@ test.describe('Property Management', () => {
 				address: '500 View Way, Springfield, IL 62701',
 			}),
 		).toBeTruthy();
-		await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+		await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
 		const propertyImage = page.locator(`img[alt="${propertyName}"]`).first();
@@ -41,7 +41,7 @@ test.describe('Property Management', () => {
 		await propertyImage.click({ force: true });
 
 		// Verify property details page loaded
-		await expect(page).toHaveURL(/#\/property\//i, { timeout: 10000 });
+		await expect(page).toHaveURL(/\/property\//i, { timeout: 10000 });
 	});
 
 	test('user can update property details', async ({ page }) => {
@@ -52,7 +52,7 @@ test.describe('Property Management', () => {
 				address: '600 Update Ave, Springfield, IL 62701',
 			}),
 		).toBeTruthy();
-		await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+		await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
 		const scopedOverflowToggle = page
@@ -99,7 +99,7 @@ test.describe('Property Management', () => {
 	});
 
 	test('user can delete a property @destructive', async ({ page }) => {
-		await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+		await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
 		const getOverflowCount = async () => {
@@ -122,7 +122,7 @@ test.describe('Property Management', () => {
 					address: '700 Delete Rd, Springfield, IL 62701',
 				}),
 			).toBeTruthy();
-			await page.goto('/#/properties', { waitUntil: 'domcontentloaded' });
+			await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 			await waitForPageLoaded(page);
 			countBefore = await page.getByText('⋮').count();
 		}

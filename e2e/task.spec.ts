@@ -20,7 +20,7 @@ test.describe('Task Management', () => {
 		expect(await createPropertyForTest(page)).toBeTruthy();
 
 		// Navigate to tasks page
-		await page.goto('/#/tasks');
+		await page.goto('/tasks');
 		await waitForPageLoaded(page);
 
 		// Click "Create Task" or "Add Task" button
@@ -125,7 +125,7 @@ test.describe('Task Management', () => {
 		).toBeTruthy();
 
 		// Navigate to tasks page
-		await page.goto('/#/tasks');
+		await page.goto('/tasks');
 		await waitForPageLoaded(page);
 
 		const taskRow = page.getByText(new RegExp(taskTitle, 'i'));
@@ -145,7 +145,7 @@ test.describe('Task Management', () => {
 		expect(await createTaskForTest(page, { ensureProperty: true })).toBeTruthy();
 
 		// Navigate to tasks page
-		await page.goto('/#/tasks');
+		await page.goto('/tasks');
 		await waitForPageLoaded(page);
 
 		// Click edit button on first task
@@ -203,7 +203,7 @@ test.describe('Task Management', () => {
 		expect(await createTaskForTest(page, { ensureProperty: true })).toBeTruthy();
 
 		// Navigate to tasks page
-		await page.goto('/#/tasks');
+		await page.goto('/tasks');
 		await waitForPageLoaded(page);
 
 		// Find a task and click the complete/check button
@@ -225,7 +225,7 @@ test.describe('Task Management', () => {
 		expect(await createTaskForTest(page, { ensureProperty: true })).toBeTruthy();
 
 		// Navigate to tasks page
-		await page.goto('/#/tasks');
+		await page.goto('/tasks');
 		await waitForPageLoaded(page);
 
 		// Get task count before deletion
@@ -274,7 +274,7 @@ test.describe('Task Management', () => {
 
 	test('user can filter tasks by status', async ({ page }) => {
 		// Navigate to tasks page
-		await page.goto('/#/tasks');
+		await page.goto('/tasks');
 		await waitForPageLoaded(page);
 
 		// Click filter button

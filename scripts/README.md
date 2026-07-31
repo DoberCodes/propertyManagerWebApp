@@ -114,6 +114,22 @@ yarn deploy:gh-pages
 Both commands intentionally fail. They are retained as visible migration guards
 so a familiar deployment command cannot publish to GitHub Pages accidentally.
 
+## Firebase Hosting validation
+
+```bash
+yarn build
+yarn check:clean-web-routes
+yarn test:hosting-routes
+yarn build:android
+```
+
+`yarn build` produces the BrowserRouter web artifact. The Hosting smoke test
+starts only the production Hosting emulator, verifies clean direct-route SPA
+fallbacks and static-page precedence, and validates the configured cache-policy
+ordering. The clean-route check rejects hardcoded `/#/` and relative `#/`
+application URLs in web-owned sources. `yarn build:android` uses the explicit
+transitional HashRouter profile with relative assets for Capacitor packaging.
+
 ---
 
 ## E2E and Test Cleanup

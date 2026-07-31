@@ -198,7 +198,7 @@ export const TenantsTab: React.FC<TenantsTabProps> = ({
 	const handleEmailInviteCode = (tenant: any) => {
 		const invite = inviteCodeByTenantId[tenant?.id];
 		if (!tenant?.email || !invite?.code) return;
-		const inviteLink = `${window.location.origin}/#/register?inviteType=tenant&invite=${encodeURIComponent(invite.code)}&email=${encodeURIComponent(tenant.email)}`;
+		const inviteLink = `${window.location.origin}/register?inviteType=tenant&invite=${encodeURIComponent(invite.code)}&email=${encodeURIComponent(tenant.email)}`;
 
 		const subject = encodeURIComponent('Your Property Invitation Code');
 		const body = encodeURIComponent(

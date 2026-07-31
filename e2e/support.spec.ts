@@ -9,7 +9,7 @@ test.describe('Support center smoke', () => {
 	test('user can view support requests and open a new request without submitting', async ({
 		page,
 	}) => {
-		await page.goto('/#/support?view=requests', { waitUntil: 'domcontentloaded' });
+		await page.goto('/support?view=requests', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
 		await expect(page.getByText('Maintley Support')).toBeVisible();

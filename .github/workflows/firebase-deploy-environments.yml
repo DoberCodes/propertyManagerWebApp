@@ -316,6 +316,14 @@ jobs:
           yarn sync:public-pricing
           yarn build
 
+      - name: Upload production Hosting build
+        uses: actions/upload-artifact@v6
+        with:
+          name: firebase-production-hosting-${{ github.sha }}
+          path: build
+          if-no-files-found: error
+          retention-days: 1
+
   deploy:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
@@ -329,6 +337,18 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
+      - name: Require an exact release merge for production Hosting
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          SUBJECT="$(git log -1 --format=%s HEAD)"
+          ESCAPED_VERSION="${VERSION//./\\.}"
+          if ! printf '%s\n' "$SUBJECT" | grep -Eq "^Release v${ESCAPED_VERSION} \\(#[0-9]+\\)$"; then
+            echo "::error::Production deployment requires the Release v$VERSION pull-request merge. Found: $SUBJECT"
+            exit 1
+          fi
 
 
       - name: Resolve target Firebase project
@@ -365,6 +385,11 @@ jobs:
               TARGETS="functions,firestore:rules"
             fi
 
+            if [[ "$TARGETS" == *"hosting"* ]]; then
+              echo "::error::Production Hosting deploys only from an exact release merge to main."
+              exit 1
+            fi
+
             echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
             echo "has_targets=true" >> "$GITHUB_OUTPUT"
             echo "Manual Firebase deploy targets: $TARGETS"
@@ -380,7 +405,7 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          targets=()
+          targets=("hosting:prod")
 
           if echo "$CHANGED_FILES" | grep -Eq '^functions/'; then
             targets+=("functions")
@@ -394,17 +419,17 @@ jobs:
             targets+=("storage")
           fi
 
-          if [[ "${#targets[@]}" -eq 0 ]]; then
-            echo "targets=" >> "$GITHUB_OUTPUT"
-            echo "has_targets=false" >> "$GITHUB_OUTPUT"
-            echo "No Firebase deploy targets changed."
-            exit 0
-          fi
-
           TARGETS="$(IFS=,; echo "${targets[*]}")"
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
           echo "has_targets=true" >> "$GITHUB_OUTPUT"
           echo "Firebase deploy targets: $TARGETS"
+
+      - name: Download production Hosting build
+        if: github.event_name == 'push'
+        uses: actions/download-artifact@v6
+        with:
+          name: firebase-production-hosting-${{ github.sha }}
+          path: build
 
       - name: Use Node.js for root validation dependencies
         if: steps.deploy-targets.outputs.has_targets == 'true'
@@ -418,7 +443,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Use Node.js for Functions
-        if: steps.deploy-targets.outputs.has_targets == 'true'
+        if: contains(steps.deploy-targets.outputs.targets, 'functions')
         uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -426,8 +451,12 @@ jobs:
           cache-dependency-path: functions/yarn.lock
 
       - name: Install functions dependencies
-        if: steps.deploy-targets.outputs.has_targets == 'true'
+        if: contains(steps.deploy-targets.outputs.targets, 'functions')
         run: yarn --cwd functions install --frozen-lockfile
+
+      - name: Install pinned Firebase CLI
+        if: steps.deploy-targets.outputs.has_targets == 'true'
+        run: npm install --global firebase-tools@15.22.3
 
       - name: Require an entitlement package version bump
         if: github.event_name == 'push' && steps.deploy-targets.outputs.has_targets == 'true' && contains(steps.deploy-targets.outputs.targets, 'functions')
@@ -580,11 +609,22 @@ jobs:
             echo "STRIPE_PORTFOLIO_ANNUAL_PRICE_ID=$STRIPE_PORTFOLIO_ANNUAL_PRICE_ID"
           } > functions/.env.prod
 
-      - name: Deploy Firebase rules and Functions
+      - name: Deploy selected production Firebase targets
         if: steps.deploy-targets.outputs.has_targets == 'true'
         run: |
-          ./functions/node_modules/.bin/firebase deploy \
+          firebase deploy \
             --project "${{ steps.target.outputs.target }}" \
             --only "${{ steps.deploy-targets.outputs.targets }}" \
             --non-interactive \
             --force
+
+  finalize-release:
+    name: Publish deployed web release
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    needs: deploy
+    permissions:
+      contents: write
+    uses: ./.github/workflows/finalize-web-release.yml
+    with:
+      deployed_sha: ${{ github.sha }}
+      hosting_target: firebase-hosting

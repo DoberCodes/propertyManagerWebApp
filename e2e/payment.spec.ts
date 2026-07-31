@@ -52,7 +52,7 @@ test.describe('Payments & Subscriptions', () => {
 
 	test('user can view subscription/payment page', async ({ page }) => {
 		// Navigate to settings page where subscription/billing is managed
-		await page.goto('/#/settings', { waitUntil: 'domcontentloaded' });
+		await page.goto('/settings', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
 		// Verify we're on the settings page
@@ -66,7 +66,7 @@ test.describe('Payments & Subscriptions', () => {
 		page,
 	}) => {
 		// Navigate to paywall page
-		await page.goto('/#/paywall', { waitUntil: 'domcontentloaded' });
+		await page.goto('/paywall', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
 		// Click a valid checkout-triggering button for the current paywall state
@@ -115,7 +115,7 @@ test.describe('Payments & Subscriptions', () => {
 
 	test('user sees error with invalid card', async ({ page }) => {
 		// Navigate to paywall page
-		await page.goto('/#/paywall', { waitUntil: 'domcontentloaded' });
+		await page.goto('/paywall', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 
 		// Click a valid checkout-triggering button for the current paywall state
@@ -163,7 +163,7 @@ test.describe('Payments & Subscriptions', () => {
 
 		for (const route of settingsRoutes) {
 			try {
-				await page.goto(`/#/${route}`, { waitUntil: 'domcontentloaded' });
+				await page.goto(`/${route}`, { waitUntil: 'domcontentloaded' });
 				await waitForPageLoaded(page);
 
 				// Look for subscription status info
@@ -181,7 +181,7 @@ test.describe('Payments & Subscriptions', () => {
 
 		for (const route of settingsRoutes) {
 			try {
-				await page.goto(`/#/${route}`, { waitUntil: 'domcontentloaded' });
+				await page.goto(`/${route}`, { waitUntil: 'domcontentloaded' });
 				await waitForPageLoaded(page);
 
 				// Look for "Update Payment" or "Change Card" button

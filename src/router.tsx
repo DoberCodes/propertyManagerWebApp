@@ -1,8 +1,9 @@
 import React, { Suspense } from 'react';
 import {
+	BrowserRouter,
 	Route,
 	Routes,
-	HashRouter as Router,
+	HashRouter,
 	Navigate,
 } from 'react-router-dom';
 import { ErrorPage } from './pages/ErrorPage';
@@ -172,6 +173,8 @@ export const RouterComponent = () => {
 	const canAccessTeam = useSelector(selectCanAccessTeam);
 	const shouldShowTeamRoute = !!currentUser && canAccessTeam;
 	const fallbackPath = getFallbackRoute(currentUser?.role);
+	const Router =
+		process.env.REACT_APP_ROUTER_MODE === 'hash' ? HashRouter : BrowserRouter;
 	return (
 		<Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
 			<AnalyticsRouteTracker />

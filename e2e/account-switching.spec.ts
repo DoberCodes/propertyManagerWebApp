@@ -42,7 +42,7 @@ test.describe('Account switching regression', () => {
 		await login(page, secondary.email, secondary.password);
 		await expect(page).toHaveURL(/dashboard/i);
 
-		await page.goto('/#/support?view=requests', { waitUntil: 'domcontentloaded' });
+		await page.goto('/support?view=requests', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page);
 		await expect(page.getByText('Maintley Support')).toBeVisible();
 		await expect(page.getByText(/we could not load your requests/i)).not.toBeVisible();

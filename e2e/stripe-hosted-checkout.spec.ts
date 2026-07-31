@@ -136,7 +136,7 @@ const submitHostedCheckout = async (page: Page) => {
 };
 
 const openHostedCheckout = async (page: Page): Promise<boolean> => {
-	await page.goto('/#/paywall', { waitUntil: 'domcontentloaded' });
+	await page.goto('/paywall', { waitUntil: 'domcontentloaded' });
 	await waitForPageLoaded(page);
 
 	expect(await clickAnyCheckoutAction(page)).toBeTruthy();
@@ -207,20 +207,20 @@ test.describe('Stripe Hosted Checkout Cards', () => {
 		await submitHostedCheckout(page);
 
 		const returnedToApp = await page
-			.waitForURL(/#\/dashboard(\?|$)/i, { timeout: 45000 })
+			.waitForURL(/\/dashboard(\?|$)/i, { timeout: 45000 })
 			.then(() => true)
 			.catch(() => false);
 
 		expect(returnedToApp).toBeTruthy();
-		await expect(page).toHaveURL(/#\/dashboard/i);
+		await expect(page).toHaveURL(/\/dashboard/i);
 
 		await page.waitForTimeout(1500);
-		if (/\/#\/login/i.test(page.url())) {
+		if (/\/login/i.test(page.url())) {
 			await loginWithDemoUser(page);
 		}
 
-		await page.goto('/#/report', { waitUntil: 'domcontentloaded' });
+		await page.goto('/report', { waitUntil: 'domcontentloaded' });
 		await page.waitForTimeout(800);
-		expect(/#\/paywall/i.test(page.url())).toBeFalsy();
+		expect(/\/paywall/i.test(page.url())).toBeFalsy();
 	});
 });

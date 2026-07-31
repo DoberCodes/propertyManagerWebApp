@@ -84,7 +84,7 @@
 			"label": "Login",
 			"type": "application",
 			"href": "/login",
-			"publicHref": "/#/login",
+			"publicHref": "/login",
 			"style": "login",
 			"enabled": true
 		},
@@ -93,7 +93,7 @@
 			"label": "Start Free",
 			"type": "application",
 			"href": "/register",
-			"publicHref": "/#/register",
+			"publicHref": "/register",
 			"style": "cta",
 			"enabled": true
 		}

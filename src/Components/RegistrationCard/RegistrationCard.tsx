@@ -33,7 +33,7 @@ import {
 	validateTeamInviteForRegistration,
 } from '../../services/authService';
 import { USER_ROLES } from '../../constants/roles';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { setCurrentUser } from '../../Redux/Slices/userSlice';
 import { PaywallPage } from '../../pages/PaywallPage/PaywallPage';
 import DocumentViewer from '../DocumentViewer';
@@ -393,7 +393,7 @@ export const RegistrationCard = () => {
 		setComplimentaryError('');
 		try {
 			await redeemComplimentaryAccessCode(complimentaryCode);
-			window.location.assign(`${window.location.origin}${window.location.pathname}#/dashboard`);
+			navigate('/dashboard', { replace: true });
 		} catch (activationError: any) {
 			setComplimentaryError(
 				String(activationError?.message || 'Maintley could not activate this access code.'),
@@ -879,7 +879,7 @@ export const RegistrationCard = () => {
 
 			<RegisterWrapper>
 				<p>
-					Already have an account? <a href='#/login'>Login here</a>
+					Already have an account? <Link to='/login'>Login here</Link>
 				</p>
 			</RegisterWrapper>
 
