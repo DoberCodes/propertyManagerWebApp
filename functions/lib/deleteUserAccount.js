@@ -40,15 +40,14 @@ exports.deleteUserAccount = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const stripe_1 = __importDefault(require("stripe"));
-const dotenv = __importStar(require("dotenv"));
-// Load environment variables from .env file
-dotenv.config();
+const params_1 = require("firebase-functions/params");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
 const auth = admin.auth();
-const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY || '', {
+const STRIPE_SECRET_KEY = (0, params_1.defineSecret)('STRIPE_SECRET_KEY');
+const getStripeClient = () => new stripe_1.default(STRIPE_SECRET_KEY.value(), {
     apiVersion: '2023-10-16',
 });
 const PAID_SUBSCRIPTION_PLANS = new Set([
@@ -65,7 +64,9 @@ const PAID_SUBSCRIPTION_PLANS = new Set([
  * Only the original owner of properties can delete everything.
  * Co-owners/shared users only lose access but properties remain.
  */
-exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
+exports.deleteUserAccount = functions
+    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .https.onCall(async (data, context) => {
     // Verify user is authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -109,7 +110,7 @@ exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
             if (subscription.stripeSubscriptionId) {
                 try {
                     console.log(`Cancelling trial subscription: ${subscription.stripeSubscriptionId}`);
-                    await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
+                    await getStripeClient().subscriptions.cancel(subscription.stripeSubscriptionId);
                     console.log('Trial subscription cancelled successfully');
                 }
                 catch (cancelError) {

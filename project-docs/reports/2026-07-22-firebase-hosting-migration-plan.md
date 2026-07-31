@@ -593,6 +593,12 @@ before the items below are marked complete.
     merged Beta commit has deployed stable Hosting successfully and each
     conditional backend target has been exercised with its least-privilege IAM
     grants.
+  * A 2026-07-31 validation found Beta callable Functions returning an
+    infrastructure-level `403` and legacy plaintext provider credentials in
+    the deployed environment. The repair adds Secret Manager-only dotenv
+    enforcement, test-mode Stripe validation, HTTPS/callable invoker repair,
+    and post-deploy preflight checks. Keep this item open until the clean full
+    Functions deployment and authenticated Beta smoke test pass.
 * [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
 * [x] Enforce one-way feature promotion and fast-forward `beta` to the published Main release without a reverse merge PR.
 * [ ] Use separate, least-privilege development and production deployment identities.

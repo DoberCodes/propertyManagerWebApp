@@ -1286,6 +1286,7 @@ yarn env:contract:validate
 yarn env:organize --apply
 yarn env:bootstrap --environment all --apply
 yarn env:validate
+yarn env:functions:sanitize
 yarn github-env:sync --environment development
 yarn github-env:sync --environment production
 ```
@@ -1302,6 +1303,23 @@ bootstrapper also audits project-specific non-secret Functions configuration. Th
 GitHub sync command uploads only declared non-secret variables and is dry-run by
 default. Firebase secret values remain in the target project's Secret Manager
 and are never copied into GitHub variables or generated dotenv files.
+
+`yarn env:functions:sanitize` removes declared Firebase Secret Manager
+assignments from ignored `functions/.env*` files without displaying their
+contents. The deploy-package validator independently rejects those assignments,
+so an ambiguous legacy dotenv file cannot silently inject Production secrets
+into Beta.
+
+Firebase deployment safety is covered by:
+
+```bash
+yarn test:firebase-deployment-safety
+yarn validate:callable-preflight -- --project maintleybeta --origin https://maintleybeta.web.app --functions recordUserActivity,getFamilyMembers
+```
+
+The Beta workflow also verifies the Firebase Stripe secret is test-mode and
+repairs infrastructure invoker bindings for HTTPS/callable Functions before
+running the preflight check. Secret contents are never logged.
 
 When adding configuration, declare it in `.env.example` first. Include its
 scope, delivery method, environments, required status, and any safe defaults or
