@@ -398,6 +398,17 @@ jobs:
           fi
 
           echo "Validated Release v$VERSION PR #$PR_NUMBER at $RELEASE_SHA."
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            git fetch origin beta
+            BETA_SHA="$(git rev-parse origin/beta)"
+            if ! git merge-base --is-ancestor "$BETA_SHA" "$RELEASE_SHA"; then
+              echo "::error::Beta advanced to $BETA_SHA after this release candidate was prepared. Refresh the release PR before production deployment."
+              exit 1
+            fi
+            echo "Release merge contains current Beta commit $BETA_SHA."
+          fi
+
           echo "is_release=true" >> "$GITHUB_OUTPUT"
 
 
@@ -693,3 +704,4 @@ jobs:
     with:
       deployed_sha: ${{ needs.build-check.outputs.source_sha }}
       hosting_target: firebase-hosting
+      align_beta: ${{ github.event_name == 'push' }}

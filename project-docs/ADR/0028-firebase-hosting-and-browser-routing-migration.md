@@ -238,6 +238,7 @@ The release workflow must also enforce:
 * production deploys are triggered by the release merge, not ordinary feature merges
 * a failed production deploy cannot create a tag or GitHub Release
 * tags and GitHub Releases are idempotent and point to the exact release merge commit
+* after publication, `beta` advances to that release only through a verified, non-forced fast-forward
 
 ## Required migration constraints
 
@@ -355,9 +356,12 @@ validation must use synthetic or specifically approved test records.
 Branch protection must require validated feature work to enter `beta` through a
 pull request. The release PR promotes the accumulated, reviewed `beta` state to
 `main`; it is not merely a version-only administrative change. After release,
-`beta` must be synchronized with `main` without rewriting shared branch history.
-That synchronization must use a true merge commit; squash and rebase merges do
-not preserve the ancestry required for the next Beta-to-main release promotion.
+`beta` must advance to the published Main release without rewriting shared
+branch history. The finalizer performs a non-forced fast-forward only after
+verifying that the released commit contains the current Beta tip. No
+Main-to-Beta synchronization PR or reverse merge commit is created. If Beta
+advanced after release preparation, production promotion fails and the release
+candidate must be refreshed.
 
 The production workflow must verify through GitHub pull-request metadata that
 the target commit is the approved `Release vX.Y.Z` merge from `release/next`
@@ -367,6 +371,11 @@ boundary because GitHub can emit either the PR title or its standard
 `Merge pull request #N from ...` subject. A failed Hosting release may be
 recovered only by rebuilding an explicitly supplied, metadata-validated release
 merge SHA and deploying only `hosting:prod`.
+
+The approved branch direction is `feature -> beta -> release/next -> main`.
+Direct-to-Main operational repairs are exceptional and must use the same guarded
+fast-forward alignment afterward; they do not establish a second promotion
+direction.
 
 ### Preserve rollback until validation
 

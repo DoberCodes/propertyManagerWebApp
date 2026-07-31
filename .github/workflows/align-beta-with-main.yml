@@ -1,0 +1,55 @@
+name: Align Beta with Main
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  align-beta:
+    name: Fast-forward Beta to Main
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward Beta without a merge commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          git fetch origin main beta
+          TARGET_SHA="$(git rev-parse origin/main)"
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          BETA_SHA="$(git rev-parse origin/beta)"
+
+          if [[ "$CHECKED_OUT_SHA" != "$TARGET_SHA" ]]; then
+            echo "::error::Workflow checkout $CHECKED_OUT_SHA is not current Main $TARGET_SHA."
+            exit 1
+          fi
+
+          if [[ "$BETA_SHA" == "$TARGET_SHA" ]]; then
+            echo "Beta already matches Main at $TARGET_SHA."
+            exit 0
+          fi
+
+          if ! git merge-base --is-ancestor "$BETA_SHA" "$TARGET_SHA"; then
+            echo "::error::Beta $BETA_SHA has diverged and cannot fast-forward to Main $TARGET_SHA."
+            exit 1
+          fi
+
+          gh api \
+            --method PATCH \
+            "repos/$REPOSITORY/git/refs/heads/beta" \
+            -f sha="$TARGET_SHA" \
+            -F force=false >/dev/null
+
+          UPDATED_BETA_SHA="$(gh api "repos/$REPOSITORY/git/ref/heads/beta" --jq '.object.sha')"
+          test "$UPDATED_BETA_SHA" = "$TARGET_SHA"
+          echo "Beta fast-forwarded from $BETA_SHA to Main $TARGET_SHA."
