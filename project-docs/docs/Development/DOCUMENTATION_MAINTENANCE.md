@@ -513,8 +513,8 @@ Documentation should evolve alongside the platform.
 # ADR Implementation Trackers
 
 Accepted ADRs may require follow-up implementation work. Maintley uses a
-GitHub Action to create implementation tracker issues when ADR files in
-`project-docs/ADR/` are merged to `main`.
+GitHub Action to create and reconcile implementation tracker issues when ADR
+files in `project-docs/ADR/` are merged to `main`.
 
 The tracker action is intentionally conservative:
 
@@ -522,7 +522,13 @@ The tracker action is intentionally conservative:
 * It creates issues only for accepted implementation statuses.
 * It skips proposed, implemented, superseded, and rejected ADRs.
 * It uses a hidden issue marker to avoid duplicate tracker issues.
-* It does not overwrite manually edited tracker issue bodies.
+* It sources structured progress from an optional `## Implementation Tracking`
+  checklist in the ADR.
+* It updates only the marked generated section and preserves tracker notes.
+* It reconciles `needs-planning`, `in-progress`, and `implemented` labels while
+  retaining labels outside that managed set.
+* It closes an open tracker when its ADR reaches `Implemented`.
+* It never reopens a manually closed tracker.
 * It comments on an existing tracker issue when the ADR status changes.
 
 Tracked statuses:
@@ -547,6 +553,10 @@ Rejected
 Implementation tracker issues should remain open until the ADR behavior is
 implemented, documentation reflects the implementation, validation is recorded,
 and the ADR status is updated.
+
+For phased work, the ADR should use `Accepted - phased implementation` and keep
+its implementation checklist current. The ADR checklist is the source of truth;
+human context belongs below the issue's generated Tracker Notes marker.
 
 Local audit:
 

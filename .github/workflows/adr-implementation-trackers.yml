@@ -13,7 +13,7 @@ on:
         required: false
         default: 'true'
       dry_run:
-        description: 'Report actions without creating or commenting on issues'
+        description: 'Report tracker reconciliation without writing to issues'
         required: false
         default: 'true'
 

@@ -1,6 +1,6 @@
 # ADR 0028: Firebase Hosting and Browser Routing Migration
 
-Status: Accepted
+Status: Accepted - phased implementation
 
 Date: 2026-07-22
 
@@ -13,6 +13,22 @@ and release-gated production deployment
 
 Amended: 2026-07-30 - staged web routing cutover and transitional Android build
 profile
+
+## Implementation Tracking
+
+- [x] Establish separate development and production Firebase environments.
+- [x] Deploy pull-request previews and the stable Beta frontend through Firebase Hosting.
+- [x] Use clean browser-history routes and Firebase SPA rewrites for web builds.
+- [x] Keep an explicit transitional hash-routing profile for packaged Android builds.
+- [x] Deploy the production web build to the default Firebase Hosting domains.
+- [x] Gate production deployment on an approved release merge and publish immutable release metadata only after deployment succeeds.
+- [x] Add guarded, non-forced Beta alignment logic after production releases.
+- [ ] Authorize the guarded alignment identity in the Beta ruleset and verify a successful post-release fast-forward.
+- [ ] Complete custom-domain DNS, TLS, and Firebase Hosting cutover.
+- [ ] Deploy clean-route URL generation for Functions, authentication, billing, invitations, and notifications.
+- [ ] Validate authentication, Stripe returns, email links, deep links, PWA behavior, and rollback on the production custom domain.
+- [ ] Complete Android clean-route validation and remove the transitional `HashRouter` build profile.
+- [ ] Retire GitHub Pages after the observation period and complete the repository privacy decision.
 
 ## Context
 

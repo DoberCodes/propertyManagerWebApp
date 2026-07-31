@@ -6,8 +6,10 @@
  * The script is intentionally conservative:
  * - It only creates trackers for ADR statuses that imply accepted work.
  * - It uses a hidden issue marker to avoid duplicates.
- * - It does not overwrite existing issue bodies after creation.
- * - When an existing tracked ADR changes status, it adds a comment.
+ * - It updates only a marked, generated section of existing issue bodies.
+ * - Human notes outside the generated section are preserved.
+ * - Status changes reconcile labels and may close implemented trackers.
+ * - Manually closed trackers are never reopened.
  *
  * Usage:
  *   node scripts/syncAdrImplementationTrackers.cjs --changed-from <sha> --changed-to <sha>
@@ -33,7 +35,7 @@ const SKIP_STATUSES = new Set([
 	'rejected',
 ]);
 
-const BASE_LABELS = [
+const CORE_LABELS = [
 	{
 		name: 'adr',
 		color: '5319e7',
@@ -49,12 +51,31 @@ const BASE_LABELS = [
 		color: '1d76db',
 		description: 'Architecture-related work',
 	},
+];
+
+const STATE_LABELS = [
 	{
 		name: 'needs-planning',
 		color: 'fbca04',
 		description: 'Needs planning or breakdown before completion',
 	},
+	{
+		name: 'in-progress',
+		color: '1d76db',
+		description: 'Implementation is actively underway',
+	},
+	{
+		name: 'implemented',
+		color: '0e8a16',
+		description: 'Implementation is complete',
+	},
 ];
+
+const ALL_LABELS = [...CORE_LABELS, ...STATE_LABELS];
+const MANAGED_LABEL_NAMES = new Set(ALL_LABELS.map((label) => label.name));
+const MANAGED_START = '<!-- maintley-adr-managed:start -->';
+const MANAGED_END = '<!-- maintley-adr-managed:end -->';
+const USER_NOTES_MARKER = '<!-- maintley-adr-user-notes -->';
 
 const parseArgs = (argv) => {
 	const options = {
@@ -115,7 +136,7 @@ const log = (message) => {
 };
 
 const runGit = (args, options = {}) => {
-	const safeDirectory = process.cwd().replace(/\\/g, '/');
+	const safeDirectory = fs.realpathSync.native(process.cwd()).replace(/\\/g, '/');
 	return execFileSync('git', ['-c', `safe.directory=${safeDirectory}`, ...args], {
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', options.allowFailure ? 'pipe' : 'inherit'],
@@ -191,6 +212,7 @@ const parseAdr = (filePath, content) => {
 	const marker = `maintley-adr-tracker: ${id}`;
 	const title = parseTitle(filename, content, number);
 	const status = parseStatus(content);
+	const implementationChecklist = parseImplementationChecklist(content);
 
 	return {
 		id,
@@ -199,6 +221,7 @@ const parseAdr = (filePath, content) => {
 		title,
 		status,
 		normalizedStatus: normalizeStatus(status),
+		implementationChecklist,
 		filePath: normalizedPath,
 	};
 };
@@ -248,6 +271,29 @@ const parseStatus = (content) => {
 	return '';
 };
 
+const parseImplementationChecklist = (content) => {
+	const lines = content.split(/\r?\n/);
+	const sectionIndex = lines.findIndex((line) =>
+		/^##\s+Implementation Tracking\s*$/i.test(line.trim()),
+	);
+	if (sectionIndex < 0) return [];
+
+	const checklist = [];
+	for (let index = sectionIndex + 1; index < lines.length; index += 1) {
+		const line = lines[index].trim();
+		if (/^##\s+/.test(line)) break;
+
+		const match = line.match(/^-\s*\[([ xX])\]\s+(.+)$/);
+		if (!match) continue;
+		checklist.push({
+			checked: match[1].toLowerCase() === 'x',
+			text: match[2].trim(),
+		});
+	}
+
+	return checklist;
+};
+
 const normalizeStatus = (status) =>
 	String(status || '')
 		.trim()
@@ -263,7 +309,54 @@ const shouldTrackAdr = (adr) => {
 const buildIssueTitle = (adr) =>
 	adr.number ? `ADR ${adr.number} - ${adr.title}` : `${adr.id} - ${adr.title}`;
 
-const buildIssueBody = (adr) => `<!-- ${adr.marker} -->
+const DEFAULT_CHECKLIST = [
+	{ checked: false, text: 'Data model / Firestore shape' },
+	{ checked: false, text: 'Backend / Functions' },
+	{ checked: false, text: 'Rules / permissions' },
+	{ checked: false, text: 'UI / user workflow' },
+	{ checked: false, text: 'Documentation updates' },
+	{ checked: false, text: 'Tests / validation' },
+	{ checked: false, text: 'Deployment notes' },
+];
+
+const getImplementationChecklist = (adr) =>
+	adr.implementationChecklist?.length
+		? adr.implementationChecklist
+		: DEFAULT_CHECKLIST;
+
+const formatChecklist = (checklist) =>
+	checklist
+		.map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text}`)
+		.join('\n');
+
+const buildManagedBody = (adr) => `${MANAGED_START}
+Current ADR Status:
+${adr.status || 'Unknown'}
+
+Implementation Checklist
+${formatChecklist(getImplementationChecklist(adr))}
+
+Completion Criteria
+- ADR behavior is implemented.
+- Documentation reflects the implemented behavior.
+- Tests or manual validation are recorded.
+- ADR status is updated to Implemented.
+${MANAGED_END}`;
+
+const buildIssuePreamble = (adr) => `<!-- ${adr.marker} -->
+
+This issue tracks implementation of ${adr.id.replace('-', ' ')}.
+
+ADR:
+${adr.filePath}`;
+
+const buildDefaultUserNotes = () => `${USER_NOTES_MARKER}
+
+## Tracker Notes
+
+Human-authored notes added below this line are preserved when the ADR checklist syncs.`;
+
+const buildLegacyIssueBody = (adr, status) => `<!-- ${adr.marker} -->
 
 This issue tracks implementation of ${adr.id.replace('-', ' ')}.
 
@@ -271,23 +364,117 @@ ADR:
 ${adr.filePath}
 
 Current ADR Status:
-${adr.status || 'Unknown'}
+${status || 'Unknown'}
 
 Implementation Checklist
-- [ ] Data model / Firestore shape
-- [ ] Backend / Functions
-- [ ] Rules / permissions
-- [ ] UI / user workflow
-- [ ] Documentation updates
-- [ ] Tests / validation
-- [ ] Deployment notes
+${formatChecklist(DEFAULT_CHECKLIST)}
 
 Completion Criteria
 - ADR behavior is implemented.
 - Documentation reflects the implemented behavior.
 - Tests or manual validation are recorded.
-- ADR status is updated to Implemented or Accepted - initial implementation.
+- ADR status is updated to Implemented or Accepted - initial implementation.`;
+
+const buildPreservedLegacyNotes = (body) => `${USER_NOTES_MARKER}
+
+## Tracker Notes
+
+The previous tracker body contained edits outside the generated template and was
+preserved during the managed-section migration.
+
+<details>
+<summary>Previous tracker body</summary>
+
+${String(body)
+	.replace(/<!--\s*maintley-adr-tracker:[^>]+-->\s*/i, '')
+	.trim()}
+
+</details>`;
+
+const extractUserNotes = (body) => {
+	const currentBody = String(body || '');
+	const markerIndex = currentBody.indexOf(USER_NOTES_MARKER);
+	if (markerIndex >= 0) return currentBody.slice(markerIndex).trim();
+	if (!currentBody.trim()) return buildDefaultUserNotes();
+
+	const legacyStatusMatch = currentBody.match(
+		/Current ADR Status:\s*\r?\n([^\r\n]+)/i,
+	);
+	const legacyStatus = legacyStatusMatch?.[1]?.trim() || '';
+	const markerMatch = currentBody.match(/maintley-adr-tracker:\s*(ADR-[^\s>]+)/i);
+	const filePathMatch = currentBody.match(/ADR:\s*\r?\n([^\r\n]+)/i);
+	const legacyAdr = {
+		marker: markerMatch
+			? `maintley-adr-tracker: ${markerMatch[1]}`
+			: '',
+		id: markerMatch?.[1] || '',
+		filePath: filePathMatch?.[1]?.trim() || '',
+	};
+	if (
+		legacyAdr.marker &&
+		currentBody.trim() === buildLegacyIssueBody(legacyAdr, legacyStatus).trim()
+	) {
+		return buildDefaultUserNotes();
+	}
+
+	return buildPreservedLegacyNotes(currentBody);
+};
+
+const buildIssueBody = (adr, existingBody = '') => `${buildIssuePreamble(adr)}
+
+${buildManagedBody(adr)}
+
+${extractUserNotes(existingBody)}
 `;
+
+const getStateLabel = (adr) => {
+	if (adr.normalizedStatus === 'implemented') return 'implemented';
+	if (
+		adr.normalizedStatus === 'accepted - in progress' ||
+		adr.normalizedStatus === 'accepted - initial implementation' ||
+		adr.normalizedStatus === 'accepted - phased implementation'
+	) {
+		return 'in-progress';
+	}
+	return 'needs-planning';
+};
+
+const buildIssueLabels = (adr, existingLabels = []) => {
+	const preservedLabels = existingLabels
+		.map((label) => (typeof label === 'string' ? label : label?.name))
+		.filter((name) => name && !MANAGED_LABEL_NAMES.has(name));
+	return Array.from(
+		new Set([
+			...preservedLabels,
+			...CORE_LABELS.map((label) => label.name),
+			getStateLabel(adr),
+		]),
+	);
+};
+
+const isImplementedAdr = (adr) => adr.normalizedStatus === 'implemented';
+
+const buildIssuePatch = (adr, existingIssue) => {
+	const title = buildIssueTitle(adr);
+	const body = buildIssueBody(adr, existingIssue.body || '');
+	const labels = buildIssueLabels(adr, existingIssue.labels || []);
+	const existingLabels = (existingIssue.labels || [])
+		.map((label) => (typeof label === 'string' ? label : label?.name))
+		.filter(Boolean);
+	const shouldClose =
+		isImplementedAdr(adr) &&
+		String(existingIssue.state || '').toLowerCase() === 'open';
+	const patch = {};
+
+	if (existingIssue.title !== title) patch.title = title;
+	if (existingIssue.body !== body) patch.body = body;
+	if (JSON.stringify(existingLabels.sort()) !== JSON.stringify([...labels].sort())) {
+		patch.labels = labels;
+	}
+	if (shouldClose) patch.state = 'closed';
+
+	return patch;
+};
 
 const buildStatusChangeComment = ({ adr, previousStatus }) => `ADR tracker sync noticed a status change.
 
@@ -323,7 +510,7 @@ const githubRequest = async ({ method = 'GET', path: requestPath, token, body })
 };
 
 const ensureLabels = async ({ owner, repo, token, dryRun }) => {
-	for (const label of BASE_LABELS) {
+	for (const label of ALL_LABELS) {
 		if (dryRun) {
 			log(`Dry run: would ensure label ${label.name}`);
 			continue;
@@ -348,19 +535,36 @@ const ensureLabels = async ({ owner, repo, token, dryRun }) => {
 	}
 };
 
-const findExistingIssue = async ({ owner, repo, token, marker }) => {
-	const query = encodeURIComponent(`repo:${owner}/${repo} type:issue in:body "${marker}"`);
-	const result = await githubRequest({
-		path: `/search/issues?q=${query}`,
-		token,
-	});
-	return result.items?.[0] || null;
+const listExistingTrackerIssues = async ({ owner, repo, token }) => {
+	const issuesByMarker = new Map();
+	let page = 1;
+
+	while (true) {
+		const issues = await githubRequest({
+			path: `/repos/${owner}/${repo}/issues?state=all&per_page=100&page=${page}`,
+			token,
+		});
+
+		for (const issue of issues) {
+			if (issue.pull_request) continue;
+			const markerMatch = String(issue.body || '').match(
+				/maintley-adr-tracker:\s*(ADR-[^\s>]+)/i,
+			);
+			if (!markerMatch) continue;
+			issuesByMarker.set(`maintley-adr-tracker: ${markerMatch[1]}`, issue);
+		}
+
+		if (issues.length < 100) break;
+		page += 1;
+	}
+
+	return issuesByMarker;
 };
 
 const createIssue = async ({ owner, repo, token, adr, dryRun }) => {
 	const title = buildIssueTitle(adr);
 	const body = buildIssueBody(adr);
-	const labels = BASE_LABELS.map((label) => label.name);
+	const labels = buildIssueLabels(adr);
 
 	if (dryRun) {
 		log(`Dry run: would create issue "${title}"`);
@@ -372,6 +576,22 @@ const createIssue = async ({ owner, repo, token, adr, dryRun }) => {
 		path: `/repos/${owner}/${repo}/issues`,
 		token,
 		body: { title, body, labels },
+	});
+};
+
+const updateIssue = async ({ owner, repo, token, issueNumber, patch, dryRun }) => {
+	if (Object.keys(patch).length === 0) return null;
+
+	if (dryRun) {
+		log(`Dry run: would update issue #${issueNumber}`);
+		return null;
+	}
+
+	return githubRequest({
+		method: 'PATCH',
+		path: `/repos/${owner}/${repo}/issues/${issueNumber}`,
+		token,
+		body: patch,
 	});
 };
 
@@ -398,18 +618,18 @@ const parseRepo = (repoValue) => {
 };
 
 const validateExecutionContext = (options) => {
-	if (options.dryRun) return;
+	if (options.dryRun && !options.repo && !options.token) return;
 
 	if (!options.repo) {
-		throw new Error('GITHUB_REPOSITORY or --repo is required unless --dry-run is used.');
+		throw new Error('GITHUB_REPOSITORY or --repo is required for GitHub reconciliation.');
 	}
 
 	if (!options.token) {
-		throw new Error('GITHUB_TOKEN or GH_TOKEN is required unless --dry-run is used.');
+		throw new Error('GITHUB_TOKEN or GH_TOKEN is required for GitHub reconciliation.');
 	}
 };
 
-const syncAdr = async ({ adr, previousAdr, github, options }) => {
+const syncAdr = async ({ adr, previousAdr, github, existingIssues, options }) => {
 	const result = {
 		adr: adr.id,
 		filePath: adr.filePath,
@@ -428,23 +648,7 @@ const syncAdr = async ({ adr, previousAdr, github, options }) => {
 		? `ADR status is not tracked: ${adr.status}`
 		: 'ADR has no status';
 
-	if (!isTrackedStatus && options.dryRun) {
-		if (hasStatusChange && previousAdr && shouldTrackAdr(previousAdr)) {
-			result.action = 'would_comment';
-			result.message = `${statusMessage}; existing tracker would receive a status-change comment if present.`;
-			return result;
-		}
-
-		result.message = statusMessage;
-		return result;
-	}
-
-	const existingIssue = options.dryRun
-		? null
-		: await findExistingIssue({
-				...github,
-				marker: adr.marker,
-		  });
+	const existingIssue = existingIssues.get(adr.marker) || null;
 
 	if (!isTrackedStatus && !existingIssue) {
 		result.message = statusMessage;
@@ -464,8 +668,18 @@ const syncAdr = async ({ adr, previousAdr, github, options }) => {
 	}
 
 	result.issueNumber = existingIssue.number;
-	result.action = 'exists';
-	result.message = isTrackedStatus ? existingIssue.html_url : statusMessage;
+	const shouldReconcile = isTrackedStatus || isImplementedAdr(adr);
+	const issuePatch = shouldReconcile ? buildIssuePatch(adr, existingIssue) : {};
+	const updateParts = [];
+	if (Object.keys(issuePatch).length > 0) {
+		await updateIssue({
+			...github,
+			issueNumber: existingIssue.number,
+			patch: issuePatch,
+			dryRun: options.dryRun,
+		});
+		updateParts.push(issuePatch.state === 'closed' ? 'closed' : 'updated');
+	}
 
 	if (hasStatusChange) {
 		await addComment({
@@ -474,8 +688,23 @@ const syncAdr = async ({ adr, previousAdr, github, options }) => {
 			body: buildStatusChangeComment({ adr, previousStatus }),
 			dryRun: options.dryRun,
 		});
-		result.action = options.dryRun ? 'would_comment' : 'commented';
+		updateParts.push('commented');
 	}
+
+	if (updateParts.length === 0) {
+		result.action = 'exists';
+		result.message = existingIssue.html_url;
+		return result;
+	}
+
+	result.action = options.dryRun
+		? `would_${updateParts
+				.map((part) =>
+					({ updated: 'update', closed: 'close', commented: 'comment' })[part],
+				)
+				.join('_and_')}`
+		: updateParts.join('_and_');
+	result.message = existingIssue.html_url || statusMessage;
 
 	return result;
 };
@@ -496,7 +725,7 @@ const main = async () => {
 
 	validateExecutionContext(options);
 
-	const repoParts = options.repo ? parseRepo(options.repo) : null;
+	const repoParts = options.repo && options.token ? parseRepo(options.repo) : null;
 	const github = repoParts
 		? { ...repoParts, token: options.token }
 		: null;
@@ -504,6 +733,9 @@ const main = async () => {
 	if (github) {
 		await ensureLabels({ ...github, dryRun: options.dryRun });
 	}
+	const existingIssues = github
+		? await listExistingTrackerIssues(github)
+		: new Map();
 
 	for (const filePath of files) {
 		if (!fs.existsSync(filePath)) continue;
@@ -526,7 +758,13 @@ const main = async () => {
 			continue;
 		}
 
-		const result = await syncAdr({ adr, previousAdr, github, options });
+		const result = await syncAdr({
+			adr,
+			previousAdr,
+			github,
+			existingIssues,
+			options,
+		});
 		summary.results.push(result);
 	}
 
@@ -540,7 +778,22 @@ const main = async () => {
 	}
 };
 
-main().catch((error) => {
-	process.stderr.write(`ADR tracker sync failed: ${error.message}\n`);
-	process.exit(1);
-});
+module.exports = {
+	MANAGED_START,
+	MANAGED_END,
+	USER_NOTES_MARKER,
+	parseAdr,
+	parseImplementationChecklist,
+	buildIssueBody,
+	buildIssueLabels,
+	buildIssuePatch,
+	getStateLabel,
+	shouldTrackAdr,
+};
+
+if (require.main === module) {
+	main().catch((error) => {
+		process.stderr.write(`ADR tracker sync failed: ${error.message}\n`);
+		process.exit(1);
+	});
+}
