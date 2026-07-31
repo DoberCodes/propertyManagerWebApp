@@ -20,6 +20,8 @@ const {
 	validateCallablePreflight,
 } = require('./validateCallableFunctionsPreflight.cjs');
 
+const rootDir = path.resolve(__dirname, '..');
+
 test('parses quoted dotenv assignments without exposing values in findings', () => {
 	assert.deepEqual(
 		Object.fromEntries(parseDotenvAssignments('ONE="value"\nTWO=\n# ignored\n')),
@@ -98,4 +100,26 @@ test('accepts a callable preflight only when infrastructure permits the origin',
 			}),
 		/rejected callable preflight/,
 	);
+});
+
+test('guards shared Beta backend previews with one owner and stable restoration', () => {
+	const previewWorkflow = fs.readFileSync(
+		path.join(rootDir, '.github', 'workflows', 'firebase-beta-backend-preview.yml'),
+		'utf8',
+	);
+	const stableWorkflow = fs.readFileSync(
+		path.join(rootDir, '.github', 'workflows', 'firebase-deploy-environments.yml'),
+		'utf8',
+	);
+
+	assert.match(previewWorkflow, /group: firebase-stable-development/);
+	assert.match(previewWorkflow, /HEAD_REPOSITORY.*GITHUB_REPOSITORY/);
+	assert.match(previewWorkflow, /gh pr checks .*--required --watch --fail-fast/);
+	assert.match(previewWorkflow, /--project maintleybeta/);
+	assert.match(previewWorkflow, /--only functions,firestore:rules,storage/);
+	assert.match(previewWorkflow, /github\.event\.pull_request\.merged == false/);
+	assert.match(previewWorkflow, /beta-backend-active/);
+	assert.match(previewWorkflow, /Confirm restoration still owns Beta/);
+	assert.match(stableWorkflow, /ACTIVE_BACKEND_PREVIEWS/);
+	assert.match(stableWorkflow, /Clear pull request backend-preview ownership/);
 });

@@ -516,7 +516,13 @@ Backend selection remains source-based: `functions/` changes deploy Functions,
 `firestore.rules` changes deploy Firestore rules, and `storage.rules` changes
 deploy Storage rules. The stable build artifact must complete before the deploy
 job can authenticate. Deployments are serialized so two merges cannot update
-the shared development environment concurrently.
+the shared development environment concurrently. The same lock serializes
+opt-in pull-request backend previews and abandoned-preview restoration. A
+successful stable Beta deployment clears any remaining pull-request backend
+ownership label. If any PR owns the backend when a merge reaches `beta`, the
+stable deployment ignores source-based backend selection for that run and
+reclaims the complete Functions, Firestore-rules, and Storage-rules state from
+the merged `beta` commit before clearing ownership.
 
 ### One-way branch promotion
 
@@ -657,7 +663,40 @@ and secret contents are never printed. Pull requests from forks are not
 deployed. The build job has no Google identity token; the deploy job downloads
 the static artifact, uses the trusted Hosting configuration from the PR base
 commit, and authenticates only immediately before the Firebase CLI deployment.
-It never deploys Functions, Firestore Rules, or Storage Rules.
+It does not deploy Functions, Firestore Rules, or Storage Rules unless a trusted
+maintainer separately activates the guarded Beta backend-preview lifecycle.
+
+### Pull request backend previews
+
+Trusted same-repository pull requests that need real backend validation may use:
+
+```text
+.github/workflows/firebase-beta-backend-preview.yml
+```
+
+Add the `deploy-backend-to-beta` label after the PR's required checks are
+available. The workflow waits for those checks, reruns the Functions build and
+Firebase emulator rule suites, verifies the development project and Stripe test
+boundary, and deploys the pull request's complete Functions, Firestore-rules,
+and Storage-rules state to `maintleybeta`. Successful activation replaces the
+request label with `beta-backend-active`. Exactly one PR may carry the active
+label, and all backend preview and stable Beta deployments share one concurrency
+lock.
+
+While the label is active, later pushes redeploy automatically after required
+checks pass. Localhost and every Hosting preview configured for Beta continue to
+point directly at `maintleybeta`; there is no per-PR backend copy. Merging the PR
+allows the normal stable Beta deployment to make the state durable. Closing the
+PR without merging deploys the complete backend from the current `beta` branch
+and removes ownership. Neither restoration nor merge cleanup deletes test users,
+Firestore records, Storage objects, Stripe test records, or other side effects
+created during validation.
+
+Only repository maintainers should apply the request label. Fork pull requests
+are rejected before checkout, production project identifiers and live Stripe
+keys are rejected, and backend preview deployment never includes Hosting or any
+production target. Emulator suites remain required because negative permission
+tests and destructive scenarios should not depend on shared Beta data.
 
 After a pull request merges, `firebase-deploy-environments.yml` rebuilds the
 approved `beta` commit and promotes that artifact to the stable Maintley Beta

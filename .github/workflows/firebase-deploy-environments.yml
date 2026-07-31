@@ -113,6 +113,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout
@@ -126,6 +128,7 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
           CURRENT_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
             CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
@@ -152,6 +155,13 @@ jobs:
           if echo "$CHANGED_FILES" | grep -Eq '^storage\.rules$'; then
             targets+=("storage")
             backend_targets+=("storage")
+          fi
+
+          ACTIVE_BACKEND_PREVIEWS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=all&labels=beta-backend-active&per_page=100" --jq 'length' | awk '{ total += $1 } END { print total + 0 }')"
+          if [[ "$ACTIVE_BACKEND_PREVIEWS" -gt 0 ]]; then
+            echo "An active pull-request backend preview exists; this stable Beta deployment will reclaim the complete backend."
+            targets=("hosting:beta" "functions" "firestore:rules" "storage")
+            backend_targets=("functions" "firestore:rules" "storage")
           fi
 
           TARGETS="$(IFS=,; echo "${targets[*]}")"
@@ -267,6 +277,16 @@ jobs:
           --project maintleybeta
           --origin https://maintleybeta.web.app
           --functions recordUserActivity,getFamilyMembers
+
+      - name: Clear pull request backend-preview ownership
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for PR_NUMBER in $(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=all&labels=beta-backend-active&per_page=100" --jq '.[].number'); do
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels/beta-backend-active" --silent || true
+          done
 
   development-release-prep:
     name: Update release candidate
