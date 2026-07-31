@@ -393,9 +393,12 @@ functions/.env.local
 ```
 
 Local application and Functions configuration inherits the complete Beta/test
-baseline. The `LOCAL_` section contains only values that differ from Beta or
-exist solely for local tooling, such as emulator hosts. Backend values with a declared browser `source` are entered once
-in the control file and derived into the matching Functions target. The generic
+baseline. By default, the localhost application uses the deployed Maintley Beta
+Authentication, Firestore, Storage, and callable Functions so primary workflows
+match the stable Beta environment. The `LOCAL_` section contains only values
+that differ from Beta or exist solely for opt-in local tooling. Backend values
+with a declared browser `source` are entered once in the control file and
+derived into the matching Functions target. The generic
 `.env.production` and `.env.development.local` are legacy migration inputs only
 and must not be used by new workflows. The ambiguous `functions/.env` file is
 prohibited because Firebase can merge it into project-specific deployments; it
@@ -415,6 +418,15 @@ The Functions deploy-package validator rejects any declared Firebase secret
 with a non-empty dotenv assignment. Run `yarn env:functions:sanitize` to remove
 legacy plaintext assignments without printing their contents. Emulator-only
 secret overrides belong in `functions/.secret.local`, using test credentials.
+
+Firebase emulators remain available for isolated rules, integration, E2E, and
+Functions development. To route callable Functions to a running local emulator,
+set `REACT_APP_FIREBASE_FUNCTIONS_EMULATOR_HOST=localhost:5001` for that
+development process or add the matching `LOCAL_` override to the ignored root
+`.env` control file and rerun `yarn env:organize --apply`. Clear the override and
+restart the development server to return localhost to the deployed Beta
+Functions. Automated Firestore and Storage rules tests continue to manage their
+own emulator configuration independently.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
