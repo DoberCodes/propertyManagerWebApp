@@ -508,6 +508,13 @@ fails before publishing and the release PR must be refreshed. If Beta has
 diverged when alignment runs, alignment fails without changing either branch.
 Force updates are never allowed.
 
+The Beta ruleset does not enforce a pull-request-only update rule. That rule
+would also reject the finalizer's direct reference fast-forward. Feature work
+still targets Beta through pull requests as the normal operating policy so it
+receives preview, review, and required-check coverage. Direct Beta updates are
+reserved for the guarded alignment workflow. Required checks remain enabled;
+force updates and branch deletion remain blocked.
+
 `.github/workflows/align-beta-with-main.yml` provides an explicit Main-only
 alignment command for exceptional operational fixes that landed directly in
 Main. It applies the same ancestry checks and is not a substitute for the normal
@@ -1050,10 +1057,11 @@ advances Beta directly to the published Main release only when Git proves the
 move is a fast-forward. The update uses GitHub's reference API with
 `force=false`; divergence therefore fails without overwriting Beta work.
 
-Feature pull requests targeting `beta` may continue using the normal squash
-policy. Never force-push either protected branch to repair ancestry. Use the
-explicit alignment workflow only for an exceptional operational Main change
-and only while Beta remains an ancestor of Main.
+Feature work continues to target `beta` through pull requests and may use the
+normal squash policy even though Beta does not enforce PR-only updates at the
+ruleset level. Never force-push either protected branch to repair ancestry. Use
+the explicit alignment workflow only for an exceptional operational Main
+change and only while Beta remains an ancestor of Main.
 
 Feature pull requests targeting `beta` run the same required Build Check jobs
 as ordinary pull requests targeting `main`: entitlement-package policy, unit
