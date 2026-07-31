@@ -21,6 +21,7 @@ const environment = {
 };
 const commands = [
 	['scripts/validateFrontendEnv.cjs'],
+	['scripts/checkCleanWebRoutes.cjs'],
 	['scripts/checkEntitlementBoundaries.cjs'],
 	['node_modules/react-scripts/bin/react-scripts.js', 'build'],
 ];

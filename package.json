@@ -64,6 +64,7 @@
 		"analyze:bundle": "node scripts/reportBuildAssets.cjs",
 		"analyze:media": "node scripts/reportMediaAssets.cjs",
 		"check:asset-budgets": "node scripts/checkAssetBudgets.cjs",
+		"check:clean-web-routes": "node scripts/checkCleanWebRoutes.cjs",
 		"check:entitlement-boundaries": "node scripts/checkEntitlementBoundaries.cjs",
 		"check:entitlement-package-version": "node scripts/checkEntitlementPackageVersion.cjs",
 		"test:entitlement-package-version": "node --test scripts/checkEntitlementPackageVersion.test.cjs",
