@@ -92,7 +92,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.source.outputs.pr_number }}
         shell: bash
-        run: timeout 30m gh pr checks "$PR_NUMBER" --required --watch --fail-fast --interval 10
+        run: timeout 30m gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --required --watch --fail-fast --interval 10
 
       - name: Checkout trusted source
         uses: actions/checkout@v5
