@@ -273,10 +273,12 @@ scripts/archive/generateReleaseNotes.legacy.cjs
 
 * syncAdrImplementationTrackers.cjs
 
-`syncAdrImplementationTrackers.cjs` backs the GitHub Action that creates ADR
-implementation tracker issues after accepted ADRs are merged to `main`. It uses
-hidden issue markers to avoid duplicates and does not overwrite existing issue
-bodies after creation.
+`syncAdrImplementationTrackers.cjs` backs the GitHub Action that creates and
+reconciles ADR implementation tracker issues after ADRs are merged to `main`.
+An ADR can provide an `## Implementation Tracking` checkbox list as the source
+for the issue's generated checklist. The sync updates only the marked generated
+section, preserves tracker notes, reconciles state labels, and closes an open
+tracker when the ADR reaches `Implemented`. It never reopens a closed issue.
 
 Local audit:
 
@@ -287,6 +289,10 @@ yarn adr:trackers:dry-run --json
 Non-dry-run syncs require `GITHUB_REPOSITORY` or `--repo`, plus `GITHUB_TOKEN`
 or `GH_TOKEN`. Missing write context is treated as an error so a real sync cannot
 silently fall back to a preview.
+
+Connected dry runs use the same repository and token inputs to compare ADRs
+against existing issues without writing changes. The local no-token audit only
+reports which ADRs would be eligible for tracker creation.
 
 ---
 
