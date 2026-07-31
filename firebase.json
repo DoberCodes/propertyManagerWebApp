@@ -55,6 +55,7 @@
 	],
 	"functions": {
 		"source": "functions",
+		"runtime": "nodejs22",
 		"predeploy": ["node scripts/validateFunctionsDeployPackage.cjs"]
 	},
 	"firestore": {

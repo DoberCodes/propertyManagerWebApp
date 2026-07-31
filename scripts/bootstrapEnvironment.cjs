@@ -29,6 +29,15 @@ function readValues(relativePath) {
 	return fs.existsSync(absolutePath) ? parseDotenv(fs.readFileSync(absolutePath, 'utf8')) : new Map();
 }
 
+function readGitHubVariableOverrides(environment, serialized = process.env.MAINTLEY_GITHUB_VARIABLES_JSON) {
+	if (!String(serialized || '').trim()) return new Map();
+	const prefix = environment === 'production' ? 'PROD_' : 'DEV_';
+	const parsed = JSON.parse(serialized);
+	return new Map(Object.entries(parsed)
+		.filter(([name, value]) => name.startsWith(prefix) && String(value || '').trim())
+		.map(([name, value]) => [name.slice(prefix.length), String(value)]));
+}
+
 function resolveEntryValue(entry, environment, sources) {
 	for (const values of sources) {
 		const direct = values.get(entry.name);
@@ -56,14 +65,24 @@ function buildFunctionValues(entries, environment, sources) {
 	return { values, missing };
 }
 
-function formatDotenv(environment, values) {
+function formatDotenv(environment, values, entries = []) {
 	const lines = [
 		`# Generated Maintley ${environment} Functions configuration.`,
 		'# Source contract: ../.env.example',
-		'# Non-secret values only. Regenerate with yarn env:bootstrap.',
+		'# Non-secret values only. Generated file; regenerate with yarn env:bootstrap.',
 		'',
 	];
-	for (const [name, value] of values) lines.push(`${name}=${JSON.stringify(String(value || ''))}`);
+	const sections = new Map(entries.map(({ name, section }) => [name, section]));
+	let currentSection = '';
+	for (const [name, value] of values) {
+		const section = sections.get(name) || '';
+		if (section && section !== currentSection) {
+			if (currentSection) lines.push('');
+			lines.push(`# ${section}`);
+			currentSection = section;
+		}
+		lines.push(`${name}=${JSON.stringify(String(value || ''))}`);
+	}
 	return `${lines.join('\n')}\n`;
 }
 
@@ -76,13 +95,30 @@ function checkFirebaseSecrets(entries, environment) {
 		environment,
 		(entry) => entry.scope === 'functions' && entry.delivery === 'firebase-secret' && entry.required,
 	);
-	return required
-		.filter((entry) => spawnSync(process.execPath, [firebaseBin, 'functions:secrets:get', entry.name, '--project', alias], {
+	const missing = [];
+	const verificationFailures = [];
+	for (const entry of required) {
+		const result = spawnSync(process.execPath, [firebaseBin, 'functions:secrets:get', entry.name, '--project', alias], {
 			cwd: rootDir,
 			encoding: 'utf8',
 			windowsHide: true,
-		}).status !== 0)
-		.map(({ name }) => name);
+		});
+		if (result.status === 0) continue;
+		const detail = summarizeFirebaseCommandFailure(result);
+		if (/\b404\b|not found|does not exist/i.test(detail)) missing.push(entry.name);
+		else verificationFailures.push({ name: entry.name, detail });
+	}
+	return { missing, verificationFailures };
+}
+
+function summarizeFirebaseCommandFailure(result) {
+	const lines = `${result.stderr || ''}\n${result.stdout || ''}`
+		.replace(/\u001b\[[0-9;]*m/g, '')
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	const useful = lines.find((line) => /error|permission|denied|forbidden|failed|unauthenticated/i.test(line));
+	return String(useful || `Firebase CLI exited with status ${result.status ?? 'unknown'}`).slice(0, 500);
 }
 
 function environmentFiles(environment) {
@@ -98,14 +134,20 @@ function runEnvironment(entries, environment, options) {
 	const existing = readValues(files.functions);
 	const react = readValues(files.react);
 	const legacyProduction = environment === 'production' ? readValues('functions/.env') : new Map();
-	const { values, missing } = buildFunctionValues(entries, environment, [existing, react, legacyProduction]);
+	const overrides = readGitHubVariableOverrides(environment);
+	const functionEntries = entriesFor(
+		entries,
+		environment,
+		(entry) => entry.scope === 'functions' && entry.delivery === 'github-variable',
+	);
+	const { values, missing } = buildFunctionValues(entries, environment, [overrides, existing, react, legacyProduction]);
 	if (options.apply) {
-		fs.writeFileSync(path.resolve(rootDir, files.functions), formatDotenv(environment, values), 'utf8');
-		if (environment === 'development') {
-			fs.writeFileSync(path.resolve(rootDir, 'functions/.env.local'), formatDotenv('local emulator', values), 'utf8');
-		}
+		fs.writeFileSync(path.resolve(rootDir, files.functions), formatDotenv(environment, values, functionEntries), 'utf8');
 	}
-	const missingSecrets = options.checkSecrets ? checkFirebaseSecrets(entries, environment) : [];
+	const secretCheck = options.checkSecrets
+		? checkFirebaseSecrets(entries, environment)
+		: { missing: [], verificationFailures: [] };
+	const missingSecrets = secretCheck.missing;
 	console.log(`${environment}: ${options.apply ? 'generated' : 'dry-run'} ${files.functions}`);
 	console.log(`- configured non-secret Functions values: ${values.size - missing.length}`);
 	console.log(`- missing required non-secret values: ${missing.length}`);
@@ -113,10 +155,12 @@ function runEnvironment(entries, environment, options) {
 	if (options.checkSecrets) {
 		console.log(`- missing required Firebase secrets: ${missingSecrets.length}`);
 		for (const name of missingSecrets) console.log(`  - ${name}`);
+		console.log(`- Firebase secret verification failures: ${secretCheck.verificationFailures.length}`);
+		for (const { name, detail } of secretCheck.verificationFailures) console.log(`  - ${name}: ${detail}`);
 	} else {
 		console.log('- Firebase secrets: not checked (use --check-secrets)');
 	}
-	return { missing, missingSecrets };
+	return { missing, missingSecrets, secretVerificationFailures: secretCheck.verificationFailures };
 }
 
 function main() {
@@ -126,7 +170,9 @@ function main() {
 		const environments = options.environment === 'all' ? ['development', 'production'] : [options.environment];
 		const results = environments.map((environment) => runEnvironment(entries, environment, options));
 		console.log('Values and secret contents were intentionally omitted.');
-		if (options.strict && results.some(({ missing, missingSecrets }) => missing.length || missingSecrets.length)) {
+		if (options.strict && results.some(({ missing, missingSecrets, secretVerificationFailures }) => (
+			missing.length || missingSecrets.length || secretVerificationFailures.length
+		))) {
 			throw new Error('Environment readiness validation found missing required configuration.');
 		}
 	} catch (error) {
@@ -141,5 +187,7 @@ module.exports = {
 	buildFunctionValues,
 	formatDotenv,
 	parseArgs,
+	readGitHubVariableOverrides,
 	resolveEntryValue,
+	summarizeFirebaseCommandFailure,
 };

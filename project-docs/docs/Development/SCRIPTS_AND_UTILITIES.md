@@ -1290,9 +1290,15 @@ yarn github-env:sync --environment development
 yarn github-env:sync --environment production
 ```
 
-`.env.example` is the only committed variable manifest. The contract validator
-checks source coverage. The organizer creates browser and operations files. The
-bootstrapper creates project-specific non-secret Functions dotenv files. The
+`.env.example` is the only committed variable manifest. The ignored root `.env`
+is the single local control file for actual non-secret Beta and Production
+values plus explicit Local overrides. Local inherits Beta unless a value is
+different or local-only. Commented inventories identify Firebase, GitHub,
+Android-signing, and optional tooling secrets without storing their values. The contract validator checks source coverage. Manifest
+section headings and declaration order organize the standardized `.env.local`,
+`.env.beta`, and `.env.prod` outputs in both the repository root and `functions/`,
+including empty placeholders for unconfigured declared values. The
+bootstrapper also audits project-specific non-secret Functions configuration. The
 GitHub sync command uploads only declared non-secret variables and is dry-run by
 default. Firebase secret values remain in the target project's Secret Manager
 and are never copied into GitHub variables or generated dotenv files.

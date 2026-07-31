@@ -24,10 +24,10 @@ jobs:
 
     steps:
       - name: Checkout pull request
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'yarn'
@@ -89,7 +89,7 @@ jobs:
           yarn check:asset-budgets
 
       - name: Upload preview build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: firebase-preview-${{ github.event.pull_request.number }}
           path: build
@@ -99,7 +99,9 @@ jobs:
   deploy-preview:
     name: Deploy development preview
     if: github.event.pull_request.head.repo.full_name == github.repository
-    needs: build-preview
+    needs:
+      - build-preview
+      - backend-readiness
     runs-on: ubuntu-latest
     environment: development
     permissions:
@@ -109,7 +111,7 @@ jobs:
 
     steps:
       - name: Checkout trusted Hosting configuration
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Feature PRs use the protected beta branch configuration. The protected
           # main branch is trusted only while synchronizing release foundations
@@ -117,7 +119,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref == 'main' && github.event.pull_request.head.sha || github.event.pull_request.base.sha }}
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
@@ -125,7 +127,7 @@ jobs:
         run: npm install --global firebase-tools@15.22.3
 
       - name: Download preview build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: firebase-preview-${{ github.event.pull_request.number }}
           path: build
@@ -194,3 +196,49 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+  backend-readiness:
+    name: Beta backend readiness
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    needs: build-preview
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v5
+
+      - name: Use Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'yarn'
+          cache-dependency-path: functions/yarn.lock
+
+      - name: Install Firebase tooling
+        run: yarn --cwd functions install --frozen-lockfile
+
+      - name: Authenticate to Maintley Beta
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
+
+      - name: Verify required Functions configuration and secrets
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          MAINTLEY_GITHUB_VARIABLES_JSON: ${{ toJSON(vars) }}
+        run: |
+          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
+            echo "Refusing to validate backend readiness outside Maintley Beta."
+            exit 1
+          fi
+
+          node scripts/bootstrapEnvironment.cjs \
+            --environment development \
+            --strict \
+            --check-secrets

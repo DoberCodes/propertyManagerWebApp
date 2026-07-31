@@ -331,27 +331,61 @@ make the trusted writer mandatory, tighten rules to reject every direct client
 recurrence write, and remove the rollout flag. Client entitlement checks may
 remain only for contextual interface messaging.
 
+Production rollout state approved on 2026-07-30 enables the Homeowner+ product
+trial, internal entitlement-grant issuance, grant-aware paid transitions,
+access-lifecycle communication, trusted setup-plan activation, trusted recurring
+task writes, and trusted storage quota. The first-property trial eligibility
+boundary is `2026-07-25T16:19:46-04:00`; accounts created before that instant are
+not automatically enrolled. Customer-entered complimentary access-code
+redemption remains disabled because Maintley uses the admin grant flow.
+`ENTITLEMENT_COMPARE_MODE` also remains disabled because it is diagnostic only.
+
+These enabled flags are migration controls, not permanent configuration. After
+the Firebase migration is stable, remove each completed rollout flag and its
+obsolete fallback so the validated trusted path becomes standard behavior.
+
 `.env.example` is the committed environment contract. Each entry includes
 `@maintley-env` metadata defining its scope, delivery system, applicable
 environments, required status, optional source, and safe environment defaults.
 Real values never belong in that file.
 
+Section headings and declaration order in `.env.example` also control the
+organization of generated browser, operations, and Functions dotenv files.
+Generated templates retain empty declared entries so missing configuration is
+visible and can be completed without manually discovering variable names.
+
 Run `yarn env:contract:validate` whenever the application, Functions, scripts,
 or workflows introduce environment configuration. The validation fails when a
 Maintley-owned runtime variable is referenced without a contract declaration.
-Run `yarn env:organize --apply` to regenerate local browser and operations files
-from declared entries, and `yarn env:bootstrap --environment all --apply` to
-generate non-secret project-specific Functions files:
+The ignored root `.env` is the single local control file for actual non-secret
+values. It is organized into `LOCAL_`, `BETA_`, and `PROD_` sections. Run
+`yarn env:organize --apply` to preserve those values while regenerating the
+standard target files for both the application and Functions:
 
 ```text
+.env.local
+.env.beta
+.env.prod
 functions/.env.beta
 functions/.env.prod
 functions/.env.local
 ```
 
-The local emulator file follows Beta/test configuration. The generic
-`functions/.env` is a legacy migration source only and must not be used by new
-deployments. Every generated `.env*` file is ignored and must not be committed.
+Local application and Functions configuration inherits the complete Beta/test
+baseline. The `LOCAL_` section contains only values that differ from Beta or
+exist solely for local tooling, such as emulator hosts. Backend values with a declared browser `source` are entered once
+in the control file and derived into the matching Functions target. The generic
+`functions/.env`, `.env.production`, and `.env.development.local` names are
+legacy migration inputs only and must not be used by new workflows. Every real
+`.env*` file is ignored and must not be committed.
+
+The control file includes commented inventories for secrets without storing
+their values. Beta and Production Firebase secrets belong in the matching
+Firebase Secret Manager project. E2E secrets belong in the GitHub development
+environment. Android keystore passwords remain in `.env.operations.local`
+because signing is local. Service-account and sandbox credentials are optional
+local tooling inputs needed only when running their related administrative
+scripts.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
@@ -359,6 +393,12 @@ Actions variable and not a normal dotenv value in production. Create it with
 32 random characters before deploying the access-code callables. `RESEND_API_KEY`
 remains the Firebase Functions secret used by lifecycle delivery. Do not copy
 either value into repository Variables.
+
+`FUNCTIONS_CONFIG_EXPORT` is a required JSON secret retained only as a
+compatibility fallback for legacy `functions.config()` Stripe values. New
+environments using the dedicated Stripe secrets and price parameters must set it
+to an empty JSON object (`{}`); do not duplicate current Stripe credentials into
+the compatibility payload.
 
 Trusted storage quota rollout has three deliberate steps: deploy the callable,
 triggers, and compatible clients while both rollout controls are disabled; set
@@ -381,8 +421,10 @@ Firebase project or Storage bucket.
 During production CI, the contract-managed Functions values are written into a
 temporary `functions/.env.prod` file before `firebase deploy --project prod`
 runs. Firebase loads the project-alias-specific file during non-interactive
-deployment. Beta Functions deployments use `.env.beta`; emulator overrides use
-`.env.local`.
+deployment. Beta Functions deployments use `functions/.env.beta`; emulator
+overrides use `functions/.env.local`. Local application builds use the matching
+root `.env.prod`, `.env.beta`, or `.env.local` file through Maintley's build and
+runtime helpers rather than relying on framework-specific naming differences.
 
 `yarn github-env:sync --environment <development|production>` performs a
 values-hidden dry run against the corresponding GitHub environment. Add
@@ -459,9 +501,12 @@ the production Stripe publishable key in a development build.
 The Workload Identity provider admits tokens only from
 `DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
 `development` environment. The dedicated service account is scoped to the
-`maintleybeta` project. Its initial permissions are Firebase Hosting Admin and
-API Keys Viewer, which support Hosting preview work without granting Functions,
-Firestore Rules, Storage Rules, Scheduler, Secret Manager, or production access.
+`maintleybeta` project. Its preview-stage permissions are Firebase Hosting
+Admin, API Keys Viewer, Secret Manager Viewer, and Service Usage Viewer. The
+read-only Secret Manager and Service Usage roles allow readiness checks to
+confirm required secret metadata and API availability without reading secret
+values, changing enabled services, or granting Functions, Firestore Rules,
+Storage Rules, Scheduler, or production access.
 
 Do not create or store a JSON key for this development identity. Add further
 roles only when the corresponding development deployment stage is implemented
@@ -474,7 +519,7 @@ Keyless authentication is checked by:
 .github/workflows/verify-development-deployment-identity.yml
 ```
 
-The workflow performs no deployment. On relevant pushes to `beta` or `main`, or
+The workflow performs no deployment. On relevant pushes to `beta`, or
 when manually dispatched after it exists on the default branch, it verifies
 that GitHub can impersonate the development service account and that the
 expected Maintley Beta Hosting site is visible. It intentionally avoids loading
@@ -489,11 +534,18 @@ Pull requests targeting `beta` use:
 The preview workflow builds against only `DEV_REACT_APP_*` configuration,
 requires the Stripe publishable key to start with `pk_test_`, disables staged
 server-owned feature flags, and deploys only the `beta` Hosting target to a
-seven-day preview channel. Pull requests from forks are not deployed. The build
-job has no Google identity token; the deploy job downloads the static artifact,
-uses the trusted Hosting configuration from the PR base commit, and authenticates
-only immediately before the Firebase CLI deployment. It never deploys Functions,
-Firestore Rules, or Storage Rules.
+seven-day preview channel. The workflow also verifies required non-secret
+Functions configuration from the GitHub `development` environment and required
+secret names in the Maintley Beta project before deploying the preview. Values
+and secret contents are never printed. Pull requests from forks are not
+deployed. The build job has no Google identity token; the deploy job downloads
+the static artifact, uses the trusted Hosting configuration from the PR base
+commit, and authenticates only immediately before the Firebase CLI deployment.
+It never deploys Functions, Firestore Rules, or Storage Rules.
+
+The E2E workflow runs for pull requests targeting either `beta` or `main`.
+Require its `e2e` status on both protected branches only after the workflow has
+reported successfully at least once for that target branch.
 
 The workflow updates one bot comment on the pull request with the preview URL.
 The development customer-portal URL remains pointed at a safe Maintley Beta
@@ -854,8 +906,10 @@ the root rules-testing package, while Functions builds and callable emulator
 tests use `functions/node_modules`; neither dependency set may be omitted from
 the deployment job merely because the earlier build-check job installed it in a
 separate runner. Root dependencies are installed under Node 24 to satisfy the
-current web and Capacitor tooling engines; the job then switches to Node 20 for
-the Functions package, matching the deployed Functions runtime.
+current web and Capacitor tooling engines; the job then switches to Node 22 for
+the Functions package. `firebase.json` declares `nodejs22` as the authoritative
+deployed Functions runtime, while the Functions package accepts Node 22 or newer
+so root workspace tooling can continue to run under Node 24.
 
 If `package.json` is already ahead of the latest `v*` tag because a release was
 prepared but not tagged locally yet, the latest merged `Release v...` commit is
@@ -874,6 +928,13 @@ without requesting an additional, empty version-preparation cycle.
 previews and E2E tests are skipped for that PR, while Build Check runs only
 `yarn version:validate`. After the release PR merges to `main`, Release Prep
 does not open another release PR from the `release: prepare v...` commit.
+
+Feature pull requests targeting `beta` run the same required Build Check jobs
+as ordinary pull requests targeting `main`: entitlement-package policy, unit
+and rules tests, production build validation, and the Functions build. Release
+note previews also run for both targets and derive their comparison boundary
+from the pull request's actual base branch, so a feature PR reports only its
+changes against `beta` while a release PR is evaluated against `main`.
 
 The current app version used by update notifications is derived from
 `package.json` through:
