@@ -909,9 +909,11 @@ Release version changes are prepared by:
 .github/workflows/release-prep.yml
 ```
 
-The Release Prep workflow runs after pushes to `main`, computes the highest
-required bump across the unreleased range, and opens or updates the `release/next`
-PR. That PR updates:
+The stable development deployment calls Release Prep only after a merged
+`beta` commit has built and deployed successfully. Release Prep computes the
+highest required bump across the unreleased range and opens or updates the
+single `release/next` PR targeting `main`. The release branch is rebuilt from
+the exact deployed Beta commit before these version files are updated:
 
 * `package.json`
 * `client/package.json`
@@ -919,9 +921,12 @@ PR. That PR updates:
 * `android/app/build.gradle` `versionCode`
 
 The workflow uses `scripts/prepareReleaseVersion.cjs` and
-`scripts/validateReleaseVersion.cjs`. If a patch-only release PR is open and a
-feature or breaking change later lands on `main`, the same `release/next` PR is
-updated with the higher required bump.
+`scripts/validateReleaseVersion.cjs`. If PR `release/next` already exists, its
+branch, title, body, version, and release-note preview are updated. Otherwise
+the workflow creates it. A later successfully deployed Beta feature or breaking
+change updates that same PR with the higher required bump; it does not create a
+second release PR or reset the release boundary merely because a new Beta merge
+arrived.
 
 Firebase deployment jobs install both the root validation dependencies and the
 Functions deployment dependencies. Firestore and Storage emulator gates use
@@ -947,10 +952,11 @@ the prepared version after another product change lands. This allows
 `build:signed` to consume the release-notes artifact from the release merge
 without requesting an additional, empty version-preparation cycle.
 
-`release/next` is treated as a version-only administrative PR. Release note
-previews and E2E tests are skipped for that PR, while Build Check runs only
-`yarn version:validate`. After the release PR merges to `main`, Release Prep
-does not open another release PR from the `release: prepare v...` commit.
+`release/next` promotes the complete approved Beta state, so it is not treated
+as a version-only administrative PR. It runs the production-configured build,
+unit and rules tests, Functions validation, E2E smoke test, release-note
+preview, entitlement-package policy, and `yarn version:validate`. A failed
+stable Beta deployment cannot update the release branch.
 
 Feature pull requests targeting `beta` run the same required Build Check jobs
 as ordinary pull requests targeting `main`: entitlement-package policy, unit

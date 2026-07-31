@@ -575,6 +575,9 @@ records were copied into the development project during bootstrap.
 * [ ] Use separate, least-privilege development and production deployment identities.
 * [x] Configure environment-specific secrets without committing credentials.
 * [ ] Update Release Prep so the release branch promotes the approved `beta` state into `main` rather than acting as a version-only branch.
+  * The reusable promotion workflow is implemented; keep this item open until
+    the first successful stable Beta deployment updates the existing
+    `release/next` PR and its full release validation passes.
 * [ ] Gate production deployment on an exact `Release vX.Y.Z` merge and synchronized version files.
 * [ ] Generate final customer release notes from the preceding merged release boundary.
 * [ ] Create the matching Git tag and GitHub Release only after every required production deployment succeeds.

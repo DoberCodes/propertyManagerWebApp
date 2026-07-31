@@ -1,13 +1,12 @@
 name: Release Prep
 
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - package.json
-      - client/package.json
-      - android/app/build.gradle
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact successfully deployed Beta commit to promote.
+        required: true
+        type: string
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +15,6 @@ concurrency:
 
 jobs:
   prepare-release-pr:
-    if: "${{ github.event_name != 'push' || startsWith(github.event.head_commit.message, 'release: prepare v') == false }}"
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -27,6 +25,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_call' && inputs.source_sha || 'beta' }}
 
       - name: Use Node.js
         uses: actions/setup-node@v5

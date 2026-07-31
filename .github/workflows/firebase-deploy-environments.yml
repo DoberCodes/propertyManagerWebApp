@@ -244,6 +244,17 @@ jobs:
             --non-interactive \
             --force
 
+  development-release-prep:
+    name: Update release candidate
+    if: github.event_name == 'push' && github.ref_name == 'beta'
+    needs: development-deploy
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/release-prep.yml
+    with:
+      source_sha: ${{ github.sha }}
+
   build-check:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
