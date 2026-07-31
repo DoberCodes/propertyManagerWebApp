@@ -434,7 +434,10 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Create and protect the `beta` integration branch.
 * [ ] Require feature pull requests to target `beta` under the normal development flow.
 * [ ] Define the release PR as promotion from `beta` into `main` with prepared version files and notes.
-* [ ] Define a non-destructive post-release synchronization procedure from `main` back to `beta`.
+* [x] Define a non-destructive post-release synchronization procedure from `main` back to `beta`.
+  * Use a protected `main` to `beta` pull request completed with **Create a
+    merge commit**. Feature PRs may remain squash-merged, but long-lived branch
+    synchronization must preserve ancestry and must never force-push `beta`.
 * [ ] Record environment ownership, cost budgets, secret rotation, and emergency access procedures.
 
 ### Development Firebase inventory — 2026-07-30
