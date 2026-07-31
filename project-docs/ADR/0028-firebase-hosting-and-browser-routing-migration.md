@@ -359,9 +359,14 @@ pull request. The release PR promotes the accumulated, reviewed `beta` state to
 That synchronization must use a true merge commit; squash and rebase merges do
 not preserve the ancestry required for the next Beta-to-main release promotion.
 
-The production workflow must verify that the target commit is the approved
-`Release vX.Y.Z` merge and that repository-controlled version files agree before
-deploying or publishing release metadata.
+The production workflow must verify through GitHub pull-request metadata that
+the target commit is the approved `Release vX.Y.Z` merge from `release/next`
+into `main` and that repository-controlled version files agree before deploying
+or publishing release metadata. Merge-subject text alone is not an identity
+boundary because GitHub can emit either the PR title or its standard
+`Merge pull request #N from ...` subject. A failed Hosting release may be
+recovered only by rebuilding an explicitly supplied, metadata-validated release
+merge SHA and deploying only `hosting:prod`.
 
 ### Preserve rollback until validation
 

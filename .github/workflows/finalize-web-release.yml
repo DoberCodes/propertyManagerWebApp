@@ -18,6 +18,9 @@ permissions:
 jobs:
   finalize-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
 
     steps:
       - name: Require Firebase Hosting caller
@@ -75,15 +78,37 @@ jobs:
 
       - name: Validate release commit identity
         env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ inputs.deployed_sha }}
+          REPOSITORY: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
-          SUBJECT="$(git log -1 --format=%s HEAD)"
+          SUBJECT="$(git log -1 --format=%s "$RELEASE_SHA")"
           ESCAPED_VERSION="${VERSION//./\\.}"
-          if ! printf '%s\n' "$SUBJECT" | grep -Eq "^Release v${ESCAPED_VERSION} \\(#[0-9]+\\)$"; then
-            echo "::error::Deployed commit must be the Release v$VERSION pull-request merge. Found: $SUBJECT"
+
+          if [[ "$SUBJECT" =~ ^Release\ v${ESCAPED_VERSION}\ \(#([0-9]+)\)$ ]]; then
+            PR_NUMBER="${BASH_REMATCH[1]}"
+          elif [[ "$SUBJECT" =~ ^Merge\ pull\ request\ \#([0-9]+)\ from\ [^/]+/release/next$ ]]; then
+            PR_NUMBER="${BASH_REMATCH[1]}"
+          else
+            echo "::error::Deployed commit must be a Release v$VERSION PR merge. Found: $SUBJECT"
             exit 1
           fi
+
+          PR_DATA="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")"
+          PR_TITLE="$(jq -r '.title' <<< "$PR_DATA")"
+          PR_BASE="$(jq -r '.base.ref' <<< "$PR_DATA")"
+          PR_HEAD="$(jq -r '.head.ref' <<< "$PR_DATA")"
+          PR_MERGE_SHA="$(jq -r '.merge_commit_sha' <<< "$PR_DATA")"
+          PR_MERGED_AT="$(jq -r '.merged_at // empty' <<< "$PR_DATA")"
+
+          if [[ "$PR_TITLE" != "Release v$VERSION" || "$PR_BASE" != "main" || "$PR_HEAD" != "release/next" || -z "$PR_MERGED_AT" || "$PR_MERGE_SHA" != "$RELEASE_SHA" ]]; then
+            echo "::error::PR #$PR_NUMBER does not identify the deployed Release v$VERSION merge ($RELEASE_SHA)."
+            exit 1
+          fi
+
+          echo "Validated Release v$VERSION PR #$PR_NUMBER at $RELEASE_SHA."
 
       - name: Resolve immutable release state
         id: release-state
