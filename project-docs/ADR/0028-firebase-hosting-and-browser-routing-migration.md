@@ -14,6 +14,8 @@ and release-gated production deployment
 Amended: 2026-07-30 - staged web routing cutover and transitional Android build
 profile
 
+Amended: 2026-07-31 - guarded direct Beta reference alignment after release
+
 ## Implementation Tracking
 
 - [x] Establish separate development and production Firebase environments.
@@ -23,7 +25,7 @@ profile
 - [x] Deploy the production web build to the default Firebase Hosting domains.
 - [x] Gate production deployment on an approved release merge and publish immutable release metadata only after deployment succeeds.
 - [x] Add guarded, non-forced Beta alignment logic after production releases.
-- [ ] Authorize the guarded alignment identity in the Beta ruleset and verify a successful post-release fast-forward.
+- [x] Allow guarded direct Beta reference updates and verify a successful post-release fast-forward.
 - [ ] Complete custom-domain DNS, TLS, and Firebase Hosting cutover.
 - [ ] Deploy clean-route URL generation for Functions, authentication, billing, invitations, and notifications.
 - [ ] Validate authentication, Stripe returns, email links, deep links, PWA behavior, and rollback on the production custom domain.
@@ -369,15 +371,22 @@ validation must use synthetic or specifically approved test records.
 
 ### Protect the promotion path
 
-Branch protection must require validated feature work to enter `beta` through a
-pull request. The release PR promotes the accumulated, reviewed `beta` state to
-`main`; it is not merely a version-only administrative change. After release,
-`beta` must advance to the published Main release without rewriting shared
-branch history. The finalizer performs a non-forced fast-forward only after
-verifying that the released commit contains the current Beta tip. No
-Main-to-Beta synchronization PR or reverse merge commit is created. If Beta
-advanced after release preparation, production promotion fails and the release
-candidate must be refreshed.
+Validated feature work normally enters `beta` through a pull request. The Beta
+ruleset intentionally does not require every branch update to be associated
+with a pull request because that rule also blocks the guarded post-release
+reference fast-forward. Direct Beta updates are reserved by operational policy
+for that verified alignment path; they are not the normal feature-delivery
+workflow. Required checks remain enabled, and force updates and branch deletion
+remain blocked.
+
+The release PR promotes the accumulated, reviewed `beta` state to `main`; it is
+not merely a version-only administrative change. After release, `beta` must
+advance to the published Main release without rewriting shared branch history.
+The finalizer performs a non-forced fast-forward only after verifying that the
+released commit contains the current Beta tip. No Main-to-Beta synchronization
+PR or reverse merge commit is created. If Beta advanced after release
+preparation, production promotion fails and the release candidate must be
+refreshed.
 
 The production workflow must verify through GitHub pull-request metadata that
 the target commit is the approved `Release vX.Y.Z` merge from `release/next`
