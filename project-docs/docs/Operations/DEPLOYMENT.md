@@ -1402,18 +1402,35 @@ historical ADR backlog can be audited without creating issues accidentally.
 
 Potential improvements:
 
-* Separate staging and production Firebase projects.
 * Document environment-specific deploy commands.
 * Add deployment checklist automation.
 * Wire Storage rules into `firebase.json` if local Storage rules become authoritative.
 * Add smoke tests for critical post-deploy flows.
 
+## Planned Controlled Hotfix Lane
 
-## Approved Future Environment Strategy
+Maintley plans to support urgent patch releases without publishing every
+unreleased feature already validated in Beta. The proposed lane is documented
+in:
 
-Maintley currently deploys directly to the production Firebase project.
+```text
+project-docs/reports/2026-07-31-controlled-hotfix-release-lane-plan.md
+```
 
-ADR 0028 now governs an approved but not-yet-implemented migration to:
+The planned flow creates one hotfix branch from deployed `main`, validates it
+through a PR into `beta`, and then uses a separately gated hotfix PR into `main`.
+It preserves normal checks, Production approval, target selection, immutable
+release metadata, and reconciliation back into Beta.
+
+This lane is not implemented. A direct feature or hotfix PR into `main` does not
+currently authorize a Production deployment. Until the dedicated gate exists,
+the validated `release/next` merge remains the only normal Production release
+boundary.
+
+
+## Current Environment Strategy
+
+ADR 0028 governs the active environment and promotion strategy:
 
 * A dedicated development Firebase project
 * Feature integration through a protected `beta` branch
@@ -1425,5 +1442,6 @@ ADR 0028 now governs an approved but not-yet-implemented migration to:
 * Separate development Analytics, Stripe test configuration, secrets, and
   synthetic data
 
-Until that migration is implemented and validated, the active production-only
-deployment behavior elsewhere in this document remains authoritative.
+Merges into `beta` may update `release/next`, but they deploy only to the
+Maintley Beta Firebase project. Production changes only after an accepted
+release merge into `main` passes the production gate.
