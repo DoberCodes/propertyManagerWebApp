@@ -102,13 +102,20 @@ The production Firebase default Hosting site receives release builds before
 the custom-domain cutover. DNS continues to serve the frozen GitHub Pages build
 until the routing, authentication, billing-return, PWA, and Android gates pass.
 
+Release identity is verified from GitHub pull-request metadata rather than from
+one merge-subject format. The merge must belong to a merged `Release vX.Y.Z`
+pull request from `release/next` into `main`, its merge SHA must equal the build
+source, and repository-controlled versions must agree. This accepts GitHub's
+standard `Merge pull request #N from ...` subject without weakening the release
+boundary.
+
 ---
 
 # Firebase Hosting
 
 Firebase Hosting is the release-gated web deployment path. Stable Beta builds
-deploy to `hosting:beta`. An exact `Release vX.Y.Z (#N)` merge into `main`
-deploys the uploaded production artifact to `hosting:prod`.
+deploy to `hosting:beta`. A metadata-validated `Release vX.Y.Z` PR merge into
+`main` deploys the uploaded production artifact to `hosting:prod`.
 
 Production Hosting must not be deployed through the generic manual backend
 target input. The release merge, synchronized version files, production build,
@@ -481,11 +488,50 @@ deploy Storage rules. The stable build artifact must complete before the deploy
 job can authenticate. Deployments are serialized so two merges cannot update
 the shared development environment concurrently.
 
-An exact release merge into `main` always deploys `hosting:prod`. Functions,
+### One-way branch promotion
+
+Repository changes move in one direction:
+
+```text
+feature branch -> beta -> release/next -> main
+```
+
+Do not open synchronization PRs from `main` back into `beta`. After a normal
+release is deployed, tagged, and published, the finalizer verifies that the
+released commit contains the current Beta tip and advances the `beta` reference
+to that exact Main release commit using a non-forced fast-forward. This creates
+no reverse merge commit and introduces no code that was not already promoted
+from Beta.
+
+If Beta advances after a release candidate is prepared, production deployment
+fails before publishing and the release PR must be refreshed. If Beta has
+diverged when alignment runs, alignment fails without changing either branch.
+Force updates are never allowed.
+
+`.github/workflows/align-beta-with-main.yml` provides an explicit Main-only
+alignment command for exceptional operational fixes that landed directly in
+Main. It applies the same ancestry checks and is not a substitute for the normal
+feature promotion path. GitHub's workflow token performs the reference update,
+so the alignment does not trigger a second Beta deployment or release-prep run.
+
+An authenticated release-PR merge into `main` always deploys `hosting:prod`. Functions,
 Firestore rules, and Storage rules retain source-based target detection and are
 added only when their owned files changed. Hosting-only releases therefore
 cannot redeploy Functions or rules. The matching tag and GitHub Release are
 created idempotently only after every selected Firebase target succeeds.
+
+If a valid release merge passes its build but Hosting fails before deployment,
+the same workflow supports an explicit recovery dispatch. Set
+`deploy_targets` to only `hosting:prod` and `release_recovery_sha` to the exact
+failed release merge SHA. The workflow checks out and rebuilds that immutable
+commit, validates its release PR through GitHub, deploys only production
+Hosting, and finalizes the tag and GitHub Release against that same SHA. A
+manual Hosting dispatch without both constraints is rejected.
+
+A non-release operational merge into `main` still runs the production build
+checks but selects no Firebase targets and does not invoke release finalization.
+This permits a deployment-workflow repair to land without accidentally
+publishing that repair commit as an application release.
 
 The production default Hosting hostname is intentionally populated before DNS
 cutover. This does not move customer traffic: the custom domain continues to
@@ -961,9 +1007,8 @@ If `package.json` is already ahead of the latest `v*` tag because a release was
 prepared but not tagged locally yet, the highest versioned reachable
 `Release v...` commit is used as the release-note boundary. Boundary discovery
 examines merged ancestry rather than only the first-parent chain so a preserved
-long-lived-branch synchronization merge cannot make prior release work appear
-new again. New releaseable changes are then bumped from that prepared package
-version.
+release merge cannot make prior release work appear new again. New releaseable
+changes are then bumped from that prepared package version.
 
 ## Web and Android routing build profiles
 
@@ -998,18 +1043,17 @@ pull-request synchronization event would leave the updated release commit with
 no checks. The dispatches run against the exact `release/next` head and retain
 the normal check names used by branch protection.
 
-### Main and Beta branch synchronization
+### Main and Beta branch alignment
 
-Synchronization from `main` back into `beta` must preserve Git ancestry. Open a
-pull request from `main` to `beta` and complete it with **Create a merge
-commit**. Do not squash or rebase that synchronization PR: those methods can
-copy identical files into Beta without recording `main` as an ancestor, which
-causes the later `release/next` promotion back to `main` to conflict.
+Do not open a Main-to-Beta synchronization PR. The normal release finalizer
+advances Beta directly to the published Main release only when Git proves the
+move is a fast-forward. The update uses GitHub's reference API with
+`force=false`; divergence therefore fails without overwriting Beta work.
 
 Feature pull requests targeting `beta` may continue using the normal squash
-policy. The merge-commit requirement applies specifically to synchronization
-between the two protected long-lived branches. Never force-push either branch
-to repair ancestry.
+policy. Never force-push either protected branch to repair ancestry. Use the
+explicit alignment workflow only for an exceptional operational Main change
+and only while Beta remains an ancestor of Main.
 
 Feature pull requests targeting `beta` run the same required Build Check jobs
 as ordinary pull requests targeting `main`: entitlement-package policy, unit

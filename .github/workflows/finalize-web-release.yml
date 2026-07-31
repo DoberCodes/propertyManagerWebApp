@@ -11,6 +11,11 @@ on:
         description: Hosting platform that completed the deployment.
         required: true
         type: string
+      align_beta:
+        description: Fast-forward Beta to the deployed Main release after publication.
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -18,6 +23,9 @@ permissions:
 jobs:
   finalize-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
 
     steps:
       - name: Require Firebase Hosting caller
@@ -75,15 +83,37 @@ jobs:
 
       - name: Validate release commit identity
         env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ inputs.deployed_sha }}
+          REPOSITORY: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
-          SUBJECT="$(git log -1 --format=%s HEAD)"
+          SUBJECT="$(git log -1 --format=%s "$RELEASE_SHA")"
           ESCAPED_VERSION="${VERSION//./\\.}"
-          if ! printf '%s\n' "$SUBJECT" | grep -Eq "^Release v${ESCAPED_VERSION} \\(#[0-9]+\\)$"; then
-            echo "::error::Deployed commit must be the Release v$VERSION pull-request merge. Found: $SUBJECT"
+
+          if [[ "$SUBJECT" =~ ^Release\ v${ESCAPED_VERSION}\ \(#([0-9]+)\)$ ]]; then
+            PR_NUMBER="${BASH_REMATCH[1]}"
+          elif [[ "$SUBJECT" =~ ^Merge\ pull\ request\ \#([0-9]+)\ from\ [^/]+/release/next$ ]]; then
+            PR_NUMBER="${BASH_REMATCH[1]}"
+          else
+            echo "::error::Deployed commit must be a Release v$VERSION PR merge. Found: $SUBJECT"
             exit 1
           fi
+
+          PR_DATA="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")"
+          PR_TITLE="$(jq -r '.title' <<< "$PR_DATA")"
+          PR_BASE="$(jq -r '.base.ref' <<< "$PR_DATA")"
+          PR_HEAD="$(jq -r '.head.ref' <<< "$PR_DATA")"
+          PR_MERGE_SHA="$(jq -r '.merge_commit_sha' <<< "$PR_DATA")"
+          PR_MERGED_AT="$(jq -r '.merged_at // empty' <<< "$PR_DATA")"
+
+          if [[ "$PR_TITLE" != "Release v$VERSION" || "$PR_BASE" != "main" || "$PR_HEAD" != "release/next" || -z "$PR_MERGED_AT" || "$PR_MERGE_SHA" != "$RELEASE_SHA" ]]; then
+            echo "::error::PR #$PR_NUMBER does not identify the deployed Release v$VERSION merge ($RELEASE_SHA)."
+            exit 1
+          fi
+
+          echo "Validated Release v$VERSION PR #$PR_NUMBER at $RELEASE_SHA."
 
       - name: Resolve immutable release state
         id: release-state
@@ -136,3 +166,40 @@ jobs:
           --target "$DEPLOYED_SHA"
           --title "Release v$VERSION"
           --notes-file tmp/release-notes.customer.md
+
+      - name: Fast-forward Beta to the published release
+        if: inputs.align_beta
+        env:
+          DEPLOYED_SHA: ${{ inputs.deployed_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          git fetch origin main beta
+          MAIN_SHA="$(git rev-parse origin/main)"
+          BETA_SHA="$(git rev-parse origin/beta)"
+
+          if [[ "$MAIN_SHA" != "$DEPLOYED_SHA" ]]; then
+            echo "::error::Main advanced to $MAIN_SHA after release deployment $DEPLOYED_SHA; Beta was not moved."
+            exit 1
+          fi
+
+          if [[ "$BETA_SHA" == "$DEPLOYED_SHA" ]]; then
+            echo "Beta already points to published release $DEPLOYED_SHA."
+            exit 0
+          fi
+
+          if ! git merge-base --is-ancestor "$BETA_SHA" "$DEPLOYED_SHA"; then
+            echo "::error::Beta $BETA_SHA cannot fast-forward to published release $DEPLOYED_SHA."
+            exit 1
+          fi
+
+          gh api \
+            --method PATCH \
+            "repos/$REPOSITORY/git/refs/heads/beta" \
+            -f sha="$DEPLOYED_SHA" \
+            -F force=false >/dev/null
+
+          UPDATED_BETA_SHA="$(gh api "repos/$REPOSITORY/git/ref/heads/beta" --jq '.object.sha')"
+          test "$UPDATED_BETA_SHA" = "$DEPLOYED_SHA"
+          echo "Beta fast-forwarded from $BETA_SHA to published release $DEPLOYED_SHA."

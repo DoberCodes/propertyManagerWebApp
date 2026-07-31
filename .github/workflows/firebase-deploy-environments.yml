@@ -11,6 +11,10 @@ on:
         description: Comma-separated Firebase deploy targets.
         required: false
         default: functions,firestore:rules
+      release_recovery_sha:
+        description: Exact failed release-merge SHA to rebuild and recover to production Hosting.
+        required: false
+        default: ''
 
 jobs:
   development-build:
@@ -260,12 +264,22 @@ jobs:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     environment: production
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
     permissions:
       contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_recovery_sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve immutable build source
+        id: source
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Use Node.js
         uses: actions/setup-node@v5
@@ -319,7 +333,7 @@ jobs:
       - name: Upload production Hosting build
         uses: actions/upload-artifact@v6
         with:
-          name: firebase-production-hosting-${{ github.sha }}
+          name: firebase-production-hosting-${{ steps.source.outputs.sha }}
           path: build
           if-no-files-found: error
           retention-days: 1
@@ -329,26 +343,73 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     needs: [build-check]
+    outputs:
+      hosting_deployed: ${{ steps.deploy-targets.outputs.hosting_deployed }}
     permissions:
       contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          ref: ${{ needs.build-check.outputs.source_sha }}
           fetch-depth: 0
 
-      - name: Require an exact release merge for production Hosting
-        if: github.event_name == 'push'
+      - name: Validate production release merge
+        id: release-identity
+        if: github.event_name == 'push' || github.event.inputs.release_recovery_sha != ''
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ needs.build-check.outputs.source_sha }}
+          RELEASE_RECOVERY_SHA: ${{ github.event.inputs.release_recovery_sha }}
+          REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           VERSION="$(node -p "require('./package.json').version")"
-          SUBJECT="$(git log -1 --format=%s HEAD)"
+          SUBJECT="$(git log -1 --format=%s "$RELEASE_SHA")"
           ESCAPED_VERSION="${VERSION//./\\.}"
-          if ! printf '%s\n' "$SUBJECT" | grep -Eq "^Release v${ESCAPED_VERSION} \\(#[0-9]+\\)$"; then
-            echo "::error::Production deployment requires the Release v$VERSION pull-request merge. Found: $SUBJECT"
+
+          if [[ "$SUBJECT" =~ ^Release\ v${ESCAPED_VERSION}\ \(#([0-9]+)\)$ ]]; then
+            PR_NUMBER="${BASH_REMATCH[1]}"
+          elif [[ "$SUBJECT" =~ ^Merge\ pull\ request\ \#([0-9]+)\ from\ [^/]+/release/next$ ]]; then
+            PR_NUMBER="${BASH_REMATCH[1]}"
+          else
+            if [[ "$EVENT_NAME" == "push" && -z "$RELEASE_RECOVERY_SHA" ]]; then
+              echo "::notice::Main commit is not a release PR merge; production Firebase deployment is skipped."
+              echo "is_release=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::Production deployment requires a Release v$VERSION PR merge. Found: $SUBJECT"
             exit 1
           fi
+
+          PR_DATA="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")"
+          PR_TITLE="$(jq -r '.title' <<< "$PR_DATA")"
+          PR_BASE="$(jq -r '.base.ref' <<< "$PR_DATA")"
+          PR_HEAD="$(jq -r '.head.ref' <<< "$PR_DATA")"
+          PR_MERGE_SHA="$(jq -r '.merge_commit_sha' <<< "$PR_DATA")"
+          PR_MERGED_AT="$(jq -r '.merged_at // empty' <<< "$PR_DATA")"
+
+          if [[ "$PR_TITLE" != "Release v$VERSION" || "$PR_BASE" != "main" || "$PR_HEAD" != "release/next" || -z "$PR_MERGED_AT" || "$PR_MERGE_SHA" != "$RELEASE_SHA" ]]; then
+            echo "::error::PR #$PR_NUMBER does not identify the deployed Release v$VERSION merge ($RELEASE_SHA)."
+            exit 1
+          fi
+
+          echo "Validated Release v$VERSION PR #$PR_NUMBER at $RELEASE_SHA."
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            git fetch origin beta
+            BETA_SHA="$(git rev-parse origin/beta)"
+            if ! git merge-base --is-ancestor "$BETA_SHA" "$RELEASE_SHA"; then
+              echo "::error::Beta advanced to $BETA_SHA after this release candidate was prepared. Refresh the release PR before production deployment."
+              exit 1
+            fi
+            echo "Release merge contains current Beta commit $BETA_SHA."
+          fi
+
+          echo "is_release=true" >> "$GITHUB_OUTPUT"
 
 
       - name: Resolve target Firebase project
@@ -378,6 +439,8 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           CURRENT_SHA: ${{ github.sha }}
           EVENT_NAME: ${{ github.event_name }}
+          IS_RELEASE: ${{ steps.release-identity.outputs.is_release }}
+          RELEASE_RECOVERY_SHA: ${{ github.event.inputs.release_recovery_sha }}
         run: |
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             TARGETS="${MANUAL_DEPLOY_TARGETS// /}"
@@ -386,13 +449,24 @@ jobs:
             fi
 
             if [[ "$TARGETS" == *"hosting"* ]]; then
-              echo "::error::Production Hosting deploys only from an exact release merge to main."
-              exit 1
+              if [[ "$TARGETS" != "hosting:prod" || -z "$RELEASE_RECOVERY_SHA" ]]; then
+                echo "::error::Hosting recovery requires only hosting:prod plus an exact release_recovery_sha."
+                exit 1
+              fi
             fi
 
             echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
             echo "has_targets=true" >> "$GITHUB_OUTPUT"
+            echo "hosting_deployed=$([[ "$TARGETS" == *"hosting:prod"* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
             echo "Manual Firebase deploy targets: $TARGETS"
+            exit 0
+          fi
+
+          if [[ "$IS_RELEASE" != "true" ]]; then
+            echo "targets=" >> "$GITHUB_OUTPUT"
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+            echo "hosting_deployed=false" >> "$GITHUB_OUTPUT"
+            echo "No production Firebase targets selected for a non-release main commit."
             exit 0
           fi
 
@@ -422,13 +496,14 @@ jobs:
           TARGETS="$(IFS=,; echo "${targets[*]}")"
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
           echo "has_targets=true" >> "$GITHUB_OUTPUT"
+          echo "hosting_deployed=true" >> "$GITHUB_OUTPUT"
           echo "Firebase deploy targets: $TARGETS"
 
       - name: Download production Hosting build
-        if: github.event_name == 'push'
+        if: contains(steps.deploy-targets.outputs.targets, 'hosting:prod')
         uses: actions/download-artifact@v6
         with:
-          name: firebase-production-hosting-${{ github.sha }}
+          name: firebase-production-hosting-${{ needs.build-check.outputs.source_sha }}
           path: build
 
       - name: Use Node.js for root validation dependencies
@@ -620,11 +695,13 @@ jobs:
 
   finalize-release:
     name: Publish deployed web release
-    if: github.event_name == 'push' && github.ref_name == 'main'
-    needs: deploy
+    if: needs.deploy.outputs.hosting_deployed == 'true'
+    needs: [build-check, deploy]
     permissions:
       contents: write
+      pull-requests: read
     uses: ./.github/workflows/finalize-web-release.yml
     with:
-      deployed_sha: ${{ github.sha }}
+      deployed_sha: ${{ needs.build-check.outputs.source_sha }}
       hosting_target: firebase-hosting
+      align_beta: ${{ github.event_name == 'push' }}

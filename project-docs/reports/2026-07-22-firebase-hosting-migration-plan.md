@@ -434,10 +434,10 @@ The release restructuring and hosting migration share these validation gates:
 * [ ] Create and protect the `beta` integration branch.
 * [ ] Require feature pull requests to target `beta` under the normal development flow.
 * [ ] Define the release PR as promotion from `beta` into `main` with prepared version files and notes.
-* [x] Define a non-destructive post-release synchronization procedure from `main` back to `beta`.
-  * Use a protected `main` to `beta` pull request completed with **Create a
-    merge commit**. Feature PRs may remain squash-merged, but long-lived branch
-    synchronization must preserve ancestry and must never force-push `beta`.
+* [x] Define a non-destructive post-release alignment procedure for `beta`.
+  * The release finalizer advances `beta` to the published Main commit through
+    a non-forced reference fast-forward. It creates no reverse synchronization
+    PR or merge commit and fails if Beta diverged.
 * [ ] Record environment ownership, cost budgets, secret rotation, and emergency access procedures.
 
 ### Development Firebase inventory — 2026-07-30
@@ -575,11 +575,14 @@ an uncut-over custom domain.
 
 ## Hosting checklist H7: Firebase web deployment
 
-Implementation note (2026-07-30): the production release workflow uploads the
-validated web artifact, requires an exact release merge, deploys
+Implementation note (2026-07-31): the production release workflow uploads the
+validated web artifact, verifies the exact release merge through GitHub PR
+metadata, deploys
 `hosting:prod`, conditionally adds changed backend targets, and invokes the
-idempotent finalizer only after deployment succeeds. The first production
-execution remains a validation gate before the items below are marked complete.
+idempotent finalizer only after deployment succeeds. A Hosting-only recovery
+dispatch can rebuild the exact failed release SHA; it rejects other manual
+Hosting targets. The first production execution remains a validation gate
+before the items below are marked complete.
 
 * [x] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
 * [x] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
@@ -591,13 +594,14 @@ execution remains a validation gate before the items below are marked complete.
     conditional backend target has been exercised with its least-privilege IAM
     grants.
 * [ ] Add production Hosting, Functions, Firestore rules, and Storage rules deployment after the release PR merges to `main`.
+* [x] Enforce one-way feature promotion and fast-forward `beta` to the published Main release without a reverse merge PR.
 * [ ] Use separate, least-privilege development and production deployment identities.
 * [x] Configure environment-specific secrets without committing credentials.
 * [ ] Update Release Prep so the release branch promotes the approved `beta` state into `main` rather than acting as a version-only branch.
   * The reusable promotion workflow is implemented; keep this item open until
     the first successful stable Beta deployment updates the existing
     `release/next` PR and its full release validation passes.
-* [ ] Gate production deployment on an exact `Release vX.Y.Z` merge and synchronized version files.
+* [x] Gate production deployment on an exact, PR-metadata-validated `Release vX.Y.Z` merge and synchronized version files.
 * [ ] Generate final customer release notes from the preceding merged release boundary.
 * [ ] Create the matching Git tag and GitHub Release only after every required production deployment succeeds.
 * [ ] Make release publication idempotent and fail if an existing tag points to a different commit.
