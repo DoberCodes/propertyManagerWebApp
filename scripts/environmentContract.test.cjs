@@ -10,12 +10,13 @@ const {
 test('parses annotated environment entries', () => {
 	const entries = parseEnvironmentContract([
 		'# Browser Firebase ----------------------------------------------------------',
-		'# @maintley-env scope=web delivery=github-variable environments=development,production required=true developmentDefault=test',
+		'# @maintley-env scope=web delivery=github-variable environments=development,production required=true developmentDefault=test localDefault=local-test',
 		'REACT_APP_SAMPLE=',
 	].join('\n'));
 	assert.equal(entries.length, 1);
 	assert.equal(entries[0].required, true);
 	assert.equal(entries[0].section, 'Browser Firebase');
+	assert.equal(entries[0].localDefault, 'local-test');
 	assert.equal(defaultFor(entries[0], 'development'), 'test');
 	assert.equal(entriesFor(entries, 'production').length, 1);
 });

@@ -393,9 +393,12 @@ functions/.env.local
 ```
 
 Local application and Functions configuration inherits the complete Beta/test
-baseline. The `LOCAL_` section contains only values that differ from Beta or
-exist solely for local tooling, such as emulator hosts. Backend values with a declared browser `source` are entered once
-in the control file and derived into the matching Functions target. The generic
+baseline. By default, the localhost application uses the deployed Maintley Beta
+Authentication, Firestore, Storage, and callable Functions so primary workflows
+match the stable Beta environment. The `LOCAL_` section contains only values
+that differ from Beta or exist solely for opt-in local tooling. Backend values
+with a declared browser `source` are entered once in the control file and
+derived into the matching Functions target. The generic
 `.env.production` and `.env.development.local` are legacy migration inputs only
 and must not be used by new workflows. The ambiguous `functions/.env` file is
 prohibited because Firebase can merge it into project-specific deployments; it
@@ -415,6 +418,22 @@ The Functions deploy-package validator rejects any declared Firebase secret
 with a non-empty dotenv assignment. Run `yarn env:functions:sanitize` to remove
 legacy plaintext assignments without printing their contents. Emulator-only
 secret overrides belong in `functions/.secret.local`, using test credentials.
+
+Firebase emulators remain available for isolated rules, integration, E2E, and
+Functions development. To route callable Functions to a running local emulator,
+set `REACT_APP_FIREBASE_FUNCTIONS_EMULATOR_HOST=localhost:5001` for that
+development process or add the matching `LOCAL_` override to the ignored root
+`.env` control file and rerun `yarn env:organize --apply`. Clear the override and
+restart the development server to return localhost to the deployed Beta
+Functions. Automated Firestore and Storage rules tests continue to manage their
+own emulator configuration independently.
+
+Analytics is the intentional exception to the shared Beta baseline. Stable Beta
+uses the Beta Analytics property, while localhost defaults
+`REACT_APP_ENABLE_ANALYTICS=false` so developer navigation does not affect Beta
+reporting or require analytics scripts during local work. The environment
+contract's `localDefault` metadata records this difference and the organizer
+persists it as a generated local override.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
@@ -497,7 +516,13 @@ Backend selection remains source-based: `functions/` changes deploy Functions,
 `firestore.rules` changes deploy Firestore rules, and `storage.rules` changes
 deploy Storage rules. The stable build artifact must complete before the deploy
 job can authenticate. Deployments are serialized so two merges cannot update
-the shared development environment concurrently.
+the shared development environment concurrently. The same lock serializes
+opt-in pull-request backend previews and abandoned-preview restoration. A
+successful stable Beta deployment clears any remaining pull-request backend
+ownership label. If any PR owns the backend when a merge reaches `beta`, the
+stable deployment ignores source-based backend selection for that run and
+reclaims the complete Functions, Firestore-rules, and Storage-rules state from
+the merged `beta` commit before clearing ownership.
 
 ### One-way branch promotion
 
@@ -638,7 +663,40 @@ and secret contents are never printed. Pull requests from forks are not
 deployed. The build job has no Google identity token; the deploy job downloads
 the static artifact, uses the trusted Hosting configuration from the PR base
 commit, and authenticates only immediately before the Firebase CLI deployment.
-It never deploys Functions, Firestore Rules, or Storage Rules.
+It does not deploy Functions, Firestore Rules, or Storage Rules unless a trusted
+maintainer separately activates the guarded Beta backend-preview lifecycle.
+
+### Pull request backend previews
+
+Trusted same-repository pull requests that need real backend validation may use:
+
+```text
+.github/workflows/firebase-beta-backend-preview.yml
+```
+
+Add the `deploy-backend-to-beta` label after the PR's required checks are
+available. The workflow waits for those checks, reruns the Functions build and
+Firebase emulator rule suites, verifies the development project and Stripe test
+boundary, and deploys the pull request's complete Functions, Firestore-rules,
+and Storage-rules state to `maintleybeta`. Successful activation replaces the
+request label with `beta-backend-active`. Exactly one PR may carry the active
+label, and all backend preview and stable Beta deployments share one concurrency
+lock.
+
+While the label is active, later pushes redeploy automatically after required
+checks pass. Localhost and every Hosting preview configured for Beta continue to
+point directly at `maintleybeta`; there is no per-PR backend copy. Merging the PR
+allows the normal stable Beta deployment to make the state durable. Closing the
+PR without merging deploys the complete backend from the current `beta` branch
+and removes ownership. Neither restoration nor merge cleanup deletes test users,
+Firestore records, Storage objects, Stripe test records, or other side effects
+created during validation.
+
+Only repository maintainers should apply the request label. Fork pull requests
+are rejected before checkout, production project identifiers and live Stripe
+keys are rejected, and backend preview deployment never includes Hosting or any
+production target. Emulator suites remain required because negative permission
+tests and destructive scenarios should not depend on shared Beta data.
 
 After a pull request merges, `firebase-deploy-environments.yml` rebuilds the
 approved `beta` commit and promotes that artifact to the stable Maintley Beta

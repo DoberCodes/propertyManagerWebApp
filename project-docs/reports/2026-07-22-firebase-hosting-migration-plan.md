@@ -588,7 +588,8 @@ before the items below are marked complete.
 
 * [x] Add Firebase Hosting preview deployment for feature pull requests targeting `beta`.
 * [x] Give each pull request an isolated, expiring Hosting preview channel and surface its URL on the PR.
-* [x] Keep PR previews on the stable development backend; do not deploy shared Functions or rules per PR.
+* [x] Keep PR previews on the stable development backend by default.
+* [x] Add an explicit, serialized backend-preview label for trusted same-repository PRs, with one active owner and automatic stable-Beta restoration when an unmerged PR closes.
 * [x] Retain required build, unit, rules, entitlement-package, Functions, E2E, asset-budget, and release-note validation for pull requests targeting `beta`.
 * [ ] Add stable development Hosting, Functions, Firestore rules, and Storage rules deployment after merge to `beta`.
   * The deployment workflow is implemented; keep this item open until the first

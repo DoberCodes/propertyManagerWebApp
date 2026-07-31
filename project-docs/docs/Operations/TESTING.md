@@ -1,6 +1,6 @@
 # Testing
 
-Last reviewed: 2026-06
+Last reviewed: 2026-07
 
 # Purpose
 
@@ -589,6 +589,10 @@ GitHub Actions:
 ---
 
 # Stripe Testing
+
+The authoritative Stripe test-card list and the manual Beta Checkout checklist
+are maintained in [BILLING.md](BILLING.md#stripe-test-cards). Do not duplicate
+card data in environment files or customer-facing application copy.
 
 Sandbox tests:
 
