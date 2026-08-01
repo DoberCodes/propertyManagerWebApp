@@ -166,6 +166,8 @@ Core collections include:
 * familyAccounts
 * accountMemberships
 * properties
+* propertySpaces
+* propertyKnowledgeLinks
 * devices
 * tasks
 * maintenanceEvents
@@ -347,6 +349,7 @@ Properties are the primary organizational record in Maintley.
 
 Properties provide context for:
 
+* Spaces
 * Equipment
 * Tasks
 * Maintenance Events
@@ -399,6 +402,102 @@ the ADR 0033 migration writes canonical values without guessing an unknown
 Multi-unit or Commercial classification.
 
 Operational history belongs in Maintenance Events.
+
+## propertySpaces
+
+Represents a descriptive physical place within one property. Spaces are
+independent property-owned records and do not create tenancy, access, billing,
+door-count, or Unit boundaries.
+
+Required fields:
+
+* accountId
+* propertyId
+* name
+* type
+* isArchived
+* source
+* createdBy
+* updatedBy
+* createdAt
+* updatedAt
+
+Optional fields:
+
+* notes
+* sortOrder
+
+Supported `type` values:
+
+```text
+interior
+utility
+storage
+exterior
+grounds
+amenity
+other
+```
+
+`name` remains flexible and homeowner-readable. Examples include Living Room,
+Garage, Mechanical Room, Roof, Lawn, and Pool. `sortOrder` provides stable
+display ordering without making ordering part of ownership. `isArchived`
+allows a future linked Space to remain available after removal from ordinary
+views.
+
+Spaces are stored in the top-level `propertySpaces` collection. Firestore rules
+validate that the referenced Property exists and carries the same `accountId`.
+Account readers may view Spaces; account managers may create and edit them.
+Space removal uses a trusted callable: unreferenced Spaces are deleted, while
+referenced Spaces are archived so accepted relationships remain resolvable.
+Account managers can review and restore archived Spaces through a trusted
+restore action.
+
+Existing task location text and equipment `unitId` or `suiteId` fields remain
+temporary compatibility fields. The Task field is deprecated and hidden from
+current forms, cards, search, and filters; new manual Task writes omit it.
+Stored legacy values remain readable by compatibility and historical paths.
+Accepted Equipment-to-Space and Task-to-Space locations use canonical
+relationship records.
+
+## propertyKnowledgeLinks
+
+Represents one accepted connection between independent property-owned records.
+The first supported relationships are:
+
+* Equipment `located_in` Space
+* Task `occurs_in` Space
+
+Required fields:
+
+* accountId
+* propertyId
+* fromType (`equipment` or `task`)
+* fromId
+* relationshipType (`located_in` or `occurs_in`)
+* toType (`space`)
+* toId
+* source (`manual` or `migration` for an explicitly reviewed backfill)
+* createdAt
+* createdBy
+* updatedAt
+* updatedBy
+
+Links are stored in the top-level `propertyKnowledgeLinks` collection. The
+document ID is deterministic for the property, relationship type, and both
+endpoints. Account readers may read links. Direct client writes are denied;
+trusted callable functions validate the Property, source record, Space,
+account boundary, archived state, and required role before replacing links.
+Account managers connect Equipment; users with task-management permission
+connect Tasks. Inverse Space equipment and task lists are derived from these
+records rather than stored separately.
+
+Task links are many-to-many. A dry-run-first migration may link a legacy Task
+location only when it exactly and uniquely matches one active Space in the same
+account and Property. It does not clear the legacy field, infer partial matches,
+or choose between duplicate names. A new recurring Task inherits accepted Space
+links from the Task that generated it. Deleting a Task removes its outgoing
+relationship records.
 
 ## Property Groups
 

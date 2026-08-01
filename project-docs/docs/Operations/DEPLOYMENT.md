@@ -232,10 +232,11 @@ Run rule tests before deploying broad rules changes.
 
 * `functions.source`: `functions`
 * `firestore.rules`: `firestore.rules`
+* `storage.default`: `storage.rules`
 
-There is currently no Storage rules file wired in `firebase.json`.
-
-Before relying on local Storage rule tests, verify whether Firebase Storage rules are managed locally or only through the Firebase Console.
+The shared Storage target is resolved to a project-specific bucket through
+`.firebaserc`; deployments must not hard-code one environment's bucket into
+`firebase.json`.
 
 ---
 
@@ -675,10 +676,13 @@ Trusted same-repository pull requests that need real backend validation may use:
 ```
 
 Add the `deploy-backend-to-beta` label after the PR's required checks are
-available. The workflow waits for those checks, reruns the Functions build and
+available. The workflow waits for those checks while excluding its own required
+deployment check so the gate cannot wait on itself, reruns the Functions build and
 Firebase emulator rule suites, verifies the development project and Stripe test
 boundary, and deploys the pull request's complete Functions, Firestore-rules,
-and Storage-rules state to `maintleybeta`. Successful activation replaces the
+and Storage-rules state through the `beta` Firebase alias to `maintleybeta`.
+Using the alias ensures Firebase loads the generated `functions/.env.beta`
+file during non-interactive deployment. Successful activation replaces the
 request label with `beta-backend-active`. Exactly one PR may carry the active
 label, and all backend preview and stable Beta deployments share one concurrency
 lock.
@@ -772,8 +776,19 @@ Firebase Rules Admin
 
 This lets the deploy workflow validate and publish `firestore.rules`.
 
-Cloud Storage rules deployment also requires the deploy service account to read
-the Firebase Storage default bucket. If deploy fails with:
+Cloud Storage rules use the shared `default` deploy target in `firebase.json`.
+`.firebaserc` resolves that target independently for each Firebase project:
+
+```text
+maintleybeta -> maintleybeta.firebasestorage.app
+mypropertymanager-cda42 -> mypropertymanager-cda42.firebasestorage.app
+```
+
+This explicit mapping prevents CI from depending on Firebase's default-bucket
+discovery endpoint and keeps Beta and production deployments isolated while
+using the same `storage.rules` source. Cloud Storage rules deployment still
+requires the deploy service account to read and manage the selected Firebase
+Storage bucket. If deploy fails with:
 
 ```text
 Permission 'firebasestorage.defaultBucket.get' denied

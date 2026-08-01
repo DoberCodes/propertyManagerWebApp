@@ -92,7 +92,40 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.source.outputs.pr_number }}
         shell: bash
-        run: timeout 30m gh pr checks "$PR_NUMBER" --required --watch --fail-fast --interval 10
+        run: |
+          set -euo pipefail
+
+          deadline=$((SECONDS + 1800))
+          self_check='Deploy or restore Beta backend'
+
+          while (( SECONDS < deadline )); do
+            checks="$(gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --required 2>&1 || true)"
+            other_checks="$(awk -F '\t' -v self="$self_check" 'NF >= 2 && $1 != self' <<< "$checks")"
+
+            if [[ -z "$other_checks" ]]; then
+              echo "Waiting for required pull request checks to be reported."
+              sleep 10
+              continue
+            fi
+
+            echo "$other_checks"
+
+            if awk -F '\t' '$2 == "fail" || $2 == "cancel" { found = 1 } END { exit !found }' <<< "$other_checks"; then
+              echo "A required pull request check failed or was cancelled."
+              exit 1
+            fi
+
+            if awk -F '\t' '$2 != "pass" && $2 != "skipping" { pending = 1 } END { exit pending }' <<< "$other_checks"; then
+              echo "All required pull request checks except this backend deployment check passed."
+              exit 0
+            fi
+
+            echo "Waiting for remaining required pull request checks."
+            sleep 10
+          done
+
+          echo "Timed out waiting for required pull request checks."
+          exit 1
 
       - name: Checkout trusted source
         uses: actions/checkout@v5
@@ -194,7 +227,7 @@ jobs:
         if: steps.source.outputs.mode == 'preview' || steps.restore-ownership.outputs.authorized == 'true'
         run: >-
           firebase deploy
-          --project maintleybeta
+          --project beta
           --only functions,firestore:rules,storage
           --non-interactive
           --force

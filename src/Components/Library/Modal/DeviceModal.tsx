@@ -31,6 +31,7 @@ import {
 } from '../../../utils/barcodeScanParser';
 import { BarcodeScannerModal } from '../BarcodeScanner/BarcodeScannerModal';
 import { useGetDevicesQuery } from '../../../Redux/API/deviceSlice';
+import { useGetPropertySpacesQuery } from '../../../Redux/API/spaceSlice';
 import { ApplianceDocumentsPanel } from '../../ApplianceDocumentsPanel/ApplianceDocumentsPanel';
 import {
 	getAssetVariantOptions,
@@ -94,6 +95,9 @@ interface DeviceModalProps {
 		>,
 	) => void;
 	onServiceItemsChange?: (items: DeviceServiceItem[]) => void;
+	selectedSpaceIds?: string[];
+	onSelectedSpaceIdsChange?: (spaceIds: string[]) => void;
+	canManageSpaces?: boolean;
 }
 
 const TabLabel = styled.span`
@@ -203,6 +207,33 @@ const FieldError = styled.div`
 	font-size: 0.82rem;
 	font-weight: 600;
 	color: #b91c1c;
+`;
+
+const SpacePicker = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+`;
+
+const SpaceOption = styled.label<{ $selected: boolean }>`
+	display: flex;
+	align-items: center;
+	gap: 0.55rem;
+	min-height: 42px;
+	padding: 0.65rem 0.75rem;
+	border: 1px solid
+		${(props) => (props.$selected ? COLORS.primary : COLORS.gray200)};
+	border-radius: 8px;
+	background: ${(props) => (props.$selected ? COLORS.primaryLight : COLORS.white)};
+	color: ${COLORS.textPrimary};
+	font-size: 0.86rem;
+	font-weight: 600;
+	cursor: pointer;
+
+	input {
+		accent-color: ${COLORS.primary};
+	}
 `;
 
 const PartsCard = styled.div`
@@ -709,6 +740,38 @@ export const DeviceModal = (props: DeviceModalProps) => {
 		!props.isEditing &&
 		Array.isArray(props.availableProperties) &&
 		props.availableProperties.length > 1;
+	const selectedPropertyId =
+		props.deviceFormData.location?.propertyId || props.property.id || '';
+	const selectedProperty =
+		props.availableProperties?.find(
+			(candidate) => String(candidate.id) === String(selectedPropertyId),
+		) || props.property;
+	const selectedAccountId = String(
+		selectedProperty.accountId || selectedProperty.userId || '',
+	).trim();
+	const { data: availableSpaces = [] } = useGetPropertySpacesQuery(
+		{
+			accountId: selectedAccountId,
+			propertyId: String(selectedPropertyId),
+			includeArchived: true,
+		},
+		{
+			skip:
+				!props.isOpen ||
+				!props.canManageSpaces ||
+				!selectedAccountId ||
+				!selectedPropertyId,
+		},
+	);
+	const selectedSpaceIds = props.selectedSpaceIds || [];
+	const toggleSpace = (spaceId: string) => {
+		if (!props.onSelectedSpaceIdsChange) return;
+		props.onSelectedSpaceIdsChange(
+			selectedSpaceIds.includes(spaceId)
+				? selectedSpaceIds.filter((candidate) => candidate !== spaceId)
+				: [...selectedSpaceIds, spaceId],
+		);
+	};
 
 	return (
 		<>
@@ -1021,6 +1084,47 @@ export const DeviceModal = (props: DeviceModalProps) => {
 								/>
 							</FormGroupFull>
 						</FormGrid>
+
+						{props.canManageSpaces && (
+							<FormGroupFull>
+								<FormLabel>Spaces</FormLabel>
+								{availableSpaces.length > 0 ? (
+									<>
+										<FieldHint>
+											Choose every place where this equipment is located.
+										</FieldHint>
+										<SpacePicker>
+											{availableSpaces
+												.filter(
+													(space) =>
+														!space.isArchived || selectedSpaceIds.includes(space.id),
+												)
+												.map((space) => {
+												const selected = selectedSpaceIds.includes(space.id);
+												return (
+													<SpaceOption key={space.id} $selected={selected}>
+														<input
+															type='checkbox'
+															checked={selected}
+															onChange={() => toggleSpace(space.id)}
+														/>
+														<span>
+															{space.name}
+															{space.isArchived ? ' (Archived)' : ''}
+														</span>
+													</SpaceOption>
+												);
+											})}
+										</SpacePicker>
+									</>
+								) : (
+									<FieldHint>
+										Add Spaces in Property Details when a location would make this
+										equipment easier to find.
+									</FieldHint>
+								)}
+							</FormGroupFull>
+						)}
 					</ModalTabContent>
 
 					<ModalTabContent $active={activeTab === 'service-items'}>

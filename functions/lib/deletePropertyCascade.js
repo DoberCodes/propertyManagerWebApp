@@ -116,6 +116,8 @@ const deletePropertyScopedCollections = async (propertyId, accountId, propertyTi
         'tenantProfiles',
         'favorites',
         'maintenanceRequests',
+        'propertySpaces',
+        'propertyKnowledgeLinks',
     ];
     for (const collectionName of propertyScopedCollections) {
         const docs = await queryByPropertyId(collectionName, propertyId);

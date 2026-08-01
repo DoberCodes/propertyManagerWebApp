@@ -177,7 +177,32 @@ const createTaskLifecycleDependencies = (): TaskLifecycleDependencies => {
 		},
 		writeMaintenanceEvent,
 		createTask: async (task) => {
-			await addDoc(collection(db, 'tasks'), task);
+			const created = await addDoc(collection(db, 'tasks'), task);
+			return created.id;
+		},
+		copyTaskSpaceLinks: async ({ fromTaskId, toTaskId, propertyId }) => {
+			const snapshot = await getDocs(
+				query(
+					collection(db, 'propertyKnowledgeLinks'),
+					where('fromId', '==', fromTaskId),
+				),
+			);
+			const spaceIds = snapshot.docs
+				.map((candidate) => candidate.data())
+				.filter(
+					(link) =>
+						link.fromType === 'task' &&
+						link.relationshipType === 'occurs_in' &&
+						link.toType === 'space' &&
+						String(link.propertyId || '') === propertyId,
+				)
+				.map((link) => String(link.toId || ''))
+				.filter(Boolean);
+			await callFirebaseFunction('setTaskSpaceLinks', {
+				propertyId,
+				taskId: toTaskId,
+				spaceIds,
+			});
 		},
 		canGenerateNextRecurringTask: canAccountUseRecurringTasks,
 		...(TRUSTED_RECURRING_TASK_WRITES_ENABLED

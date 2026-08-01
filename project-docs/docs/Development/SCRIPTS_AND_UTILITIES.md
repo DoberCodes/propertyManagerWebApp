@@ -652,6 +652,34 @@ Medium
 
 ---
 
+## Legacy Task Location to Space Migration
+
+```bash
+yarn migrate:task-locations-to-spaces -- --confirm-project=PROJECT_ID
+```
+
+Runs in dry-run mode and reports exact, already-linked, unmatched, ambiguous,
+and missing-scope outcomes. A candidate is safe only when the normalized legacy
+Task location exactly matches one active Space in the same account and Property.
+Partial matches, archived Spaces, and duplicate names are never inferred.
+
+After reviewing the dry run, apply with:
+
+```bash
+yarn migrate:task-locations-to-spaces:apply -- --confirm-project=PROJECT_ID
+```
+
+Apply mode creates deterministic `Task occurs_in Space` relationship records
+with migration provenance. It does not clear legacy Task fields, so the command
+is repeat-safe and preserves compatibility until later validation authorizes
+field cleanup. Use `--account-id=ACCOUNT_ID` to constrain either mode.
+
+Risk:
+
+Medium
+
+---
+
 ---
 
 ## Property Membership Migration

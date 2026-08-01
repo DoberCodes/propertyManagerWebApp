@@ -19,6 +19,7 @@ import { FloatingFilterPanel } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { RootState } from '../../Redux/store/store';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
+import { useSetEquipmentSpaceLinksMutation } from '../../Redux/API/propertyKnowledgeLinkSlice';
 import {
 	getMaintenanceEventDate,
 	getMaintenanceEventTitle,
@@ -373,6 +374,7 @@ type DeviceFormData = {
 		size: number;
 		type: string;
 	}>;
+	spaceIds: string[];
 };
 
 export const DevicesHubPage: React.FC = () => {
@@ -433,7 +435,9 @@ export const DevicesHubPage: React.FC = () => {
 			propertyId: '',
 		},
 		files: [],
+		spaceIds: [],
 	});
+	const [setEquipmentSpaceLinks] = useSetEquipmentSpaceLinksMutation();
 
 	const openFilterPanel = () => {
 		setDraftSearchQuery(searchQuery);
@@ -478,6 +482,7 @@ export const DevicesHubPage: React.FC = () => {
 		[currentUser?.role],
 	);
 	const canManageAppliances = roleCapabilities.canManageAppliances;
+	const canManageSpaces = roleCapabilities.canManageProperties;
 	const effectivePlanId = getEffectiveSubscriptionPlanId(
 		currentUser?.subscription,
 		'homeowner',
@@ -518,6 +523,7 @@ export const DevicesHubPage: React.FC = () => {
 			const locationField = field.split('.')[1] as 'propertyId' | 'unitId' | 'suiteId';
 			setDeviceFormData((prev) => ({
 				...prev,
+				spaceIds: locationField === 'propertyId' ? [] : prev.spaceIds,
 				location: {
 					...prev.location,
 					[locationField]: value,
@@ -574,8 +580,9 @@ export const DevicesHubPage: React.FC = () => {
 
 		setIsSavingDevice(true);
 		try {
+			const { spaceIds, ...deviceFields } = deviceFormData;
 			const deviceData = {
-				...deviceFormData,
+				...deviceFields,
 				type: deviceFormData.type.trim(),
 				brand: deviceFormData.brand.trim(),
 				model: deviceFormData.model.trim(),
@@ -597,6 +604,20 @@ export const DevicesHubPage: React.FC = () => {
 			};
 
 			const savedDevice = await createDevice(deviceData as any).unwrap();
+			if (savedDevice?.id && canManageSpaces) {
+				try {
+					await setEquipmentSpaceLinks({
+						propertyId: String(targetProperty.id),
+						equipmentId: String(savedDevice.id),
+						spaceIds,
+					}).unwrap();
+				} catch (linkError) {
+					console.error('Error saving equipment Spaces:', linkError);
+					feedback.notify(
+						'Equipment was saved, but Maintley could not update its Spaces.',
+					);
+				}
+			}
 
 			const propertyDocumentUploads = [
 				...pendingUploadFiles.map((file) => ({
@@ -704,6 +725,7 @@ export const DevicesHubPage: React.FC = () => {
 				propertyId: defaultPropertyId,
 			},
 			files: [],
+			spaceIds: [],
 		});
 		setPendingUploadFiles([]);
 		setPendingPropertyDocumentFiles([]);
@@ -997,6 +1019,11 @@ export const DevicesHubPage: React.FC = () => {
 						onServiceItemsChange={(items) =>
 							setDeviceFormData((prev) => ({ ...prev, serviceItems: items }))
 						}
+						selectedSpaceIds={deviceFormData.spaceIds}
+						onSelectedSpaceIdsChange={(spaceIds) =>
+							setDeviceFormData((prev) => ({ ...prev, spaceIds }))
+						}
+						canManageSpaces={canManageSpaces}
 						pendingPropertyDocumentFiles={pendingPropertyDocumentFiles}
 						onPendingPropertyDocumentFilesChange={setPendingPropertyDocumentFiles}
 						pendingPropertyDocumentCategory={pendingPropertyDocumentCategory}
@@ -1346,6 +1373,11 @@ export const DevicesHubPage: React.FC = () => {
 					onServiceItemsChange={(items) =>
 						setDeviceFormData((prev) => ({ ...prev, serviceItems: items }))
 					}
+					selectedSpaceIds={deviceFormData.spaceIds}
+					onSelectedSpaceIdsChange={(spaceIds) =>
+						setDeviceFormData((prev) => ({ ...prev, spaceIds }))
+					}
+					canManageSpaces={canManageSpaces}
 					pendingPropertyDocumentFiles={pendingPropertyDocumentFiles}
 					onPendingPropertyDocumentFilesChange={setPendingPropertyDocumentFiles}
 					pendingPropertyDocumentCategory={pendingPropertyDocumentCategory}

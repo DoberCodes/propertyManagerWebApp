@@ -81,6 +81,22 @@ const createPropertyKnowledgeSuggestion = (overrides = {}) => ({
 	...overrides,
 });
 
+const createPropertySpace = (overrides = {}) => ({
+	accountId,
+	propertyId: 'property-1',
+	name: 'Living Room',
+	type: 'interior',
+	notes: 'Main gathering Space',
+	sortOrder: 10,
+	isArchived: false,
+	source: 'manual',
+	createdBy: ownerUid,
+	updatedBy: ownerUid,
+	createdAt: '2026-07-01T12:00:00.000Z',
+	updatedAt: '2026-07-01T12:00:00.000Z',
+	...overrides,
+});
+
 async function seedFirestore(env) {
 	await env.withSecurityRulesDisabled(async (context) => {
 		const db = context.firestore();
@@ -366,6 +382,22 @@ async function seedFirestore(env) {
 				sourceDocumentId: 'property-document-outsider',
 			}),
 		);
+
+		await db.doc('propertySpaces/space-owned').set(createPropertySpace());
+		await db.doc('propertyKnowledgeLinks/link-owned').set({
+			accountId,
+			propertyId: 'property-1',
+			fromType: 'equipment',
+			fromId: 'device-owned',
+			relationshipType: 'located_in',
+			toType: 'space',
+			toId: 'space-owned',
+			source: 'manual',
+			createdAt: '2026-07-01T12:00:00.000Z',
+			createdBy: ownerUid,
+			updatedAt: '2026-07-01T12:00:00.000Z',
+			updatedBy: ownerUid,
+		});
 
 		await db.doc('tasks/task-existing').set(
 			createTask({
@@ -1038,6 +1070,117 @@ async function run() {
 		await assertFails(ownerDb.doc('feedback/feedback-owned').delete());
 
 		await assertSucceeds(ownerDb.doc('propertyDocuments/property-document-owned').get());
+		await assertSucceeds(ownerDb.doc('propertySpaces/space-owned').get());
+		await assertSucceeds(
+			ownerDb
+				.collection('propertySpaces')
+				.where('propertyId', '==', 'property-1')
+				.where('accountId', '==', accountId)
+				.get(),
+		);
+		await assertSucceeds(maintenanceLeadDb.doc('propertySpaces/space-owned').get());
+		await assertSucceeds(
+			ownerDb
+				.collection('propertySpaces')
+				.where('accountId', '==', accountId)
+				.get(),
+		);
+		await assertFails(outsiderDb.doc('propertySpaces/space-owned').get());
+		await assertSucceeds(
+			ownerDb.doc('propertySpaces/space-created').set(
+				createPropertySpace({
+					name: 'Lawn',
+					type: 'grounds',
+					sortOrder: 20,
+				}),
+			),
+		);
+		await assertFails(
+			maintenanceLeadDb.doc('propertySpaces/space-lead-created').set(
+				createPropertySpace({
+					createdBy: maintenanceLeadUid,
+					updatedBy: maintenanceLeadUid,
+				}),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-wrong-property').set(
+				createPropertySpace({ propertyId: 'missing-property' }),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-invalid-type').set(
+				createPropertySpace({ type: 'room' }),
+			),
+		);
+		await assertSucceeds(
+			ownerDb.doc('propertySpaces/space-owned').update({
+				name: 'Great Room',
+				sortOrder: 15,
+				updatedBy: ownerUid,
+				updatedAt: '2026-07-01T13:00:00.000Z',
+			}),
+		);
+		await assertSucceeds(
+			ownerDb.doc('propertySpaces/space-owned').update({
+				isArchived: true,
+				updatedBy: ownerUid,
+				updatedAt: '2026-07-01T13:30:00.000Z',
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-owned').update({
+				accountId: outsiderUid,
+				updatedBy: ownerUid,
+				updatedAt: '2026-07-01T14:00:00.000Z',
+			}),
+		);
+		await assertFails(
+			maintenanceLeadDb.doc('propertySpaces/space-owned').delete(),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-created').delete(),
+		);
+		await assertSucceeds(ownerDb.doc('propertyKnowledgeLinks/link-owned').get());
+		await assertSucceeds(
+			ownerDb
+				.collection('propertyKnowledgeLinks')
+				.where('accountId', '==', accountId)
+				.where('propertyId', '==', 'property-1')
+				.get(),
+		);
+		await assertSucceeds(
+			maintenanceLeadDb.doc('propertyKnowledgeLinks/link-owned').get(),
+		);
+		await assertSucceeds(
+			ownerDb
+				.collection('propertyKnowledgeLinks')
+				.where('accountId', '==', accountId)
+				.get(),
+		);
+		await assertFails(outsiderDb.doc('propertyKnowledgeLinks/link-owned').get());
+		await assertFails(
+			ownerDb.doc('propertyKnowledgeLinks/link-client-created').set({
+				accountId,
+				propertyId: 'property-1',
+				fromType: 'equipment',
+				fromId: 'device-owned',
+				relationshipType: 'located_in',
+				toType: 'space',
+				toId: 'space-owned',
+				source: 'manual',
+				createdAt: '2026-07-01T12:00:00.000Z',
+				createdBy: ownerUid,
+				updatedAt: '2026-07-01T12:00:00.000Z',
+				updatedBy: ownerUid,
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('propertyKnowledgeLinks/link-owned').update({
+				toId: 'another-space',
+			}),
+		);
+		await assertFails(ownerDb.doc('propertyKnowledgeLinks/link-owned').delete());
 		await assertSucceeds(
 			ownerDb
 				.collection('propertyDocuments')
