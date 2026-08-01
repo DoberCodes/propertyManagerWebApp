@@ -130,6 +130,37 @@ export const SpaceNotes = styled.p`
 	white-space: pre-wrap;
 `;
 
+export const ArchivedSpacesToggle = styled.button`
+	align-self: flex-start;
+	min-height: 38px;
+	padding: 0.5rem 0.75rem;
+	border: 1px solid ${COLORS.gray300};
+	border-radius: 7px;
+	background: ${COLORS.white};
+	color: ${COLORS.textSecondary};
+	font-weight: 700;
+	cursor: pointer;
+
+	&:hover {
+		border-color: ${COLORS.primary};
+		color: ${COLORS.primary};
+	}
+`;
+
+export const ArchivedSpacesPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding-top: 1rem;
+	border-top: 1px solid ${COLORS.gray200};
+
+	h4 {
+		margin: 0;
+		color: ${COLORS.textPrimary};
+		font-size: 0.95rem;
+	}
+`;
+
 export const SpaceLinkedCount = styled.span`
 	color: ${COLORS.textMuted};
 	font-size: 0.78rem;
@@ -158,7 +189,7 @@ export const SpaceActions = styled.div`
 		color: ${COLORS.primary};
 	}
 
-	button:last-child:hover:not(:disabled) {
+	button[data-tone='danger']:hover:not(:disabled) {
 		border-color: #dc2626;
 		color: #dc2626;
 	}

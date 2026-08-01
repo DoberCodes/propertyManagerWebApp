@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RootState } from 'Redux/store/store';
@@ -113,6 +113,9 @@ import {
 	TaskTimeBucketId,
 } from '../../tasks/taskTimeBuckets';
 import { getTaskTimingLabel } from '../../tasks/taskSchedule';
+import { useGetAccountSpacesQuery } from '../../Redux/API/spaceSlice';
+import { useGetPropertyKnowledgeLinksQuery } from '../../Redux/API/propertyKnowledgeLinkSlice';
+import { getTaskSpaceIds } from '../../types/PropertyKnowledgeLink.types';
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
@@ -127,6 +130,7 @@ export const TasksPage = () => {
 	);
 	const canManageTasks = roleCapabilities.canManageTasks;
 	const canCreateTasks = roleCapabilities.canCreateTasks;
+	const accountId = String(currentUser?.accountId || currentUser?.id || '').trim();
 	// Select groups from state and derive team members with useMemo
 	const teamGroups = useSelector((state: RootState) => state.team.groups);
 	const { data: firebaseTeamMembers = [] } = useGetTeamMembersQuery();
@@ -146,6 +150,42 @@ export const TasksPage = () => {
 
 	// Fetch tasks and properties from Firebase
 	const { data: allTasks = [] } = useGetTasksQuery();
+	const { data: accountSpaces = [] } = useGetAccountSpacesQuery(
+		{ accountId, includeArchived: true },
+		{ skip: !accountId },
+	);
+	const { data: accountKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId },
+			{ skip: !accountId },
+		);
+	const taskSpaceIdsByTaskId = useMemo(
+		() =>
+			new Map(
+				allTasks.map((task) => [
+					task.id,
+					getTaskSpaceIds(accountKnowledgeLinks, task.id),
+				]),
+			),
+		[accountKnowledgeLinks, allTasks],
+	);
+	const taskSpaceNamesByTaskId = useMemo(() => {
+		const spaceNameById = new Map(
+			accountSpaces.map((space) => [space.id, space.name]),
+		);
+		return new Map(
+			allTasks.map((task) => [
+				task.id,
+				(taskSpaceIdsByTaskId.get(task.id) || [])
+					.map((spaceId) => spaceNameById.get(spaceId))
+					.filter((name): name is string => Boolean(name)),
+			]),
+		);
+	}, [accountSpaces, allTasks, taskSpaceIdsByTaskId]);
+	const getTaskSpaceLabel = useCallback(
+		(taskId: string) => (taskSpaceNamesByTaskId.get(taskId) || []).join(', '),
+		[taskSpaceNamesByTaskId],
+	);
 
 	// Locally promote past-due tasks to 'Overdue' status so the UI reflects reality
 	// even before the daily Firebase scheduled function runs.
@@ -203,7 +243,7 @@ export const TasksPage = () => {
 		priority: '',
 		assignedTo: '',
 		category: '',
-		location: '',
+		spaceId: '',
 		propertyId: '',
 		dueDateStart: '',
 		dueDateEnd: '',
@@ -354,12 +394,28 @@ export const TasksPage = () => {
 		return {
 			statuses: uniqueOptions(accessibleTasks.map((task) => task.status)),
 			categories: uniqueOptions(accessibleTasks.map((task) => task.category)),
-			locations: uniqueOptions(accessibleTasks.map((task) => task.location)),
+			spaces: accountSpaces
+				.filter((space) =>
+					accessibleTasks.some((task) =>
+						(taskSpaceIdsByTaskId.get(task.id) || []).includes(space.id),
+					),
+				)
+				.map((space) => ({
+					value: space.id,
+					label: `${space.name}${space.isArchived ? ' (Archived)' : ''}`,
+				})),
 			assignees: Array.from(assigneeMap.entries())
 				.map(([value, label]) => ({ value, label }))
 				.sort((left, right) => left.label.localeCompare(right.label)),
 		};
-	}, [processedTasks, currentUser, teamMembers, allProperties]);
+	}, [
+		processedTasks,
+		currentUser,
+		teamMembers,
+		allProperties,
+		accountSpaces,
+		taskSpaceIdsByTaskId,
+	]);
 
 	const renderAdvancedFilterFields = (
 		values: typeof advancedFilters,
@@ -423,12 +479,12 @@ export const TasksPage = () => {
 				</TaskSortSelect>
 			</TaskFilterField>
 			<TaskFilterField>
-				Location
+				Space
 				<TaskSortSelect
-					value={values.location}
-					onChange={(event) => onChange('location', event.target.value)}>
-					<option value=''>All locations</option>
-					{globalTaskFilterOptions.locations.map((option) => (
+					value={values.spaceId}
+					onChange={(event) => onChange('spaceId', event.target.value)}>
+					<option value=''>All Spaces</option>
+					{globalTaskFilterOptions.spaces.map((option) => (
 						<option key={option.value} value={option.value}>
 							{option.label}
 						</option>
@@ -462,7 +518,7 @@ export const TasksPage = () => {
 			priority: '',
 			assignedTo: '',
 			category: '',
-			location: '',
+			spaceId: '',
 			propertyId: '',
 			dueDateStart: '',
 			dueDateEnd: '',
@@ -494,7 +550,7 @@ export const TasksPage = () => {
 			priority: '',
 			assignedTo: '',
 			category: '',
-			location: '',
+			spaceId: '',
 			propertyId: '',
 			dueDateStart: '',
 			dueDateEnd: '',
@@ -550,14 +606,15 @@ export const TasksPage = () => {
 				...task,
 				propertyTitle: property?.title || task.property || 'Unknown Property',
 				assignedToNames: getTaskAssigneeDisplayName(task, ''),
+				spaceSearchText: getTaskSpaceLabel(task.id),
 			};
 		});
 
-		// Search over title and notes only.
+		// Search over task content and accepted Space relationships.
 		const normalizedSearch = searchTerm.trim().toLowerCase();
 		const afterSearch = normalizedSearch
 			? enriched.filter((task) => {
-				const haystack = `${task.title || ''} ${task.notes || ''}`.toLowerCase();
+				const haystack = `${task.title || ''} ${task.notes || ''} ${task.spaceSearchText || ''}`.toLowerCase();
 				return haystack.includes(normalizedSearch);
 			})
 			: enriched;
@@ -590,8 +647,10 @@ export const TasksPage = () => {
 				return false;
 			}
 			if (
-				advancedFilters.location &&
-				task.location !== advancedFilters.location
+				advancedFilters.spaceId &&
+				!(taskSpaceIdsByTaskId.get(task.id) || []).includes(
+					advancedFilters.spaceId,
+				)
 			) {
 				return false;
 			}
@@ -678,6 +737,8 @@ export const TasksPage = () => {
 		currentUser,
 		teamMembers,
 		allProperties,
+		taskSpaceIdsByTaskId,
+		getTaskSpaceLabel,
 		searchTerm,
 		quickFilter,
 		advancedFilters,
@@ -750,7 +811,7 @@ export const TasksPage = () => {
 	};
 
 	const getTaskIcon = (task: any) => {
-		const context = `${task.title || ''} ${task.category || ''} ${task.location || ''}`.toLowerCase();
+		const context = `${task.title || ''} ${task.category || ''} ${getTaskSpaceLabel(task.id)}`.toLowerCase();
 		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
 			return { icon: faFan, color: COLORS.primary, background: COLORS.primaryLight };
 		}
@@ -1299,7 +1360,9 @@ export const TasksPage = () => {
 											<div>{taskPropertyLanguage.itemPrefix}: {getTaskPropertyLabel(task)}</div>
 											<div style={{ marginTop: 2, fontSize: '0.8rem', color: '#64748b' }}>
 												{task.category || 'General maintenance'}
-												{task.location ? ` · ${task.location}` : ''}
+												{getTaskSpaceLabel(task.id)
+													? ` · ${getTaskSpaceLabel(task.id)}`
+													: ''}
 											</div>
 										</MobileMetaValue>
 									</MobileMetaItem>

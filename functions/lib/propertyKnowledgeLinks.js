@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupTaskSpaceLinks = exports.cleanupEquipmentSpaceLinks = exports.removePropertySpace = exports.setTaskSpaceLinks = exports.setEquipmentSpaceLinks = exports.buildPropertyKnowledgeLinkId = exports.normalizeSpaceIds = void 0;
+exports.cleanupTaskSpaceLinks = exports.cleanupEquipmentSpaceLinks = exports.restorePropertySpace = exports.removePropertySpace = exports.setTaskSpaceLinks = exports.setEquipmentSpaceLinks = exports.buildPropertyKnowledgeLinkId = exports.normalizeSpaceIds = void 0;
 const crypto_1 = require("crypto");
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
@@ -257,6 +257,31 @@ exports.removePropertySpace = functions
     }
     await spaceRef.delete();
     return { success: true, archived: false };
+});
+exports.restorePropertySpace = functions
+    .region('us-central1')
+    .https.onCall(async (data, context) => {
+    if (!context.auth?.uid) {
+        throw new functions.https.HttpsError('unauthenticated', 'Sign in to restore a Space.');
+    }
+    const spaceId = cleanId(data?.spaceId, 'Space');
+    const spaceRef = db.collection('propertySpaces').doc(spaceId);
+    const spaceSnapshot = await spaceRef.get();
+    if (!spaceSnapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'Space not found.');
+    }
+    const space = spaceSnapshot.data() || {};
+    const accountId = String(space.accountId || '').trim();
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    if (space.isArchived !== true) {
+        return { success: true, restored: false };
+    }
+    await spaceRef.update({
+        isArchived: false,
+        updatedAt: new Date().toISOString(),
+        updatedBy: context.auth.uid,
+    });
+    return { success: true, restored: true };
 });
 exports.cleanupEquipmentSpaceLinks = functions
     .region('us-central1')

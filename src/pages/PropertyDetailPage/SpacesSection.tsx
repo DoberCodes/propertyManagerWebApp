@@ -18,6 +18,7 @@ import { useGetTasksQuery } from '../../Redux/API/taskSlice';
 import {
 	useGetPropertyKnowledgeLinksQuery,
 	useRemovePropertySpaceMutation,
+	useRestorePropertySpaceMutation,
 } from '../../Redux/API/propertyKnowledgeLinkSlice';
 import { Property } from '../../types/Property.types';
 import {
@@ -35,6 +36,8 @@ import {
 } from '../../utils/propertySpaces';
 import {
 	AddSpaceButton,
+	ArchivedSpacesPanel,
+	ArchivedSpacesToggle,
 	SpaceActions,
 	SpaceCard,
 	SpaceCardHeader,
@@ -97,7 +100,7 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 		isLoading,
 		error: loadError,
 	} = useGetPropertySpacesQuery(
-		{ accountId, propertyId: property.id },
+		{ accountId, propertyId: property.id, includeArchived: true },
 		{ skip: !accountId || !property.id },
 	);
 	const [createSpace, { isLoading: isCreating }] =
@@ -118,6 +121,8 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 	);
 	const [removeSpace, { isLoading: isRemoving }] =
 		useRemovePropertySpaceMutation();
+	const [restoreSpace, { isLoading: isRestoring }] =
+		useRestorePropertySpaceMutation();
 	const [editingSpace, setEditingSpace] = useState<PropertySpace | null>(null);
 	const [spaceToDelete, setSpaceToDelete] = useState<PropertySpace | null>(
 		null,
@@ -127,10 +132,19 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 	const [draft, setDraft] = useState<PropertySpaceDraft>(EMPTY_DRAFT);
 	const [formError, setFormError] = useState('');
 	const [actionError, setActionError] = useState('');
+	const [showArchived, setShowArchived] = useState(false);
+	const activeSpaces = useMemo(
+		() => spaces.filter((space) => !space.isArchived),
+		[spaces],
+	);
+	const archivedSpaces = useMemo(
+		() => spaces.filter((space) => space.isArchived),
+		[spaces],
+	);
 
 	const defaultSortOrder = useMemo(
-		() => getNextPropertySpaceSortOrder(spaces),
-		[spaces],
+		() => getNextPropertySpaceSortOrder(activeSpaces),
+		[activeSpaces],
 	);
 	const equipmentBySpaceId = useMemo(() => {
 		const deviceById = new Map(devices.map((device) => [String(device.id), device]));
@@ -260,6 +274,18 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 		}
 	};
 
+	const handleRestore = async (space: PropertySpace) => {
+		try {
+			setActionError('');
+			await restoreSpace({
+				spaceId: space.id,
+				propertyId: property.id,
+			}).unwrap();
+		} catch (error) {
+			setActionError(getMutationError(error));
+		}
+	};
+
 	const selectedEquipment = selectedSpace
 		? equipmentBySpaceId.get(selectedSpace.id) || []
 		: [];
@@ -293,18 +319,19 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 			{actionError && (
 				<SpaceFormError role="alert">{actionError}</SpaceFormError>
 			)}
-			{!isLoading && !loadError && spaces.length === 0 && (
+			{!isLoading && !loadError && activeSpaces.length === 0 && (
 				<SpacesEmptyState>
-					<strong>No Spaces added yet</strong>
+					<strong>No active Spaces</strong>
 					<p>
-						Add places such as a Kitchen, Garage, Roof, Lawn, or Pool when they
-						help describe the property.
+						{archivedSpaces.length > 0
+							? 'Restore an archived Space or add a new place for this property.'
+							: 'Add places such as a Kitchen, Garage, Roof, Lawn, or Pool when they help describe the property.'}
 					</p>
 				</SpacesEmptyState>
 			)}
-			{spaces.length > 0 && (
+			{activeSpaces.length > 0 && (
 				<SpacesGrid>
-					{spaces.map((space) => (
+					{activeSpaces.map((space) => (
 						<SpaceCard key={space.id}>
 							<SpaceCardHeader>
 								<strong>{space.name}</strong>
@@ -329,6 +356,7 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 									</button>
 									<button
 										type="button"
+										data-tone="danger"
 										onClick={() => {
 											setActionError('');
 											setSpaceToDelete(space);
@@ -344,6 +372,57 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 						</SpaceCard>
 					))}
 				</SpacesGrid>
+			)}
+
+			{archivedSpaces.length > 0 && (
+				<>
+					<ArchivedSpacesToggle
+						type="button"
+						aria-expanded={showArchived}
+						onClick={() => setShowArchived((current) => !current)}
+					>
+						{showArchived
+							? 'Hide archived Spaces'
+							: `View archived Spaces (${archivedSpaces.length})`}
+					</ArchivedSpacesToggle>
+					{showArchived && (
+						<ArchivedSpacesPanel>
+							<h4>Archived Spaces</h4>
+							<SpacesGrid>
+								{archivedSpaces.map((space) => (
+									<SpaceCard key={space.id}>
+										<SpaceCardHeader>
+											<strong>{space.name}</strong>
+											<SpaceTypeBadge>Archived</SpaceTypeBadge>
+										</SpaceCardHeader>
+										{space.notes && <SpaceNotes>{space.notes}</SpaceNotes>}
+										<SpaceLinkedCount>
+											{getSpaceReferenceCount(space.id)} connected record
+											{getSpaceReferenceCount(space.id) === 1 ? '' : 's'}
+										</SpaceLinkedCount>
+										<SpaceActions>
+											<button
+												type="button"
+												onClick={() => setSelectedSpace(space)}
+											>
+												View
+											</button>
+											{canManageSpaces && (
+												<button
+													type="button"
+													disabled={isRestoring}
+													onClick={() => handleRestore(space)}
+												>
+													Restore
+												</button>
+											)}
+										</SpaceActions>
+									</SpaceCard>
+								))}
+							</SpacesGrid>
+						</ArchivedSpacesPanel>
+					)}
+				</>
 			)}
 
 			<GenericModal

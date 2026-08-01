@@ -314,7 +314,7 @@ Primary collections:
 * accountMemberships
 * properties
 * propertySpaces
-* propertyKnowledgeLinks (trusted Equipment-to-Space and Task-to-Space relationships)
+* propertyKnowledgeLinks (trusted Equipment-to-Space and Task-to-Space relationships, including reviewed migration links)
 * propertyGroups
 * propertyGroupMemberships
 * devices

@@ -28,6 +28,11 @@ interface GetPropertySpacesArgs {
 	includeArchived?: boolean;
 }
 
+interface GetAccountSpacesArgs {
+	accountId: string;
+	includeArchived?: boolean;
+}
+
 const spaceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		getPropertySpaces: builder.query<PropertySpace[], GetPropertySpacesArgs>({
@@ -51,6 +56,29 @@ const spaceSlice = apiSlice.injectEndpoints({
 			},
 			providesTags: (_result, _error, args) => [
 				{ type: 'Spaces', id: args.propertyId },
+			],
+		}),
+
+		getAccountSpaces: builder.query<PropertySpace[], GetAccountSpacesArgs>({
+			async queryFn({ accountId, includeArchived = false }) {
+				try {
+					if (!accountId) return { data: [] };
+					const snapshot = await getDocs(
+						query(
+							collection(db, 'propertySpaces'),
+							where('accountId', '==', accountId),
+						),
+					);
+					const spaces = snapshot.docs
+						.map((spaceDoc) => docToData(spaceDoc) as PropertySpace)
+						.filter((space) => space && (includeArchived || !space.isArchived));
+					return { data: sortPropertySpaces(spaces) };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			providesTags: (_result, _error, args) => [
+				{ type: 'Spaces', id: `account:${args.accountId}` },
 			],
 		}),
 
@@ -85,9 +113,7 @@ const spaceSlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: (_result, _error, args) => [
-				{ type: 'Spaces', id: args.propertyId },
-			],
+			invalidatesTags: ['Spaces'],
 		}),
 
 		updatePropertySpace: builder.mutation<
@@ -118,6 +144,7 @@ const spaceSlice = apiSlice.injectEndpoints({
 });
 
 export const {
+	useGetAccountSpacesQuery,
 	useCreatePropertySpaceMutation,
 	useGetPropertySpacesQuery,
 	useUpdatePropertySpaceMutation,

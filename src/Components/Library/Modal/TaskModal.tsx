@@ -564,7 +564,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			status: 'Initiated',
 			requiresWorkOrder: false,
 			category: '',
-			location: '',
 			notes: '',
 			devices: [],
 			spaceIds: [],
@@ -603,11 +602,8 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const [pendingTaskDocumentCategory, setPendingTaskDocumentCategory] =
 		useState<PropertyDocumentCategory>('other');
 	const [submitAttempted, setSubmitAttempted] = useState(false);
-	const [activeSuggestion, setActiveSuggestion] = useState<
-		'category' | 'location' | null
-	>(null);
+	const [activeSuggestion, setActiveSuggestion] = useState<'category' | null>(null);
 	const categoryWrapRef = useRef<HTMLDivElement | null>(null);
-	const locationWrapRef = useRef<HTMLDivElement | null>(null);
 	const titleInputRef = useRef<HTMLInputElement | null>(null);
 	const hasInitializedFormForOpen = useRef(false);
 	const initializedTaskSpaceSelectionKey = useRef('');
@@ -660,36 +656,27 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				})),
 		[availableSpaces, formState.spaceIds],
 	);
+	const selectedSpaceSearchText = useMemo(
+		() =>
+			spaceOptions
+				.filter((option) => (formState.spaceIds || []).includes(option.value))
+				.map((option) => option.label)
+				.join(' '),
+		[formState.spaceIds, spaceOptions],
+	);
 
 	const defaultCategoryOptions = useMemo(
 		() => [
-			'Kitchen',
-			'Bedroom',
-			'Living Room',
-			'Bathroom',
-			'Garage',
-			'Outside',
-			'Basement',
-			'Laundry Room',
-			'Hallway',
-			'Office',
+			'Appliances',
+			'Cleaning',
+			'Electrical',
+			'Exterior',
+			'General Maintenance',
+			'HVAC',
+			'Landscaping',
+			'Plumbing',
+			'Safety',
 		],
-		[],
-	);
-
-	const defaultLocationSuggestions: Record<string, string[]> = useMemo(
-		() => ({
-			Kitchen: ['Sink', 'Dishwasher', 'Refrigerator', 'Stove'],
-			Bedroom: ['Closet', 'Window', 'Ceiling Fan', 'Door'],
-			'Living Room': ['Fireplace', 'Window', 'Entertainment Area', 'Ceiling'],
-			Bathroom: ['Sink', 'Toilet', 'Shower', 'Bathtub'],
-			Garage: ['Garage Door', 'Workbench', 'Water Heater', 'Storage Shelves'],
-			Outside: ['Front Yard', 'Backyard', 'Driveway', 'Patio'],
-			Basement: ['Sump Pump', 'Stairs', 'Storage Area', 'Foundation Wall'],
-			'Laundry Room': ['Washer', 'Dryer', 'Utility Sink', 'Vent'],
-			Hallway: ['Light Fixture', 'Closet', 'Flooring', 'Wall'],
-			Office: ['Desk Area', 'Window', 'Electrical Outlet', 'Door'],
-		}),
 		[],
 	);
 
@@ -704,25 +691,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		return Array.from(new Set([...defaultCategoryOptions, ...existingCategories]));
 	}, [allTasks, defaultCategoryOptions]);
 
-	const locationOptions = useMemo(() => {
-		const selectedCategory = formState.category?.trim();
-		const categorySuggestions = selectedCategory
-			? defaultLocationSuggestions[selectedCategory] || []
-			: [];
-		const existingLocations = allTasks
-			.filter((task: any) => {
-				if (!selectedCategory) return true;
-				return task.category === selectedCategory;
-			})
-			.map((task: any) => task.location)
-			.filter((location: any): location is string =>
-				typeof location === 'string' && location.trim().length > 0,
-			)
-			.map((location: string) => location.trim());
-
-		return Array.from(new Set([...categorySuggestions, ...existingLocations]));
-	}, [allTasks, defaultLocationSuggestions, formState.category]);
-
 	const filteredCategoryOptions = useMemo(() => {
 		const query = (formState.category || '').trim().toLowerCase();
 		if (!query) return categoryOptions;
@@ -730,14 +698,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			category.toLowerCase().includes(query),
 		);
 	}, [categoryOptions, formState.category]);
-
-	const filteredLocationOptions = useMemo(() => {
-		const query = (formState.location || '').trim().toLowerCase();
-		if (!query) return locationOptions;
-		return locationOptions.filter((location) =>
-			location.toLowerCase().includes(query),
-		);
-	}, [locationOptions, formState.location]);
 
 	// Device options for task linking (property-scoped)
 	const internalDeviceOptions = React.useMemo(() => {
@@ -880,7 +840,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				status: editingTask.status || 'Initiated',
 				requiresWorkOrder: Boolean((editingTask as any).requiresWorkOrder),
 				category: editingTask.category || '',
-				location: editingTask.location || '',
 				notes: editingTask.notes || '',
 				priority: editingTask.priority,
 				assignedTo: getStoredTaskAssigneeOption(editingTask)?.value || '',
@@ -915,7 +874,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				status: foundTask.status || 'Initiated',
 				requiresWorkOrder: Boolean((foundTask as any).requiresWorkOrder),
 				category: foundTask.category || '',
-				location: foundTask.location || '',
 				notes: foundTask.notes || '',
 				priority: foundTask.priority,
 				assignedTo: getStoredTaskAssigneeOption(foundTask)?.value || '',
@@ -957,7 +915,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				status: initialTask.status || defaultForm.status,
 				notes: initialTask.notes || defaultForm.notes,
 				category: initialTask.category || defaultForm.category,
-				location: initialTask.location || defaultForm.location,
 				priority: initialTask.priority || defaultForm.priority,
 				assignedTo: initialTask.assignedTo || defaultForm.assignedTo,
 				devices: initialTask.devices || defaultForm.devices,
@@ -1100,7 +1057,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					(
 						(initialTask.devices?.length || 0) > 0 ||
 						Boolean(initialTask.category) ||
-						Boolean(initialTask.location) ||
 						Boolean(initialTask.assignedTo)
 					),
 				),
@@ -1121,7 +1077,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	}, [isOpen, activeTab]);
 
 	const smartScheduleSuggestion = useMemo<SmartScheduleSuggestion | null>(() => {
-		const searchPool = `${formState.title || ''} ${formState.category || ''} ${formState.location || ''}`.toLowerCase();
+		const searchPool = `${formState.title || ''} ${formState.category || ''} ${selectedSpaceSearchText}`.toLowerCase();
 		if (!searchPool.trim()) return null;
 
 		if ((searchPool.includes('hvac') || searchPool.includes('air filter') || searchPool.includes('filter')) && !searchPool.includes('water')) {
@@ -1161,7 +1117,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		}
 
 		return null;
-	}, [formState.category, formState.location, formState.title]);
+	}, [formState.category, formState.title, selectedSpaceSearchText]);
 
 	const hasAppliedSmartSchedule = Boolean(
 		formState.recurrenceFrequency ||
@@ -1252,10 +1208,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
 			const target = event.target as Node;
-			if (
-				categoryWrapRef.current?.contains(target) ||
-				locationWrapRef.current?.contains(target)
-			) {
+			if (categoryWrapRef.current?.contains(target)) {
 				return;
 			}
 			setActiveSuggestion(null);
@@ -1515,6 +1468,9 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					financials: sanitizedFinancials,
 				};
 				delete updatesRaw.spaceIds;
+				// Legacy location text is preserved on existing records but is no
+				// longer edited or written by the Task experience.
+				delete updatesRaw.location;
 				// clean nested undefined in notifications to avoid Firestore errors
 				if (
 					updatesRaw.notifications &&
@@ -1585,6 +1541,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					property: selectedProperty?.title || '',
 				};
 				delete newTaskRaw.spaceIds;
+				delete newTaskRaw.location;
 				// sanitize notifications objects
 				if (
 					newTaskRaw.notifications &&
@@ -1937,7 +1894,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 												value={formState.category || ''}
 												onChange={handleChange}
 												onFocus={() => setActiveSuggestion('category')}
-												placeholder='e.g., Kitchen'
+											placeholder='e.g., HVAC'
 											/>
 											{activeSuggestion === 'category' &&
 												filteredCategoryOptions.length > 0 && (
@@ -1980,10 +1937,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 													}
 													placeholder="Select Spaces for this task..."
 												/>
-												<small style={{ color: '#6b7280' }}>
-													Choose every Space where this work occurs. Specific details can
-													still be recorded in Location.
-												</small>
+											<small style={{ color: '#6b7280' }}>
+												Choose every Space where this work occurs. Add more specific
+												directions to the task notes when needed.
+											</small>
 											</>
 										) : (
 											<small style={{ color: '#6b7280' }}>
@@ -1993,44 +1950,6 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 											</small>
 										)}
 									</FormGroup>
-
-									<FormGroup>
-										<FormLabel>Location</FormLabel>
-										<SuggestionInputWrap ref={locationWrapRef}>
-											<FormInput
-												type='text'
-												name='location'
-												value={formState.location || ''}
-												onChange={handleChange}
-												onFocus={() => setActiveSuggestion('location')}
-												placeholder='e.g., Sink'
-											/>
-											{activeSuggestion === 'location' &&
-												filteredLocationOptions.length > 0 && (
-													<SuggestionDropdown>
-														{filteredLocationOptions.map((location) => (
-															<SuggestionItem
-																type='button'
-																key={location}
-																$active={
-																	(formState.location || '').trim() === location
-																}
-																onMouseDown={(e) => e.preventDefault()}
-																onClick={() => {
-																	setFormState((prev) => ({
-																		...prev,
-																		location,
-																	}));
-																	setActiveSuggestion(null);
-																}}>
-																{location}
-															</SuggestionItem>
-														))}
-													</SuggestionDropdown>
-												)}
-										</SuggestionInputWrap>
-									</FormGroup>
-
 									<FormGroup>
 										<FormLabel>Assigned To</FormLabel>
 										<TaskSelect

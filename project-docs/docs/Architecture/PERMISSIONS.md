@@ -654,7 +654,7 @@ Create and update:
 
 * Account managers
 
-Remove:
+Remove and restore:
 
 * Account managers through a trusted callable
 
@@ -665,7 +665,8 @@ referenced Property to exist within the same account. Spaces do not create a
 separate permission boundary.
 
 The removal callable deletes an unreferenced Space and archives a referenced
-Space. Direct client deletion is denied.
+Space. The restore callable reactivates an archived Space within the same
+account boundary. Direct client deletion is denied.
 
 ---
 

@@ -329,6 +329,41 @@ export const removePropertySpace = functions
 		return { success: true, archived: false };
 	});
 
+export const restorePropertySpace = functions
+	.region('us-central1')
+	.https.onCall(async (data: { spaceId?: unknown }, context) => {
+		if (!context.auth?.uid) {
+			throw new functions.https.HttpsError(
+				'unauthenticated',
+				'Sign in to restore a Space.',
+			);
+		}
+		const spaceId = cleanId(data?.spaceId, 'Space');
+		const spaceRef = db.collection('propertySpaces').doc(spaceId);
+		const spaceSnapshot = await spaceRef.get();
+		if (!spaceSnapshot.exists) {
+			throw new functions.https.HttpsError('not-found', 'Space not found.');
+		}
+		const space = spaceSnapshot.data() || {};
+		const accountId = String(space.accountId || '').trim();
+		await assertAccountRole(
+			context.auth.uid,
+			accountId,
+			RELATIONSHIP_MANAGER_ROLES,
+		);
+
+		if (space.isArchived !== true) {
+			return { success: true, restored: false };
+		}
+
+		await spaceRef.update({
+			isArchived: false,
+			updatedAt: new Date().toISOString(),
+			updatedBy: context.auth.uid,
+		});
+		return { success: true, restored: true };
+	});
+
 export const cleanupEquipmentSpaceLinks = functions
 	.region('us-central1')
 	.firestore.document('devices/{equipmentId}')

@@ -450,11 +450,15 @@ validate that the referenced Property exists and carries the same `accountId`.
 Account readers may view Spaces; account managers may create and edit them.
 Space removal uses a trusted callable: unreferenced Spaces are deleted, while
 referenced Spaces are archived so accepted relationships remain resolvable.
+Account managers can review and restore archived Spaces through a trusted
+restore action.
 
 Existing task location text and equipment `unitId` or `suiteId` fields remain
-temporary compatibility fields. They remain readable and are not silently
-converted. Accepted Equipment-to-Space and Task-to-Space locations use
-canonical relationship records.
+temporary compatibility fields. The Task field is deprecated and hidden from
+current forms, cards, search, and filters; new manual Task writes omit it.
+Stored legacy values remain readable by compatibility and historical paths.
+Accepted Equipment-to-Space and Task-to-Space locations use canonical
+relationship records.
 
 ## propertyKnowledgeLinks
 
@@ -473,7 +477,7 @@ Required fields:
 * relationshipType (`located_in` or `occurs_in`)
 * toType (`space`)
 * toId
-* source (`manual`)
+* source (`manual` or `migration` for an explicitly reviewed backfill)
 * createdAt
 * createdBy
 * updatedAt
@@ -488,10 +492,12 @@ Account managers connect Equipment; users with task-management permission
 connect Tasks. Inverse Space equipment and task lists are derived from these
 records rather than stored separately.
 
-Task links are many-to-many. The Task's free-text `location` field remains a
-temporary compatibility field and is not inferred into a relationship. A new
-recurring Task inherits accepted Space links from the Task that generated it.
-Deleting a Task removes its outgoing relationship records.
+Task links are many-to-many. A dry-run-first migration may link a legacy Task
+location only when it exactly and uniquely matches one active Space in the same
+account and Property. It does not clear the legacy field, infer partial matches,
+or choose between duplicate names. A new recurring Task inherits accepted Space
+links from the Task that generated it. Deleting a Task removes its outgoing
+relationship records.
 
 ## Property Groups
 

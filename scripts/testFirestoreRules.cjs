@@ -1079,6 +1079,12 @@ async function run() {
 				.get(),
 		);
 		await assertSucceeds(maintenanceLeadDb.doc('propertySpaces/space-owned').get());
+		await assertSucceeds(
+			ownerDb
+				.collection('propertySpaces')
+				.where('accountId', '==', accountId)
+				.get(),
+		);
 		await assertFails(outsiderDb.doc('propertySpaces/space-owned').get());
 		await assertSucceeds(
 			ownerDb.doc('propertySpaces/space-created').set(
@@ -1145,6 +1151,12 @@ async function run() {
 		);
 		await assertSucceeds(
 			maintenanceLeadDb.doc('propertyKnowledgeLinks/link-owned').get(),
+		);
+		await assertSucceeds(
+			ownerDb
+				.collection('propertyKnowledgeLinks')
+				.where('accountId', '==', accountId)
+				.get(),
 		);
 		await assertFails(outsiderDb.doc('propertyKnowledgeLinks/link-owned').get());
 		await assertFails(

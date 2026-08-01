@@ -18,12 +18,17 @@ interface SetTaskSpaceLinksArgs {
 
 interface GetPropertyKnowledgeLinksArgs {
 	accountId: string;
-	propertyId: string;
+	propertyId?: string;
 }
 
 interface RemovePropertySpaceResult {
 	success: boolean;
 	archived: boolean;
+}
+
+interface RestorePropertySpaceResult {
+	success: boolean;
+	restored: boolean;
 }
 
 const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
@@ -34,12 +39,15 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 		>({
 			async queryFn({ accountId, propertyId }) {
 				try {
-					if (!accountId || !propertyId) return { data: [] };
+					if (!accountId) return { data: [] };
+					const constraints = [where('accountId', '==', accountId)];
+					if (propertyId) {
+						constraints.push(where('propertyId', '==', propertyId));
+					}
 					const snapshot = await getDocs(
 						query(
 							collection(db, 'propertyKnowledgeLinks'),
-							where('accountId', '==', accountId),
-							where('propertyId', '==', propertyId),
+							...constraints,
 						),
 					);
 					return {
@@ -52,7 +60,10 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 				}
 			},
 			providesTags: (_result, _error, args) => [
-				{ type: 'PropertyKnowledgeLinks', id: args.propertyId },
+				{
+					type: 'PropertyKnowledgeLinks',
+					id: args.propertyId || `account:${args.accountId}`,
+				},
 			],
 		}),
 
@@ -71,9 +82,7 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: (_result, _error, args) => [
-				{ type: 'PropertyKnowledgeLinks', id: args.propertyId },
-			],
+			invalidatesTags: ['PropertyKnowledgeLinks'],
 		}),
 
 		setTaskSpaceLinks: builder.mutation<
@@ -91,9 +100,7 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: (_result, _error, args) => [
-				{ type: 'PropertyKnowledgeLinks', id: args.propertyId },
-			],
+			invalidatesTags: ['PropertyKnowledgeLinks'],
 		}),
 
 		removePropertySpace: builder.mutation<
@@ -111,10 +118,25 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 					return { error: error.message };
 				}
 			},
-			invalidatesTags: (_result, _error, args) => [
-				{ type: 'Spaces', id: args.propertyId },
-				{ type: 'PropertyKnowledgeLinks', id: args.propertyId },
-			],
+			invalidatesTags: ['Spaces', 'PropertyKnowledgeLinks'],
+		}),
+
+		restorePropertySpace: builder.mutation<
+			RestorePropertySpaceResult,
+			{ spaceId: string; propertyId: string }
+		>({
+			async queryFn({ spaceId }) {
+				try {
+					const result = await callFirebaseFunction<
+						{ spaceId: string },
+						RestorePropertySpaceResult
+					>('restorePropertySpace', { spaceId });
+					return { data: result.data };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Spaces', 'PropertyKnowledgeLinks'],
 		}),
 	}),
 });
@@ -122,6 +144,7 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 export const {
 	useGetPropertyKnowledgeLinksQuery,
 	useRemovePropertySpaceMutation,
+	useRestorePropertySpaceMutation,
 	useSetEquipmentSpaceLinksMutation,
 	useSetTaskSpaceLinksMutation,
 } = propertyKnowledgeLinkSlice;

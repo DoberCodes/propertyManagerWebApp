@@ -128,6 +128,7 @@ export {
 	cleanupEquipmentSpaceLinks,
 	cleanupTaskSpaceLinks,
 	removePropertySpace,
+	restorePropertySpace,
 	setEquipmentSpaceLinks,
 	setTaskSpaceLinks,
 } from './propertyKnowledgeLinks';

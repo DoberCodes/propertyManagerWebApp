@@ -199,10 +199,12 @@ constrained relationship type server-side, so this first phase does not require
 a composite index.
 
 One Task may occur in several Spaces. Task creation and editing expose an
-optional multi-select while the legacy free-text `location` field remains
-available for more specific compatibility detail. New recurring Task instances
-inherit the accepted Space links from the Task that generated them. Deleting a
-Task removes its relationship records without deleting the Space.
+optional multi-select. The singular free-text `location` field is deprecated
+and no longer appears in the current Task experience or receives new manual
+writes. Existing values remain stored during a safe migration period. New
+recurring Task instances inherit the accepted Space links from the Task that
+generated them. Deleting a Task removes its relationship records without
+deleting the Space.
 
 Derived inverse views such as “contains equipment” are calculated from the
 canonical relationship and do not become a second source of truth.
@@ -268,13 +270,17 @@ be added as presentation metadata in a future phase, but this implementation
 does not prematurely define an icon contract.
 
 Existing task location text and equipment `unitId` or `suiteId` location fields
-are temporary compatibility fields. They remain available while accepted Space
-links are introduced. Maintley does not silently convert or hide them. Users
-may explicitly connect Equipment or Tasks to one or more Spaces, and the Space
-detail experience derives its equipment and task lists from accepted
-relationship records.
+are temporary compatibility fields. Task location text is hidden from current
+Task forms, cards, search, and filters while its stored value remains available
+to legacy history and migration readers. A dry-run-first migration may create a
+Task-to-Space link only when the normalized legacy value exactly matches one
+active Space in the same account and Property. Unmatched and ambiguous values
+remain untouched for review. Users may explicitly connect Equipment or Tasks
+to one or more Spaces, and the Space detail experience derives its equipment
+and task lists from accepted relationship records.
 Referenced Spaces are archived rather than deleted so historical location
-context remains resolvable.
+context remains resolvable. Property Details includes an archived-Space view and
+an account-manager restore action.
 
 ## Supplies
 
@@ -407,6 +413,9 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Add the first progressive Space management experience to Property Details.
 - [x] Add the first progressive Equipment-to-Space linking and correction experience.
 - [x] Add progressive Task-to-Space linking and Space task context.
+- [x] Replace current Task Location UI, search, and filters with accepted Space links.
+- [x] Add archived-Space recovery and a trusted restore action.
+- [x] Add a dry-run-first exact-match legacy Task location migration utility.
 - [ ] Add Supply and broader relationship-management experiences.
 - [ ] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
