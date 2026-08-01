@@ -232,10 +232,11 @@ Run rule tests before deploying broad rules changes.
 
 * `functions.source`: `functions`
 * `firestore.rules`: `firestore.rules`
+* `storage.default`: `storage.rules`
 
-There is currently no Storage rules file wired in `firebase.json`.
-
-Before relying on local Storage rule tests, verify whether Firebase Storage rules are managed locally or only through the Firebase Console.
+The shared Storage target is resolved to a project-specific bucket through
+`.firebaserc`; deployments must not hard-code one environment's bucket into
+`firebase.json`.
 
 ---
 
@@ -772,8 +773,19 @@ Firebase Rules Admin
 
 This lets the deploy workflow validate and publish `firestore.rules`.
 
-Cloud Storage rules deployment also requires the deploy service account to read
-the Firebase Storage default bucket. If deploy fails with:
+Cloud Storage rules use the shared `default` deploy target in `firebase.json`.
+`.firebaserc` resolves that target independently for each Firebase project:
+
+```text
+maintleybeta -> maintleybeta.firebasestorage.app
+mypropertymanager-cda42 -> mypropertymanager-cda42.firebasestorage.app
+```
+
+This explicit mapping prevents CI from depending on Firebase's default-bucket
+discovery endpoint and keeps Beta and production deployments isolated while
+using the same `storage.rules` source. Cloud Storage rules deployment still
+requires the deploy service account to read and manage the selected Firebase
+Storage bucket. If deploy fails with:
 
 ```text
 Permission 'firebasestorage.defaultBucket.get' denied

@@ -10,12 +10,22 @@
         "beta": [
           "maintleybeta"
         ]
+      },
+      "storage": {
+        "default": [
+          "maintleybeta.firebasestorage.app"
+        ]
       }
     },
     "mypropertymanager-cda42": {
       "hosting": {
         "prod": [
           "mypropertymanager-cda42"
+        ]
+      },
+      "storage": {
+        "default": [
+          "mypropertymanager-cda42.firebasestorage.app"
         ]
       }
     }

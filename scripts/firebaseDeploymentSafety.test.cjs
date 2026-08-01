@@ -123,3 +123,24 @@ test('guards shared Beta backend previews with one owner and stable restoration'
 	assert.match(stableWorkflow, /ACTIVE_BACKEND_PREVIEWS/);
 	assert.match(stableWorkflow, /Clear pull request backend-preview ownership/);
 });
+
+test('maps the shared Storage target to the correct environment bucket', () => {
+	const firebaseConfig = JSON.parse(
+		fs.readFileSync(path.join(rootDir, 'firebase.json'), 'utf8'),
+	);
+	const firebaseRc = JSON.parse(
+		fs.readFileSync(path.join(rootDir, '.firebaserc'), 'utf8'),
+	);
+
+	assert.deepEqual(firebaseConfig.storage, [
+		{ target: 'default', rules: 'storage.rules' },
+	]);
+	assert.deepEqual(
+		firebaseRc.targets.maintleybeta.storage.default,
+		['maintleybeta.firebasestorage.app'],
+	);
+	assert.deepEqual(
+		firebaseRc.targets['mypropertymanager-cda42'].storage.default,
+		['mypropertymanager-cda42.firebasestorage.app'],
+	);
+});
