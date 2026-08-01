@@ -679,7 +679,9 @@ Add the `deploy-backend-to-beta` label after the PR's required checks are
 available. The workflow waits for those checks, reruns the Functions build and
 Firebase emulator rule suites, verifies the development project and Stripe test
 boundary, and deploys the pull request's complete Functions, Firestore-rules,
-and Storage-rules state to `maintleybeta`. Successful activation replaces the
+and Storage-rules state through the `beta` Firebase alias to `maintleybeta`.
+Using the alias ensures Firebase loads the generated `functions/.env.beta`
+file during non-interactive deployment. Successful activation replaces the
 request label with `beta-backend-active`. Exactly one PR may carry the active
 label, and all backend preview and stable Beta deployments share one concurrency
 lock.

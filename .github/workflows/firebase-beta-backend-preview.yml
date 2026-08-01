@@ -194,7 +194,7 @@ jobs:
         if: steps.source.outputs.mode == 'preview' || steps.restore-ownership.outputs.authorized == 'true'
         run: >-
           firebase deploy
-          --project maintleybeta
+          --project beta
           --only functions,firestore:rules,storage
           --non-interactive
           --force

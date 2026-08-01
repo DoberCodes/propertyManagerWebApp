@@ -116,6 +116,7 @@ test('guards shared Beta backend previews with one owner and stable restoration'
 	assert.match(previewWorkflow, /HEAD_REPOSITORY.*GITHUB_REPOSITORY/);
 	assert.match(previewWorkflow, /gh pr checks .*--required --watch --fail-fast/);
 	assert.match(previewWorkflow, /--project maintleybeta/);
+	assert.match(previewWorkflow, /firebase deploy\s+--project beta/);
 	assert.match(previewWorkflow, /--only functions,firestore:rules,storage/);
 	assert.match(previewWorkflow, /github\.event\.pull_request\.merged == false/);
 	assert.match(previewWorkflow, /beta-backend-active/);
