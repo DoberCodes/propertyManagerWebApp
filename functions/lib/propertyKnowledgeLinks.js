@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupTaskSpaceLinks = exports.cleanupEquipmentSpaceLinks = exports.restorePropertySpace = exports.removePropertySpace = exports.setTaskSpaceLinks = exports.setEquipmentSpaceLinks = exports.buildPropertyKnowledgeLinkId = exports.normalizeSpaceIds = void 0;
+exports.cleanupTaskSpaceLinks = exports.cleanupEquipmentSpaceLinks = exports.restorePropertySupply = exports.removePropertySupply = exports.setSupplyLinks = exports.restorePropertySpace = exports.removePropertySpace = exports.setTaskSpaceLinks = exports.setEquipmentSpaceLinks = exports.buildPropertyKnowledgeLinkId = exports.normalizeKnowledgeEndpointIds = exports.normalizeSpaceIds = void 0;
 const crypto_1 = require("crypto");
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
@@ -41,7 +41,13 @@ const accountAuthz_1 = require("./accountAuthz");
 if (!admin.apps.length)
     admin.initializeApp();
 const db = admin.firestore();
-const RELATIONSHIP_MANAGER_ROLES = ['account_owner', 'admin', 'manager'];
+const RELATIONSHIP_MANAGER_ROLES = [
+    'account_owner',
+    'admin',
+    'manager',
+    'property_manager',
+    'assistant_manager',
+];
 const TASK_MANAGER_ROLES = [
     'account_owner',
     'admin',
@@ -54,8 +60,10 @@ const TASK_MANAGER_ROLES = [
 const EQUIPMENT_TYPE = 'equipment';
 const TASK_TYPE = 'task';
 const SPACE_TYPE = 'space';
+const SUPPLY_TYPE = 'supply';
 const LOCATED_IN = 'located_in';
 const OCCURS_IN = 'occurs_in';
+const USES = 'uses';
 const cleanId = (value, label) => {
     const normalized = String(value || '').trim();
     if (!normalized || normalized.length > 180) {
@@ -71,6 +79,7 @@ const normalizeSpaceIds = (value) => {
         .filter((candidate) => candidate.length > 0 && candidate.length <= 180))).sort();
 };
 exports.normalizeSpaceIds = normalizeSpaceIds;
+exports.normalizeKnowledgeEndpointIds = exports.normalizeSpaceIds;
 const buildPropertyKnowledgeLinkId = (params) => {
     const canonical = [
         params.propertyId,
@@ -107,7 +116,10 @@ const syncSpaceLinks = async ({ accountId, propertyId, fromType, fromId, relatio
             link.relationshipType === relationshipType &&
             link.toType === SPACE_TYPE);
     });
-    const existingBySpaceId = new Map(existing.map((candidate) => [String(candidate.data().toId || ''), candidate]));
+    const existingBySpaceId = new Map(existing.map((candidate) => [
+        String(candidate.data().toId || ''),
+        candidate,
+    ]));
     if (existing.length === 0 && spaceIds.length === 0)
         return 0;
     const spaceRefs = spaceIds.map((spaceId) => db.collection('propertySpaces').doc(spaceId));
@@ -190,9 +202,7 @@ exports.setEquipmentSpaceLinks = functions
     });
     return { success: true, linkCount };
 });
-exports.setTaskSpaceLinks = functions
-    .region('us-central1')
-    .https.onCall(async (data, context) => {
+exports.setTaskSpaceLinks = functions.region('us-central1').https.onCall(async (data, context) => {
     if (!context.auth?.uid) {
         throw new functions.https.HttpsError('unauthenticated', 'Sign in to update task Spaces.');
     }
@@ -277,6 +287,191 @@ exports.restorePropertySpace = functions
         return { success: true, restored: false };
     }
     await spaceRef.update({
+        isArchived: false,
+        updatedAt: new Date().toISOString(),
+        updatedBy: context.auth.uid,
+    });
+    return { success: true, restored: true };
+});
+const getSupplyEndpointRef = (endpointType, endpointId) => {
+    if (endpointType === EQUIPMENT_TYPE) {
+        return db.collection('devices').doc(endpointId);
+    }
+    if (endpointType === SPACE_TYPE) {
+        return db.collection('propertySpaces').doc(endpointId);
+    }
+    return db.collection('tasks').doc(endpointId);
+};
+const supplyEndpointMatchesProperty = ({ endpointType, endpoint, accountId, propertyId, }) => {
+    if (endpointType === EQUIPMENT_TYPE) {
+        return (String(endpoint.accountId || '') === accountId &&
+            String(endpoint.location?.propertyId || '') === propertyId);
+    }
+    return (String(endpoint.accountId || endpoint.userId || '') === accountId &&
+        String(endpoint.propertyId || '') === propertyId);
+};
+exports.setSupplyLinks = functions.region('us-central1').https.onCall(async (data, context) => {
+    if (!context.auth?.uid) {
+        throw new functions.https.HttpsError('unauthenticated', 'Sign in to update Supply connections.');
+    }
+    const propertyId = cleanId(data?.propertyId, 'Property');
+    const supplyId = cleanId(data?.supplyId, 'Supply');
+    const endpointGroups = [
+        {
+            type: EQUIPMENT_TYPE,
+            ids: (0, exports.normalizeKnowledgeEndpointIds)(data?.equipmentIds),
+        },
+        { type: SPACE_TYPE, ids: (0, exports.normalizeKnowledgeEndpointIds)(data?.spaceIds) },
+        { type: TASK_TYPE, ids: (0, exports.normalizeKnowledgeEndpointIds)(data?.taskIds) },
+    ];
+    if (endpointGroups.some((group) => group.ids.length > 100)) {
+        throw new functions.https.HttpsError('invalid-argument', 'A Supply can connect to up to 100 records of each type.');
+    }
+    const { accountId } = await getOwnedProperty(propertyId);
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    const supplyRef = db.collection('propertySupplies').doc(supplyId);
+    const supplySnapshot = await supplyRef.get();
+    const supply = supplySnapshot.data() || {};
+    if (!supplySnapshot.exists ||
+        String(supply.accountId || '') !== accountId ||
+        String(supply.propertyId || '') !== propertyId ||
+        supply.isArchived === true) {
+        throw new functions.https.HttpsError('not-found', 'Supply not found for this property.');
+    }
+    const desiredEndpoints = endpointGroups.flatMap((group) => group.ids.map((id) => ({ type: group.type, id })));
+    if (desiredEndpoints.length > 200) {
+        throw new functions.https.HttpsError('invalid-argument', 'A Supply can connect to up to 200 records total.');
+    }
+    const existingSnapshot = await db
+        .collection('propertyKnowledgeLinks')
+        .where('toId', '==', supplyId)
+        .get();
+    const existing = existingSnapshot.docs.filter((candidate) => {
+        const link = candidate.data();
+        return (String(link.accountId || '') === accountId &&
+            String(link.propertyId || '') === propertyId &&
+            link.relationshipType === USES &&
+            link.toType === SUPPLY_TYPE &&
+            [EQUIPMENT_TYPE, SPACE_TYPE, TASK_TYPE].includes(link.fromType));
+    });
+    const existingByEndpoint = new Map(existing.map((candidate) => [
+        `${candidate.data().fromType}|${candidate.data().fromId}`,
+        candidate,
+    ]));
+    const endpointRefs = desiredEndpoints.map((endpoint) => getSupplyEndpointRef(endpoint.type, endpoint.id));
+    const endpointSnapshots = endpointRefs.length > 0 ? await db.getAll(...endpointRefs) : [];
+    for (let index = 0; index < endpointSnapshots.length; index += 1) {
+        const snapshot = endpointSnapshots[index];
+        const desired = desiredEndpoints[index];
+        const endpoint = snapshot.data() || {};
+        if (!snapshot.exists ||
+            !supplyEndpointMatchesProperty({
+                endpointType: desired.type,
+                endpoint,
+                accountId,
+                propertyId,
+            }) ||
+            (desired.type === SPACE_TYPE &&
+                endpoint.isArchived === true &&
+                !existingByEndpoint.has(`${desired.type}|${desired.id}`))) {
+            throw new functions.https.HttpsError('invalid-argument', 'One or more selected records are no longer available.');
+        }
+    }
+    if (existing.length === 0 && desiredEndpoints.length === 0) {
+        return { success: true, linkCount: 0 };
+    }
+    const desiredKeys = new Set(desiredEndpoints.map((endpoint) => `${endpoint.type}|${endpoint.id}`));
+    const batch = db.batch();
+    const now = new Date().toISOString();
+    for (const candidate of existing) {
+        const key = `${candidate.data().fromType}|${candidate.data().fromId}`;
+        if (!desiredKeys.has(key))
+            batch.delete(candidate.ref);
+    }
+    for (const endpoint of desiredEndpoints) {
+        const key = `${endpoint.type}|${endpoint.id}`;
+        const current = existingByEndpoint.get(key);
+        const linkId = (0, exports.buildPropertyKnowledgeLinkId)({
+            propertyId,
+            fromType: endpoint.type,
+            fromId: endpoint.id,
+            relationshipType: USES,
+            toType: SUPPLY_TYPE,
+            toId: supplyId,
+        });
+        batch.set(db.collection('propertyKnowledgeLinks').doc(linkId), {
+            accountId,
+            propertyId,
+            fromType: endpoint.type,
+            fromId: endpoint.id,
+            relationshipType: USES,
+            toType: SUPPLY_TYPE,
+            toId: supplyId,
+            source: 'manual',
+            createdAt: current?.data().createdAt || now,
+            createdBy: current?.data().createdBy || context.auth.uid,
+            updatedAt: now,
+            updatedBy: context.auth.uid,
+        });
+    }
+    await batch.commit();
+    return { success: true, linkCount: desiredEndpoints.length };
+});
+exports.removePropertySupply = functions
+    .region('us-central1')
+    .https.onCall(async (data, context) => {
+    if (!context.auth?.uid) {
+        throw new functions.https.HttpsError('unauthenticated', 'Sign in to remove a Supply.');
+    }
+    const supplyId = cleanId(data?.supplyId, 'Supply');
+    const supplyRef = db.collection('propertySupplies').doc(supplyId);
+    const supplySnapshot = await supplyRef.get();
+    if (!supplySnapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'Supply not found.');
+    }
+    const supply = supplySnapshot.data() || {};
+    const accountId = String(supply.accountId || '').trim();
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    const linksSnapshot = await db
+        .collection('propertyKnowledgeLinks')
+        .where('toId', '==', supplyId)
+        .get();
+    const isReferenced = linksSnapshot.docs.some((candidate) => {
+        const link = candidate.data();
+        return (String(link.accountId || '') === accountId &&
+            String(link.propertyId || '') === String(supply.propertyId || '') &&
+            link.toType === SUPPLY_TYPE);
+    });
+    if (isReferenced) {
+        await supplyRef.update({
+            isArchived: true,
+            updatedAt: new Date().toISOString(),
+            updatedBy: context.auth.uid,
+        });
+        return { success: true, archived: true };
+    }
+    await supplyRef.delete();
+    return { success: true, archived: false };
+});
+exports.restorePropertySupply = functions
+    .region('us-central1')
+    .https.onCall(async (data, context) => {
+    if (!context.auth?.uid) {
+        throw new functions.https.HttpsError('unauthenticated', 'Sign in to restore a Supply.');
+    }
+    const supplyId = cleanId(data?.supplyId, 'Supply');
+    const supplyRef = db.collection('propertySupplies').doc(supplyId);
+    const supplySnapshot = await supplyRef.get();
+    if (!supplySnapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'Supply not found.');
+    }
+    const supply = supplySnapshot.data() || {};
+    const accountId = String(supply.accountId || '').trim();
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    if (supply.isArchived !== true) {
+        return { success: true, restored: false };
+    }
+    await supplyRef.update({
         isArchived: false,
         updatedAt: new Date().toISOString(),
         updatedBy: context.auth.uid,

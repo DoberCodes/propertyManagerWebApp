@@ -46,9 +46,10 @@ feature happened to introduce it.
 The current implementation is partially aligned with this direction. Equipment
 and tasks are property-scoped, Property Documents are moving toward first-class
 records under ADR 0023, and first-class property Spaces now provide descriptive
-location records. Several compatibility paths still use embedded arrays or
-unstructured location fields. Supplies and the complete relationship contract
-do not yet exist.
+location records. First-class Supplies now preserve product specifications and
+connect to Equipment, Spaces, and Tasks. Several compatibility paths still use
+embedded arrays or unstructured location fields, and the complete relationship
+contract remains phased.
 
 ## Decision
 
@@ -300,6 +301,38 @@ The first implementation models what the property uses, not how many items are
 currently in stock. Purchase records, quantities, shopping behavior, and vendor
 catalog data remain deferred.
 
+The first implemented Supply contract uses the top-level `propertySupplies`
+collection. Each record contains:
+
+```text
+accountId
+propertyId
+name
+type
+manufacturer (optional)
+modelOrSku (optional)
+notes (optional)
+isArchived
+source
+createdBy
+updatedBy
+createdAt
+updatedAt
+```
+
+Supported types are `filter`, `paint_and_finish`, `lawn_and_garden`,
+`pool_and_spa`, `electrical`, `plumbing`, `hardware`, `cleaning`, and `other`.
+The flexible name and optional manufacturer and model-or-SKU fields preserve
+the product specification a homeowner is likely to need again without turning
+the record into inventory.
+
+Equipment, Spaces, and Tasks connect to a Supply through canonical `uses`
+relationships. One Supply may be used by several records, and the inverse view
+is derived rather than copied onto the Supply. Account managers manage Supply
+records and connections from Property Details. Referenced Supplies are archived
+instead of deleted and may later be restored. New relationships cannot be made
+to an archived Supply or archived Space.
+
 ## Documents
 
 Documents remain first-class property records under ADR 0023. They link outward
@@ -404,7 +437,7 @@ must remain until backfill and validation prove that the new records are complet
 
 - [x] Accept the Connected Property Knowledge Model as Maintley's target ownership philosophy.
 - [x] Approve the Space record and type contract.
-- [ ] Approve the Supply record and identifier contract.
+- [x] Approve the Supply record and identifier contract.
 - [x] Approve the first canonical Equipment-to-Space relationship contract and allowed endpoint types.
 - [x] Implement permission rules and trusted Equipment-to-Space relationship writes.
 - [x] Approve and implement the canonical Task-to-Space relationship contract.
@@ -416,7 +449,7 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Replace current Task Location UI, search, and filters with accepted Space links.
 - [x] Add archived-Space recovery and a trusted restore action.
 - [x] Add a dry-run-first exact-match legacy Task location migration utility.
-- [ ] Add Supply and broader relationship-management experiences.
+- [x] Add the first Supply management and Equipment, Space, and Task relationship experience.
 - [ ] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
 

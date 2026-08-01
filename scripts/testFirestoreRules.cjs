@@ -12,6 +12,7 @@ const RULES_PATH = path.join(__dirname, '..', 'firestore.rules');
 const accountId = 'account-owner';
 const ownerUid = 'account-owner';
 const legacyOwnerUid = 'legacy-account-owner';
+const propertyManagerUid = 'property-manager-user';
 const maintenanceLeadUid = 'maintenance-lead-user';
 const maintenanceUid = 'maintenance-user';
 const inactiveLeadUid = 'inactive-maintenance-lead-user';
@@ -97,6 +98,23 @@ const createPropertySpace = (overrides = {}) => ({
 	...overrides,
 });
 
+const createPropertySupply = (overrides = {}) => ({
+	accountId,
+	propertyId: 'property-1',
+	name: '16 x 25 x 1 air filter',
+	type: 'filter',
+	manufacturer: 'Example Filters',
+	modelOrSku: 'EF-16251',
+	notes: 'MERV 11',
+	isArchived: false,
+	source: 'manual',
+	createdBy: ownerUid,
+	updatedBy: ownerUid,
+	createdAt: '2026-07-01T12:00:00.000Z',
+	updatedAt: '2026-07-01T12:00:00.000Z',
+	...overrides,
+});
+
 async function seedFirestore(env) {
 	await env.withSecurityRulesDisabled(async (context) => {
 		const db = context.firestore();
@@ -125,12 +143,13 @@ async function seedFirestore(env) {
 					bundleExpirationsMs: {
 						homeowner_plus: uid === trialOwnerUid ? 4102444800000 : 1,
 					},
-					nextTransitionAtMs:
-						uid === trialOwnerUid ? 4102444800000 : 1,
+					nextTransitionAtMs: uid === trialOwnerUid ? 4102444800000 : 1,
 				},
 			});
 			await db
-				.doc(`familyAccounts/${uid}/entitlementGrants/homeowner_plus_first_property_trial`)
+				.doc(
+					`familyAccounts/${uid}/entitlementGrants/homeowner_plus_first_property_trial`,
+				)
 				.set({
 					grantId: 'homeowner_plus_first_property_trial',
 					programId: 'homeowner_plus_first_property_trial_v1',
@@ -154,7 +173,9 @@ async function seedFirestore(env) {
 			subscription: { status: 'active', plan: 'homeowner' },
 		});
 		await db
-			.doc(`accountMemberships/${portfolioGrantOwnerUid}_${portfolioGrantOwnerUid}`)
+			.doc(
+				`accountMemberships/${portfolioGrantOwnerUid}_${portfolioGrantOwnerUid}`,
+			)
 			.set({
 				accountId: portfolioGrantOwnerUid,
 				userId: portfolioGrantOwnerUid,
@@ -208,16 +229,18 @@ async function seedFirestore(env) {
 			},
 		});
 		for (const propertyNumber of [1, 2]) {
-			await db.doc(`properties/${downgradedOwnerUid}-property-${propertyNumber}`).set({
-				accountId: downgradedOwnerUid,
-				userId: downgradedOwnerUid,
-				title: `Retained property ${propertyNumber}`,
-				...(propertyNumber === 1 && {
-					propertyType: 'commercial',
-					propertyClassification: 'commercial_suite',
-					isRental: true,
-				}),
-			});
+			await db
+				.doc(`properties/${downgradedOwnerUid}-property-${propertyNumber}`)
+				.set({
+					accountId: downgradedOwnerUid,
+					userId: downgradedOwnerUid,
+					title: `Retained property ${propertyNumber}`,
+					...(propertyNumber === 1 && {
+						propertyType: 'commercial',
+						propertyClassification: 'commercial_suite',
+						isRental: true,
+					}),
+				});
 		}
 		await db.doc('teamMembers/downgraded-existing-member').set({
 			accountId: downgradedOwnerUid,
@@ -245,6 +268,13 @@ async function seedFirestore(env) {
 			id: maintenanceLeadUid,
 			accountId,
 			role: 'maintenance_lead',
+			isTeamMemberAccount: true,
+		});
+
+		await db.doc(`users/${propertyManagerUid}`).set({
+			id: propertyManagerUid,
+			accountId,
+			role: 'property_manager',
 			isTeamMemberAccount: true,
 		});
 
@@ -304,6 +334,13 @@ async function seedFirestore(env) {
 			status: 'active',
 		});
 
+		await db.doc(`accountMemberships/${membershipId(propertyManagerUid)}`).set({
+			accountId,
+			userId: propertyManagerUid,
+			roles: ['property_manager', 'member'],
+			status: 'active',
+		});
+
 		await db.doc(`accountMemberships/${membershipId(maintenanceUid)}`).set({
 			accountId,
 			userId: maintenanceUid,
@@ -329,7 +366,12 @@ async function seedFirestore(env) {
 
 		await db.doc('familyAccounts/account-owner').set({
 			ownerId: ownerUid,
-			memberIds: [maintenanceLeadUid, maintenanceUid, inactiveLeadUid],
+			memberIds: [
+				propertyManagerUid,
+				maintenanceLeadUid,
+				maintenanceUid,
+				inactiveLeadUid,
+			],
 			propertyCount: 1,
 			deviceCount: 0,
 		});
@@ -358,9 +400,9 @@ async function seedFirestore(env) {
 			address: '123 Sand Oak Drive, Apt A',
 		});
 
-		await db.doc('propertyDocuments/property-document-owned').set(
-			createPropertyDocument(),
-		);
+		await db
+			.doc('propertyDocuments/property-document-owned')
+			.set(createPropertyDocument());
 
 		await db.doc('propertyDocuments/property-document-outsider').set(
 			createPropertyDocument({
@@ -370,20 +412,23 @@ async function seedFirestore(env) {
 			}),
 		);
 
-		await db.doc('propertyKnowledgeSuggestions/property-suggestion-owned').set(
-			createPropertyKnowledgeSuggestion(),
-		);
+		await db
+			.doc('propertyKnowledgeSuggestions/property-suggestion-owned')
+			.set(createPropertyKnowledgeSuggestion());
 
-		await db.doc('propertyKnowledgeSuggestions/property-suggestion-outsider').set(
-			createPropertyKnowledgeSuggestion({
-				id: 'property-suggestion-outsider',
-				accountId: outsiderUid,
-				propertyId: 'outsider-property',
-				sourceDocumentId: 'property-document-outsider',
-			}),
-		);
+		await db
+			.doc('propertyKnowledgeSuggestions/property-suggestion-outsider')
+			.set(
+				createPropertyKnowledgeSuggestion({
+					id: 'property-suggestion-outsider',
+					accountId: outsiderUid,
+					propertyId: 'outsider-property',
+					sourceDocumentId: 'property-document-outsider',
+				}),
+			);
 
 		await db.doc('propertySpaces/space-owned').set(createPropertySpace());
+		await db.doc('propertySupplies/supply-owned').set(createPropertySupply());
 		await db.doc('propertyKnowledgeLinks/link-owned').set({
 			accountId,
 			propertyId: 'property-1',
@@ -557,6 +602,7 @@ async function run() {
 
 		const ownerDb = authedDb(env, ownerUid);
 		const legacyOwnerDb = authedDb(env, legacyOwnerUid);
+		const propertyManagerDb = authedDb(env, propertyManagerUid);
 		const maintenanceLeadDb = authedDb(env, maintenanceLeadUid);
 		const maintenanceDb = authedDb(env, maintenanceUid);
 		const inactiveLeadDb = authedDb(env, inactiveLeadUid);
@@ -568,10 +614,14 @@ async function run() {
 		const portfolioGrantOwnerDb = authedDb(env, portfolioGrantOwnerUid);
 		const downgradedOwnerDb = authedDb(env, downgradedOwnerUid);
 
-		await assertSucceeds(trialOwnerDb.doc(`familyAccounts/${trialOwnerUid}`).get());
+		await assertSucceeds(
+			trialOwnerDb.doc(`familyAccounts/${trialOwnerUid}`).get(),
+		);
 		await assertFails(
 			trialOwnerDb
-				.doc(`familyAccounts/${trialOwnerUid}/entitlementGrants/homeowner_plus_first_property_trial`)
+				.doc(
+					`familyAccounts/${trialOwnerUid}/entitlementGrants/homeowner_plus_first_property_trial`,
+				)
 				.get(),
 		);
 		await assertFails(
@@ -694,9 +744,10 @@ async function run() {
 				.update({ tenants: ['resident-user'] }),
 		);
 		await assertFails(
-			homeownerPlusDb
-				.doc('properties/homeowner-plus-property-5')
-				.update({ propertyType: 'multi_unit', propertyClassification: 'duplex' }),
+			homeownerPlusDb.doc('properties/homeowner-plus-property-5').update({
+				propertyType: 'multi_unit',
+				propertyClassification: 'duplex',
+			}),
 		);
 		await assertFails(
 			homeownerPlusDb
@@ -704,9 +755,7 @@ async function run() {
 				.update({ isRental: true }),
 		);
 
-		await assertSucceeds(
-			maintenanceLeadDb.doc('tasks/task-existing').get(),
-		);
+		await assertSucceeds(maintenanceLeadDb.doc('tasks/task-existing').get());
 		await assertFails(outsiderDb.doc('tasks/task-existing').get());
 
 		await assertSucceeds(
@@ -791,10 +840,14 @@ async function run() {
 				.update({ propertyClassification: 'condo' }),
 		);
 		await assertSucceeds(
-			downgradedOwnerDb.doc(`properties/${downgradedOwnerUid}-property-1`).get(),
+			downgradedOwnerDb
+				.doc(`properties/${downgradedOwnerUid}-property-1`)
+				.get(),
 		);
 		await assertSucceeds(
-			downgradedOwnerDb.doc(`properties/${downgradedOwnerUid}-property-2`).get(),
+			downgradedOwnerDb
+				.doc(`properties/${downgradedOwnerUid}-property-2`)
+				.get(),
 		);
 		await assertSucceeds(
 			downgradedOwnerDb
@@ -804,7 +857,10 @@ async function run() {
 		await assertFails(
 			downgradedOwnerDb
 				.doc(`properties/${downgradedOwnerUid}-property-1`)
-				.update({ propertyType: 'residential', propertyClassification: 'condo' }),
+				.update({
+					propertyType: 'residential',
+					propertyClassification: 'condo',
+				}),
 		);
 		const blockedDowngradeExpansion = downgradedOwnerDb.batch();
 		blockedDowngradeExpansion.set(
@@ -867,18 +923,22 @@ async function run() {
 			}),
 		);
 		await assertSucceeds(
-			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').update({
-				isRecurring: false,
-				updatedAt: '2026-07-01T13:00:00.000Z',
-			}),
+			expiredTrialOwnerDb
+				.doc('tasks/expired-recurring-task-to-disable')
+				.update({
+					isRecurring: false,
+					updatedAt: '2026-07-01T13:00:00.000Z',
+				}),
 		);
 		await assertSucceeds(
-			expiredTrialOwnerDb.doc('tasks/expired-recurring-task-to-disable').update({
-				isRecurring: true,
-				recurrenceFrequency: 'weekly',
-				recurrenceInterval: 1,
-				updatedAt: '2026-07-01T14:00:00.000Z',
-			}),
+			expiredTrialOwnerDb
+				.doc('tasks/expired-recurring-task-to-disable')
+				.update({
+					isRecurring: true,
+					recurrenceFrequency: 'weekly',
+					recurrenceInterval: 1,
+					updatedAt: '2026-07-01T14:00:00.000Z',
+				}),
 		);
 
 		await assertFails(
@@ -914,19 +974,21 @@ async function run() {
 			}),
 		);
 
-		await assertFails(
-			maintenanceLeadDb.doc('tasks/task-existing').delete(),
-		);
+		await assertFails(maintenanceLeadDb.doc('tasks/task-existing').delete());
 		await assertSucceeds(ownerDb.doc('tasks/task-existing').delete());
 
 		await assertSucceeds(
 			ownerDb.doc(`accountMemberships/${membershipId(maintenanceUid)}`).get(),
 		);
 		await assertSucceeds(
-			maintenanceDb.doc(`accountMemberships/${membershipId(maintenanceUid)}`).get(),
+			maintenanceDb
+				.doc(`accountMemberships/${membershipId(maintenanceUid)}`)
+				.get(),
 		);
 		await assertFails(
-			outsiderDb.doc(`accountMemberships/${membershipId(maintenanceUid)}`).get(),
+			outsiderDb
+				.doc(`accountMemberships/${membershipId(maintenanceUid)}`)
+				.get(),
 		);
 		await assertFails(
 			ownerDb.doc(`accountMemberships/${accountId}_new-member`).set({
@@ -942,7 +1004,9 @@ async function run() {
 			}),
 		);
 		await assertFails(
-			ownerDb.doc(`accountMemberships/${membershipId(maintenanceUid)}`).delete(),
+			ownerDb
+				.doc(`accountMemberships/${membershipId(maintenanceUid)}`)
+				.delete(),
 		);
 
 		await assertSucceeds(ownerDb.doc('tenantProfiles/legacy-resident').get());
@@ -977,9 +1041,13 @@ async function run() {
 			outsiderDb.doc('maintenanceEventRevisions/revision-existing').get(),
 		);
 		await assertFails(
-			ownerDb.doc('maintenanceEvents/server-created-event').update({ title: 'Forged correction' }),
+			ownerDb
+				.doc('maintenanceEvents/server-created-event')
+				.update({ title: 'Forged correction' }),
 		);
-		await assertFails(ownerDb.doc('maintenanceEvents/server-created-event').delete());
+		await assertFails(
+			ownerDb.doc('maintenanceEvents/server-created-event').delete(),
+		);
 		await assertFails(
 			ownerDb.doc('maintenanceEventRevisions/client-revision').set({
 				accountId,
@@ -988,7 +1056,9 @@ async function run() {
 			}),
 		);
 		await assertFails(
-			ownerDb.doc('maintenanceEventRevisions/revision-existing').update({ action: 'deleted' }),
+			ownerDb
+				.doc('maintenanceEventRevisions/revision-existing')
+				.update({ action: 'deleted' }),
 		);
 		await assertFails(
 			ownerDb.doc('maintenanceEventRevisions/revision-existing').delete(),
@@ -1002,7 +1072,9 @@ async function run() {
 				.doc('familyAccounts/account-owner/entitlementGrants/grant-existing')
 				.get(),
 		);
-		await assertFails(ownerDb.doc('entitlementAccessPrograms/program-v1').get());
+		await assertFails(
+			ownerDb.doc('entitlementAccessPrograms/program-v1').get(),
+		);
 		await assertFails(ownerDb.doc('entitlementAccessCodes/code-hash').get());
 		await assertFails(
 			ownerDb.doc('accessCodeRedemptionAttempts/client-attempt').set({
@@ -1023,12 +1095,16 @@ async function run() {
 		);
 		await assertFails(
 			ownerDb
-				.doc('familyAccounts/account-owner/accessLifecycleDeliveries/delivery-existing')
+				.doc(
+					'familyAccounts/account-owner/accessLifecycleDeliveries/delivery-existing',
+				)
 				.get(),
 		);
 		await assertFails(
 			ownerDb
-				.doc('familyAccounts/account-owner/accessLifecycleDeliveries/client-delivery')
+				.doc(
+					'familyAccounts/account-owner/accessLifecycleDeliveries/client-delivery',
+				)
 				.set({
 					accountId,
 					grantId: 'grant-existing',
@@ -1041,9 +1117,7 @@ async function run() {
 				status: 'inactive',
 			}),
 		);
-		await assertFails(
-			ownerDb.doc('admin_sessions/session-record').delete(),
-		);
+		await assertFails(ownerDb.doc('admin_sessions/session-record').delete());
 		await assertFails(
 			ownerDb.doc('admin_audit_logs/audit-created-by-client').set({
 				action: 'client_write_attempt',
@@ -1069,7 +1143,9 @@ async function run() {
 		);
 		await assertFails(ownerDb.doc('feedback/feedback-owned').delete());
 
-		await assertSucceeds(ownerDb.doc('propertyDocuments/property-document-owned').get());
+		await assertSucceeds(
+			ownerDb.doc('propertyDocuments/property-document-owned').get(),
+		);
 		await assertSucceeds(ownerDb.doc('propertySpaces/space-owned').get());
 		await assertSucceeds(
 			ownerDb
@@ -1078,7 +1154,9 @@ async function run() {
 				.where('accountId', '==', accountId)
 				.get(),
 		);
-		await assertSucceeds(maintenanceLeadDb.doc('propertySpaces/space-owned').get());
+		await assertSucceeds(
+			maintenanceLeadDb.doc('propertySpaces/space-owned').get(),
+		);
 		await assertSucceeds(
 			ownerDb
 				.collection('propertySpaces')
@@ -1103,15 +1181,25 @@ async function run() {
 				}),
 			),
 		);
-		await assertFails(
-			ownerDb.doc('propertySpaces/space-wrong-property').set(
-				createPropertySpace({ propertyId: 'missing-property' }),
+		await assertSucceeds(
+			propertyManagerDb.doc('propertySpaces/space-manager-created').set(
+				createPropertySpace({
+					name: 'Mechanical Room',
+					type: 'utility',
+					createdBy: propertyManagerUid,
+					updatedBy: propertyManagerUid,
+				}),
 			),
 		);
 		await assertFails(
-			ownerDb.doc('propertySpaces/space-invalid-type').set(
-				createPropertySpace({ type: 'room' }),
-			),
+			ownerDb
+				.doc('propertySpaces/space-wrong-property')
+				.set(createPropertySpace({ propertyId: 'missing-property' })),
+		);
+		await assertFails(
+			ownerDb
+				.doc('propertySpaces/space-invalid-type')
+				.set(createPropertySpace({ type: 'room' })),
 		);
 		await assertSucceeds(
 			ownerDb.doc('propertySpaces/space-owned').update({
@@ -1138,10 +1226,67 @@ async function run() {
 		await assertFails(
 			maintenanceLeadDb.doc('propertySpaces/space-owned').delete(),
 		);
-		await assertFails(
-			ownerDb.doc('propertySpaces/space-created').delete(),
+		await assertFails(ownerDb.doc('propertySpaces/space-created').delete());
+		await assertSucceeds(ownerDb.doc('propertySupplies/supply-owned').get());
+		await assertSucceeds(
+			ownerDb
+				.collection('propertySupplies')
+				.where('accountId', '==', accountId)
+				.where('propertyId', '==', 'property-1')
+				.get(),
 		);
-		await assertSucceeds(ownerDb.doc('propertyKnowledgeLinks/link-owned').get());
+		await assertSucceeds(
+			maintenanceLeadDb.doc('propertySupplies/supply-owned').get(),
+		);
+		await assertFails(outsiderDb.doc('propertySupplies/supply-owned').get());
+		await assertSucceeds(
+			ownerDb.doc('propertySupplies/supply-created').set(
+				createPropertySupply({
+					name: 'Kitchen wall paint',
+					type: 'paint_and_finish',
+				}),
+			),
+		);
+		await assertFails(
+			maintenanceLeadDb.doc('propertySupplies/supply-lead-created').set(
+				createPropertySupply({
+					createdBy: maintenanceLeadUid,
+					updatedBy: maintenanceLeadUid,
+				}),
+			),
+		);
+		await assertSucceeds(
+			propertyManagerDb.doc('propertySupplies/supply-manager-created').set(
+				createPropertySupply({
+					name: 'Water filter',
+					createdBy: propertyManagerUid,
+					updatedBy: propertyManagerUid,
+				}),
+			),
+		);
+		await assertFails(
+			ownerDb
+				.doc('propertySupplies/supply-invalid-type')
+				.set(createPropertySupply({ type: 'inventory' })),
+		);
+		await assertSucceeds(
+			ownerDb.doc('propertySupplies/supply-owned').update({
+				modelOrSku: 'EF-16251-NEW',
+				updatedBy: ownerUid,
+				updatedAt: '2026-07-01T13:00:00.000Z',
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('propertySupplies/supply-owned').update({
+				propertyId: 'missing-property',
+				updatedBy: ownerUid,
+				updatedAt: '2026-07-01T14:00:00.000Z',
+			}),
+		);
+		await assertFails(ownerDb.doc('propertySupplies/supply-created').delete());
+		await assertSucceeds(
+			ownerDb.doc('propertyKnowledgeLinks/link-owned').get(),
+		);
 		await assertSucceeds(
 			ownerDb
 				.collection('propertyKnowledgeLinks')
@@ -1158,7 +1303,9 @@ async function run() {
 				.where('accountId', '==', accountId)
 				.get(),
 		);
-		await assertFails(outsiderDb.doc('propertyKnowledgeLinks/link-owned').get());
+		await assertFails(
+			outsiderDb.doc('propertyKnowledgeLinks/link-owned').get(),
+		);
 		await assertFails(
 			ownerDb.doc('propertyKnowledgeLinks/link-client-created').set({
 				accountId,
@@ -1180,7 +1327,9 @@ async function run() {
 				toId: 'another-space',
 			}),
 		);
-		await assertFails(ownerDb.doc('propertyKnowledgeLinks/link-owned').delete());
+		await assertFails(
+			ownerDb.doc('propertyKnowledgeLinks/link-owned').delete(),
+		);
 		await assertSucceeds(
 			ownerDb
 				.collection('propertyDocuments')
@@ -1206,28 +1355,34 @@ async function run() {
 			),
 		);
 		await assertSucceeds(
-			legacyOwnerDb.doc('propertyDocuments/property-document-legacy-created').set(
-				createPropertyDocument({
-					id: 'property-document-legacy-created',
-					name: 'Legacy owner upload',
-				}),
-			),
+			legacyOwnerDb
+				.doc('propertyDocuments/property-document-legacy-created')
+				.set(
+					createPropertyDocument({
+						id: 'property-document-legacy-created',
+						name: 'Legacy owner upload',
+					}),
+				),
 		);
 		await assertFails(
-			maintenanceLeadDb.doc('propertyDocuments/property-document-lead-created').set(
-				createPropertyDocument({
-					id: 'property-document-lead-created',
-					name: 'Lead upload attempt',
-				}),
-			),
+			maintenanceLeadDb
+				.doc('propertyDocuments/property-document-lead-created')
+				.set(
+					createPropertyDocument({
+						id: 'property-document-lead-created',
+						name: 'Lead upload attempt',
+					}),
+				),
 		);
 		await assertFails(
-			outsiderDb.doc('propertyDocuments/property-document-outsider-created').set(
-				createPropertyDocument({
-					id: 'property-document-outsider-created',
-					name: 'Outsider upload attempt',
-				}),
-			),
+			outsiderDb
+				.doc('propertyDocuments/property-document-outsider-created')
+				.set(
+					createPropertyDocument({
+						id: 'property-document-outsider-created',
+						name: 'Outsider upload attempt',
+					}),
+				),
 		);
 		await assertSucceeds(
 			ownerDb.doc('propertyDocuments/property-document-owned').update({
@@ -1242,7 +1397,9 @@ async function run() {
 			}),
 		);
 		await assertFails(
-			maintenanceLeadDb.doc('propertyDocuments/property-document-owned').delete(),
+			maintenanceLeadDb
+				.doc('propertyDocuments/property-document-owned')
+				.delete(),
 		);
 		await assertSucceeds(
 			ownerDb.doc('propertyDocuments/property-document-created').delete(),
@@ -1401,8 +1558,14 @@ async function run() {
 			'personalAssistantRateLimits',
 			'personalAssistantAccessAudits',
 		]) {
-			await assertFails(ownerDb.doc(`${protectedCollection}/client-attempt`).get());
-			await assertFails(ownerDb.doc(`${protectedCollection}/client-attempt`).set({ ownerUserId: ownerUid }));
+			await assertFails(
+				ownerDb.doc(`${protectedCollection}/client-attempt`).get(),
+			);
+			await assertFails(
+				ownerDb
+					.doc(`${protectedCollection}/client-attempt`)
+					.set({ ownerUserId: ownerUid }),
+			);
 		}
 
 		console.log('Firestore rules permission boundary tests passed.');
