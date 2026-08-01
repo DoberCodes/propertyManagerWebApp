@@ -76,7 +76,10 @@ export const AddSpaceButton = styled.button`
 
 export const SpacesGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	grid-template-columns: repeat(
+		auto-fit,
+		minmax(min(100%, max(220px, calc((100% - 2.25rem) / 4))), 1fr)
+	);
 	gap: 0.75rem;
 
 	@media (max-width: 480px) {
