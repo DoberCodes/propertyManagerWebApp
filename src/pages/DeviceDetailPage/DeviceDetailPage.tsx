@@ -21,6 +21,11 @@ import {
 	useGetDevicesQuery,
 	useUpdateDeviceMutation,
 } from '../../Redux/API/deviceSlice';
+import {
+	useGetPropertyKnowledgeLinksQuery,
+	useSetEquipmentSpaceLinksMutation,
+} from '../../Redux/API/propertyKnowledgeLinkSlice';
+import { useGetPropertySpacesQuery } from '../../Redux/API/spaceSlice';
 import { useDeleteTaskMutation, useGetTasksQuery } from '../../Redux/API/taskSlice';
 import {
 	useAddMaintenanceHistoryMutation,
@@ -80,6 +85,7 @@ import {
 	canTrackWarranties,
 } from '../../utils/subscriptionUtils';
 import { getRoleCapabilities } from '../../utils/permissions';
+import { getEquipmentSpaceIds } from '../../types/PropertyKnowledgeLink.types';
 import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
 import {
 	DeviceServiceItem,
@@ -93,6 +99,7 @@ import {
 } from '../../constants/deviceServiceItems';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
 import { LoadingState } from '../../Components/LoadingState';
+import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable, RecordSuggestionList, RecordSuggestionItem, ServiceItemDetailsList, ServiceItemDetail } from './DeviceDetailPage.styles';
 
 type PartFormState = Omit<DeviceServiceItem, 'id'>;
@@ -118,6 +125,7 @@ type DeviceEditFormState = {
 		type: string;
 		usage?: 'appliance_photo' | 'document';
 	}>;
+	spaceIds: string[];
 };
 
 const isPlainDateString = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -300,6 +308,7 @@ const sanitizeDeviceServiceItem = (item: DeviceServiceItem): DeviceServiceItem =
 	) as DeviceServiceItem;
 
 export const DeviceDetailPage: React.FC = () => {
+	const feedback = useAppFeedback();
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const applianceAction = searchParams.get('action');
@@ -314,6 +323,8 @@ export const DeviceDetailPage: React.FC = () => {
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const canManageApplianceActions =
 		!isTeamMemberAccount || roleCapabilities.canManageAppliances;
+	const canManageSpaceActions =
+		!isTeamMemberAccount || roleCapabilities.canManageProperties;
 	const canCreateTaskActions =
 		!isTeamMemberAccount || roleCapabilities.canCreateTasks;
 	const canLogMaintenanceActions =
@@ -344,6 +355,7 @@ export const DeviceDetailPage: React.FC = () => {
 			propertyId: '',
 		},
 		files: [],
+		spaceIds: [],
 	});
 	const [pendingDeviceFiles, setPendingDeviceFiles] = useState<File[]>([]);
 	const [removedExistingFileUrls, setRemovedExistingFileUrls] = useState<string[]>([]);
@@ -455,6 +467,26 @@ export const DeviceDetailPage: React.FC = () => {
 	const { data: propertyDevices = [] } = useGetDevicesQuery(property?.id || '', {
 		skip: !property?.id,
 	});
+	const propertyAccountId = String(
+		property?.accountId || property?.userId || '',
+	).trim();
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{
+				accountId: propertyAccountId,
+				propertyId: property?.id || '',
+			},
+			{ skip: !property?.id || !propertyAccountId },
+		);
+	const { data: propertySpaces = [] } = useGetPropertySpacesQuery(
+		{
+			accountId: propertyAccountId,
+			propertyId: property?.id || '',
+			includeArchived: true,
+		},
+		{ skip: !property?.id || !propertyAccountId },
+	);
+	const [setEquipmentSpaceLinks] = useSetEquipmentSpaceLinksMutation();
 
 	const device = useMemo(() => {
 		if (queriedDevice) {
@@ -507,6 +539,15 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const locationLabel = useMemo(() => {
 		if (!device || !property) return 'N/A';
+		const linkedSpaceIds = new Set(
+			getEquipmentSpaceIds(propertyKnowledgeLinks, String(device.id)),
+		);
+		const linkedSpaceNames = propertySpaces
+			.filter((space) => linkedSpaceIds.has(space.id))
+			.map((space) => space.name);
+		if (linkedSpaceNames.length > 0) {
+			return linkedSpaceNames.join(', ');
+		}
 
 		if (device.location?.unitId) {
 			const unit = units.find(
@@ -528,7 +569,7 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 
 		return 'Property level';
-	}, [device, property, unitById, units]);
+	}, [device, property, propertyKnowledgeLinks, propertySpaces, unitById, units]);
 
 	const deviceTaskTemplate = useMemo(() => {
 		if (!device || !property) return null;
@@ -1120,6 +1161,9 @@ export const DeviceDetailPage: React.FC = () => {
 			status: device?.decommissionDate ? 'Decommissioned' : device?.status || 'Active',
 			location: device?.location || { propertyId: property?.id || '' },
 			files: deviceDocumentFiles,
+			spaceIds: device
+				? getEquipmentSpaceIds(propertyKnowledgeLinks, String(device.id))
+				: [],
 		});
 	};
 
@@ -1138,6 +1182,10 @@ export const DeviceDetailPage: React.FC = () => {
 			status: device.decommissionDate ? 'Decommissioned' : device.status || 'Active',
 			location: device.location || { propertyId: property.id },
 			files: deviceDocumentFiles,
+			spaceIds: getEquipmentSpaceIds(
+				propertyKnowledgeLinks,
+				String(device.id),
+			),
 		});
 		setPendingDeviceFiles([]);
 		setRemovedExistingFileUrls([]);
@@ -1202,10 +1250,11 @@ export const DeviceDetailPage: React.FC = () => {
 				? [devicePhotoFile, ...persistedFiles]
 				: persistedFiles;
 
+			const { spaceIds, ...deviceFields } = deviceFormData;
 			await updateDevice({
 				id: editingDevice.id,
 				updates: {
-					...deviceFormData,
+					...deviceFields,
 					type: deviceFormData.type.trim(),
 					brand: deviceFormData.brand.trim(),
 					model: deviceFormData.model.trim(),
@@ -1216,6 +1265,21 @@ export const DeviceDetailPage: React.FC = () => {
 					files: nextFiles,
 				},
 			}).unwrap();
+
+			if (canManageSpaceActions) {
+				try {
+					await setEquipmentSpaceLinks({
+						propertyId: property.id,
+						equipmentId: String(editingDevice.id),
+						spaceIds,
+					}).unwrap();
+				} catch (linkError) {
+					console.error('Failed to save equipment Spaces:', linkError);
+					feedback.notify(
+						'Equipment was saved, but Maintley could not update its Spaces. You can edit the equipment and try again.',
+					);
+				}
+			}
 
 			if (pendingDeviceFiles.length > 0) {
 				await uploadPropertyDocuments({
@@ -1238,6 +1302,7 @@ export const DeviceDetailPage: React.FC = () => {
 			resetDeviceEditState();
 		} catch (error) {
 			console.error('Failed to save appliance edits:', error);
+			feedback.notify('Maintley could not save these equipment changes. Please try again.');
 		}
 	};
 
@@ -2888,6 +2953,11 @@ export const DeviceDetailPage: React.FC = () => {
 						}
 						deviceFormData={deviceFormData}
 						onFormChange={handleDeviceFormChange}
+						selectedSpaceIds={deviceFormData.spaceIds}
+						onSelectedSpaceIdsChange={(spaceIds) =>
+							setDeviceFormData((prev) => ({ ...prev, spaceIds }))
+						}
+						canManageSpaces={canManageSpaceActions}
 					/>
 				)}
 			</PageStack>

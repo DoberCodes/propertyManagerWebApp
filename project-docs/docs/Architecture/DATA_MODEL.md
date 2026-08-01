@@ -167,6 +167,7 @@ Core collections include:
 * accountMemberships
 * properties
 * propertySpaces
+* propertyKnowledgeLinks
 * devices
 * tasks
 * maintenanceEvents
@@ -446,13 +447,51 @@ views.
 
 Spaces are stored in the top-level `propertySpaces` collection. Firestore rules
 validate that the referenced Property exists and carries the same `accountId`.
-Account readers may view Spaces; account managers may create, edit, archive, or
-delete them.
+Account readers may view Spaces; account managers may create and edit them.
+Space removal uses a trusted callable: unreferenced Spaces are deleted, while
+referenced Spaces are archived so accepted relationships remain resolvable.
 
 Existing task location text and equipment `unitId` or `suiteId` fields remain
-temporary compatibility fields. They are not canonical Space relationships and
-remain readable until a future relationship phase provides accepted links and
-validated migration behavior.
+temporary compatibility fields. They remain readable and are not silently
+converted. Accepted Equipment-to-Space and Task-to-Space locations use
+canonical relationship records.
+
+## propertyKnowledgeLinks
+
+Represents one accepted connection between independent property-owned records.
+The first supported relationships are:
+
+* Equipment `located_in` Space
+* Task `occurs_in` Space
+
+Required fields:
+
+* accountId
+* propertyId
+* fromType (`equipment` or `task`)
+* fromId
+* relationshipType (`located_in` or `occurs_in`)
+* toType (`space`)
+* toId
+* source (`manual`)
+* createdAt
+* createdBy
+* updatedAt
+* updatedBy
+
+Links are stored in the top-level `propertyKnowledgeLinks` collection. The
+document ID is deterministic for the property, relationship type, and both
+endpoints. Account readers may read links. Direct client writes are denied;
+trusted callable functions validate the Property, source record, Space,
+account boundary, archived state, and required role before replacing links.
+Account managers connect Equipment; users with task-management permission
+connect Tasks. Inverse Space equipment and task lists are derived from these
+records rather than stored separately.
+
+Task links are many-to-many. The Task's free-text `location` field remains a
+temporary compatibility field and is not inferred into a relationship. A new
+recurring Task inherits accepted Space links from the Task that generated it.
+Deleting a Task removes its outgoing relationship records.
 
 ## Property Groups
 

@@ -83,6 +83,9 @@ import { Task, TaskFormData } from '../../../types/Task.types';
 import {
 	useDeleteTaskMutation,
 } from '../../../Redux/API/taskSlice';
+import { useGetPropertySpacesQuery } from '../../../Redux/API/spaceSlice';
+import { useGetPropertyKnowledgeLinksQuery } from '../../../Redux/API/propertyKnowledgeLinkSlice';
+import { getTaskSpaceIds } from '../../../types/PropertyKnowledgeLink.types';
 import { COLORS } from '../../../constants/colors';
 
 export const TasksTab: React.FC<TasksTabProps> = ({
@@ -120,6 +123,37 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const canManageTasks = permissions?.canManageTasks ?? true;
 	const canCreateTasks = permissions?.canCreateTasks ?? canManageTasks;
 	const nativeApp = isNativeApp();
+	const accountId = String(
+		(property as any)?.accountId ||
+			(property as any)?.userId ||
+			currentUser?.accountId ||
+			currentUser?.id ||
+			'',
+	).trim();
+	const { data: spaces = [] } = useGetPropertySpacesQuery(
+		{ accountId, propertyId: property?.id || '', includeArchived: true },
+		{ skip: !accountId || !property?.id },
+	);
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId, propertyId: property?.id || '' },
+			{ skip: !accountId || !property?.id },
+		);
+	const taskSpaceNamesByTaskId = useMemo(() => {
+		const spaceNameById = new Map(spaces.map((space) => [space.id, space.name]));
+		return new Map(
+			propertyTasks.map((task) => [
+				task.id,
+				getTaskSpaceIds(propertyKnowledgeLinks, task.id)
+					.map((spaceId) => spaceNameById.get(spaceId))
+					.filter((name): name is string => Boolean(name)),
+			]),
+		);
+	}, [propertyKnowledgeLinks, propertyTasks, spaces]);
+	const getTaskSpaceLabel = useCallback(
+		(taskId: string) => (taskSpaceNamesByTaskId.get(taskId) || []).join(', '),
+		[taskSpaceNamesByTaskId],
+	);
 
 	// Task mutations
 	const [deleteTaskMutation] = useDeleteTaskMutation();
@@ -399,6 +433,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						</div>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
 							{task.category || 'General maintenance'}
+							{getTaskSpaceLabel(task.id)
+								? ` • ${getTaskSpaceLabel(task.id)}`
+								: ''}
 							{task.location ? ` • ${task.location}` : ''}
 						</div>
 						<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: '#64748b' }}>
@@ -1049,9 +1086,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 									</MobileTaskHeader>
 
 									<MobileFeedMeta>
-										<MobileFeedLine>
-											{task.category || 'General maintenance'}
-											{task.location ? ` • ${task.location}` : ''}
+									<MobileFeedLine>
+										{task.category || 'General maintenance'}
+										{getTaskSpaceLabel(task.id)
+											? ` • ${getTaskSpaceLabel(task.id)}`
+											: ''}
+										{task.location ? ` • ${task.location}` : ''}
 										</MobileFeedLine>
 										<MobileFeedLine>
 											{mobileStatusText}

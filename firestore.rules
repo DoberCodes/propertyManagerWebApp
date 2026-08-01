@@ -735,10 +735,16 @@ service cloud.firestore {
         request.resource.data.source == resource.data.source &&
         request.resource.data.updatedBy == request.auth.uid &&
         canManageAccount(resource.data.accountId);
-      allow delete: if isAuthenticated() &&
-        propertySpaceDataIsValid(resource.data) &&
-        propertySpaceMatchesProperty(resource.data) &&
-        canManageAccount(resource.data.accountId);
+      // Deletion is function-owned so referenced Spaces can be archived instead.
+      allow delete: if false;
+    }
+
+    match /propertyKnowledgeLinks/{linkId} {
+      allow read: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canReadAccount(resource.data.accountId);
+      // Relationship writes validate both endpoints in trusted Cloud Functions.
+      allow create, update, delete: if false;
     }
 
     match /propertyDocuments/{documentId} {

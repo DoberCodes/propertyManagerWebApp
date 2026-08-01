@@ -130,6 +130,12 @@ export const SpaceNotes = styled.p`
 	white-space: pre-wrap;
 `;
 
+export const SpaceLinkedCount = styled.span`
+	color: ${COLORS.textMuted};
+	font-size: 0.78rem;
+	font-weight: 600;
+`;
+
 export const SpaceActions = styled.div`
 	display: flex;
 	gap: 0.5rem;
@@ -199,4 +205,69 @@ export const SpacesStatus = styled.p`
 	margin: 0;
 	color: ${COLORS.textSecondary};
 	font-size: 0.88rem;
+`;
+
+export const SpaceDetailList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 0.65rem;
+`;
+
+export const SpaceDetailItem = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.8rem;
+	border: 1px solid ${COLORS.gray200};
+	border-radius: 8px;
+	background: ${COLORS.gray50};
+
+	div {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		min-width: 0;
+	}
+
+	strong,
+	span {
+		word-break: break-word;
+	}
+
+	span {
+		color: ${COLORS.textSecondary};
+		font-size: 0.82rem;
+	}
+
+	button {
+		flex: 0 0 auto;
+		min-height: 38px;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid ${COLORS.primary};
+		border-radius: 7px;
+		background: ${COLORS.white};
+		color: ${COLORS.primary};
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	@media (max-width: 480px) {
+		align-items: stretch;
+		flex-direction: column;
+
+		button {
+			width: 100%;
+		}
+	}
+`;
+
+export const SpaceDetailEmpty = styled.p`
+	margin: 0;
+	padding: 1rem;
+	border: 1px dashed ${COLORS.gray300};
+	border-radius: 8px;
+	color: ${COLORS.textSecondary};
+	font-size: 0.88rem;
+	line-height: 1.5;
 `;

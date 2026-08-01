@@ -88,8 +88,13 @@ does not activate resident or business workflows.
 Spaces are descriptive property locations rather than access or occupancy
 boundaries. They use consistent Space terminology so places such as a Roof,
 Lawn, Exterior, or Pool fit alongside interior areas without being described as
-rooms. Existing task and equipment location fields remain available during the
-phased connected-knowledge migration.
+rooms. Account managers can connect Equipment to one or more Spaces. Users who
+manage Tasks can connect each Task to one or more Spaces while retaining the
+optional free-text Location detail. A Space shows its connected equipment and
+Tasks. Recurring Tasks inherit accepted Space connections. Referenced Spaces
+are archived when removed so saved location context stays visible. Existing
+task and equipment location fields remain available during the phased
+connected-knowledge migration and are not converted automatically.
 
 ---
 

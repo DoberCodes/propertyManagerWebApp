@@ -184,10 +184,28 @@ createdBy
 source
 ```
 
-The exact field contract, allowed endpoint types, deterministic ID strategy,
-rules, and indexes must be finalized before implementation. Derived inverse
-views such as “used by” may be calculated from the canonical relationship and
-must not become a second source of truth.
+The first implemented relationships are Equipment `located_in` Space and Task
+`occurs_in` Space. They use the canonical fields above plus `updatedAt` and
+`updatedBy`. Their endpoint types
+are constrained to `equipment` or `task` and `space`, and their source is
+`manual`. The trusted
+write builds a deterministic SHA-256 document ID from the property, both
+endpoints, and relationship type. Direct client writes are denied. Account
+readers may resolve links. Account managers connect Equipment, while users with
+task-management permission connect Tasks. Callable functions validate the
+Property, source record, Space, account boundary, and archived state.
+The implementation queries one indexed endpoint at a time and filters the
+constrained relationship type server-side, so this first phase does not require
+a composite index.
+
+One Task may occur in several Spaces. Task creation and editing expose an
+optional multi-select while the legacy free-text `location` field remains
+available for more specific compatibility detail. New recurring Task instances
+inherit the accepted Space links from the Task that generated them. Deleting a
+Task removes its relationship records without deleting the Space.
+
+Derived inverse views such as “contains equipment” are calculated from the
+canonical relationship and do not become a second source of truth.
 
 Relationships proposed by document processing or Maintley Intelligence remain
 suggestions until accepted through the established Property Memory review
@@ -250,10 +268,13 @@ be added as presentation metadata in a future phase, but this implementation
 does not prematurely define an icon contract.
 
 Existing task location text and equipment `unitId` or `suiteId` location fields
-are temporary compatibility fields. They remain available until canonical
-entity relationships, migration validation, and correction workflows are
-introduced in a future phase. The first Space implementation does not silently
-convert or hide them.
+are temporary compatibility fields. They remain available while accepted Space
+links are introduced. Maintley does not silently convert or hide them. Users
+may explicitly connect Equipment or Tasks to one or more Spaces, and the Space
+detail experience derives its equipment and task lists from accepted
+relationship records.
+Referenced Spaces are archived rather than deleted so historical location
+context remains resolvable.
 
 ## Supplies
 
@@ -378,11 +399,15 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Accept the Connected Property Knowledge Model as Maintley's target ownership philosophy.
 - [x] Approve the Space record and type contract.
 - [ ] Approve the Supply record and identifier contract.
-- [ ] Approve the canonical property relationship contract and allowed endpoint types.
-- [ ] Implement permission rules, indexes, and trusted relationship writes.
+- [x] Approve the first canonical Equipment-to-Space relationship contract and allowed endpoint types.
+- [x] Implement permission rules and trusted Equipment-to-Space relationship writes.
+- [x] Approve and implement the canonical Task-to-Space relationship contract.
+- [x] Preserve Task-to-Space relationships across recurring Task generation and deletion.
 - [ ] Add compatibility adapters and migration validation for existing locations and document links.
 - [x] Add the first progressive Space management experience to Property Details.
-- [ ] Add Supply and relationship-management experiences.
+- [x] Add the first progressive Equipment-to-Space linking and correction experience.
+- [x] Add progressive Task-to-Space linking and Space task context.
+- [ ] Add Supply and broader relationship-management experiences.
 - [ ] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
 

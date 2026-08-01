@@ -676,7 +676,8 @@ Trusted same-repository pull requests that need real backend validation may use:
 ```
 
 Add the `deploy-backend-to-beta` label after the PR's required checks are
-available. The workflow waits for those checks, reruns the Functions build and
+available. The workflow waits for those checks while excluding its own required
+deployment check so the gate cannot wait on itself, reruns the Functions build and
 Firebase emulator rule suites, verifies the development project and Stripe test
 boundary, and deploys the pull request's complete Functions, Firestore-rules,
 and Storage-rules state through the `beta` Firebase alias to `maintleybeta`.

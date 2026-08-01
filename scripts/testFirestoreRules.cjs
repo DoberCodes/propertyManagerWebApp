@@ -384,6 +384,20 @@ async function seedFirestore(env) {
 		);
 
 		await db.doc('propertySpaces/space-owned').set(createPropertySpace());
+		await db.doc('propertyKnowledgeLinks/link-owned').set({
+			accountId,
+			propertyId: 'property-1',
+			fromType: 'equipment',
+			fromId: 'device-owned',
+			relationshipType: 'located_in',
+			toType: 'space',
+			toId: 'space-owned',
+			source: 'manual',
+			createdAt: '2026-07-01T12:00:00.000Z',
+			createdBy: ownerUid,
+			updatedAt: '2026-07-01T12:00:00.000Z',
+			updatedBy: ownerUid,
+		});
 
 		await db.doc('tasks/task-existing').set(
 			createTask({
@@ -1118,9 +1132,43 @@ async function run() {
 		await assertFails(
 			maintenanceLeadDb.doc('propertySpaces/space-owned').delete(),
 		);
-		await assertSucceeds(
+		await assertFails(
 			ownerDb.doc('propertySpaces/space-created').delete(),
 		);
+		await assertSucceeds(ownerDb.doc('propertyKnowledgeLinks/link-owned').get());
+		await assertSucceeds(
+			ownerDb
+				.collection('propertyKnowledgeLinks')
+				.where('accountId', '==', accountId)
+				.where('propertyId', '==', 'property-1')
+				.get(),
+		);
+		await assertSucceeds(
+			maintenanceLeadDb.doc('propertyKnowledgeLinks/link-owned').get(),
+		);
+		await assertFails(outsiderDb.doc('propertyKnowledgeLinks/link-owned').get());
+		await assertFails(
+			ownerDb.doc('propertyKnowledgeLinks/link-client-created').set({
+				accountId,
+				propertyId: 'property-1',
+				fromType: 'equipment',
+				fromId: 'device-owned',
+				relationshipType: 'located_in',
+				toType: 'space',
+				toId: 'space-owned',
+				source: 'manual',
+				createdAt: '2026-07-01T12:00:00.000Z',
+				createdBy: ownerUid,
+				updatedAt: '2026-07-01T12:00:00.000Z',
+				updatedBy: ownerUid,
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('propertyKnowledgeLinks/link-owned').update({
+				toId: 'another-space',
+			}),
+		);
+		await assertFails(ownerDb.doc('propertyKnowledgeLinks/link-owned').delete());
 		await assertSucceeds(
 			ownerDb
 				.collection('propertyDocuments')

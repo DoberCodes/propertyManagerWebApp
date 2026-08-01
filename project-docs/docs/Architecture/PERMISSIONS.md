@@ -650,15 +650,41 @@ Read:
 
 * Account readers through an account- and property-scoped query
 
-Create, update, archive, delete:
+Create and update:
 
 * Account managers
+
+Remove:
+
+* Account managers through a trusted callable
 
 Create and update rules validate that the referenced Property exists in the
 same account, validate the Space field contract, keep `accountId`,
 `propertyId`, creation attribution, and source immutable, and require the
 referenced Property to exist within the same account. Spaces do not create a
 separate permission boundary.
+
+The removal callable deletes an unreferenced Space and archives a referenced
+Space. Direct client deletion is denied.
+
+---
+
+## propertyKnowledgeLinks
+
+Read:
+
+* Account readers
+
+Create, update, delete:
+
+* Authorized server processes only
+
+Trusted relationship writes support Equipment `located_in` Space for account
+managers and Task `occurs_in` Space for users with task-management permission.
+Each callable validates that the Property, source record, and Space share the
+same account and property boundary and rejects new links to archived Spaces.
+Recurring Task generation may copy already accepted Task-to-Space links through
+the trusted writer. Task deletion removes its outgoing links.
 
 ---
 

@@ -160,6 +160,7 @@ export interface TaskFormData {
 	assignee?: string;
 	assignedTo?: string;
 	devices?: string[];
+	spaceIds?: string[];
 	isRecurring?: boolean;
 	recurrenceFrequency?: RecurrenceFrequency;
 	recurrenceInterval?: number;

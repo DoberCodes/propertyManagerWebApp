@@ -134,6 +134,8 @@ const deletePropertyScopedCollections = async (
 		'tenantProfiles',
 		'favorites',
 		'maintenanceRequests',
+		'propertySpaces',
+		'propertyKnowledgeLinks',
 	];
 
 	for (const collectionName of propertyScopedCollections) {

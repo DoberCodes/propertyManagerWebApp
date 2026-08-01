@@ -39,6 +39,11 @@ import {
 	useGetTasksQuery,
 } from '../../../Redux/API/taskSlice';
 import { useGetAllDevicesQuery } from '../../../Redux/API/deviceSlice';
+import { useGetPropertySpacesQuery } from '../../../Redux/API/spaceSlice';
+import {
+	useGetPropertyKnowledgeLinksQuery,
+	useSetTaskSpaceLinksMutation,
+} from '../../../Redux/API/propertyKnowledgeLinkSlice';
 import {
 	useGetPropertiesQuery,
 } from '../../../Redux/API/propertySlice';
@@ -67,6 +72,7 @@ import {
 } from '../../../tasks/taskAssignment';
 import { useTaskAssigneeOptions } from '../../../tasks/useTaskAssigneeOptions';
 import { getTaskScheduleMode, normalizeTaskSchedule } from '../../../tasks/taskSchedule';
+import { getTaskSpaceIds } from '../../../types/PropertyKnowledgeLink.types';
 
 const LINKED_DEVICE_NOTES_START = '--- Linked Equipment Details ---';
 const LINKED_DEVICE_NOTES_END = '--- End Linked Equipment Details ---';
@@ -463,6 +469,7 @@ interface TaskFormData {
 	notes: string;
 	assignedTo?: string;
 	devices?: string[];
+	spaceIds?: string[];
 	isRecurring?: boolean;
 	recurrenceFrequency?: string;
 	recurrenceInterval?: number;
@@ -560,6 +567,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 			location: '',
 			notes: '',
 			devices: [],
+			spaceIds: [],
 			isRecurring: false,
 			recurrenceFrequency: undefined,
 			recurrenceInterval: undefined,
@@ -585,6 +593,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		useGetAllMaintenanceHistoryForUserQuery();
 	const [createTask] = useCreateTaskMutation();
 	const [updateTaskApi] = useUpdateTaskMutation();
+	const [setTaskSpaceLinks] = useSetTaskSpaceLinksMutation();
 	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 
 	const [formState, setFormState] = useState<TaskFormData>(defaultForm);
@@ -601,6 +610,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 	const locationWrapRef = useRef<HTMLDivElement | null>(null);
 	const titleInputRef = useRef<HTMLInputElement | null>(null);
 	const hasInitializedFormForOpen = useRef(false);
+	const initializedTaskSpaceSelectionKey = useRef('');
 
 	const selectedPropertyId = formState.propertyId || propertyId || '';
 	const taskAssigneeOptions = useTaskAssigneeOptions({
@@ -614,6 +624,42 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		if (!selectedPropertyId) return null;
 		return allProperties.find((p: any) => p.id === selectedPropertyId);
 	}, [selectedPropertyId, allProperties]);
+	const selectedAccountId = String(
+		(selectedProperty as any)?.accountId ||
+			(selectedProperty as any)?.userId ||
+			effectiveCurrentUser?.accountId ||
+			effectiveCurrentUser?.id ||
+			'',
+	).trim();
+	const { data: availableSpaces = [], isLoading: areSpacesLoading } =
+		useGetPropertySpacesQuery(
+		{
+			accountId: selectedAccountId,
+			propertyId: selectedPropertyId,
+			includeArchived: true,
+		},
+		{
+			skip: !isOpen || !selectedAccountId || !selectedPropertyId,
+		},
+	);
+	const { data: propertyKnowledgeLinks = [], isFetching: areSpaceLinksLoading } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId: selectedAccountId, propertyId: selectedPropertyId },
+			{ skip: !isOpen || !selectedAccountId || !selectedPropertyId },
+		);
+	const spaceOptions = useMemo(
+		() =>
+			availableSpaces
+				.filter(
+					(space) =>
+						!space.isArchived || (formState.spaceIds || []).includes(space.id),
+				)
+				.map((space) => ({
+					value: space.id,
+					label: `${space.name}${space.isArchived ? ' (Archived)' : ''}`,
+				})),
+		[availableSpaces, formState.spaceIds],
+	);
 
 	const defaultCategoryOptions = useMemo(
 		() => [
@@ -788,6 +834,14 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		}
 		return null;
 	}, [editingTaskId, editingTask, allTasks]);
+	const editingTaskForSpaces = editingTask || foundTask;
+	const editingTaskSpaceIds = useMemo(
+		() =>
+			editingTaskForSpaces?.id
+				? getTaskSpaceIds(propertyKnowledgeLinks, editingTaskForSpaces.id)
+				: [],
+		[editingTaskForSpaces?.id, propertyKnowledgeLinks],
+	);
 	const storedAssigneeOption = useMemo(
 		() => getStoredTaskAssigneeOption(editingTask || foundTask || initialTask),
 		[editingTask, foundTask, initialTask],
@@ -946,6 +1000,42 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		unitId,
 	]);
 
+	useEffect(() => {
+		if (!isOpen) {
+			initializedTaskSpaceSelectionKey.current = '';
+			return;
+		}
+
+		const taskId = String(editingTaskForSpaces?.id || editingTaskId || '').trim();
+		if (!taskId) {
+			const createKey = `create:${selectedPropertyId}`;
+			if (initializedTaskSpaceSelectionKey.current === createKey) return;
+			setFormState((current) => ({
+				...current,
+				spaceIds: initialTask?.spaceIds || [],
+			}));
+			initializedTaskSpaceSelectionKey.current = createKey;
+			return;
+		}
+
+		if (areSpaceLinksLoading) return;
+		const editKey = `edit:${selectedPropertyId}:${taskId}`;
+		if (initializedTaskSpaceSelectionKey.current === editKey) return;
+		setFormState((current) => ({
+			...current,
+			spaceIds: editingTaskSpaceIds,
+		}));
+		initializedTaskSpaceSelectionKey.current = editKey;
+	}, [
+		areSpaceLinksLoading,
+		editingTaskForSpaces?.id,
+		editingTaskId,
+		editingTaskSpaceIds,
+		initialTask?.spaceIds,
+		isOpen,
+		selectedPropertyId,
+	]);
+
 	const handleChange = (e: React.ChangeEvent<any>) => {
 		const { name, value, type, checked } = e.target as any;
 		let newValue: any;
@@ -961,6 +1051,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				propertyId: newValue,
 				unitId: '',
 				devices: [],
+				spaceIds: [],
 				linkedMaintenanceHistoryIds: [],
 			}));
 			setPendingLinkedHistoryIds([]);
@@ -1330,6 +1421,33 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 		setPendingTaskDocumentCategory('other');
 	};
 
+	const syncSavedTaskSpaces = async (
+		savedTaskId: string,
+		scopedPropertyId: string,
+		clearExistingLinks = false,
+	): Promise<void> => {
+		const desiredSpaceIds = [...(formState.spaceIds || [])].sort();
+		if (!clearExistingLinks && desiredSpaceIds.length === 0) return;
+		if (
+			clearExistingLinks &&
+			desiredSpaceIds.join('|') === [...editingTaskSpaceIds].sort().join('|')
+		) {
+			return;
+		}
+		try {
+			await setTaskSpaceLinks({
+				propertyId: scopedPropertyId,
+				taskId: savedTaskId,
+				spaceIds: desiredSpaceIds,
+			}).unwrap();
+		} catch (error) {
+			console.error('Task saved, but its Space connections could not be updated:', error);
+			feedback.notify(
+				'Task saved, but its Spaces could not be connected. Edit the task to try again.',
+			);
+		}
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setSubmitAttempted(true);
@@ -1396,6 +1514,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					notes: mergedNotes,
 					financials: sanitizedFinancials,
 				};
+				delete updatesRaw.spaceIds;
 				// clean nested undefined in notifications to avoid Firestore errors
 				if (
 					updatesRaw.notifications &&
@@ -1443,11 +1562,16 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					id: taskId,
 					updates,
 				}).unwrap();
+				dispatch(updateTask(updated));
+				await syncSavedTaskSpaces(
+					taskId,
+					String(updates.propertyId || formState.propertyId || propertyId || ''),
+					true,
+				);
 				await uploadPendingTaskDocuments(
 					taskId,
 					String(updates.propertyId || formState.propertyId || propertyId || ''),
 				);
-				dispatch(updateTask(updated));
 				onSaved?.(updated);
 				onClose();
 			} else {
@@ -1460,6 +1584,7 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 					userId: effectiveCurrentUser?.id || '',
 					property: selectedProperty?.title || '',
 				};
+				delete newTaskRaw.spaceIds;
 				// sanitize notifications objects
 				if (
 					newTaskRaw.notifications &&
@@ -1506,11 +1631,15 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				) as any;
 
 				const created = await createTask(newTask).unwrap();
+				dispatch(addTask(created));
+				await syncSavedTaskSpaces(
+					created.id,
+					created.propertyId || newTask.propertyId || '',
+				);
 				await uploadPendingTaskDocuments(
 					created.id,
 					created.propertyId || newTask.propertyId || '',
 				);
-				dispatch(addTask(created));
 				onSaved?.(created);
 				onClose();
 			}
@@ -1530,7 +1659,10 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 				showActions={true}
 				primaryButtonLabel={isEditing ? 'Save Changes' : 'Create Maintenance Task'}
 				secondaryButtonLabel='Cancel'
-				primaryButtonDisabled={missingRequiredFields.length > 0}>
+				primaryButtonDisabled={
+					missingRequiredFields.length > 0 ||
+					(Boolean(editingTaskForSpaces?.id) && areSpaceLinksLoading)
+				}>
 				<StickyTabRail>
 					<ModalTabContainer>
 						<ModalTab
@@ -1831,6 +1963,35 @@ export const TaskModal: React.FC<EditTaskModalProps> = ({
 													</SuggestionDropdown>
 												)}
 										</SuggestionInputWrap>
+									</FormGroup>
+
+									<FormGroup>
+										<FormLabel>Spaces (Optional)</FormLabel>
+										{spaceOptions.length > 0 ? (
+											<>
+												<MultiSelect
+													options={spaceOptions}
+													value={formState.spaceIds || []}
+													onChange={(spaceIds) =>
+														setFormState((current) => ({
+															...current,
+															spaceIds,
+														}))
+													}
+													placeholder="Select Spaces for this task..."
+												/>
+												<small style={{ color: '#6b7280' }}>
+													Choose every Space where this work occurs. Specific details can
+													still be recorded in Location.
+												</small>
+											</>
+										) : (
+											<small style={{ color: '#6b7280' }}>
+												{areSpacesLoading
+													? 'Loading Spaces...'
+													: 'Add Spaces in Property Details when location context would help.'}
+											</small>
+										)}
 									</FormGroup>
 
 									<FormGroup>

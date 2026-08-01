@@ -1,7 +1,6 @@
 import {
 	addDoc,
 	collection,
-	deleteDoc,
 	doc,
 	getDocs,
 	query,
@@ -26,12 +25,13 @@ interface UpdatePropertySpaceArgs {
 interface GetPropertySpacesArgs {
 	accountId: string;
 	propertyId: string;
+	includeArchived?: boolean;
 }
 
 const spaceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
 		getPropertySpaces: builder.query<PropertySpace[], GetPropertySpacesArgs>({
-			async queryFn({ accountId, propertyId }) {
+			async queryFn({ accountId, propertyId, includeArchived = false }) {
 				try {
 					if (!accountId || !propertyId) return { data: [] };
 					const snapshot = await getDocs(
@@ -43,7 +43,7 @@ const spaceSlice = apiSlice.injectEndpoints({
 					);
 					const spaces = snapshot.docs
 						.map((spaceDoc) => docToData(spaceDoc) as PropertySpace)
-						.filter((space) => space && !space.isArchived);
+						.filter((space) => space && (includeArchived || !space.isArchived));
 					return { data: sortPropertySpaces(spaces) };
 				} catch (error: any) {
 					return { error: error.message };
@@ -114,23 +114,11 @@ const spaceSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['Spaces'],
 		}),
 
-		deletePropertySpace: builder.mutation<void, string>({
-			async queryFn(spaceId) {
-				try {
-					await deleteDoc(doc(db, 'propertySpaces', spaceId));
-					return { data: undefined };
-				} catch (error: any) {
-					return { error: error.message };
-				}
-			},
-			invalidatesTags: ['Spaces'],
-		}),
 	}),
 });
 
 export const {
 	useCreatePropertySpaceMutation,
-	useDeletePropertySpaceMutation,
 	useGetPropertySpacesQuery,
 	useUpdatePropertySpaceMutation,
 } = spaceSlice;
