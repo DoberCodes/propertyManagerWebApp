@@ -131,7 +131,7 @@ test('classifies fixes as patch releases and customer-facing fixes', () => {
 });
 
 test('keeps internal maintenance out of customer release notes', () => {
-	assert.equal(inferBump({ title: 'ci: validate PR titles', labels: [], body: '' }), 'patch');
+	assert.equal(inferBump({ title: 'ci: validate PR titles', labels: [], body: '' }), 'none');
 	assert.equal(
 		inferCustomerCategory({
 			title: 'ci: validate PR titles',

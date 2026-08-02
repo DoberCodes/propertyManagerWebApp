@@ -66,6 +66,13 @@ Classification initially provides evidence without reducing required coverage.
 Conditional heavy-job execution should be introduced only when the permanent
 gate treats an intentional skip as a successful policy decision.
 
+Version impact follows Conventional Commit semantics. `feat` selects a minor
+release, `fix` and `perf` select a patch release, and a breaking declaration
+selects a major release. Internal-only `refactor`, `docs`, `chore`, `ci`,
+`build`, and `test` changes have no product-version impact unless an explicit
+release-impact label overrides the inference. They remain visible in engineering
+notes without creating an otherwise empty customer release.
+
 ## Test manifests
 
 Root Node tests are declared in `scripts/testManifest.cjs` and run through:
@@ -112,6 +119,11 @@ aggregate gate has passed its canary period.
 Optional jobs must never be configured as required checks. A required context
 must report for every pull request within the ruleset's scope, including when
 heavy work is intentionally skipped.
+
+Activated backend previews wait for required checks before acquiring the shared
+Beta deployment lock. The deploy job revalidates the exact source SHA after it
+obtains the lock, preventing an older queued request from replacing a newer PR
+backend.
 
 ## Release Prep empty state
 
