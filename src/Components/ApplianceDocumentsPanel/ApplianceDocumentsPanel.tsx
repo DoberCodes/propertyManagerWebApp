@@ -19,6 +19,13 @@ import {
 } from 'utils/propertyDocumentUpload';
 import { usePropertyDocumentUploadWorkflow } from 'propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
+import { useGetPropertyKnowledgeLinksQuery } from 'Redux/API/propertyKnowledgeLinkSlice';
+import {
+	deletePropertyDocumentFromCollection,
+	updatePropertyDocumentInCollection,
+} from 'propertyKnowledge/propertyMemoryRecordService';
+import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
+import { documentIsLinkedToEndpoint } from 'utils/propertyDocumentRelationships';
 import { COLORS } from '../../constants/colors';
 
 type ApplianceDocumentsPanelProps = {
@@ -79,23 +86,30 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 		allProperties.find(
 			(item: any) => String(item.id || '') === String(resolvedPropertyId),
 		);
-	const propertyDocuments = useMemo<PropertyDocument[]>(
-		() =>
-			Array.isArray(resolvedProperty?.documents) ? resolvedProperty.documents : [],
-		[resolvedProperty?.documents],
-	);
+	const { documents: propertyDocuments } =
+		usePropertyMemoryRecords(resolvedProperty);
+	const accountId = String(
+		resolvedProperty?.accountId || resolvedProperty?.userId || '',
+	).trim();
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId, propertyId: resolvedPropertyId },
+			{ skip: !accountId || !resolvedPropertyId },
+		);
 	const assignedDocuments = useMemo(
 		() =>
 			deviceId
 				? propertyDocuments.filter(
 						(document) =>
-							String(document.assignedDeviceId || '') === String(deviceId) ||
-							(document.links?.assetIds || []).some(
-								(assetId) => String(assetId) === String(deviceId),
+							documentIsLinkedToEndpoint(
+								document,
+								propertyKnowledgeLinks,
+								'equipment',
+								String(deviceId),
 							),
 				  )
 				: [],
-		[propertyDocuments, deviceId],
+		[propertyDocuments, deviceId, propertyKnowledgeLinks],
 	);
 	const isPendingMode = Boolean(onPendingFilesChange && !deviceId);
 	const displayedPendingFiles = pendingFiles || [];
@@ -159,6 +173,16 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 
 		setIsUploading(true);
 		try {
+			await updatePropertyDocumentInCollection(
+				resolvedProperty,
+				editingDocument.id,
+				{
+					name: trimmedName,
+					fileName: trimmedName,
+					category: editCategory,
+					documentType: toPropertyDocumentType(editCategory, trimmedName),
+				},
+			);
 			await updateProperty({
 				id: resolvedPropertyId,
 				updates: {
@@ -201,6 +225,7 @@ export const ApplianceDocumentsPanel: React.FC<ApplianceDocumentsPanelProps> = (
 			} catch (storageError) {
 				console.warn('Could not delete equipment document file:', storageError);
 			}
+			await deletePropertyDocumentFromCollection(document.id);
 			await updateProperty({
 				id: resolvedPropertyId,
 				updates: {

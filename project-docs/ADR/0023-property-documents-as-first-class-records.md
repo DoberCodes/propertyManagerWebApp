@@ -66,11 +66,23 @@ Phase 2:
   records.
 * Write new records to collections.
 
+Phase 2 is implemented. Current document surfaces read through the shared
+collection-first adapter, while embedded Property records remain compatibility
+mirrors for older clients and triggers.
+
 Phase 3:
 
 * Backfill embedded property documents and suggestions.
 * Add summary fields to properties where useful.
 * Retire direct UI dependence on embedded arrays.
+
+The Document relationship portion of Phase 3 is implemented through ADR 0036.
+Equipment, Space, Task, and Supply connections use canonical
+`propertyKnowledgeLinks` records. Legacy embedded link arrays and singular
+assignment fields remain as compatibility mirrors. A dry-run-first,
+repeat-safe migration promotes missing first-class Document records, creates
+deterministic accepted links, and reports ambiguous or missing endpoints
+without deleting legacy data.
 
 Cloud Functions should eventually own multi-record document workflows that need
 atomic state transitions.

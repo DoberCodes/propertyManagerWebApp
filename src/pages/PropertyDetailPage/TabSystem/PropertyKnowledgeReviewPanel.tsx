@@ -15,6 +15,7 @@ import {
 } from 'Redux/API/supplySlice';
 import {
 	useGetPropertyKnowledgeLinksQuery,
+	useSetDocumentLinksMutation,
 	useSetSupplyLinksMutation,
 } from 'Redux/API/propertyKnowledgeLinkSlice';
 import {
@@ -45,6 +46,7 @@ import {
 	updatePropertyKnowledgeSuggestionInCollection,
 } from 'propertyKnowledge/propertyMemoryRecordService';
 import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
+import { getPropertyDocumentConnections } from 'utils/propertyDocumentRelationships';
 import {
 	findAssetTargetCandidate,
 	findContractorTargetCandidate,
@@ -592,6 +594,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 		);
 	const [createSupply] = useCreatePropertySupplyMutation();
 	const [setSupplyLinks] = useSetSupplyLinksMutation();
+	const [setDocumentLinks] = useSetDocumentLinksMutation();
 	const { data: queriedTasks } = useGetTasksQuery();
 	const allTasks = queriedTasks || EMPTY_TASKS;
 	const [createContractor] = useCreateContractorMutation();
@@ -2342,6 +2345,22 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 				}
 			}
 
+			const appliedSourceDocument = propertyDocuments.find(
+				(document) =>
+					document.id === result.appliedSuggestion.sourceDocumentId,
+			);
+			const currentDocumentConnections = appliedSourceDocument
+				? getPropertyDocumentConnections(
+						appliedSourceDocument,
+						propertyKnowledgeLinks,
+				  )
+				: {
+						equipmentIds: [],
+						spaceIds: [],
+						taskIds: [],
+						supplyIds: [],
+				  };
+
 			await Promise.all([
 				updatePropertyDocumentInCollection(
 					property,
@@ -2364,10 +2383,10 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 								)?.links?.taskIds || []),
 								...linkedTaskIds,
 							])),
-							partIds: Array.from(new Set([
+							supplyIds: Array.from(new Set([
 								...(propertyDocuments.find(
 									(document) => document.id === result.appliedSuggestion.sourceDocumentId,
-								)?.links?.partIds || []),
+								)?.links?.supplyIds || []),
 								...linkedSupplyIds,
 							])),
 						},
@@ -2397,8 +2416,8 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 											...(document.links?.taskIds || []),
 										...linkedTaskIds,
 									])),
-									partIds: Array.from(new Set([
-										...(document.links?.partIds || []),
+									supplyIds: Array.from(new Set([
+										...(document.links?.supplyIds || []),
 										...linkedSupplyIds,
 									])),
 									},
@@ -2410,6 +2429,29 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						result.appliedSuggestion,
 					),
 				},
+			}).unwrap();
+			await setDocumentLinks({
+				propertyId: property.id,
+				documentId: result.appliedSuggestion.sourceDocumentId,
+				equipmentIds: Array.from(
+					new Set([
+						...currentDocumentConnections.equipmentIds,
+						...linkedEquipmentIds,
+					]),
+				),
+				spaceIds: currentDocumentConnections.spaceIds,
+				taskIds: Array.from(
+					new Set([
+						...currentDocumentConnections.taskIds,
+						...linkedTaskIds,
+					]),
+				),
+				supplyIds: Array.from(
+					new Set([
+						...currentDocumentConnections.supplyIds,
+						...linkedSupplyIds,
+					]),
+				),
 			}).unwrap();
 			try {
 				const sourceDocument = propertyDocuments.find(

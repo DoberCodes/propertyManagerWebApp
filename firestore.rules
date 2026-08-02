@@ -872,15 +872,21 @@ service cloud.firestore {
         canReadAccount(resource.data.accountId);
       allow create: if isAuthenticated() &&
         ('accountId' in request.resource.data) &&
-        canManageAccount(request.resource.data.accountId);
+        ('propertyId' in request.resource.data) &&
+        exists(/databases/$(database)/documents/properties/$(request.resource.data.propertyId)) &&
+        get(/databases/$(database)/documents/properties/$(request.resource.data.propertyId)).data.accountId == request.resource.data.accountId &&
+        canManagePropertyKnowledge(request.resource.data.accountId);
       allow update: if isAuthenticated() &&
         ('accountId' in resource.data) &&
         ('accountId' in request.resource.data) &&
+        ('propertyId' in resource.data) &&
+        ('propertyId' in request.resource.data) &&
         resource.data.accountId == request.resource.data.accountId &&
-        canManageAccount(resource.data.accountId);
+        resource.data.propertyId == request.resource.data.propertyId &&
+        canManagePropertyKnowledge(resource.data.accountId);
       allow delete: if isAuthenticated() &&
         ('accountId' in resource.data) &&
-        canManageAccount(resource.data.accountId);
+        canManagePropertyKnowledge(resource.data.accountId);
     }
 
     match /propertyKnowledgeSuggestions/{suggestionId} {

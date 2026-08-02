@@ -24,6 +24,15 @@ interface SetSupplyLinksArgs {
 	taskIds: string[];
 }
 
+export interface SetDocumentLinksArgs {
+	propertyId: string;
+	documentId: string;
+	equipmentIds: string[];
+	spaceIds: string[];
+	taskIds: string[];
+	supplyIds: string[];
+}
+
 interface GetPropertyKnowledgeLinksArgs {
 	accountId: string;
 	propertyId?: string;
@@ -136,6 +145,24 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['Supplies', 'PropertyKnowledgeLinks'],
 		}),
 
+		setDocumentLinks: builder.mutation<
+			{ success: boolean; linkCount: number },
+			SetDocumentLinksArgs
+		>({
+			async queryFn(args) {
+				try {
+					const result = await callFirebaseFunction<
+						SetDocumentLinksArgs,
+						{ success: boolean; linkCount: number }
+					>('setDocumentLinks', args);
+					return { data: result.data };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['PropertyKnowledgeLinks'],
+		}),
+
 		removePropertySpace: builder.mutation<
 			RemovePropertySpaceResult,
 			{ spaceId: string; propertyId: string }
@@ -217,6 +244,7 @@ export const {
 	useRestorePropertySpaceMutation,
 	useRestorePropertySupplyMutation,
 	useSetEquipmentSpaceLinksMutation,
+	useSetDocumentLinksMutation,
 	useSetSupplyLinksMutation,
 	useSetTaskSpaceLinksMutation,
 } = propertyKnowledgeLinkSlice;

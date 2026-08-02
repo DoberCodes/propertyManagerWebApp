@@ -692,6 +692,31 @@ Supply for account managers. The callable validates the Property, Supply, and
 every selected endpoint against the same account and property and rejects new
 links to archived Supplies or Spaces.
 
+Trusted Document relationship writes support Document `documents` Equipment,
+Space, Task, or Supply for account managers. The callable validates the
+first-class or compatible embedded Document and every selected endpoint against
+the same account and Property. Existing archived Space or Supply connections
+may be preserved during editing, but new connections to archived records are
+rejected. Direct client writes remain denied.
+
+---
+
+## propertyDocuments
+
+Read:
+
+* Account readers through an account- and property-scoped query
+
+Create, update, delete:
+
+* Account managers
+
+Rules validate that the referenced Property belongs to the same account and
+keep `accountId` and `propertyId` immutable after creation. Property Manager and
+Assistant Manager roles use the same Property Knowledge capability exposed by
+the Document UI. Relationship records remain function-owned even when the user
+may edit Document metadata.
+
 ---
 
 ## propertySupplies

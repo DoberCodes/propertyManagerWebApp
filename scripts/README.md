@@ -159,6 +159,9 @@ yarn migrate:task-locations-to-spaces:apply -- --confirm-project=PROJECT_ID
 yarn migrate:equipment-supplies -- --confirm-project=PROJECT_ID
 yarn migrate:equipment-supplies:apply -- --confirm-project=PROJECT_ID
 
+yarn migrate:document-relationships -- --confirm-project=PROJECT_ID
+yarn migrate:document-relationships:apply -- --confirm-project=PROJECT_ID
+
 yarn migrate:maintenance-events
 yarn migrate:maintenance-events:apply
 
@@ -193,6 +196,14 @@ specifications within a Property, and creates deterministic Equipment `uses`
 links. It never removes the legacy arrays. Add `--account-id=ACCOUNT_ID` to
 limit review or apply scope, and rerun the dry-run after applying to confirm
 that no additional Supplies or links remain.
+
+The Property Document relationship migration promotes embedded documents that
+do not yet have first-class records and creates deterministic Document
+`documents` relationships for valid Equipment, Space, Task, and Supply
+references. Missing, cross-property, and legacy part references that do not
+resolve to canonical Supplies are reported and preserved rather than guessed or
+deleted. Add `--account-id=ACCOUNT_ID` to limit review or apply scope, and rerun
+the dry-run after applying to confirm that no additional records or links remain.
 
 `migrate:tenant-data` is dry-run by default and logs counts and retired field
 names only. The apply command is intentionally limited to environments where

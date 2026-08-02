@@ -32,6 +32,8 @@ import {
 	PropertySupplyType,
 } from '../../types/Supply.types';
 import { RoleCapabilities } from '../../utils/permissions';
+import { usePropertyMemoryRecords } from '../../propertyKnowledge/usePropertyMemoryRecords';
+import { documentIsLinkedToEndpoint } from '../../utils/propertyDocumentRelationships';
 import {
 	buildPropertySupplyDraftFromBarcode,
 	findPropertySupplyByBarcode,
@@ -151,6 +153,7 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		{ accountId, propertyId: property.id },
 		{ skip: !accountId || !property.id },
 	);
+	const { documents: propertyDocuments } = usePropertyMemoryRecords(property);
 	const [createSupply, { isLoading: isCreating }] =
 		useCreatePropertySupplyMutation();
 	const [updateSupply, { isLoading: isUpdating }] =
@@ -212,7 +215,15 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		return (
 			linked.equipmentIds.length +
 			linked.spaceIds.length +
-			linked.taskIds.length
+			linked.taskIds.length +
+			propertyDocuments.filter((document) =>
+				documentIsLinkedToEndpoint(
+					document,
+					knowledgeLinks,
+					'supply',
+					supplyId,
+				),
+			).length
 		);
 	};
 
@@ -380,6 +391,16 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 	const selectedTasks = selectedConnections.taskIds
 		.map((id) => taskById.get(id))
 		.filter(Boolean);
+	const selectedDocuments = selectedSupply
+		? propertyDocuments.filter((document) =>
+				documentIsLinkedToEndpoint(
+					document,
+					knowledgeLinks,
+					'supply',
+					selectedSupply.id,
+				),
+		  )
+		: [];
 	const selectableSpaceOptions = spaces
 		.filter(
 			(space) => !space.isArchived || connections.spaceIds.includes(space.id),
@@ -902,6 +923,10 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 					<span>
 						{selectedTasks.length} task{selectedTasks.length === 1 ? '' : 's'}
 					</span>
+					<span>
+						{selectedDocuments.length} document
+						{selectedDocuments.length === 1 ? '' : 's'}
+					</span>
 				</SupplyConnectionSummary>
 				<h4>Equipment</h4>
 				{selectedEquipment.length > 0 ? (
@@ -965,6 +990,23 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 				) : (
 					<SupplyDetailEmpty>
 						No Tasks are connected to this Supply yet.
+					</SupplyDetailEmpty>
+				)}
+				<h4>Documents</h4>
+				{selectedDocuments.length > 0 ? (
+					<SupplyDetailList>
+						{selectedDocuments.map((document) => (
+							<SupplyDetailItem key={document.id}>
+								<div>
+									<strong>{document.fileName || document.name}</strong>
+									<span>{document.category || 'Document'}</span>
+								</div>
+							</SupplyDetailItem>
+						))}
+					</SupplyDetailList>
+				) : (
+					<SupplyDetailEmpty>
+						No documents are connected to this Supply yet.
 					</SupplyDetailEmpty>
 				)}
 			</GenericModal>

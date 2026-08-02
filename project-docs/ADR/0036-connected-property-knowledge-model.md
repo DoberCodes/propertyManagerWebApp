@@ -199,6 +199,16 @@ The implementation queries one indexed endpoint at a time and filters the
 constrained relationship type server-side, so this first phase does not require
 a composite index.
 
+Document relationships are also implemented through the canonical
+`documents` relationship. A Document is always the `from` endpoint and may
+document Equipment, a Space, a Task, or a Supply within the same Property.
+Account managers replace these accepted connections through a trusted callable;
+direct client writes to relationship records remain denied. The callable
+validates every endpoint and mirrors the accepted IDs into the first-class and
+embedded Document records for compatibility. Equipment, Task, Space, and Supply
+views derive their Document lists from canonical relationships while continuing
+to recognize legacy link arrays during migration.
+
 One Task may occur in several Spaces. Task creation and editing expose an
 optional multi-select. The singular free-text `location` field is deprecated
 and no longer appears in the current Task experience or receives new manual
@@ -357,6 +367,17 @@ One document may relate to several records. For example, a service report may
 document the property visit, two equipment items, a completed Maintenance Event,
 and a recommended task without being duplicated into four separate owners.
 
+The first implemented Document relationship endpoints are Equipment, Space,
+Task, and Supply. Maintenance Event relationships remain reserved until the
+completion-history migration defines their authoritative endpoint. Existing
+maintenance-event, contractor, warranty, and legacy part references are
+preserved but are not promoted automatically by this phase.
+
+Document editing uses progressive multi-select controls for the supported
+endpoints. Contextual upload and accepted Property Memory changes may create an
+explicit canonical connection. Inferred connections still require review and
+are never accepted silently.
+
 ## Principles
 
 ### Property owns knowledge
@@ -456,7 +477,7 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Implement permission rules and trusted Equipment-to-Space relationship writes.
 - [x] Approve and implement the canonical Task-to-Space relationship contract.
 - [x] Preserve Task-to-Space relationships across recurring Task generation and deletion.
-- [ ] Add compatibility adapters and migration validation for existing locations and document links.
+- [x] Add compatibility adapters and migration validation for existing locations and document links.
 - [x] Add the first progressive Space management experience to Property Details.
 - [x] Add the first progressive Equipment-to-Space linking and correction experience.
 - [x] Add progressive Task-to-Space linking and Space task context.
@@ -467,6 +488,9 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Promote Supplies to a first-class Property page and move barcode capture to the canonical Supply workflow.
 - [x] Replace Equipment-owned Supply writes with derived connected-Supply views.
 - [x] Add a dry-run-first, repeat-safe migration for embedded Equipment service items.
+- [x] Add canonical Document-to-Equipment, Space, Task, and Supply relationships.
+- [x] Add progressive Document connection editing and derived contextual views.
+- [x] Add a dry-run-first, repeat-safe Document relationship migration with unresolved-reference reporting.
 - [ ] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
 

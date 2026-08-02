@@ -356,12 +356,20 @@ Typical fields:
 
 * assetIds
 * taskIds
+* spaceIds
+* supplyIds
 * maintenanceEventIds, reserved for future maintenance-event migration
 * contractorIds, reserved for future contractor document links
 * warrantyIds, reserved for future warranty document links
-* partIds, reserved for future part document links
+* partIds, legacy part or Supply compatibility reference
 
 Legacy fields such as `name`, `url`, `category`, `assignedDeviceId`, `assignedTaskId`, and `assignedTaskStatus` may remain during migration for backwards compatibility.
+
+Accepted Equipment, Space, Task, and Supply connections are stored as canonical
+Document `documents` relationships in `propertyKnowledgeLinks`. The embedded
+arrays and singular assignment fields remain compatibility mirrors while older
+records are backfilled. Contextual screens derive their Document lists from the
+canonical relationships and merge legacy references as a fallback.
 
 These documents support long-term property recordkeeping and Property Knowledge Acquisition.
 
@@ -456,17 +464,20 @@ should not become user-facing Property Documents.
 
 Maintley does not automatically update property, system, task, maintenance history, part, contractor, or warranty records from uploaded documents.
 
-Upload context should not create permanent ownership by itself. A document
-uploaded from an equipment, system, task, or completion workflow is still a
-property document. The acquisition and review workflow may later add links to
-the records the document supports after the user accepts the suggested changes.
+Upload context does not create separate ownership. A document uploaded from an
+Equipment, Task, or completion workflow is still a Property Document. An
+explicit contextual upload may create a supporting canonical relationship so
+the file remains visible in that workflow. Additional inferred relationships
+must be accepted through review before they become authoritative.
 
 Users must review suggested details before saving them to Property Memory.
 
 After user approval, applied suggestions may update source records such as
 property details, system details, contractor records, or maintenance history.
 Accepted part suggestions create or reuse Property-owned Supplies and connect
-them to Equipment through canonical relationships.
+them to Equipment through canonical relationships. The accepted source
+Document is also connected to the created or reused Supply and any accepted
+Equipment or Task records through the canonical Document relationship writer.
 
 Applied suggestions should preserve provenance back to the source document, including sourceDocumentId, sourceDocumentType, extractionMethod, confidence when available, acceptedByUser, and acceptedAt.
 

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupTaskSpaceLinks = exports.cleanupEquipmentSpaceLinks = exports.restorePropertySupply = exports.removePropertySupply = exports.setSupplyLinks = exports.restorePropertySpace = exports.removePropertySpace = exports.setTaskSpaceLinks = exports.setEquipmentSpaceLinks = exports.buildPropertyKnowledgeLinkId = exports.normalizeKnowledgeEndpointIds = exports.normalizeSpaceIds = void 0;
+exports.cleanupDocumentLinks = exports.cleanupTaskSpaceLinks = exports.cleanupEquipmentSpaceLinks = exports.restorePropertySupply = exports.removePropertySupply = exports.setSupplyLinks = exports.setDocumentLinks = exports.restorePropertySpace = exports.removePropertySpace = exports.setTaskSpaceLinks = exports.setEquipmentSpaceLinks = exports.buildPropertyKnowledgeLinkId = exports.normalizeKnowledgeEndpointIds = exports.normalizeSpaceIds = void 0;
 const crypto_1 = require("crypto");
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
@@ -61,9 +61,11 @@ const EQUIPMENT_TYPE = 'equipment';
 const TASK_TYPE = 'task';
 const SPACE_TYPE = 'space';
 const SUPPLY_TYPE = 'supply';
+const DOCUMENT_TYPE = 'document';
 const LOCATED_IN = 'located_in';
 const OCCURS_IN = 'occurs_in';
 const USES = 'uses';
+const DOCUMENTS = 'documents';
 const cleanId = (value, label) => {
     const normalized = String(value || '').trim();
     if (!normalized || normalized.length > 180) {
@@ -102,6 +104,24 @@ const getOwnedProperty = async (propertyId) => {
         throw new functions.https.HttpsError('failed-precondition', 'This property is missing its account connection.');
     }
     return { accountId };
+};
+const hasLegacyDocumentReference = async ({ propertyId, linkField, endpointId, }) => {
+    const [propertySnapshot, documentSnapshot] = await Promise.all([
+        db.collection('properties').doc(propertyId).get(),
+        db
+            .collection('propertyDocuments')
+            .where('propertyId', '==', propertyId)
+            .get(),
+    ]);
+    const embeddedDocuments = Array.isArray(propertySnapshot.data()?.documents)
+        ? propertySnapshot.data()?.documents
+        : [];
+    return [
+        ...embeddedDocuments,
+        ...documentSnapshot.docs.map((document) => document.data()),
+    ].some((document) => (Array.isArray(document?.links?.[linkField])
+        ? document.links[linkField]
+        : []).some((candidate) => String(candidate || '') === endpointId));
 };
 const syncSpaceLinks = async ({ accountId, propertyId, fromType, fromId, relationshipType, spaceIds, actorUid, }) => {
     const existingSnapshot = await db
@@ -251,13 +271,18 @@ exports.removePropertySpace = functions
         .collection('propertyKnowledgeLinks')
         .where('toId', '==', spaceId)
         .get();
-    const isReferenced = linksSnapshot.docs.some((candidate) => {
+    const hasCanonicalReference = linksSnapshot.docs.some((candidate) => {
         const link = candidate.data();
         return (String(link.accountId || '') === accountId &&
             String(link.propertyId || '') === String(space.propertyId || '') &&
             link.toType === SPACE_TYPE);
     });
-    if (isReferenced) {
+    const hasDocumentReference = await hasLegacyDocumentReference({
+        propertyId: String(space.propertyId || ''),
+        linkField: 'spaceIds',
+        endpointId: spaceId,
+    });
+    if (hasCanonicalReference || hasDocumentReference) {
         await spaceRef.update({
             isArchived: true,
             updatedAt: new Date().toISOString(),
@@ -310,6 +335,208 @@ const supplyEndpointMatchesProperty = ({ endpointType, endpoint, accountId, prop
     return (String(endpoint.accountId || endpoint.userId || '') === accountId &&
         String(endpoint.propertyId || '') === propertyId);
 };
+const getDocumentEndpointRef = (endpointType, endpointId) => {
+    if (endpointType === SUPPLY_TYPE) {
+        return db.collection('propertySupplies').doc(endpointId);
+    }
+    return getSupplyEndpointRef(endpointType, endpointId);
+};
+const documentEndpointMatchesProperty = ({ endpointType, endpoint, accountId, propertyId, }) => {
+    if (endpointType === SUPPLY_TYPE) {
+        return (String(endpoint.accountId || '') === accountId &&
+            String(endpoint.propertyId || '') === propertyId);
+    }
+    return supplyEndpointMatchesProperty({
+        endpointType,
+        endpoint,
+        accountId,
+        propertyId,
+    });
+};
+const withoutUndefined = (value) => {
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => withoutUndefined(item))
+            .filter((item) => item !== undefined);
+    }
+    if (value && typeof value === 'object') {
+        const prototype = Object.getPrototypeOf(value);
+        if (prototype && prototype !== Object.prototype)
+            return value;
+        return Object.fromEntries(Object.entries(value)
+            .filter(([, fieldValue]) => fieldValue !== undefined)
+            .map(([key, fieldValue]) => [key, withoutUndefined(fieldValue)]));
+    }
+    return value;
+};
+exports.setDocumentLinks = functions.region('us-central1').https.onCall(async (data, context) => {
+    if (!context.auth?.uid) {
+        throw new functions.https.HttpsError('unauthenticated', 'Sign in to update document connections.');
+    }
+    const propertyId = cleanId(data?.propertyId, 'Property');
+    const documentId = cleanId(data?.documentId, 'Document');
+    const endpointGroups = [
+        {
+            type: EQUIPMENT_TYPE,
+            ids: (0, exports.normalizeKnowledgeEndpointIds)(data?.equipmentIds),
+        },
+        { type: SPACE_TYPE, ids: (0, exports.normalizeKnowledgeEndpointIds)(data?.spaceIds) },
+        { type: TASK_TYPE, ids: (0, exports.normalizeKnowledgeEndpointIds)(data?.taskIds) },
+        { type: SUPPLY_TYPE, ids: (0, exports.normalizeKnowledgeEndpointIds)(data?.supplyIds) },
+    ];
+    if (endpointGroups.some((group) => group.ids.length > 100)) {
+        throw new functions.https.HttpsError('invalid-argument', 'A document can connect to up to 100 records of each type.');
+    }
+    const propertyRef = db.collection('properties').doc(propertyId);
+    const propertySnapshot = await propertyRef.get();
+    if (!propertySnapshot.exists) {
+        throw new functions.https.HttpsError('not-found', 'Property not found.');
+    }
+    const property = propertySnapshot.data() || {};
+    const accountId = String(property.accountId || '').trim();
+    if (!accountId) {
+        throw new functions.https.HttpsError('failed-precondition', 'This property is missing its account connection.');
+    }
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    const documentRef = db.collection('propertyDocuments').doc(documentId);
+    const documentSnapshot = await documentRef.get();
+    const embeddedDocuments = Array.isArray(property.documents)
+        ? property.documents
+        : [];
+    const embeddedDocument = embeddedDocuments.find((candidate) => String(candidate?.id || '') === documentId);
+    const document = documentSnapshot.exists
+        ? documentSnapshot.data() || {}
+        : embeddedDocument || {};
+    if ((!documentSnapshot.exists && !embeddedDocument) ||
+        (document.accountId && String(document.accountId) !== accountId) ||
+        (document.propertyId && String(document.propertyId) !== propertyId)) {
+        throw new functions.https.HttpsError('not-found', 'Document not found for this property.');
+    }
+    const desiredEndpoints = endpointGroups.flatMap((group) => group.ids.map((id) => ({ type: group.type, id })));
+    if (desiredEndpoints.length > 200) {
+        throw new functions.https.HttpsError('invalid-argument', 'A document can connect to up to 200 records total.');
+    }
+    const existingSnapshot = await db
+        .collection('propertyKnowledgeLinks')
+        .where('fromId', '==', documentId)
+        .get();
+    const existing = existingSnapshot.docs.filter((candidate) => {
+        const link = candidate.data();
+        return (String(link.accountId || '') === accountId &&
+            String(link.propertyId || '') === propertyId &&
+            link.fromType === DOCUMENT_TYPE &&
+            link.relationshipType === DOCUMENTS &&
+            [EQUIPMENT_TYPE, SPACE_TYPE, TASK_TYPE, SUPPLY_TYPE].includes(link.toType));
+    });
+    const existingByEndpoint = new Map(existing.map((candidate) => [
+        `${candidate.data().toType}|${candidate.data().toId}`,
+        candidate,
+    ]));
+    const endpointRefs = desiredEndpoints.map((endpoint) => getDocumentEndpointRef(endpoint.type, endpoint.id));
+    const endpointSnapshots = endpointRefs.length
+        ? await db.getAll(...endpointRefs)
+        : [];
+    for (let index = 0; index < endpointSnapshots.length; index += 1) {
+        const snapshot = endpointSnapshots[index];
+        const desired = desiredEndpoints[index];
+        const endpoint = snapshot.data() || {};
+        const existingKey = `${desired.type}|${desired.id}`;
+        if (!snapshot.exists ||
+            !documentEndpointMatchesProperty({
+                endpointType: desired.type,
+                endpoint,
+                accountId,
+                propertyId,
+            }) ||
+            ((desired.type === SPACE_TYPE || desired.type === SUPPLY_TYPE) &&
+                endpoint.isArchived === true &&
+                !existingByEndpoint.has(existingKey))) {
+            throw new functions.https.HttpsError('invalid-argument', 'One or more selected records are no longer available.');
+        }
+    }
+    const desiredKeys = new Set(desiredEndpoints.map((endpoint) => `${endpoint.type}|${endpoint.id}`));
+    const now = new Date().toISOString();
+    const batch = db.batch();
+    for (const candidate of existing) {
+        const key = `${candidate.data().toType}|${candidate.data().toId}`;
+        if (!desiredKeys.has(key))
+            batch.delete(candidate.ref);
+    }
+    for (const endpoint of desiredEndpoints) {
+        const key = `${endpoint.type}|${endpoint.id}`;
+        const current = existingByEndpoint.get(key);
+        const linkId = (0, exports.buildPropertyKnowledgeLinkId)({
+            propertyId,
+            fromType: DOCUMENT_TYPE,
+            fromId: documentId,
+            relationshipType: DOCUMENTS,
+            toType: endpoint.type,
+            toId: endpoint.id,
+        });
+        batch.set(db.collection('propertyKnowledgeLinks').doc(linkId), {
+            accountId,
+            propertyId,
+            fromType: DOCUMENT_TYPE,
+            fromId: documentId,
+            relationshipType: DOCUMENTS,
+            toType: endpoint.type,
+            toId: endpoint.id,
+            source: current?.data().source || 'manual',
+            createdAt: current?.data().createdAt || now,
+            createdBy: current?.data().createdBy || context.auth.uid,
+            updatedAt: now,
+            updatedBy: context.auth.uid,
+        });
+    }
+    const currentLinks = document.links || {};
+    const compatibilityLinks = {
+        ...currentLinks,
+        assetIds: endpointGroups.find((group) => group.type === EQUIPMENT_TYPE)?.ids || [],
+        spaceIds: endpointGroups.find((group) => group.type === SPACE_TYPE)?.ids || [],
+        taskIds: endpointGroups.find((group) => group.type === TASK_TYPE)?.ids || [],
+        supplyIds: endpointGroups.find((group) => group.type === SUPPLY_TYPE)?.ids || [],
+    };
+    const documentUpdates = {
+        links: compatibilityLinks,
+        assignedDeviceId: compatibilityLinks.assetIds[0],
+        assignedTaskId: compatibilityLinks.taskIds[0],
+        updatedAt: now,
+    };
+    if (!documentUpdates.assignedDeviceId)
+        delete documentUpdates.assignedDeviceId;
+    if (!documentUpdates.assignedTaskId)
+        delete documentUpdates.assignedTaskId;
+    const collectionDocumentUpdates = {
+        ...documentUpdates,
+        assignedDeviceId: compatibilityLinks.assetIds[0] || admin.firestore.FieldValue.delete(),
+        assignedTaskId: compatibilityLinks.taskIds[0] || admin.firestore.FieldValue.delete(),
+    };
+    batch.set(documentRef, withoutUndefined({
+        ...document,
+        ...collectionDocumentUpdates,
+        id: documentId,
+        accountId,
+        propertyId,
+    }), { merge: true });
+    if (embeddedDocument) {
+        const nextEmbeddedDocuments = embeddedDocuments.map((candidate) => {
+            if (String(candidate?.id || '') !== documentId)
+                return candidate;
+            const next = {
+                ...candidate,
+                ...documentUpdates,
+            };
+            if (!compatibilityLinks.assetIds.length)
+                delete next.assignedDeviceId;
+            if (!compatibilityLinks.taskIds.length)
+                delete next.assignedTaskId;
+            return next;
+        });
+        batch.update(propertyRef, { documents: nextEmbeddedDocuments });
+    }
+    await batch.commit();
+    return { success: true, linkCount: desiredEndpoints.length };
+});
 exports.setSupplyLinks = functions.region('us-central1').https.onCall(async (data, context) => {
     if (!context.auth?.uid) {
         throw new functions.https.HttpsError('unauthenticated', 'Sign in to update Supply connections.');
@@ -436,13 +663,27 @@ exports.removePropertySupply = functions
         .collection('propertyKnowledgeLinks')
         .where('toId', '==', supplyId)
         .get();
-    const isReferenced = linksSnapshot.docs.some((candidate) => {
+    const hasCanonicalReference = linksSnapshot.docs.some((candidate) => {
         const link = candidate.data();
         return (String(link.accountId || '') === accountId &&
             String(link.propertyId || '') === String(supply.propertyId || '') &&
             link.toType === SUPPLY_TYPE);
     });
-    if (isReferenced) {
+    const [hasSupplyDocumentReference, hasLegacyPartDocumentReference] = await Promise.all([
+        hasLegacyDocumentReference({
+            propertyId: String(supply.propertyId || ''),
+            linkField: 'supplyIds',
+            endpointId: supplyId,
+        }),
+        hasLegacyDocumentReference({
+            propertyId: String(supply.propertyId || ''),
+            linkField: 'partIds',
+            endpointId: supplyId,
+        }),
+    ]);
+    if (hasCanonicalReference ||
+        hasSupplyDocumentReference ||
+        hasLegacyPartDocumentReference) {
         await supplyRef.update({
             isArchived: true,
             updatedAt: new Date().toISOString(),
@@ -482,13 +723,26 @@ exports.cleanupEquipmentSpaceLinks = functions
     .region('us-central1')
     .firestore.document('devices/{equipmentId}')
     .onDelete(async (_snapshot, context) => {
-    const linksSnapshot = await db
-        .collection('propertyKnowledgeLinks')
-        .where('fromId', '==', context.params.equipmentId)
-        .get();
-    const matchingLinks = linksSnapshot.docs.filter((candidate) => {
+    const [fromSnapshot, toSnapshot] = await Promise.all([
+        db
+            .collection('propertyKnowledgeLinks')
+            .where('fromId', '==', context.params.equipmentId)
+            .get(),
+        db
+            .collection('propertyKnowledgeLinks')
+            .where('toId', '==', context.params.equipmentId)
+            .get(),
+    ]);
+    const candidates = new Map([...fromSnapshot.docs, ...toSnapshot.docs].map((candidate) => [
+        candidate.id,
+        candidate,
+    ]));
+    const matchingLinks = Array.from(candidates.values()).filter((candidate) => {
         const link = candidate.data();
-        return link.fromType === EQUIPMENT_TYPE;
+        return ((link.fromType === EQUIPMENT_TYPE &&
+            String(link.fromId || '') === context.params.equipmentId) ||
+            (link.toType === EQUIPMENT_TYPE &&
+                String(link.toId || '') === context.params.equipmentId));
     });
     if (matchingLinks.length === 0)
         return null;
@@ -501,13 +755,46 @@ exports.cleanupTaskSpaceLinks = functions
     .region('us-central1')
     .firestore.document('tasks/{taskId}')
     .onDelete(async (_snapshot, context) => {
+    const [fromSnapshot, toSnapshot] = await Promise.all([
+        db
+            .collection('propertyKnowledgeLinks')
+            .where('fromId', '==', context.params.taskId)
+            .get(),
+        db
+            .collection('propertyKnowledgeLinks')
+            .where('toId', '==', context.params.taskId)
+            .get(),
+    ]);
+    const candidates = new Map([...fromSnapshot.docs, ...toSnapshot.docs].map((candidate) => [
+        candidate.id,
+        candidate,
+    ]));
+    const matchingLinks = Array.from(candidates.values()).filter((candidate) => {
+        const link = candidate.data();
+        return ((link.fromType === TASK_TYPE &&
+            String(link.fromId || '') === context.params.taskId) ||
+            (link.toType === TASK_TYPE &&
+                String(link.toId || '') === context.params.taskId));
+    });
+    if (matchingLinks.length === 0)
+        return null;
+    const batch = db.batch();
+    matchingLinks.forEach((candidate) => batch.delete(candidate.ref));
+    await batch.commit();
+    return null;
+});
+exports.cleanupDocumentLinks = functions
+    .region('us-central1')
+    .firestore.document('propertyDocuments/{documentId}')
+    .onDelete(async (_snapshot, context) => {
     const linksSnapshot = await db
         .collection('propertyKnowledgeLinks')
-        .where('fromId', '==', context.params.taskId)
+        .where('fromId', '==', context.params.documentId)
         .get();
     const matchingLinks = linksSnapshot.docs.filter((candidate) => {
         const link = candidate.data();
-        return link.fromType === TASK_TYPE;
+        return (link.fromType === DOCUMENT_TYPE &&
+            String(link.fromId || '') === context.params.documentId);
     });
     if (matchingLinks.length === 0)
         return null;

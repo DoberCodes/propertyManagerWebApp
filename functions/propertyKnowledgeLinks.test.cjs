@@ -57,4 +57,15 @@ test('builds a stable relationship ID from both endpoints', () => {
 			toId: 'supply-1',
 		}),
 	);
+	assert.notEqual(
+		first,
+		buildPropertyKnowledgeLinkId({
+			...input,
+			fromType: 'document',
+			fromId: 'document-1',
+			relationshipType: 'documents',
+			toType: 'equipment',
+			toId: 'equipment-1',
+		}),
+	);
 });

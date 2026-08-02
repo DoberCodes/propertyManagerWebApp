@@ -127,11 +127,13 @@ export { personalAssistantApi } from './personalAssistantApi';
 export {
 	cleanupEquipmentSpaceLinks,
 	cleanupTaskSpaceLinks,
+	cleanupDocumentLinks,
 	removePropertySpace,
 	restorePropertySpace,
 	removePropertySupply,
 	restorePropertySupply,
 	setSupplyLinks,
+	setDocumentLinks,
 	setEquipmentSpaceLinks,
 	setTaskSpaceLinks,
 } from './propertyKnowledgeLinks';

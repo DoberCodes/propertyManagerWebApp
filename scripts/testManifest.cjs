@@ -13,6 +13,7 @@ const rootScriptTests = [
 	'maintenanceHistoryWriteContainment.test.cjs',
 	'organizeLocalEnvironment.test.cjs',
 	'productionIdentityPolicy.test.cjs',
+	'propertyDocumentRelationshipMigrationCore.test.cjs',
 	'propertySupplyMigrationCore.test.cjs',
 	'propertyTaxonomyMigrationCore.test.cjs',
 	'releaseFinalizationPolicy.test.cjs',

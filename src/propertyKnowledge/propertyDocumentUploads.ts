@@ -77,6 +77,8 @@ export const applyPropertyDocumentUploadContext = (
 	const links: PropertyDocumentLinks = {
 		assetIds: uniqueIds(context.assetIds),
 		taskIds: uniqueIds(context.taskIds),
+		spaceIds: uniqueIds(context.spaceIds),
+		supplyIds: uniqueIds(context.supplyIds),
 		maintenanceEventIds: uniqueIds(context.maintenanceEventIds),
 		contractorIds: uniqueIds(context.contractorIds),
 		warrantyIds: uniqueIds(context.warrantyIds),

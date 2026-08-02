@@ -71,6 +71,8 @@ import {
 } from '../../utils/financialUtils';
 import { uploadDeviceFile } from '../../utils/deviceFileUpload';
 import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
+import { usePropertyMemoryRecords } from '../../propertyKnowledge/usePropertyMemoryRecords';
+import { documentIsLinkedToEndpoint } from '../../utils/propertyDocumentRelationships';
 import { COLORS } from '../../constants/colors';
 import {
 	buildDeviceSlug,
@@ -93,7 +95,6 @@ import { getPropertySupplyTypeLabel } from '../../utils/propertySupplies';
 import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
 import {
 	DeviceServiceItem,
-	PropertyDocument,
 	PropertyDocumentCategory,
 } from '../../types/Property.types';
 import {
@@ -446,6 +447,7 @@ export const DeviceDetailPage: React.FC = () => {
 		() => properties.find((item: any) => item.slug === slug),
 		[properties, slug],
 	);
+	const { documents: propertyDocuments } = usePropertyMemoryRecords(property);
 	const applianceProfileSource = searchParams.get('from')?.toLowerCase() || '';
 	const cameFromDevicesHub = ['devices', 'appliances', 'appliance-hub'].includes(
 		applianceProfileSource,
@@ -808,20 +810,16 @@ export const DeviceDetailPage: React.FC = () => {
 			}
 		});
 
-		const propertyDocuments = Array.isArray((property as any)?.documents)
-			? ((property as any).documents as PropertyDocument[])
-			: [];
 		propertyDocuments.forEach((document) => {
-			const linkedDeviceIds = [
-				document.assignedDeviceId,
-				...(document.links?.assetIds || []),
-			].filter(Boolean);
 			const documentName = document.fileName || document.name;
 			const documentUrl = document.fileUrl || document.url;
 			if (
 				!documentName ||
-				!linkedDeviceIds.some(
-					(linkedDeviceId) => String(linkedDeviceId) === String(device?.id || ''),
+				!documentIsLinkedToEndpoint(
+					document,
+					propertyKnowledgeLinks,
+					'equipment',
+					String(device?.id || ''),
 				)
 			) {
 				return;
@@ -874,7 +872,13 @@ export const DeviceDetailPage: React.FC = () => {
 			const bTime = getDisplayDateTime(b.date);
 			return bTime - aTime;
 		});
-	}, [device?.id, deviceDocumentFiles, property, relatedMaintenanceHistory]);
+	}, [
+		device?.id,
+		deviceDocumentFiles,
+		propertyDocuments,
+		propertyKnowledgeLinks,
+		relatedMaintenanceHistory,
+	]);
 
 	const documentCount = useMemo(
 		() => applianceAssignedDocumentEntries.length,
