@@ -18,6 +18,10 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const {
+	parseConventionalTitle,
+	resolveReleaseClassification,
+} = require('./releaseClassification.cjs');
 
 const ENGINEERING_CATEGORY_ORDER = [
 	'breaking',
@@ -42,7 +46,7 @@ const ENGINEERING_CATEGORY_TITLES = {
 const CUSTOMER_CATEGORY_ORDER = ['whatsNew', 'improvements', 'fixes'];
 
 const CUSTOMER_CATEGORY_TITLES = {
-	whatsNew: "What's New",
+	whatsNew: 'New Features',
 	improvements: 'Improvements',
 	fixes: 'Fixes',
 };
@@ -740,10 +744,26 @@ const inferCustomerCategory = ({ title, labels, files, body, engineeringCategory
 	const fileText = files.join('\n').toLowerCase();
 
 	if (
-		hasLabel(labels, [/no[- ]?release[- ]?note/, /internal/, /dependencies?/, /chore/]) ||
+		hasLabel(labels, [
+			/no[- ]?release[- ]?note/,
+			/internal/,
+			/dependencies?/,
+			/chore/,
+			/^release:none$/,
+			/^release-none$/,
+		]) ||
 		(/^chore(?:\(.+?\))?:/i.test(title) && !extractReleaseNote(body))
 	) {
 		return '';
+	}
+	if (hasLabel(labels, [/^feature$/, /^highlight$/, /^release:feature$/])) {
+		return 'whatsNew';
+	}
+	if (hasLabel(labels, [/^release:improvement$/])) return 'improvements';
+
+	const releaseClassification = resolveReleaseClassification({ title, body });
+	if (releaseClassification) {
+		return releaseClassification.customerCategory;
 	}
 
 	if (engineeringCategory === 'breaking' || engineeringCategory === 'highlights') {
@@ -800,6 +820,11 @@ const categorize = ({ title, labels, files, body }) => {
 	const text = `${title}\n${body || ''}`.toLowerCase();
 	const labelText = labels.join(' ');
 	const fileText = files.join('\n').toLowerCase();
+	const releaseClassification = resolveReleaseClassification({ title, body });
+
+	if (releaseClassification?.breaking) return 'breaking';
+	if (releaseClassification?.type === 'feat') return 'highlights';
+	if (releaseClassification?.type === 'fix') return 'fixes';
 
 	if (
 		/breaking change|breaking:/i.test(text) ||
@@ -811,6 +836,10 @@ const categorize = ({ title, labels, files, body }) => {
 
 	if (hasAny(labels, [/bug/, /fix/]) || /^fix(?:\(.+?\))?:/i.test(title)) {
 		return 'fixes';
+	}
+
+	if (hasAny(labels, [/^feature$/, /^highlight$/, /^release:feature$/])) {
+		return 'highlights';
 	}
 
 	if (
@@ -850,6 +879,18 @@ const categorize = ({ title, labels, files, body }) => {
 
 const inferBump = ({ title, labels, body }) => {
 	const text = `${title}\n${body || ''}`.toLowerCase();
+	if (labels.some((label) => label === 'release:none' || label === 'release-none')) {
+		return 'none';
+	}
+	if (labels.some((label) => label === 'release:major' || label === 'release-major')) {
+		return 'major';
+	}
+	if (labels.some((label) => label === 'release:minor' || label === 'release-minor')) {
+		return 'minor';
+	}
+	if (labels.some((label) => label === 'release:patch' || label === 'release-patch')) {
+		return 'patch';
+	}
 	if (
 		/breaking change|breaking:/.test(text) ||
 		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
@@ -857,6 +898,8 @@ const inferBump = ({ title, labels, body }) => {
 	) {
 		return 'major';
 	}
+	const releaseClassification = resolveReleaseClassification({ title, body });
+	if (releaseClassification) return releaseClassification.bump;
 	if (
 		labels.some((label) => /feature|enhancement|highlight/.test(label)) ||
 		/^feat(?:\(.+?\))?:/i.test(title) ||
@@ -898,7 +941,7 @@ const formatCustomerEntry = (entry) => `- ${entry.customerSummary || entry.title
 
 const formatCustomerReleaseNotes = ({ version, entries }) => {
 	const customerEntries = entries.filter((entry) => entry.customerCategory);
-	const lines = [`# Maintley v${version}`, '', 'Here is what improved in this release.', ''];
+	const lines = [`# Maintley v${version}`, '', "Here is what's new in this release.", ''];
 
 	if (customerEntries.length === 0) {
 		lines.push(
@@ -1092,7 +1135,12 @@ if (require.main === module) {
 }
 
 module.exports = {
+	categorize,
+	formatCustomerReleaseNotes,
 	getReleasePrepVersionFromSubject,
+	inferBump,
+	inferCustomerCategory,
+	parseConventionalTitle,
 	selectMergedReleaseBoundary,
 	selectAutomaticReleaseVersion,
 };

@@ -233,6 +233,14 @@ tag when there is no newer merged release. It enriches merged PRs with GitHub
 CLI metadata when available, writes customer-facing release notes, and can write
 engineering notes plus structured metadata.
 
+The generator uses Conventional Commit PR-title prefixes as its release-impact
+contract. `feat:` creates a minor New Features entry, `fix:` creates a patch Fixes
+entry, `perf:` creates a patch Improvements entry, and `feat!:` creates a major
+breaking-feature entry. Internal prefixes are omitted from customer notes by
+default. `scripts/releaseClassification.cjs` shares this mapping with the
+protected PR-summary workflow so title normalization, summaries, notes, and
+version selection cannot classify the same PR differently.
+
 When `package.json` is already ahead of the latest `v*` tag, the generator treats
 that package version as the prepared release version instead of bumping again.
 This allows the automated release-prep PR to own version file changes without

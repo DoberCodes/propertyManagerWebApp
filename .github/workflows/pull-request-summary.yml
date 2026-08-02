@@ -9,6 +9,7 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+      - edited
 
 concurrency:
   group: pr-summary-${{ github.event.pull_request.number }}
@@ -54,7 +55,11 @@ jobs:
               pull_number,
               per_page: 100,
             });
-            fs.writeFileSync('pr-summary-metadata.json', JSON.stringify({ files, commits }));
+            fs.writeFileSync('pr-summary-metadata.json', JSON.stringify({
+              files,
+              commits,
+              title: context.payload.pull_request.title || '',
+            }));
             fs.writeFileSync('pr-summary-body.md', context.payload.pull_request.body || '');
 
       - name: Generate protected summary block
@@ -63,6 +68,7 @@ jobs:
           --metadata pr-summary-metadata.json
           --body pr-summary-body.md
           --output pr-summary-updated.md
+          --title-output pr-summary-title.txt
 
       - name: Update pull request body
         uses: actions/github-script@v8
@@ -70,9 +76,11 @@ jobs:
           script: |
             const fs = require('fs');
             const body = fs.readFileSync('pr-summary-updated.md', 'utf8');
+            const title = fs.readFileSync('pr-summary-title.txt', 'utf8').trim();
             await github.rest.pulls.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
+              title,
               body,
             });
