@@ -1400,6 +1400,19 @@ New scripts should:
 * Clearly communicate risk
 * Support dry-run modes when practical
 
+GitHub Actions and test coverage policy is validated with:
+
+```bash
+yarn test:scripts:ci
+yarn --cwd functions test:ci
+yarn validate:workflows
+```
+
+`scripts/testManifest.cjs` is authoritative for top-level Node test coverage.
+`scripts/workflowChangeClassification.cjs` provides deterministic changed-file
+classification, and `scripts/validateWorkflowPolicy.cjs` rejects missing
+permissions, timeouts, invalid workflow YAML, and suppressed CI warnings.
+
 Preferred naming:
 
 ```text

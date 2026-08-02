@@ -9,6 +9,9 @@ on:
       - reopened
       - synchronize
 
+permissions:
+  contents: read
+
 concurrency:
   group: firebase-preview-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -18,6 +21,7 @@ jobs:
     name: Build development preview
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     environment: development
     permissions:
       contents: read
@@ -55,7 +59,7 @@ jobs:
 
       - name: Build Maintley Beta preview
         env:
-          CI: false
+          CI: true
           REACT_APP_FIREBASE_API_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_API_KEY }}
           REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.DEV_REACT_APP_FIREBASE_AUTH_DOMAIN }}
           REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
@@ -103,6 +107,7 @@ jobs:
       - build-preview
       - backend-readiness
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: development
     permissions:
       contents: read
@@ -202,6 +207,7 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     needs: build-preview
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: development
     permissions:
       contents: read

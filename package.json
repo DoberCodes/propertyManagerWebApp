@@ -60,7 +60,9 @@
 		"sync:android-icons": "node scripts/syncAndroidLauncherIcons.cjs",
 		"lint": "eslint src --ext .ts,.tsx",
 		"test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
-		"test:ci": "node ./node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --passWithNoTests && node --test scripts/syncAdrImplementationTrackers.test.cjs scripts/firebaseDeploymentSafety.test.cjs scripts/generatePullRequestSummary.test.cjs scripts/taskSpaceMigrationCore.test.cjs",
+		"test:ci": "node ./node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --passWithNoTests && yarn test:scripts:ci",
+		"test:scripts:ci": "node scripts/runNodeTestManifest.cjs root",
+		"validate:workflows": "node scripts/validateWorkflowPolicy.cjs",
 		"analyze:bundle": "node scripts/reportBuildAssets.cjs",
 		"analyze:media": "node scripts/reportMediaAssets.cjs",
 		"check:asset-budgets": "node scripts/checkAssetBudgets.cjs",
@@ -216,6 +218,7 @@
 		"gh-pages": "^6.1.1",
 		"node-fetch": "^3.3.2",
 		"sharp": "^0.34.5",
-		"ts-node": "^10.9.2"
+		"ts-node": "^10.9.2",
+		"yaml": "^2.8.3"
 	}
 }

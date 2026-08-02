@@ -10,10 +10,51 @@ on:
       - beta
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: build-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    name: Classify changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.classify.outputs.backend }}
+      ci: ${{ steps.classify.outputs.ci }}
+      documentation_only: ${{ steps.classify.outputs.documentation_only }}
+      e2e: ${{ steps.classify.outputs.e2e }}
+      frontend: ${{ steps.classify.outputs.frontend }}
+      release_only: ${{ steps.classify.outputs.release_only }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve changed files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+            git ls-files > changed-files.txt
+          else
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
+          fi
+
+      - name: Classify workflow coverage
+        id: classify
+        run: node scripts/workflowChangeClassification.cjs --input changed-files.txt
+
   entitlement-package-version:
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'release/next')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -39,6 +80,7 @@ jobs:
   version-validate:
     if: (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'release/next') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'release/next')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -60,6 +102,7 @@ jobs:
 
   unit-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -75,6 +118,15 @@ jobs:
 
       - name: Validate GitHub Pages deployment freeze
         run: yarn validate:deployment-freeze
+
+      - name: Lint application source
+        run: yarn lint
+
+      - name: TypeScript typecheck
+        run: yarn tsc --noEmit
+
+      - name: Validate GitHub Actions policy
+        run: yarn validate:workflows
 
       - name: Unit tests
         run: yarn test:ci
@@ -99,7 +151,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    environment: production
+    timeout-minutes: 20
+    environment: ${{ github.event_name == 'pull_request' && github.base_ref == 'beta' && 'development' || 'production' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -115,34 +168,34 @@ jobs:
 
       - name: Build
         env:
-          CI: false
-          REACT_APP_FIREBASE_API_KEY: ${{ vars.PROD_REACT_APP_FIREBASE_API_KEY }}
-          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.PROD_REACT_APP_FIREBASE_AUTH_DOMAIN }}
-          REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
-          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ vars.PROD_REACT_APP_FIREBASE_STORAGE_BUCKET }}
-          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.PROD_REACT_APP_FIREBASE_MESSAGING_SENDER_ID }}
-          REACT_APP_FIREBASE_APP_ID: ${{ vars.PROD_REACT_APP_FIREBASE_APP_ID }}
-          REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_MEASUREMENT_ID }}
-          REACT_APP_ENABLE_ANALYTICS: ${{ vars.PROD_REACT_APP_ENABLE_ANALYTICS }}
-          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ vars.PROD_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY }}
-          REACT_APP_STRIPE_PUBLIC_KEY: ${{ vars.PROD_REACT_APP_STRIPE_PUBLIC_KEY }}
-          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars.PROD_REACT_APP_STRIPE_CUSTOMER_PORTAL_URL }}
-          REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID }}
-          REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID }}
-          REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID }}
-          REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID }}
-          REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID }}
-          REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ vars.PROD_REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID }}
-          REACT_APP_WEATHER_API_KEY: ${{ vars.PROD_REACT_APP_WEATHER_API_KEY }}
-          REACT_APP_PUBLIC_WEB_URL: ${{ vars.PROD_REACT_APP_PUBLIC_WEB_URL }}
-          REACT_APP_PLAY_STORE_URL: ${{ vars.PROD_REACT_APP_PLAY_STORE_URL }}
-          REACT_APP_ANALYTICS_DEBUG: ${{ vars.PROD_REACT_APP_ANALYTICS_DEBUG || 'false' }}
-          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars.PROD_REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL || 'false' }}
-          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars.PROD_REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES || 'false' }}
-          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars.PROD_REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES || 'false' }}
-          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars.PROD_REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA || 'false' }}
+          CI: true
+          REACT_APP_FIREBASE_API_KEY: ${{ vars[format('{0}_REACT_APP_FIREBASE_API_KEY', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars[format('{0}_REACT_APP_FIREBASE_AUTH_DOMAIN', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_FIREBASE_PROJECT_ID: ${{ vars[format('{0}_REACT_APP_FIREBASE_PROJECT_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_FIREBASE_STORAGE_BUCKET: ${{ vars[format('{0}_REACT_APP_FIREBASE_STORAGE_BUCKET', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${{ vars[format('{0}_REACT_APP_FIREBASE_MESSAGING_SENDER_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_FIREBASE_APP_ID: ${{ vars[format('{0}_REACT_APP_FIREBASE_APP_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ vars[format('{0}_REACT_APP_FIREBASE_MEASUREMENT_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_ENABLE_ANALYTICS: ${{ vars[format('{0}_REACT_APP_ENABLE_ANALYTICS', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY: ${{ vars[format('{0}_REACT_APP_FIREBASE_WEB_PUSH_VAPID_KEY', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_STRIPE_PUBLIC_KEY: ${{ vars[format('{0}_REACT_APP_STRIPE_PUBLIC_KEY', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_STRIPE_CUSTOMER_PORTAL_URL: ${{ vars[format('{0}_REACT_APP_STRIPE_CUSTOMER_PORTAL_URL', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: ${{ vars[format('{0}_REACT_APP_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID: ${{ vars[format('{0}_REACT_APP_STRIPE_HOMEOWNER_PLUS_ANNUAL_PRICE_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID: ${{ vars[format('{0}_REACT_APP_STRIPE_PROPERTY_MONTHLY_PRICE_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID: ${{ vars[format('{0}_REACT_APP_STRIPE_PROPERTY_ANNUAL_PRICE_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID: ${{ vars[format('{0}_REACT_APP_STRIPE_PORTFOLIO_MONTHLY_PRICE_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID: ${{ vars[format('{0}_REACT_APP_STRIPE_PORTFOLIO_ANNUAL_PRICE_ID', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_WEATHER_API_KEY: ${{ vars[format('{0}_REACT_APP_WEATHER_API_KEY', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_PUBLIC_WEB_URL: ${{ vars[format('{0}_REACT_APP_PUBLIC_WEB_URL', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_PLAY_STORE_URL: ${{ vars[format('{0}_REACT_APP_PLAY_STORE_URL', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] }}
+          REACT_APP_ANALYTICS_DEBUG: ${{ vars[format('{0}_REACT_APP_ANALYTICS_DEBUG', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] || 'false' }}
+          REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL: ${{ vars[format('{0}_REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] || 'false' }}
+          REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE: ${{ vars[format('{0}_REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION: ${{ vars[format('{0}_REACT_APP_ENABLE_TRUSTED_SETUP_PLAN_ACTIVATION', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES: ${{ vars[format('{0}_REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] || 'false' }}
+          REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES: ${{ vars[format('{0}_REACT_APP_ENABLE_COMPLIMENTARY_ACCESS_CODES', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] || 'false' }}
+          REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA: ${{ vars[format('{0}_REACT_APP_ENABLE_TRUSTED_STORAGE_QUOTA', github.event_name == 'pull_request' && github.base_ref == 'beta' && 'DEV' || 'PROD')] || 'false' }}
         run: |
           yarn sync:public-pricing
           yarn build
@@ -152,6 +205,7 @@ jobs:
 
   functions-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -175,25 +229,8 @@ jobs:
       - name: Build functions
         run: yarn --cwd functions build
 
-      - name: DOCX service report acquisition tests
-        run: yarn --cwd functions test:docx-acquisition
-
-      - name: PDF document acquisition tests
-        run: yarn --cwd functions test:pdf-acquisition
-
-      - name: Document acquisition eligibility tests
-        run: yarn --cwd functions test:document-acquisition-eligibility
-      - name: Property setup activation tests
-        run: yarn --cwd functions test:setup-plan
-
-      - name: Recurring task entitlement tests
-        run: yarn --cwd functions test:recurring-task
-
-      - name: Manual occupancy continuity tests
-        run: yarn --cwd functions test:manual-occupancy
-
-      - name: Stripe billing disclosure tests
-        run: yarn --cwd functions test:billing-disclosure
+      - name: Functions unit and integration tests
+        run: yarn --cwd functions test:ci
 
       - name: Admin entitlement grant policy tests
         run: node scripts/testAdminEntitlementGrantPolicy.cjs
@@ -215,4 +252,67 @@ jobs:
 
       - name: Complimentary access code tests
         run: yarn test:access-codes
+
+  beta-pr-gate:
+    name: Beta PR Gate
+    if: always() && github.event_name == 'pull_request' && github.base_ref == 'beta'
+    needs:
+      - changes
+      - entitlement-package-version
+      - version-validate
+      - unit-test
+      - build
+      - functions-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify Beta validation results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          ENTITLEMENT_RESULT: ${{ needs.entitlement-package-version.result }}
+          VERSION_RESULT: ${{ needs.version-validate.result }}
+          UNIT_RESULT: ${{ needs.unit-test.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          FUNCTIONS_RESULT: ${{ needs.functions-build.result }}
+        shell: bash
+        run: |
+          test "$CHANGES_RESULT" = "success"
+          test "$ENTITLEMENT_RESULT" = "success"
+          test "$VERSION_RESULT" = "skipped"
+          test "$UNIT_RESULT" = "success"
+          test "$BUILD_RESULT" = "success"
+          test "$FUNCTIONS_RESULT" = "success"
+
+  release-gate:
+    name: Release Gate
+    if: >-
+      always() &&
+      ((github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'release/next') ||
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'release/next'))
+    needs:
+      - changes
+      - entitlement-package-version
+      - version-validate
+      - unit-test
+      - build
+      - functions-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify release validation results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          ENTITLEMENT_RESULT: ${{ needs.entitlement-package-version.result }}
+          VERSION_RESULT: ${{ needs.version-validate.result }}
+          UNIT_RESULT: ${{ needs.unit-test.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          FUNCTIONS_RESULT: ${{ needs.functions-build.result }}
+        shell: bash
+        run: |
+          test "$CHANGES_RESULT" = "success"
+          test "$ENTITLEMENT_RESULT" = "success"
+          test "$VERSION_RESULT" = "success"
+          test "$UNIT_RESULT" = "success"
+          test "$BUILD_RESULT" = "success"
+          test "$FUNCTIONS_RESULT" = "success"
 

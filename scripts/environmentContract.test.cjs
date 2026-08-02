@@ -28,7 +28,12 @@ test('requires metadata for every dotenv entry', () => {
 test('reports Maintley-owned runtime variables missing from the contract', () => {
 	const entries = [{ name: 'REACT_APP_KNOWN' }];
 	assert.deepEqual(
-		validateContractCoverage(entries, new Set(['REACT_APP_KNOWN', 'REACT_APP_NEW', 'NODE_ENV'])),
+		validateContractCoverage(entries, new Set([
+			'GITHUB_OUTPUT',
+			'NODE_ENV',
+			'REACT_APP_KNOWN',
+			'REACT_APP_NEW',
+		])),
 		['REACT_APP_NEW'],
 	);
 });

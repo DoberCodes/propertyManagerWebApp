@@ -566,12 +566,17 @@ Playwright provides workflow-level confidence.
 
 GitHub Actions:
 
-* Build Check runs `yarn test:ci`, `yarn test:rules`, `yarn test:storage`, `yarn build`,
-  `yarn check:asset-budgets`, and `yarn --cwd functions build` for normal PRs.
+* Build Check runs ESLint, a standalone TypeScript check, the complete root
+  script-test manifest, `yarn test:rules`, `yarn test:storage`, `yarn build`,
+  `yarn check:asset-budgets`, Functions compilation, and the complete Functions
+  test manifest.
 * PRs run `E2E Tests / smoke` against Chromium only.
-* The `release/next` PR skips E2E and runs version validation instead of the
-  full Build Check test/build jobs because it only updates release version
-  files.
+* The `release/next` candidate receives full Build Check coverage and version
+  validation because it promotes all accumulated Beta changes, even when its
+  visible diff contains only version files.
+* `Beta PR Gate` and `Release Gate` provide stable aggregate statuses while the
+  existing individual required checks remain in their canary period. See
+  [CI_RELEASE_GATES.md](CI_RELEASE_GATES.md).
 * Manual workflow dispatch can run `smoke`, `workflows`, or `full-safe`.
 * E2E requires dedicated `E2E_REACT_APP_FIREBASE_*` secrets and
   `E2E_DEMO_EMAIL` / `E2E_DEMO_PASSWORD`.

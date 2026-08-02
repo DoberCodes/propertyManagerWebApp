@@ -1206,10 +1206,17 @@ change and only while Beta remains an ancestor of Main.
 
 Feature pull requests targeting `beta` run the same required Build Check jobs
 as ordinary pull requests targeting `main`: entitlement-package policy, unit
-and rules tests, production build validation, and the Functions build. Release
-note previews also run for both targets and derive their comparison boundary
-from the pull request's actual base branch, so a feature PR reports only its
-changes against `beta` while a release PR is evaluated against `main`.
+and rules tests, environment-appropriate frontend build validation, and the
+Functions build. A Beta pull request compiles with the GitHub `development`
+environment; a release candidate compiles with `production`. Release-note
+previews also run for both targets and derive their comparison boundary from
+the pull request's actual base branch, so a feature PR reports only its changes
+against `beta` while a release PR is evaluated against `main`.
+
+`Beta PR Gate` and `Release Gate` are the permanent aggregate contexts being
+canaried before the branch rulesets stop depending on individual job names.
+See [CI_RELEASE_GATES.md](CI_RELEASE_GATES.md) for the current gate contract and
+safe ruleset rollout order.
 
 The current app version used by update notifications is derived from
 `package.json` through:
