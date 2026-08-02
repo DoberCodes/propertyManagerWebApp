@@ -217,34 +217,10 @@ jobs:
       - name: Checkout pull request
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - name: Use Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: '22'
-          cache: 'yarn'
-          cache-dependency-path: functions/yarn.lock
-
-      - name: Install Firebase tooling
-        run: yarn --cwd functions install --frozen-lockfile
-
-      - name: Authenticate to Maintley Beta
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+      - name: Verify Maintley Beta backend readiness
+        uses: ./.github/actions/verify-beta-backend-readiness
         with:
           project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
           workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
-
-      - name: Verify required Functions configuration and secrets
-        env:
-          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
-          MAINTLEY_GITHUB_VARIABLES_JSON: ${{ toJSON(vars) }}
-        run: |
-          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
-            echo "Refusing to validate backend readiness outside Maintley Beta."
-            exit 1
-          fi
-
-          node scripts/bootstrapEnvironment.cjs \
-            --environment development \
-            --strict \
-            --check-secrets
+          github_variables_json: ${{ toJSON(vars) }}

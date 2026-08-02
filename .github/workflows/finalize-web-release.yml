@@ -67,13 +67,6 @@ jobs:
           test "$(git rev-parse HEAD)" = "$DEPLOYED_SHA"
           git merge-base --is-ancestor "$DEPLOYED_SHA" origin/main
 
-      - name: Generate repository release notes
-        run: >
-          yarn release:notes
-          --output tmp/release-notes.customer.md
-          --engineering-output tmp/release-notes.engineering.md
-          --metadata-output tmp/release-notes.json
-
       - name: Read prepared version
         id: version
         shell: bash
@@ -83,6 +76,7 @@ jobs:
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Validate release commit identity
+        id: release-pr
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ inputs.deployed_sha }}
@@ -114,7 +108,33 @@ jobs:
             exit 1
           fi
 
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "Validated Release v$VERSION PR #$PR_NUMBER at $RELEASE_SHA."
+
+      - name: Generate immutable release metadata
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: >
+          yarn release:notes
+          --version "$VERSION"
+          --output tmp/release-notes.customer.md
+          --engineering-output tmp/release-notes.engineering.md
+          --metadata-output tmp/release-notes.json
+          --allow-empty
+
+      - name: Use approved customer release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.release-pr.outputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" --jq '.body' | \
+            node scripts/extractReleasePullRequestNotes.cjs \
+              --version "$VERSION" \
+              --output tmp/release-notes.customer.md \
+              --metadata-output tmp/release-notes.json
 
       - name: Resolve immutable release state
         id: release-state
@@ -165,6 +185,18 @@ jobs:
           gh release create "$TAG"
           --repo "${{ github.repository }}"
           --target "$DEPLOYED_SHA"
+          --title "Release v$VERSION"
+          --notes-file tmp/release-notes.customer.md
+
+      - name: Reconcile existing GitHub Release notes
+        if: steps.release-state.outputs.should_create == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: >
+          gh release edit "$TAG"
+          --repo "${{ github.repository }}"
           --title "Release v$VERSION"
           --notes-file tmp/release-notes.customer.md
 

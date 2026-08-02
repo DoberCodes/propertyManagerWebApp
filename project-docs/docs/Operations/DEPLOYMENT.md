@@ -551,13 +551,21 @@ would also reject the finalizer's direct reference fast-forward. Feature work
 still targets Beta through pull requests as the normal operating policy so it
 receives preview, review, and required-check coverage. Direct Beta updates are
 reserved for the guarded alignment workflow. Required checks remain enabled;
-force updates and branch deletion remain blocked.
+force updates and branch deletion remain blocked. Before release finalization
+updates Beta, the Main deployment workflow reports `Beta backend readiness` on
+the exact released commit using the GitHub `development` environment and the
+Maintley Beta read-only configuration check. Finalization depends on that job,
+so the incoming Main commit satisfies Beta's required readiness context without
+granting the workflow token a branch-protection bypass.
 
 `.github/workflows/align-beta-with-main.yml` provides an explicit Main-only
 alignment command for exceptional operational fixes that landed directly in
 Main. It applies the same ancestry checks and is not a substitute for the normal
-feature promotion path. GitHub's workflow token performs the reference update,
-so the alignment does not trigger a second Beta deployment or release-prep run.
+feature promotion path. It establishes `Beta backend readiness` on the current
+Main commit before GitHub's workflow token performs the reference update, so
+the update satisfies the same required check as normal release alignment. A
+workflow-token reference update does not trigger a second Beta deployment or
+release-prep run.
 
 An authenticated release-PR merge into `main` always deploys `hosting:prod`. Functions,
 Firestore rules, and Storage rules retain source-based target detection and are
@@ -571,6 +579,13 @@ check uses the default Firebase `web.app` hostname derived from the verified
 production project ID, so it validates the new deployment even while
 custom-domain DNS still points at a previous host. A failed route check blocks
 tag and GitHub Release creation.
+
+The release PR's marked `Customer release notes preview` is the approved source
+for the published GitHub Release body. Finalization validates that its heading
+matches the prepared package version, preserves separately generated engineering
+metadata, and creates or reconciles the GitHub Release only after deployment.
+This prevents the merge commit from being reclassified as a new patch release
+and keeps recovery reruns idempotent after the tag already exists.
 
 If a valid release merge passes its build but Hosting fails before deployment,
 the same workflow supports an explicit recovery dispatch. Set

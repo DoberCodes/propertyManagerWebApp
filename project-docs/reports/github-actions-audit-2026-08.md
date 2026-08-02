@@ -190,3 +190,25 @@ successfully deployed Beta SHA plus version files.
 Rulesets should be changed only after the corresponding new check has reported
 successfully on the target branch. Keep the prior required contexts during each
 canary period so a workflow naming change cannot silently reduce coverage.
+
+## Release finalization follow-up
+
+Release v2.13.0 exposed two remaining integration gaps after its production
+deployment and route smoke check succeeded:
+
+* The finalizer attempted to fast-forward Beta before `Beta backend readiness`
+  had reported on the released Main commit. The Beta ruleset correctly rejected
+  the update. Beta was subsequently fast-forwarded with verified ancestry and
+  no force update.
+* Finalization regenerated customer notes from the release merge commit. That
+  lost the approved feature entries and calculated a v2.13.1 heading for the
+  v2.13.0 GitHub Release. The published body was corrected to the approved
+  v2.13.0 PR preview without changing the tag or target commit.
+
+The follow-up implementation makes the readiness check a shared action used by
+Beta pull requests, Main release promotion, and exceptional Main-to-Beta
+alignment. Release finalization now depends on readiness success, extracts the
+marked customer-note preview from the validated release PR, verifies its
+prepared-version heading, and reconciles existing releases during recovery.
+Workflow policy validation now scans composite actions as well as workflow
+files for immutable external Action references.
