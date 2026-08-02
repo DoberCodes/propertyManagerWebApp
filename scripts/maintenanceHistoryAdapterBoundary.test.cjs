@@ -39,7 +39,7 @@ test('equipment, reporting, profile, dashboard, and Intelligence use the shared 
 		'src/pages/DashboardTab/DashboardTab.tsx',
 		'src/pages/UserProfile/UserProfile.tsx',
 		'src/pages/MaintenanceProfilePage/MaintenanceProfilePage.tsx',
-		'src/components/ReportBuilder/ReportBuilder.tsx',
+		'src/Components/ReportBuilder/ReportBuilder.tsx',
 		'src/reporting/reportDataAdapters.ts',
 		'src/intelligence/engine.ts',
 	]) {
