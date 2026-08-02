@@ -29,7 +29,9 @@ ref == refs/heads/main
 ```
 
 The GitHub `production` environment also uses a custom deployment-branch policy
-that allows only `main`.
+that allows `main` and `release/next`. Release candidates require production
+build variables, but the Google provider's independent `refs/heads/main`
+condition prevents them from receiving the production cloud identity.
 
 The service account currently has only:
 

@@ -124,8 +124,9 @@ Production identity verification is intentionally separate from deployment.
 metadata and enumerate the expected Hosting site, but it must not receive
 deployment roles or replace the active production credential until its Main
 canary passes and the role expansion is explicitly approved. Both the GitHub
-environment policy and Google provider claim condition restrict production
-identity issuance to Main.
+environment policy and Google provider claim condition constrain the path. The
+environment permits `release/next` to read production build variables, while
+the provider issues the production cloud identity only to Main.
 
 ## Ruleset rollout safety
 
