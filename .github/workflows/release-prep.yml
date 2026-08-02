@@ -128,7 +128,9 @@ jobs:
             echo ""
             echo "Customer release notes preview:"
             echo ""
+            echo "<!-- maintley-customer-release-notes:start -->"
             cat tmp/release-notes.customer.md
+            echo "<!-- maintley-customer-release-notes:end -->"
           } > tmp/release-prep-pr-body.md
 
           PR_NUMBER="$(gh pr list --base main --head "$BRANCH" --json number --jq '.[0].number // ""')"

@@ -4,7 +4,18 @@ const { parseDocument } = require('yaml');
 
 const repositoryRoot = path.resolve(__dirname, '..');
 const workflowDirectory = path.join(repositoryRoot, '.github', 'workflows');
+const actionDirectory = path.join(repositoryRoot, '.github', 'actions');
 const dependabotPath = path.join(repositoryRoot, '.github', 'dependabot.yml');
+
+const listYamlFiles = (directory) => {
+	if (!fs.existsSync(directory)) return [];
+
+	return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+		const entryPath = path.join(directory, entry.name);
+		if (entry.isDirectory()) return listYamlFiles(entryPath);
+		return /\.ya?ml$/i.test(entry.name) ? [entryPath] : [];
+	});
+};
 
 const parseYamlFile = (filePath, relativePath, issues) => {
 	const document = parseDocument(fs.readFileSync(filePath, 'utf8'));
@@ -104,6 +115,13 @@ const validateWorkflowPolicy = () => {
 		if (/\bCI:\s*false\b/.test(source)) {
 			issues.push(`${relativePath}: CI builds may not suppress warning failures with CI: false.`);
 		}
+	}
+
+	for (const actionPath of listYamlFiles(actionDirectory)) {
+		const relativePath = path.relative(repositoryRoot, actionPath).replace(/\\/g, '/');
+		const source = fs.readFileSync(actionPath, 'utf8');
+		parseYamlFile(actionPath, relativePath, issues);
+		validateActionReferences(source, relativePath, issues);
 	}
 
 	validateDependabotPolicy(issues);

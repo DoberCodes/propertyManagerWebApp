@@ -305,6 +305,30 @@ jobs:
     with:
       source_sha: ${{ github.sha }}
 
+  beta-backend-readiness:
+    name: Beta backend readiness
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: development
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_recovery_sha || github.sha }}
+
+      - name: Verify Maintley Beta backend readiness
+        uses: ./.github/actions/verify-beta-backend-readiness
+        with:
+          project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
+          github_variables_json: ${{ toJSON(vars) }}
+
   build-check:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
@@ -750,8 +774,8 @@ jobs:
 
   finalize-release:
     name: Publish deployed web release
-    if: needs.deploy.outputs.hosting_deployed == 'true'
-    needs: [build-check, deploy]
+    if: needs.deploy.outputs.hosting_deployed == 'true' && needs.beta-backend-readiness.result == 'success'
+    needs: [beta-backend-readiness, build-check, deploy]
     permissions:
       contents: write
       pull-requests: read

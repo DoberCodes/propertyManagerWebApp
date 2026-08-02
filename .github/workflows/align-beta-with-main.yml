@@ -7,9 +7,32 @@ permissions:
   contents: read
 
 jobs:
+  beta-backend-readiness:
+    name: Beta backend readiness
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: development
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Main
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Verify Maintley Beta backend readiness
+        uses: ./.github/actions/verify-beta-backend-readiness
+        with:
+          project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
+          github_variables_json: ${{ toJSON(vars) }}
+
   align-beta:
     name: Fast-forward Beta to Main
     if: github.ref_name == 'main'
+    needs: beta-backend-readiness
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

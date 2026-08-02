@@ -118,6 +118,16 @@ Production release finalization begins only after Firebase deploy succeeds and
 the default production Hosting origin serves the Maintley app shell on its
 public BrowserRouter routes. Tags and GitHub Releases therefore represent a
 verified deployed commit rather than only a successful upload command.
+Before the released Main commit is fast-forwarded into Beta, the deployment
+workflow also reports the required `Beta backend readiness` check on that exact
+commit. The finalizer depends on the successful readiness job rather than using
+a branch-protection bypass.
+
+Published customer notes come from the versioned preview approved in the
+release PR. Finalization verifies the preview heading, records that source in
+release metadata, and reconciles an existing GitHub Release during an
+idempotent recovery run. It does not infer a new version from the release merge
+commit.
 
 Production identity verification is intentionally separate from deployment.
 `.github/workflows/verify-production-deployment-identity.yml` may read project
