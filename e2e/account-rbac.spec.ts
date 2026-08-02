@@ -79,7 +79,14 @@ test.describe('Account RBAC write regression', () => {
 				.getByRole('button', { name: /create|save|add/i })
 				.last();
 			await submitPropertyButton.click();
-			await page.waitForTimeout(1600);
+			const propertyCreated = await page
+				.getByText(propertyName)
+				.first()
+				.isVisible({ timeout: 10000 })
+				.catch(() => false);
+			if (!propertyCreated) {
+				throw new Error('Property create did not produce a visible property record.');
+			}
 
 			await assertNoPermissionErrors(page, consoleErrors, 'Property create');
 		}
@@ -97,6 +104,7 @@ test.describe('Account RBAC write regression', () => {
 			.catch(() => false);
 		if (canCreateTask) {
 			attemptedCreateFlows += 1;
+			const taskTitle = `RBAC Task ${Date.now()}`;
 
 			await createTaskButton.click({ force: true });
 			await page.waitForTimeout(700);
@@ -106,7 +114,7 @@ test.describe('Account RBAC write regression', () => {
 					'input[name*="title" i], input[placeholder*="task title" i], input[placeholder*="title" i]',
 				)
 				.first();
-			await titleInput.fill(`RBAC Task ${Date.now()}`);
+			await titleInput.fill(taskTitle);
 
 			const descriptionInput = page
 				.locator(
@@ -136,13 +144,18 @@ test.describe('Account RBAC write regression', () => {
 				.getByRole('button', { name: /create|save|add/i })
 				.last();
 			await submitTaskButton.click();
-			await page.waitForTimeout(1600);
+			const taskCreated = await page
+				.getByText(taskTitle)
+				.first()
+				.isVisible({ timeout: 10000 })
+				.catch(() => false);
+			if (!taskCreated) {
+				throw new Error('Task create did not produce a visible task record.');
+			}
 
 			await assertNoPermissionErrors(page, consoleErrors, 'Task create');
 		}
 
-		if (attemptedCreateFlows === 0) {
-			return;
-		}
+		expect(attemptedCreateFlows).toBeGreaterThan(0);
 	});
 });

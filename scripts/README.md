@@ -153,6 +153,9 @@ yarn cleanup:test-data
 yarn migrate:property-memberships
 yarn migrate:property-memberships:apply
 
+yarn migrate:task-locations-to-spaces -- --confirm-project=PROJECT_ID
+yarn migrate:task-locations-to-spaces:apply -- --confirm-project=PROJECT_ID
+
 yarn migrate:maintenance-events
 yarn migrate:maintenance-events:apply
 
@@ -174,6 +177,12 @@ yarn cleanup:shared-properties:apply
 yarn migrate:tenant-data
 yarn migrate:tenant-data:apply
 ```
+
+The Task-location migration is dry-run first and only creates a relationship
+for a unique, exact normalized match to an active Space within the same account
+and Property. It preserves the original Task field and skips ambiguous,
+unmatched, archived, and cross-boundary candidates. Add
+`--account-id=ACCOUNT_ID` to limit review or apply scope.
 
 `migrate:tenant-data` is dry-run by default and logs counts and retired field
 names only. The apply command is intentionally limited to environments where
@@ -223,6 +232,14 @@ merged `Release v...` commit after the latest `v*` tag as its boundary, or the
 tag when there is no newer merged release. It enriches merged PRs with GitHub
 CLI metadata when available, writes customer-facing release notes, and can write
 engineering notes plus structured metadata.
+
+The generator uses Conventional Commit PR-title prefixes as its release-impact
+contract. `feat:` creates a minor New Features entry, `fix:` creates a patch Fixes
+entry, `perf:` creates a patch Improvements entry, and `feat!:` creates a major
+breaking-feature entry. Internal prefixes are omitted from customer notes by
+default. `scripts/releaseClassification.cjs` shares this mapping with the
+protected PR-summary workflow so title normalization, summaries, notes, and
+version selection cannot classify the same PR differently.
 
 When `package.json` is already ahead of the latest `v*` tag, the generator treats
 that package version as the prepared release version instead of bumping again.

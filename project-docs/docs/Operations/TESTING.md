@@ -1,6 +1,6 @@
 # Testing
 
-Last reviewed: 2026-06
+Last reviewed: 2026-07
 
 # Purpose
 
@@ -428,6 +428,26 @@ npm run validate
 
 Build failures should block deployment.
 
+After a production Hosting deployment, validate the public app-shell routes:
+
+```bash
+yarn validate:deployed-web --base-url https://PROJECT_ID.web.app
+```
+
+The production workflow runs this check against `/`, `/login`, `/registration`,
+and `/forgot-password` before tag or GitHub Release creation. The static
+`/legal/` public resource is not a BrowserRouter app-shell route. The check
+requires HTTPS, rejects cross-origin redirects, and verifies that every route
+returns the Maintley app shell rather than a provider 404 or unrelated page.
+
+### Production keyless identity canary
+
+After `.github/workflows/verify-production-deployment-identity.yml` reaches
+Main, dispatch it from GitHub Actions. A passing run proves that GitHub can
+exchange an OIDC token for the dedicated production service account and read
+the expected Firebase Hosting site. It does not prove deployment permissions;
+those remain intentionally absent during the first migration gate.
+
 ---
 
 # Unit & Integration Tests
@@ -506,11 +526,22 @@ PR smoke suite:
 yarn e2e:smoke:chrome
 ```
 
+Scheduled cross-browser smoke suite:
+
+```bash
+yarn e2e:smoke:all
+```
+
 The PR smoke suite is intentionally non-mutating. It verifies registration
 navigation without submitting a new account, verifies demo login/logout, and
 checks the Support Center without submitting a ticket. It must not create
 Firebase accounts, Stripe customers, properties, tasks, support tickets, or
 checkout sessions.
+
+The same non-mutating smoke coverage runs nightly across Chromium, Firefox,
+WebKit, Mobile Chrome, and Mobile Safari. Mutation-oriented workflow tests must
+prove that the uniquely named record becomes visible; a filled form, unchanged
+route, or unavailable create button is not a passing result.
 
 Workflow coverage:
 
@@ -566,13 +597,21 @@ Playwright provides workflow-level confidence.
 
 GitHub Actions:
 
-* Build Check runs `yarn test:ci`, `yarn test:rules`, `yarn test:storage`, `yarn build`,
-  `yarn check:asset-budgets`, and `yarn --cwd functions build` for normal PRs.
+* Build Check runs ESLint, a standalone TypeScript check, the complete root
+  script-test manifest, `yarn test:rules`, `yarn test:storage`, `yarn build`,
+  `yarn check:asset-budgets`, Functions compilation, and the complete Functions
+  test manifest.
 * PRs run `E2E Tests / smoke` against Chromium only.
-* The `release/next` PR skips E2E and runs version validation instead of the
-  full Build Check test/build jobs because it only updates release version
-  files.
-* Manual workflow dispatch can run `smoke`, `workflows`, or `full-safe`.
+* The `release/next` candidate receives full Build Check coverage and version
+  validation because it promotes all accumulated Beta changes, even when its
+  visible diff contains only version files.
+* `Beta PR Gate` and `Release Gate` provide stable aggregate statuses while the
+  existing individual required checks remain in their canary period. See
+  [CI_RELEASE_GATES.md](CI_RELEASE_GATES.md).
+* A scheduled nightly run executes `smoke-all` across all configured browser
+  families without creating application records.
+* Manual workflow dispatch can run `smoke`, `smoke-all`, `workflows`, or
+  `full-safe`.
 * E2E requires dedicated `E2E_REACT_APP_FIREBASE_*` secrets and
   `E2E_DEMO_EMAIL` / `E2E_DEMO_PASSWORD`.
 * Manual `workflows` and `full-safe` runs require
@@ -589,6 +628,10 @@ GitHub Actions:
 ---
 
 # Stripe Testing
+
+The authoritative Stripe test-card list and the manual Beta Checkout checklist
+are maintained in [BILLING.md](BILLING.md#stripe-test-cards). Do not duplicate
+card data in environment files or customer-facing application copy.
 
 Sandbox tests:
 

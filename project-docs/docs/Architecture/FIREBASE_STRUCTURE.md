@@ -96,6 +96,7 @@ Permissions are determined through account membership and role-based access cont
 Used for:
 
 * Properties
+* Spaces
 * Equipment
 * Tasks
 * Maintenance Events
@@ -202,12 +203,18 @@ Current configuration includes:
 * Functions source
 * Firestore rules
 * Hosting configuration
+* A shared Storage rules target
 
 Project aliases are managed through:
 
 ```text
 .firebaserc
 ```
+
+The `default` Storage target maps to each project's own bucket:
+
+* `maintleybeta.firebasestorage.app` for Maintley Beta
+* `mypropertymanager-cda42.firebasestorage.app` for production
 
 ---
 
@@ -306,6 +313,9 @@ Primary collections:
   * accessLifecycleDeliveries (server-written message idempotency and outcomes)
 * accountMemberships
 * properties
+* propertySpaces
+* propertySupplies
+* propertyKnowledgeLinks (trusted Space and Supply relationships, including reviewed migration links)
 * propertyGroups
 * propertyGroupMemberships
 * devices

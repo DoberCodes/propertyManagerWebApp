@@ -115,6 +115,9 @@ export const apiSlice = createApi({
 		'MaintenanceEvents',
 		'PropertyScanSnapshots',
 		'StorageUsage',
+		'Spaces',
+		'Supplies',
+		'PropertyKnowledgeLinks',
 	],
 	endpoints: (builder) => ({
 		// App Version

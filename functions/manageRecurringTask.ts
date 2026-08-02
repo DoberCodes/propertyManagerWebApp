@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import { assertAccountRole, resolveAccountIdForUser } from './accountAuthz';
 import { hasAccountCapability } from './subscriptionEntitlements';
+import { buildPropertyKnowledgeLinkId } from './propertyKnowledgeLinks';
 
 if (!admin.apps.length) admin.initializeApp();
 
@@ -248,6 +249,9 @@ export const manageRecurringTask = functions.region('us-central1').https.onCall(
 		const replayed = await db.runTransaction(async (transaction) => {
 			const existing = await transaction.get(nextRef);
 			if (existing.exists) return true;
+			const sourceLinks = await transaction.get(
+				db.collection('propertyKnowledgeLinks').where('fromId', '==', taskId),
+			);
 			const nextTask = cleanRecord(stored);
 			transaction.create(nextRef, removeUndefined({
 				...nextTask,
@@ -260,6 +264,45 @@ export const manageRecurringTask = functions.region('us-central1').https.onCall(
 				createdAt: now,
 				updatedAt: now,
 			}));
+			for (const sourceLink of sourceLinks.docs) {
+				const link = sourceLink.data();
+				if (
+					cleanText(link.accountId, 160) !== accountId ||
+					cleanText(link.propertyId, 160) !== cleanText(stored.propertyId, 160) ||
+					link.fromType !== 'task' ||
+					link.relationshipType !== 'occurs_in' ||
+					link.toType !== 'space'
+				) {
+					continue;
+				}
+				const spaceId = cleanText(link.toId, 180);
+				if (!spaceId) continue;
+				const nextLinkId = buildPropertyKnowledgeLinkId({
+					propertyId: cleanText(stored.propertyId, 160),
+					fromType: 'task',
+					fromId: nextTaskId,
+					relationshipType: 'occurs_in',
+					toType: 'space',
+					toId: spaceId,
+				});
+				transaction.create(
+					db.collection('propertyKnowledgeLinks').doc(nextLinkId),
+					{
+						accountId,
+						propertyId: cleanText(stored.propertyId, 160),
+						fromType: 'task',
+						fromId: nextTaskId,
+						relationshipType: 'occurs_in',
+						toType: 'space',
+						toId: spaceId,
+						source: link.source || 'manual',
+						createdAt: now,
+						createdBy: cleanText(link.createdBy, 180) || uid,
+						updatedAt: now,
+						updatedBy: uid,
+					},
+				);
+			}
 			return false;
 		});
 		return { outcome: 'created', taskId: nextTaskId, replayed };

@@ -18,6 +18,7 @@ test.describe('Task Management', () => {
 
 	test('user can create a new task', async ({ page }) => {
 		expect(await createPropertyForTest(page)).toBeTruthy();
+		const taskTitleValue = `E2E Create Task ${Date.now()}`;
 
 		// Navigate to tasks page
 		await page.goto('/tasks');
@@ -41,11 +42,8 @@ test.describe('Task Management', () => {
 		const titleInput = page.locator(
 			'input[name*="title" i], input[placeholder*="task title" i], input[placeholder*="title" i]',
 		);
-		await titleInput.fill('Test Task - Fix Roof Leak');
-		const titleFieldFilled = await titleInput
-			.inputValue()
-			.then((v) => v.length > 0)
-			.catch(() => false);
+		await titleInput.fill(taskTitleValue);
+		await expect(titleInput).toHaveValue(taskTitleValue);
 
 		// Fill in description
 		const descInput = page.locator(
@@ -97,22 +95,10 @@ test.describe('Task Management', () => {
 			.last();
 		await submitButton.click();
 
-		// Verify task was created
-		await page.waitForTimeout(1000);
-		const successMessage = page.getByText(/success|created|added/i);
-		const successVisible = await successMessage
-			.isVisible({ timeout: 5000 })
-			.catch(() => false);
-
-		// Verify task appears in list
-		const taskTitle = page.getByText(/Fix Roof Leak/);
-		const taskVisible = await taskTitle
-			.isVisible({ timeout: 5000 })
-			.catch(() => false);
-		const stillOnTasksPage = /tasks/i.test(page.url());
-		expect(
-			successVisible || taskVisible || titleFieldFilled || stillOnTasksPage,
-		).toBeTruthy();
+		// A filled form or unchanged route is not proof of a successful write.
+		await expect(page.getByText(taskTitleValue).first()).toBeVisible({
+			timeout: 10000,
+		});
 	});
 
 	test('user can view task details', async ({ page }) => {

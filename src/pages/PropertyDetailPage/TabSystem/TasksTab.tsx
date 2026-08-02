@@ -83,6 +83,9 @@ import { Task, TaskFormData } from '../../../types/Task.types';
 import {
 	useDeleteTaskMutation,
 } from '../../../Redux/API/taskSlice';
+import { useGetPropertySpacesQuery } from '../../../Redux/API/spaceSlice';
+import { useGetPropertyKnowledgeLinksQuery } from '../../../Redux/API/propertyKnowledgeLinkSlice';
+import { getTaskSpaceIds } from '../../../types/PropertyKnowledgeLink.types';
 import { COLORS } from '../../../constants/colors';
 
 export const TasksTab: React.FC<TasksTabProps> = ({
@@ -120,6 +123,37 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	const canManageTasks = permissions?.canManageTasks ?? true;
 	const canCreateTasks = permissions?.canCreateTasks ?? canManageTasks;
 	const nativeApp = isNativeApp();
+	const accountId = String(
+		(property as any)?.accountId ||
+			(property as any)?.userId ||
+			currentUser?.accountId ||
+			currentUser?.id ||
+			'',
+	).trim();
+	const { data: spaces = [] } = useGetPropertySpacesQuery(
+		{ accountId, propertyId: property?.id || '', includeArchived: true },
+		{ skip: !accountId || !property?.id },
+	);
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId, propertyId: property?.id || '' },
+			{ skip: !accountId || !property?.id },
+		);
+	const taskSpaceNamesByTaskId = useMemo(() => {
+		const spaceNameById = new Map(spaces.map((space) => [space.id, space.name]));
+		return new Map(
+			propertyTasks.map((task) => [
+				task.id,
+				getTaskSpaceIds(propertyKnowledgeLinks, task.id)
+					.map((spaceId) => spaceNameById.get(spaceId))
+					.filter((name): name is string => Boolean(name)),
+			]),
+		);
+	}, [propertyKnowledgeLinks, propertyTasks, spaces]);
+	const getTaskSpaceLabel = useCallback(
+		(taskId: string) => (taskSpaceNamesByTaskId.get(taskId) || []).join(', '),
+		[taskSpaceNamesByTaskId],
+	);
 
 	// Task mutations
 	const [deleteTaskMutation] = useDeleteTaskMutation();
@@ -206,20 +240,20 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		}));
 	}, [processedTasks]);
 
-	const locationFilterOptions = useMemo(() => {
-		const locations = processedTasks
-			.map((task) => task.location)
-			.filter(
-				(location): location is string =>
-					typeof location === 'string' && location.trim().length > 0,
-			)
-			.map((location) => location.trim());
-
-		return Array.from(new Set(locations)).map((location) => ({
-			value: location,
-			label: location,
-		}));
-	}, [processedTasks]);
+	const spaceFilterOptions = useMemo(
+		() =>
+			spaces
+				.filter((space) =>
+					processedTasks.some((task) =>
+						getTaskSpaceIds(propertyKnowledgeLinks, task.id).includes(space.id),
+					),
+				)
+				.map((space) => ({
+					value: space.id,
+					label: `${space.name}${space.isArchived ? ' (Archived)' : ''}`,
+				})),
+		[processedTasks, propertyKnowledgeLinks, spaces],
+	);
 
 	const getPriorityTone = (priority?: string) => {
 		switch (priority) {
@@ -270,7 +304,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 	};
 
 	const getTaskIcon = (task: any) => {
-		const context = `${task.title || ''} ${task.category || ''} ${task.location || ''}`.toLowerCase();
+		const context = `${task.title || ''} ${task.category || ''} ${getTaskSpaceLabel(task.id)}`.toLowerCase();
 		if (context.includes('hvac') || context.includes('heat') || context.includes('cool')) {
 			return { icon: faFan, color: COLORS.primary, background: COLORS.primaryLight };
 		}
@@ -399,7 +433,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 						</div>
 						<div style={{ fontSize: 13, fontWeight: 700, color: '#334155', lineHeight: 1.4 }}>
 							{task.category || 'General maintenance'}
-							{task.location ? ` • ${task.location}` : ''}
+							{getTaskSpaceLabel(task.id)
+								? ` • ${getTaskSpaceLabel(task.id)}`
+								: ''}
 						</div>
 						<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: '#64748b' }}>
 							<span>Assigned To: {assignee}</span>
@@ -632,10 +668,10 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			options: categoryFilterOptions,
 		},
 		{
-			key: 'location',
-			label: 'Location',
+			key: 'spaceId',
+			label: 'Space',
 			type: 'select',
-			options: locationFilterOptions,
+			options: spaceFilterOptions,
 		},
 		{
 			key: 'dueDate',
@@ -646,13 +682,16 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 	// Apply filters to tasks
 	const filteredTasks = useMemo(() => {
-		const filtered = applyFilters(processedTasks, filters, {
-			textFields: ['title', 'notes'],
+		const tasksWithSpaceContext = processedTasks.map((task) => ({
+			...task,
+			spaceSearchText: getTaskSpaceLabel(task.id),
+		}));
+		const filteredByFields = applyFilters(tasksWithSpaceContext, filters, {
+			textFields: ['title', 'notes', 'spaceSearchText'],
 			selectFields: [
 				{ field: 'status', filterKey: 'status' },
 				{ field: 'priority', filterKey: 'priority' },
 				{ field: 'category', filterKey: 'category' },
-				{ field: 'location', filterKey: 'location' },
 				{
 					field: 'assignedTo',
 					filterKey: 'assignedTo',
@@ -663,6 +702,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 				},
 			],
 		});
+		const selectedSpaceId = filters.spaceId as string | undefined;
+		const filtered = selectedSpaceId
+			? filteredByFields.filter((task) =>
+					getTaskSpaceIds(propertyKnowledgeLinks, task.id).includes(selectedSpaceId),
+				)
+			: filteredByFields;
 
 		const dueDateStart = filters.dueDate_start as string | undefined;
 		const dueDateEnd = filters.dueDate_end as string | undefined;
@@ -709,7 +754,14 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 
 			return compareTasksByDueUrgency(a, b);
 		});
-	}, [processedTasks, filters, quickView, sortBy]);
+	}, [
+		processedTasks,
+		filters,
+		quickView,
+		sortBy,
+		getTaskSpaceLabel,
+		propertyKnowledgeLinks,
+	]);
 	const totalTaskCount = processedTasks.length;
 	const overdueTaskCount = processedTasks.filter((task) =>
 		isTaskOverdueForDisplay(task as Task),
@@ -736,12 +788,16 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 			});
 		}
 
-		['status', 'priority', 'category', 'location', 'assignedTo'].forEach((key) => {
+		['status', 'priority', 'category', 'spaceId', 'assignedTo'].forEach((key) => {
 			const value = filters[key] as string | undefined;
 			if (value) {
+				const displayValue =
+					key === 'spaceId'
+						? spaceFilterOptions.find((option) => option.value === value)?.label || value
+						: value;
 				chips.push({
 					key,
-					label: `${key}: ${value}`,
+					label: `${key === 'spaceId' ? 'Space' : key}: ${displayValue}`,
 					onRemove: () =>
 						setFilters((prev) => ({
 							...prev,
@@ -778,7 +834,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 		}
 
 		return chips;
-	}, [filters, quickView]);
+	}, [filters, quickView, spaceFilterOptions]);
 
 	return (
 		<SectionContainer>
@@ -1049,9 +1105,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 									</MobileTaskHeader>
 
 									<MobileFeedMeta>
-										<MobileFeedLine>
-											{task.category || 'General maintenance'}
-											{task.location ? ` • ${task.location}` : ''}
+									<MobileFeedLine>
+										{task.category || 'General maintenance'}
+										{getTaskSpaceLabel(task.id)
+											? ` • ${getTaskSpaceLabel(task.id)}`
+											: ''}
 										</MobileFeedLine>
 										<MobileFeedLine>
 											{mobileStatusText}

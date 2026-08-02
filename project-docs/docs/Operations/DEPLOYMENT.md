@@ -232,10 +232,11 @@ Run rule tests before deploying broad rules changes.
 
 * `functions.source`: `functions`
 * `firestore.rules`: `firestore.rules`
+* `storage.default`: `storage.rules`
 
-There is currently no Storage rules file wired in `firebase.json`.
-
-Before relying on local Storage rule tests, verify whether Firebase Storage rules are managed locally or only through the Firebase Console.
+The shared Storage target is resolved to a project-specific bucket through
+`.firebaserc`; deployments must not hard-code one environment's bucket into
+`firebase.json`.
 
 ---
 
@@ -393,9 +394,12 @@ functions/.env.local
 ```
 
 Local application and Functions configuration inherits the complete Beta/test
-baseline. The `LOCAL_` section contains only values that differ from Beta or
-exist solely for local tooling, such as emulator hosts. Backend values with a declared browser `source` are entered once
-in the control file and derived into the matching Functions target. The generic
+baseline. By default, the localhost application uses the deployed Maintley Beta
+Authentication, Firestore, Storage, and callable Functions so primary workflows
+match the stable Beta environment. The `LOCAL_` section contains only values
+that differ from Beta or exist solely for opt-in local tooling. Backend values
+with a declared browser `source` are entered once in the control file and
+derived into the matching Functions target. The generic
 `.env.production` and `.env.development.local` are legacy migration inputs only
 and must not be used by new workflows. The ambiguous `functions/.env` file is
 prohibited because Firebase can merge it into project-specific deployments; it
@@ -415,6 +419,22 @@ The Functions deploy-package validator rejects any declared Firebase secret
 with a non-empty dotenv assignment. Run `yarn env:functions:sanitize` to remove
 legacy plaintext assignments without printing their contents. Emulator-only
 secret overrides belong in `functions/.secret.local`, using test credentials.
+
+Firebase emulators remain available for isolated rules, integration, E2E, and
+Functions development. To route callable Functions to a running local emulator,
+set `REACT_APP_FIREBASE_FUNCTIONS_EMULATOR_HOST=localhost:5001` for that
+development process or add the matching `LOCAL_` override to the ignored root
+`.env` control file and rerun `yarn env:organize --apply`. Clear the override and
+restart the development server to return localhost to the deployed Beta
+Functions. Automated Firestore and Storage rules tests continue to manage their
+own emulator configuration independently.
+
+Analytics is the intentional exception to the shared Beta baseline. Stable Beta
+uses the Beta Analytics property, while localhost defaults
+`REACT_APP_ENABLE_ANALYTICS=false` so developer navigation does not affect Beta
+reporting or require analytics scripts during local work. The environment
+contract's `localDefault` metadata records this difference and the organizer
+persists it as a generated local override.
 
 `COMPLIMENTARY_ACCESS_CODE_PEPPER` is a Firebase Functions secret, not a GitHub
 Actions variable and not a normal dotenv value in production. Create it with
@@ -489,15 +509,22 @@ Stable Firebase Hosting, rules, and Functions deploy through:
 Merges into `beta` use keyless Workload Identity Federation and the GitHub
 `development` environment. The existing production path on `main` continues to
 authenticate with `google-github-actions/auth` using the
-`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret until the production
-identity migration is completed.
+`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret while the staged production
+identity migration is validated. Production WIF has a dedicated read-only
+canary identity; it is not yet authorized or selected for deployment.
 
 Every merge into `beta` builds and deploys the stable `hosting:beta` target.
 Backend selection remains source-based: `functions/` changes deploy Functions,
 `firestore.rules` changes deploy Firestore rules, and `storage.rules` changes
 deploy Storage rules. The stable build artifact must complete before the deploy
 job can authenticate. Deployments are serialized so two merges cannot update
-the shared development environment concurrently.
+the shared development environment concurrently. The same lock serializes
+opt-in pull-request backend previews and abandoned-preview restoration. A
+successful stable Beta deployment clears any remaining pull-request backend
+ownership label. If any PR owns the backend when a merge reaches `beta`, the
+stable deployment ignores source-based backend selection for that run and
+reclaims the complete Functions, Firestore-rules, and Storage-rules state from
+the merged `beta` commit before clearing ownership.
 
 ### One-way branch promotion
 
@@ -536,7 +563,14 @@ An authenticated release-PR merge into `main` always deploys `hosting:prod`. Fun
 Firestore rules, and Storage rules retain source-based target detection and are
 added only when their owned files changed. Hosting-only releases therefore
 cannot redeploy Functions or rules. The matching tag and GitHub Release are
-created idempotently only after every selected Firebase target succeeds.
+created idempotently only after every selected Firebase target succeeds and
+the deployed production Hosting origin returns the Maintley app shell for `/`,
+`/login`, `/registration`, and `/forgot-password`. The static `/legal/` public
+resource is intentionally outside this BrowserRouter app-shell check. The smoke
+check uses the default Firebase `web.app` hostname derived from the verified
+production project ID, so it validates the new deployment even while
+custom-domain DNS still points at a previous host. A failed route check blocks
+tag and GitHub Release creation.
 
 If a valid release merge passes its build but Hosting fails before deployment,
 the same workflow supports an explicit recovery dispatch. Set
@@ -554,6 +588,13 @@ publishing that repair commit as an application release.
 The production default Hosting hostname is intentionally populated before DNS
 cutover. This does not move customer traffic: the custom domain continues to
 resolve to the frozen GitHub Pages deployment until the later DNS phase.
+
+External GitHub Actions are pinned to immutable 40-character upstream commit
+SHAs with their reviewed release versions retained as comments. Dependabot
+opens grouped weekly GitHub Actions updates against `beta`; those updates use
+the same PR checks and promotion path as other repository changes. Workflow
+defaults remain read-only, and write or OpenID Connect permissions belong only
+to the jobs that require them.
 
 Recommended setup:
 
@@ -608,7 +649,7 @@ roles do not grant access to the production project.
 Do not create or store a JSON key for this development identity. Add further
 roles only when a changed Beta target requires them. The current production
 workflow continues using its existing credential path until the production
-identity migration is performed.
+identity migration gates are completed.
 
 Keyless authentication is checked by:
 
@@ -621,6 +662,41 @@ when manually dispatched after it exists on the default branch, it verifies
 that GitHub can impersonate the development service account and that the
 expected Maintley Beta Hosting site is visible. It intentionally avoids loading
 application code or printing access tokens.
+
+### Production deployment identity migration
+
+Production Workload Identity Federation is intentionally staged. The GitHub
+`production` environment provides:
+
+```text
+PROD_FIREBASE_PROJECT_ID
+PROD_GOOGLE_WORKLOAD_IDENTITY_PROVIDER
+PROD_GOOGLE_SERVICE_ACCOUNT
+```
+
+The provider admits tokens only from
+`DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
+`production` environment and run from `refs/heads/main`. The GitHub production
+environment permits `main` and `release/next` because release validation needs
+production build variables. The provider's independent Main-ref condition
+prevents release candidates from receiving the cloud identity. During the
+first gate, the dedicated identity has only project metadata and Firebase
+Hosting read access. It cannot deploy or act as a Functions runtime service
+account.
+
+Keyless production access is checked by:
+
+```text
+.github/workflows/verify-production-deployment-identity.yml
+```
+
+The workflow performs no deployment. It verifies the exact project, provider,
+service account, active authenticated identity, and expected production Hosting
+site. The production deploy workflow must not switch from
+`FIREBASE_SERVICE_ACCOUNT_JSON` until this read-only check passes from Main and
+the exact deploy-role expansion is separately approved. See
+`project-docs/reports/2026-08-02-production-wif-migration.md` for the migration
+gates and rollback sequence.
 
 Pull requests targeting `beta` use:
 
@@ -638,7 +714,49 @@ and secret contents are never printed. Pull requests from forks are not
 deployed. The build job has no Google identity token; the deploy job downloads
 the static artifact, uses the trusted Hosting configuration from the PR base
 commit, and authenticates only immediately before the Firebase CLI deployment.
-It never deploys Functions, Firestore Rules, or Storage Rules.
+It does not deploy Functions, Firestore Rules, or Storage Rules unless a trusted
+maintainer separately activates the guarded Beta backend-preview lifecycle.
+
+### Pull request backend previews
+
+Trusted same-repository pull requests that need real backend validation may use:
+
+```text
+.github/workflows/firebase-beta-backend-preview.yml
+```
+
+Add the `deploy-backend-to-beta` label after the PR's required checks are
+available. The workflow waits for those checks while excluding its own required
+deployment check so the gate cannot wait on itself. This preparation occurs
+before the workflow acquires the shared Beta deployment lock. After the lock is
+acquired, the workflow revalidates the exact PR SHA, repository, state, and base
+branch so a queued stale request cannot overwrite a newer Beta backend. It then
+reruns the Functions build and Firebase emulator rule suites, verifies the
+development project and Stripe test boundary, and deploys the pull request's
+complete Functions, Firestore-rules, and Storage-rules state through the `beta`
+Firebase alias to `maintleybeta`.
+Using the alias ensures Firebase loads the generated `functions/.env.beta`
+file during non-interactive deployment. Successful activation replaces the
+request label with `beta-backend-active`. Exactly one PR may carry the active
+label, and all backend preview and stable Beta deployments share one concurrency
+lock.
+
+While the label is active, later pushes redeploy automatically after required
+checks pass. An older queued request fails safely if a later push changes the PR
+head before it obtains the deployment lock. Localhost and every Hosting preview
+configured for Beta continue to point directly at `maintleybeta`; there is no
+per-PR backend copy. Merging the PR allows the normal stable Beta deployment to
+make the state durable. Closing the PR without merging deploys the complete
+backend from the current `beta` branch
+and removes ownership. Neither restoration nor merge cleanup deletes test users,
+Firestore records, Storage objects, Stripe test records, or other side effects
+created during validation.
+
+Only repository maintainers should apply the request label. Fork pull requests
+are rejected before checkout, production project identifiers and live Stripe
+keys are rejected, and backend preview deployment never includes Hosting or any
+production target. Emulator suites remain required because negative permission
+tests and destructive scenarios should not depend on shared Beta data.
 
 After a pull request merges, `firebase-deploy-environments.yml` rebuilds the
 approved `beta` commit and promotes that artifact to the stable Maintley Beta
@@ -714,8 +832,19 @@ Firebase Rules Admin
 
 This lets the deploy workflow validate and publish `firestore.rules`.
 
-Cloud Storage rules deployment also requires the deploy service account to read
-the Firebase Storage default bucket. If deploy fails with:
+Cloud Storage rules use the shared `default` deploy target in `firebase.json`.
+`.firebaserc` resolves that target independently for each Firebase project:
+
+```text
+maintleybeta -> maintleybeta.firebasestorage.app
+mypropertymanager-cda42 -> mypropertymanager-cda42.firebasestorage.app
+```
+
+This explicit mapping prevents CI from depending on Firebase's default-bucket
+discovery endpoint and keeps Beta and production deployments isolated while
+using the same `storage.rules` source. Cloud Storage rules deployment still
+requires the deploy service account to read and manage the selected Firebase
+Storage bucket. If deploy fails with:
 
 ```text
 Permission 'firebasestorage.defaultBucket.get' denied
@@ -956,6 +1085,24 @@ merged PR titles, labels, and files are preferred over raw commit messages.
 Direct commits are still included but reported as warnings so releases can move
 toward a PR-based pattern.
 
+Pull requests into `beta` use Conventional Commit prefixes as the shared release
+classification contract. `feat:` produces a minor release and a **New
+Features** entry, `fix:` produces a patch release and a **Fixes** entry, and
+`perf:` produces a patch release and an **Improvements** entry. `feat!:` marks a
+breaking feature and produces a major release. `refactor:`, `docs:`, `chore:`,
+`ci:`, `build:`, and `test:` remain visible in engineering notes but are omitted
+from customer notes by default.
+
+The PR-summary workflow resolves the classification from the `Release type:`
+declaration in the PR body, an existing PR-title prefix, or the highest-impact
+Conventional Commit prefix in the PR. The body declaration takes priority so an
+author can correct an earlier automated classification. The workflow then normalizes the PR title so the
+summary, release-note category, and semantic-version calculation consume the
+same signal. If no classification is available, the workflow fails with an
+actionable message instead of guessing from file paths. Explicit
+`release:major`, `release:minor`, `release:patch`, and `release:none` labels may
+override version impact for exceptional cases.
+
 The generator produces two release note layers:
 
 * Customer-facing notes for the public GitHub Release body.
@@ -972,15 +1119,19 @@ Maintley now shows clearer dashboard focus controls for each user.
 ```
 
 Maintley's pull request template includes a `Customer Release Note` section so
-user-visible changes can be captured before merge.
+user-visible changes can be captured before merge. It also includes a `Release
+Classification` declaration for PRs whose title and commits do not already use
+Conventional Commit prefixes.
 
 Pull requests targeting `beta` receive a deterministic engineering summary from
 `.github/workflows/pull-request-summary.yml`. The workflow updates only the
 content between `maintley-pr-summary` markers and preserves every manually
 written section outside that block. It derives the summary from GitHub's changed
 file metadata and commit subjects; it does not read changed-file contents or
-dotenv values. Live build and test conclusions remain authoritative in the PR's
-required checks.
+dotenv values. The generated block reports release type, version impact,
+customer-note destination, and the source of that classification. The same
+workflow normalizes the PR-title prefix. Live build and test conclusions remain
+authoritative in the PR's required checks.
 
 The updater uses `pull_request_target` so the write-capable job runs trusted
 workflow and generator code rather than code from the feature branch. It checks
@@ -1111,10 +1262,17 @@ change and only while Beta remains an ancestor of Main.
 
 Feature pull requests targeting `beta` run the same required Build Check jobs
 as ordinary pull requests targeting `main`: entitlement-package policy, unit
-and rules tests, production build validation, and the Functions build. Release
-note previews also run for both targets and derive their comparison boundary
-from the pull request's actual base branch, so a feature PR reports only its
-changes against `beta` while a release PR is evaluated against `main`.
+and rules tests, environment-appropriate frontend build validation, and the
+Functions build. A Beta pull request compiles with the GitHub `development`
+environment; a release candidate compiles with `production`. Release-note
+previews also run for both targets and derive their comparison boundary from
+the pull request's actual base branch, so a feature PR reports only its changes
+against `beta` while a release PR is evaluated against `main`.
+
+`Beta PR Gate` and `Release Gate` are the permanent aggregate contexts being
+canaried before the branch rulesets stop depending on individual job names.
+See [CI_RELEASE_GATES.md](CI_RELEASE_GATES.md) for the current gate contract and
+safe ruleset rollout order.
 
 The current app version used by update notifications is derived from
 `package.json` through:

@@ -23,7 +23,12 @@ export type RecurringTaskGenerationOutcome =
 export type TaskLifecycleDependencies = {
 	getTask: (taskId: string) => Promise<Task | null>;
 	writeMaintenanceEvent: (event: Record<string, unknown>) => Promise<void>;
-	createTask: (task: Omit<Task, 'id'>) => Promise<void>;
+	createTask: (task: Omit<Task, 'id'>) => Promise<string | void>;
+	copyTaskSpaceLinks?: (input: {
+		fromTaskId: string;
+		toTaskId: string;
+		propertyId: string;
+	}) => Promise<void>;
 	canGenerateNextRecurringTask: (accountId: string) => Promise<boolean>;
 	generateNextRecurringTask?: (input: {
 		taskId: string;
@@ -96,6 +101,7 @@ export const createNextRecurringTaskForCompletion = async ({
 	deps: Pick<
 		TaskLifecycleDependencies,
 		| 'createTask'
+		| 'copyTaskSpaceLinks'
 		| 'canGenerateNextRecurringTask'
 		| 'generateNextRecurringTask'
 		| 'notifyRecurringTaskGenerationFailure'
@@ -136,7 +142,20 @@ export const createNextRecurringTaskForCompletion = async ({
 	}
 
 	try {
-		await deps.createTask(withDefaultTaskNotificationSchedule(nextTask));
+		const nextTaskId = await deps.createTask(
+			withDefaultTaskNotificationSchedule(nextTask),
+		);
+		if (nextTaskId && deps.copyTaskSpaceLinks) {
+			try {
+				await deps.copyTaskSpaceLinks({
+					fromTaskId: taskId,
+					toTaskId: nextTaskId,
+					propertyId: task.propertyId,
+				});
+			} catch (error) {
+				deps.warn?.('Failed to copy recurring Task Space links:', error);
+			}
+		}
 		return 'created';
 	} catch (error) {
 		deps.warn?.('Failed to create next recurring task:', error);

@@ -3,12 +3,15 @@ import { DetailsTabProps } from '../../../types/PropertyDetailPage.types';
 import { SectionHeader } from '../../../Components/Library/InfoCards/InfoCardStyles';
 import { DetailsEditHeader } from '../PropertyDetailPage.styles';
 import { PropertyDetailSection } from '../PropertyDetailSection';
+import { SpacesSection } from '../SpacesSection';
+import { SuppliesSection } from '../SuppliesSection';
 
 export const DetailsTab: React.FC<DetailsTabProps> = ({
 	property,
 	teamMembers,
 	familyMembers = [],
 	homeownerMode = false,
+	permissions,
 }) => {
 	return (
 		<>
@@ -22,6 +25,8 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				familyMembers={familyMembers}
 				homeownerMode={homeownerMode}
 			/>
+			<SpacesSection property={property} permissions={permissions} />
+			<SuppliesSection property={property} permissions={permissions} />
 		</>
 	);
 };

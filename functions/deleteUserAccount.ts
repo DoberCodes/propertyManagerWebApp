@@ -202,6 +202,21 @@ export const deleteUserAccount = functions
 						batch.delete(doc.ref);
 					});
 
+					for (const collectionName of [
+						'propertySpaces',
+						'propertySupplies',
+						'propertyKnowledgeLinks',
+					]) {
+						const connectedKnowledgeSnapshot = await db
+							.collection(collectionName)
+							.where('propertyId', '==', propertyId)
+							.get();
+						connectedKnowledgeSnapshot.forEach((doc) => {
+							console.log(`Deleting ${collectionName} record: ${doc.id}`);
+							batch.delete(doc.ref);
+						});
+					}
+
 					// Delete property shares
 					const sharesSnapshot = await db
 						.collection('propertyShares')

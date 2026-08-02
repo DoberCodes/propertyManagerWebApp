@@ -652,6 +652,34 @@ Medium
 
 ---
 
+## Legacy Task Location to Space Migration
+
+```bash
+yarn migrate:task-locations-to-spaces -- --confirm-project=PROJECT_ID
+```
+
+Runs in dry-run mode and reports exact, already-linked, unmatched, ambiguous,
+and missing-scope outcomes. A candidate is safe only when the normalized legacy
+Task location exactly matches one active Space in the same account and Property.
+Partial matches, archived Spaces, and duplicate names are never inferred.
+
+After reviewing the dry run, apply with:
+
+```bash
+yarn migrate:task-locations-to-spaces:apply -- --confirm-project=PROJECT_ID
+```
+
+Apply mode creates deterministic `Task occurs_in Space` relationship records
+with migration provenance. It does not clear legacy Task fields, so the command
+is repeat-safe and preserves compatibility until later validation authorizes
+field cleanup. Use `--account-id=ACCOUNT_ID` to constrain either mode.
+
+Risk:
+
+Medium
+
+---
+
 ---
 
 ## Property Membership Migration
@@ -1057,6 +1085,16 @@ Generates release notes from project history. The latest merged `Release v...`
 commit after the latest version tag is treated as the boundary so an unpublished
 or delayed tag does not cause changes from earlier prepared releases to repeat.
 
+Release classification follows Conventional Commit prefixes on merged PR
+titles: `feat:` maps to a minor release and New Features, `fix:` maps to a patch
+release and Fixes, `perf:` maps to a patch release and Improvements, and
+`feat!:` maps to a major release. Internal prefixes (`refactor:`, `docs:`,
+`chore:`, `ci:`, `build:`, and `test:`) remain available to engineering notes
+without appearing in customer notes by default. The protected PR-summary
+workflow normalizes a missing PR-title prefix from a `Release type:` body
+declaration or Conventional Commit prefixes in the PR's commits. The explicit
+body declaration takes priority so authors can correct the automated title.
+
 The generator recognizes a matching release-preparation merge at `HEAD` and
 keeps its prepared package version. Subsequent product commits continue to bump
 from that prepared version. The policy is covered by:
@@ -1361,6 +1399,31 @@ New scripts should:
 * Validate inputs
 * Clearly communicate risk
 * Support dry-run modes when practical
+
+GitHub Actions and test coverage policy is validated with:
+
+```bash
+yarn test:scripts:ci
+yarn --cwd functions test:ci
+yarn validate:workflows
+```
+
+`scripts/testManifest.cjs` is authoritative for top-level Node test coverage.
+`scripts/workflowChangeClassification.cjs` provides deterministic changed-file
+classification, and `scripts/validateWorkflowPolicy.cjs` rejects missing
+permissions, broad top-level writes, mutable external Action references,
+missing Action release comments, missing GitHub Actions Dependabot coverage,
+timeouts, invalid workflow YAML, and suppressed CI warnings.
+
+Production Hosting route validation is available through:
+
+```bash
+yarn validate:deployed-web --base-url https://PROJECT_ID.web.app
+```
+
+`scripts/validateDeployedWebRoutes.cjs` performs a read-only HTTPS check of the
+public Maintley BrowserRouter routes and confirms that each returns the app
+shell. The production deployment runs it before release finalization.
 
 Preferred naming:
 

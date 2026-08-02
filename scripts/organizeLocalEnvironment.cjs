@@ -53,6 +53,12 @@ function valuesWithPrefix(values, prefix) {
 		.map(([name, value]) => [name.slice(prefix.length), value]));
 }
 
+function valuesWithLocalDefaults(entries) {
+	return new Map(entries
+		.filter((entry) => entry.localDefault !== undefined && entry.localDefault !== '')
+		.map((entry) => [entry.name, entry.localDefault]));
+}
+
 function resolveValue(entry, environment, sources) {
 	for (const values of sources) {
 		const direct = values.get(entry.name);
@@ -180,7 +186,8 @@ function main() {
 			const legacyFunctions = definition.legacyFunctionsFiles.map(readFileValues);
 			const legacyControl = !hasNamespacedControl && targetName === 'production' ? control : new Map();
 			const inheritedBeta = targetName === 'local' ? resolvedTargets.get('beta') || new Map() : new Map();
-			const sources = [namespaced, inheritedBeta, ...legacyRoot, ...legacyFunctions, legacyControl];
+			const localDefaults = targetName === 'local' ? valuesWithLocalDefaults(contract) : new Map();
+			const sources = [namespaced, localDefaults, inheritedBeta, ...legacyRoot, ...legacyFunctions, legacyControl];
 			const controlEntries = entriesFor(contract, environment, (entry) => (
 				(entry.scope === 'web' && entry.delivery === 'github-variable') ||
 				(targetName === 'local' && entry.scope === 'web' && entry.delivery === 'local-only') ||
@@ -266,5 +273,6 @@ module.exports = {
 	selectContractValues,
 	targets,
 	validateEnvironment,
+	valuesWithLocalDefaults,
 	valuesWithPrefix,
 };

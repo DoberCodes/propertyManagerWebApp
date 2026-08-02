@@ -24,6 +24,10 @@ import {
 	useUpdateDeviceMutation,
 	useDeleteDeviceMutation,
 } from 'Redux/API/deviceSlice';
+import {
+	useGetPropertyKnowledgeLinksQuery,
+	useSetEquipmentSpaceLinksMutation,
+} from 'Redux/API/propertyKnowledgeLinkSlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
 import { useGetUnitsQuery } from 'Redux/API/propertySlice';
 import {
@@ -87,6 +91,7 @@ import { expectsEquipmentIdentityDetails } from '../../../intelligence/assetReco
 import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
 import { getMaintenanceEventDate } from '../../../utils/maintenanceEventUtils';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../../../maintenanceHistory/maintenanceHistoryAdapter';
+import { getEquipmentSpaceIds } from '../../../types/PropertyKnowledgeLink.types';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -117,6 +122,7 @@ interface DeviceFormData {
 		size: number;
 		type: string;
 	}>;
+	spaceIds: string[];
 }
 
 interface DevicesTabProps {
@@ -170,12 +176,21 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			propertyId: property.id,
 		},
 		files: [],
+		spaceIds: [],
 	});
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const lastOpenCreateTokenRef = useRef(0);
 	const openCreateModalRef = useRef<() => void>(() => undefined);
 
 	const { data: devices = [], isLoading } = useGetDevicesQuery(property.id);
+	const propertyAccountId = String(
+		property.accountId || property.userId || '',
+	).trim();
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId: propertyAccountId, propertyId: property.id },
+			{ skip: !propertyAccountId || !property.id },
+		);
 	const [loadAllDevices, { data: allDevices = [] }] =
 		useLazyGetAllDevicesQuery();
 	const { data: units = [] } = useGetUnitsQuery(property.id);
@@ -695,12 +710,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const [createDevice] = useCreateDeviceMutation();
 	const [updateDevice] = useUpdateDeviceMutation();
+	const [setEquipmentSpaceLinks] = useSetEquipmentSpaceLinksMutation();
 	const [deleteDevice] = useDeleteDeviceMutation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isMobile = useSelector((state: RootState) => state.app.isMobile);
 	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
 	const isTeamMemberAccount = currentUser?.isTeamMemberAccount === true;
 	const canManageAppliances = permissions?.canManageAppliances ?? true;
+	const canManageSpaces = permissions?.canManageProperties ?? false;
 	const isHomeownerMode = useSelector(selectIsHomeowner);
 	const equipmentLanguage = {
 		contextNoun: isHomeownerMode ? 'this home' : 'this property',
@@ -747,6 +764,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				propertyId: property.id,
 			},
 			files: [],
+			spaceIds: [],
 		});
 		setPendingUploadFiles([]);
 		setPendingPropertyDocumentFiles([]);
@@ -839,6 +857,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			status: getResolvedDeviceStatus(device),
 			location: device.location || { propertyId: property.id },
 			files: device.files || [],
+			spaceIds: getEquipmentSpaceIds(
+				propertyKnowledgeLinks,
+				String(device.id),
+			),
 		});
 		setRemovedExistingFileUrls([]);
 		setEditingDevice(device);
@@ -922,8 +944,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				(file) => !removedExistingFileUrls.includes(file.url),
 			);
 
+			const { spaceIds, ...deviceFields } = deviceFormData;
 			const deviceData = {
-				...deviceFormData,
+				...deviceFields,
 				type: normalizeAssetType(deviceFormData.assetType || deviceFormData.type),
 				assetType: normalizeAssetType(deviceFormData.assetType || deviceFormData.type),
 				assetVariant: normalizeAssetVariant(
@@ -947,6 +970,21 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			} else {
 				const savedDevice = await createDevice(deviceData).unwrap();
 				savedDeviceId = String((savedDevice as any)?.id || '');
+			}
+
+			if (canManageSpaces) {
+				try {
+					await setEquipmentSpaceLinks({
+						propertyId: property.id,
+						equipmentId: savedDeviceId,
+						spaceIds,
+					}).unwrap();
+				} catch (linkError) {
+					console.error('Error saving equipment Spaces:', linkError);
+					feedback.notify(
+						'Equipment was saved, but Maintley could not update its Spaces. You can edit the equipment and try again.',
+					);
+				}
 			}
 
 			const propertyDocumentUploads = [
@@ -1338,6 +1376,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					onServiceItemsChange={(items) =>
 						handleFormChange('serviceItems', items)
 					}
+					selectedSpaceIds={deviceFormData.spaceIds}
+					onSelectedSpaceIdsChange={(spaceIds) =>
+						handleFormChange('spaceIds', spaceIds)
+					}
+					canManageSpaces={canManageSpaces}
 					property={property}
 					deviceId={editingDevice?.id}
 					units={units}

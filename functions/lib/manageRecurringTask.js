@@ -39,6 +39,7 @@ const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
 const accountAuthz_1 = require("./accountAuthz");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
+const propertyKnowledgeLinks_1 = require("./propertyKnowledgeLinks");
 if (!admin.apps.length)
     admin.initializeApp();
 const db = admin.firestore();
@@ -245,6 +246,7 @@ exports.manageRecurringTask = functions.region('us-central1').https.onCall(async
         const existing = await transaction.get(nextRef);
         if (existing.exists)
             return true;
+        const sourceLinks = await transaction.get(db.collection('propertyKnowledgeLinks').where('fromId', '==', taskId));
         const nextTask = cleanRecord(stored);
         transaction.create(nextRef, removeUndefined({
             ...nextTask,
@@ -257,6 +259,41 @@ exports.manageRecurringTask = functions.region('us-central1').https.onCall(async
             createdAt: now,
             updatedAt: now,
         }));
+        for (const sourceLink of sourceLinks.docs) {
+            const link = sourceLink.data();
+            if (cleanText(link.accountId, 160) !== accountId ||
+                cleanText(link.propertyId, 160) !== cleanText(stored.propertyId, 160) ||
+                link.fromType !== 'task' ||
+                link.relationshipType !== 'occurs_in' ||
+                link.toType !== 'space') {
+                continue;
+            }
+            const spaceId = cleanText(link.toId, 180);
+            if (!spaceId)
+                continue;
+            const nextLinkId = (0, propertyKnowledgeLinks_1.buildPropertyKnowledgeLinkId)({
+                propertyId: cleanText(stored.propertyId, 160),
+                fromType: 'task',
+                fromId: nextTaskId,
+                relationshipType: 'occurs_in',
+                toType: 'space',
+                toId: spaceId,
+            });
+            transaction.create(db.collection('propertyKnowledgeLinks').doc(nextLinkId), {
+                accountId,
+                propertyId: cleanText(stored.propertyId, 160),
+                fromType: 'task',
+                fromId: nextTaskId,
+                relationshipType: 'occurs_in',
+                toType: 'space',
+                toId: spaceId,
+                source: link.source || 'manual',
+                createdAt: now,
+                createdBy: cleanText(link.createdBy, 180) || uid,
+                updatedAt: now,
+                updatedBy: uid,
+            });
+        }
         return false;
     });
     return { outcome: 'created', taskId: nextTaskId, replayed };

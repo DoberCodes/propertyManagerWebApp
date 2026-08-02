@@ -1,6 +1,6 @@
 {
 	"name": "Maintley",
-	"version": "2.12.7",
+	"version": "2.13.0",
 	"private": true,
 	"type": "module",
 	"homepage": "/",
@@ -60,7 +60,9 @@
 		"sync:android-icons": "node scripts/syncAndroidLauncherIcons.cjs",
 		"lint": "eslint src --ext .ts,.tsx",
 		"test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
-		"test:ci": "node ./node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --passWithNoTests && node --test scripts/syncAdrImplementationTrackers.test.cjs scripts/firebaseDeploymentSafety.test.cjs scripts/generatePullRequestSummary.test.cjs",
+		"test:ci": "node ./node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --passWithNoTests && yarn test:scripts:ci",
+		"test:scripts:ci": "node scripts/runNodeTestManifest.cjs root",
+		"validate:workflows": "node scripts/validateWorkflowPolicy.cjs",
 		"analyze:bundle": "node scripts/reportBuildAssets.cjs",
 		"analyze:media": "node scripts/reportMediaAssets.cjs",
 		"check:asset-budgets": "node scripts/checkAssetBudgets.cjs",
@@ -86,6 +88,7 @@
 		"test:firebase-deployment-safety": "node --test scripts/firebaseDeploymentSafety.test.cjs",
 		"pr:summary:test": "node --test scripts/generatePullRequestSummary.test.cjs",
 		"validate:callable-preflight": "node scripts/validateCallableFunctionsPreflight.cjs",
+		"validate:deployed-web": "node scripts/validateDeployedWebRoutes.cjs",
 		"audit:scripts": "node scripts/auditScripts.cjs",
 		"audit:maintenance-history": "node scripts/inventoryMaintenanceHistory.cjs",
 		"test:maintenance-history-inventory": "node --test scripts/maintenanceHistoryInventoryCore.test.cjs",
@@ -102,6 +105,7 @@
 		"validate": "yarn test:ci && yarn build",
 		"e2e": "node ./node_modules/@playwright/test/cli.js test",
 		"e2e:smoke:chrome": "node ./node_modules/@playwright/test/cli.js test e2e/auth.spec.ts e2e/support.spec.ts --project=chromium",
+		"e2e:smoke:all": "node ./node_modules/@playwright/test/cli.js test e2e/auth.spec.ts e2e/support.spec.ts --project=chromium --project=firefox --project=webkit --project=\"Mobile Chrome\" --project=\"Mobile Safari\"",
 		"e2e:workflows:chrome": "node ./node_modules/@playwright/test/cli.js test e2e/auth.spec.ts e2e/property.spec.ts e2e/task.spec.ts e2e/account-rbac.spec.ts --project=chromium",
 		"e2e:full-safe": "node ./node_modules/@playwright/test/cli.js test e2e/auth.spec.ts e2e/property.spec.ts e2e/task.spec.ts e2e/journey.spec.ts e2e/account-rbac.spec.ts --project=chromium --project=firefox --project=webkit --project=\"Mobile Chrome\" --project=\"Mobile Safari\"",
 		"e2e:ui": "node ./node_modules/@playwright/test/cli.js test --ui",
@@ -137,6 +141,9 @@
 		"migrate:property-taxonomy:apply": "node scripts/migratePropertyTaxonomy.cjs --apply",
 		"migrate:property-taxonomy:verbose": "node scripts/migratePropertyTaxonomy.cjs --verbose",
 		"test:property-taxonomy-migration": "node --test scripts/propertyTaxonomyMigrationCore.test.cjs",
+		"migrate:task-locations-to-spaces": "node scripts/migrateTaskLocationsToSpaces.cjs",
+		"migrate:task-locations-to-spaces:apply": "node scripts/migrateTaskLocationsToSpaces.cjs --apply",
+		"test:task-space-migration": "node --test scripts/taskSpaceMigrationCore.test.cjs",
 		"migrate:report-account-integrity": "node scripts/migrateFixReportAccountIntegrity.cjs",
 		"migrate:report-account-integrity:apply": "node scripts/migrateFixReportAccountIntegrity.cjs --apply",
 		"migrate:feedback-ticket-numbers": "node scripts/migrateFeedbackTicketNumbers.cjs",
@@ -213,6 +220,7 @@
 		"gh-pages": "^6.1.1",
 		"node-fetch": "^3.3.2",
 		"sharp": "^0.34.5",
-		"ts-node": "^10.9.2"
+		"ts-node": "^10.9.2",
+		"yaml": "^2.8.3"
 	}
 }

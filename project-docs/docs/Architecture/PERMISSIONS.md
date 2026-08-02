@@ -644,6 +644,77 @@ immutable revision in the same batch.
 
 ---
 
+## propertySpaces
+
+Read:
+
+* Account readers through an account- and property-scoped query
+
+Create and update:
+
+* Account managers
+
+Remove and restore:
+
+* Account managers through a trusted callable
+
+Create and update rules validate that the referenced Property exists in the
+same account, validate the Space field contract, keep `accountId`,
+`propertyId`, creation attribution, and source immutable, and require the
+referenced Property to exist within the same account. Spaces do not create a
+separate permission boundary.
+
+The removal callable deletes an unreferenced Space and archives a referenced
+Space. The restore callable reactivates an archived Space within the same
+account boundary. Direct client deletion is denied.
+
+---
+
+## propertyKnowledgeLinks
+
+Read:
+
+* Account readers
+
+Create, update, delete:
+
+* Authorized server processes only
+
+Trusted relationship writes support Equipment `located_in` Space for account
+managers and Task `occurs_in` Space for users with task-management permission.
+Each callable validates that the Property, source record, and Space share the
+same account and property boundary and rejects new links to archived Spaces.
+Recurring Task generation may copy already accepted Task-to-Space links through
+the trusted writer. Task deletion removes its outgoing links.
+
+Trusted Supply relationship writes support Equipment, Space, or Task `uses`
+Supply for account managers. The callable validates the Property, Supply, and
+every selected endpoint against the same account and property and rejects new
+links to archived Supplies or Spaces.
+
+---
+
+## propertySupplies
+
+Read:
+
+* Account readers through an account- and property-scoped query
+
+Create and update:
+
+* Account managers
+
+Remove and restore:
+
+* Account managers through a trusted callable
+
+Rules validate the Supply field contract, immutable ownership and creation
+fields, and the referenced Property account. The removal callable deletes an
+unreferenced Supply and archives a referenced Supply. Direct client deletion is
+denied.
+
+---
+
 ## maintenanceEventRevisions
 
 Read:
@@ -1102,6 +1173,7 @@ When permissions and subscriptions intersect:
 * Subscriptions determine capabilities.
 
 These responsibilities should remain separate.
+
 # Personal assistant credentials
 
 Personal-assistant setup requires the server-managed Maintley Owner role; customer account ownership does not grant access. Credential, rate-limit, and API audit collections deny all direct client reads and writes. Only the Owner-gated callable manages credentials, and every API request is independently constrained by its stored property allowlist and read scopes.

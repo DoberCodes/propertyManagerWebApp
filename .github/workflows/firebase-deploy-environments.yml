@@ -16,21 +16,25 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: read
+
 jobs:
   development-build:
     name: Build stable development app
     if: github.event_name == 'push' && github.ref_name == 'beta'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     environment: development
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Use Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '24'
           cache: 'yarn'
@@ -60,7 +64,7 @@ jobs:
 
       - name: Build stable Maintley Beta app
         env:
-          CI: false
+          CI: true
           REACT_APP_FIREBASE_API_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_API_KEY }}
           REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.DEV_REACT_APP_FIREBASE_AUTH_DOMAIN }}
           REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
@@ -94,7 +98,7 @@ jobs:
           yarn check:asset-budgets
 
       - name: Upload stable development build
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: firebase-stable-development-${{ github.sha }}
           path: build
@@ -106,6 +110,7 @@ jobs:
     if: github.event_name == 'push' && github.ref_name == 'beta'
     needs: development-build
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: development
     concurrency:
       group: firebase-stable-development
@@ -113,10 +118,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 
@@ -126,6 +133,7 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
           CURRENT_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]] && git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
             CHANGED_FILES="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
@@ -154,6 +162,13 @@ jobs:
             backend_targets+=("storage")
           fi
 
+          ACTIVE_BACKEND_PREVIEWS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=all&labels=beta-backend-active&per_page=100" --jq 'length' | awk '{ total += $1 } END { print total + 0 }')"
+          if [[ "$ACTIVE_BACKEND_PREVIEWS" -gt 0 ]]; then
+            echo "An active pull-request backend preview exists; this stable Beta deployment will reclaim the complete backend."
+            targets=("hosting:beta" "functions" "firestore:rules" "storage")
+            backend_targets=("functions" "firestore:rules" "storage")
+          fi
+
           TARGETS="$(IFS=,; echo "${targets[*]}")"
           BACKEND_TARGETS="$(IFS=,; echo "${backend_targets[*]}")"
           echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
@@ -162,13 +177,13 @@ jobs:
           echo "Stable development deploy targets: $TARGETS"
 
       - name: Use Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '24'
           cache: 'yarn'
 
       - name: Download stable development build
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: firebase-stable-development-${{ github.sha }}
           path: build
@@ -179,7 +194,7 @@ jobs:
 
       - name: Use Node.js for Functions
         if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '22'
           cache: 'yarn'
@@ -198,7 +213,7 @@ jobs:
 
       - name: Use Java for Firebase emulators
         if: steps.deploy-targets.outputs.has_backend_targets == 'true'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
@@ -214,7 +229,7 @@ jobs:
           fi
 
       - name: Authenticate to Maintley Beta
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
           workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
@@ -222,7 +237,7 @@ jobs:
 
       - name: Install Google Cloud CLI for Function IAM
         if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
 
       - name: Verify stable development target
         shell: bash
@@ -268,6 +283,16 @@ jobs:
           --origin https://maintleybeta.web.app
           --functions recordUserActivity,getFamilyMembers
 
+      - name: Clear pull request backend-preview ownership
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for PR_NUMBER in $(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=all&labels=beta-backend-active&per_page=100" --jq '.[].number'); do
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels/beta-backend-active" --silent || true
+          done
+
   development-release-prep:
     name: Update release candidate
     if: github.event_name == 'push' && github.ref_name == 'beta'
@@ -283,6 +308,7 @@ jobs:
   build-check:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: production
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
@@ -291,7 +317,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_recovery_sha || github.sha }}
           fetch-depth: 0
@@ -302,7 +328,7 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Use Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '24'
           cache: 'yarn'
@@ -318,7 +344,7 @@ jobs:
 
       - name: Build app
         env:
-          CI: false
+          CI: true
           REACT_APP_FIREBASE_API_KEY: ${{ vars.PROD_REACT_APP_FIREBASE_API_KEY }}
           REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.PROD_REACT_APP_FIREBASE_AUTH_DOMAIN }}
           REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
@@ -351,7 +377,7 @@ jobs:
           yarn build
 
       - name: Upload production Hosting build
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: firebase-production-hosting-${{ steps.source.outputs.sha }}
           path: build
@@ -361,6 +387,7 @@ jobs:
   deploy:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: production
     needs: [build-check]
     outputs:
@@ -371,7 +398,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.build-check.outputs.source_sha }}
           fetch-depth: 0
@@ -521,14 +548,14 @@ jobs:
 
       - name: Download production Hosting build
         if: contains(steps.deploy-targets.outputs.targets, 'hosting:prod')
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: firebase-production-hosting-${{ needs.build-check.outputs.source_sha }}
           path: build
 
       - name: Use Node.js for root validation dependencies
         if: steps.deploy-targets.outputs.has_targets == 'true'
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '24'
           cache: 'yarn'
@@ -539,7 +566,7 @@ jobs:
 
       - name: Use Node.js for Functions
         if: contains(steps.deploy-targets.outputs.targets, 'functions')
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '22'
           cache: 'yarn'
@@ -605,7 +632,7 @@ jobs:
 
       - name: Use Java for Firebase emulators
         if: steps.deploy-targets.outputs.has_targets == 'true' && (contains(steps.deploy-targets.outputs.targets, 'functions') || contains(steps.deploy-targets.outputs.targets, 'firestore') || contains(steps.deploy-targets.outputs.targets, 'storage'))
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
@@ -628,7 +655,7 @@ jobs:
 
       - name: Authenticate to Google Cloud
         if: steps.deploy-targets.outputs.has_targets == 'true'
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           project_id: ${{ steps.target.outputs.project_id }}
@@ -712,6 +739,14 @@ jobs:
             --only "${{ steps.deploy-targets.outputs.targets }}" \
             --non-interactive \
             --force
+
+      - name: Validate deployed production Hosting routes
+        if: contains(steps.deploy-targets.outputs.targets, 'hosting:prod')
+        env:
+          FIREBASE_PROJECT_ID: ${{ steps.target.outputs.project_id }}
+        run: >-
+          node scripts/validateDeployedWebRoutes.cjs
+          --base-url "https://$FIREBASE_PROJECT_ID.web.app"
 
   finalize-release:
     name: Publish deployed web release

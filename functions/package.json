@@ -7,6 +7,7 @@
 	},
 	"scripts": {
 		"build": "tsc",
+		"test:ci": "node ../scripts/runNodeTestManifest.cjs functions",
 		"serve": "npm run build && firebase emulators:start --only functions",
 		"deploy": "npm run build && firebase deploy --only functions",
 		"test": "npx ts-node test-stripe-integration.ts",
@@ -20,6 +21,7 @@
 		"test:access-lifecycle-billing": "npm run build && node --test accessLifecycleBilling.test.cjs",
 		"test:access-codes": "npm run build && node --test complimentaryAccessCodes.test.cjs",
 		"test:manual-occupancy": "npm run build && node --test manageManualOccupancy.test.cjs",
+		"test:property-knowledge-links": "npm run build && node --test propertyKnowledgeLinks.test.cjs",
 		"test:billing-disclosure": "npm run build && node --test stripeBillingDisclosure.test.cjs stripeSubscriptionSelection.test.cjs grantAwareCheckout.test.cjs",
 		"test:sandbox": "npx ts-node test-stripe-sandbox.ts",
 		"test:cards:sandbox": "npx ts-node test-stripe-card-scenarios-sandbox.ts",

@@ -16,6 +16,8 @@ profile
 
 Amended: 2026-07-31 - guarded direct Beta reference alignment after release
 
+Amended: 2026-07-31 - opt-in shared Beta backend previews for trusted pull requests
+
 ## Implementation Tracking
 
 - [x] Establish separate development and production Firebase environments.
@@ -26,6 +28,7 @@ Amended: 2026-07-31 - guarded direct Beta reference alignment after release
 - [x] Gate production deployment on an approved release merge and publish immutable release metadata only after deployment succeeds.
 - [x] Add guarded, non-forced Beta alignment logic after production releases.
 - [x] Allow guarded direct Beta reference updates and verify a successful post-release fast-forward.
+- [x] Add an explicit, single-owner pull-request backend preview lifecycle for Maintley Beta.
 - [ ] Complete custom-domain DNS, TLS, and Firebase Hosting cutover.
 - [ ] Deploy clean-route URL generation for Functions, authentication, billing, invitations, and notifications.
 - [ ] Validate authentication, Stripe returns, email links, deep links, PWA behavior, and rollback on the production custom domain.
@@ -91,12 +94,18 @@ will collect the approved state of `beta`, prepare the version files and release
 notes, and open the release PR into `main`. Merging ordinary feature work must
 not deploy the production website.
 
-Pull-request preview channels will use the development Firebase configuration.
-They will share the stable development backend unless a later decision creates
-isolated per-PR Firebase projects. A pull request must not deploy Functions,
-Firestore rules, or Storage rules into the shared development project because
-concurrent pull requests could overwrite one another. Those shared backend
-resources deploy only after approved changes merge into `beta`.
+Pull-request preview channels use the development Firebase configuration and
+share the stable development backend by default. A trusted same-repository pull
+request may explicitly request a shared backend preview after required checks
+pass. Maintley serializes these deployments, marks exactly one pull request as
+the current backend owner, and deploys that pull request's complete Functions,
+Firestore-rules, and Storage-rules state to `maintleybeta`. Later pushes to the
+active pull request redeploy automatically. Merging makes the backend stable;
+closing without merging restores the complete backend from the current `beta`
+branch. This is a temporary shared-environment override, not an isolated copy,
+and it never rolls back test data automatically. Any other merge into `beta`
+also reclaims the complete stable backend and clears preview ownership so a
+shared override cannot silently survive a newer integration state.
 
 `HashRouter` will be removed completely. Maintley will not maintain a
 permanent compatibility layer for legacy `/#/` application URLs.
@@ -435,7 +444,8 @@ private until:
 * Incorrect rewrite ordering could hide public pages or serve the SPA for assets.
 * DNS and TLS cutover can cause temporary availability issues.
 * Deployment and rollback procedures must change.
-* A shared development backend cannot safely represent conflicting backend changes from multiple open PRs.
+* A shared development backend can represent only one active pull-request backend at a time.
+* Pull-request backend previews temporarily place deployed development code ahead of the `beta` Git reference and require automatic restoration when abandoned.
 * Long-lived `beta` and `main` branches require clear synchronization and protection rules.
 * Development Firebase and third-party services add configuration and cost-management work.
 
@@ -485,6 +495,7 @@ The decision is implemented when:
 * The packaged Android application passes its routing and authentication checks.
 * GitHub Actions deploys the web build directly to Firebase.
 * Feature PRs receive expiring Firebase Hosting previews backed by development configuration.
+* Trusted backend-changing PRs can explicitly deploy one serialized, reversible shared Beta backend preview after required checks pass.
 * Merges into `beta` deploy the stable development Firebase environment.
 * Development and production use separate Firebase projects, Analytics, secrets, and data.
 * Only release merges into `main` can deploy production.
@@ -513,5 +524,5 @@ The decision is implemented when:
   tested artifact is promoted deliberately to production.
 * Google Play version codes may contain gaps but may never be reused or decrease.
 * `beta` is the feature-integration branch; `main` is the production release branch.
-* Pull-request previews never create production tags, releases, or backend deployments.
+* Pull-request previews never create production tags, releases, or production backend deployments.
 * Production release metadata is published only after successful production deployment.

@@ -81,6 +81,7 @@ export interface Task {
 	propertyId: string;
 	requiresWorkOrder?: boolean;
 	category?: string;
+	/** @deprecated Preserved only while legacy values migrate to Task-to-Space links. */
 	location?: string;
 	enableNotifications?: boolean;
 	notifications?: TaskNotification[];
@@ -155,11 +156,13 @@ export interface TaskFormData {
 	requiresWorkOrder?: boolean;
 	notes: string;
 	category?: string;
+	/** @deprecated New and edited Tasks use spaceIds instead. */
 	location?: string;
 	priority?: TaskPriority;
 	assignee?: string;
 	assignedTo?: string;
 	devices?: string[];
+	spaceIds?: string[];
 	isRecurring?: boolean;
 	recurrenceFrequency?: RecurrenceFrequency;
 	recurrenceInterval?: number;

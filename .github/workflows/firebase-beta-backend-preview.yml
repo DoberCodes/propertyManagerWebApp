@@ -1,0 +1,328 @@
+name: Beta Backend Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: Open same-repository pull request targeting beta.
+        required: true
+        type: number
+  pull_request:
+    branches:
+      - beta
+    types:
+      - labeled
+      - synchronize
+      - closed
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-backend-preview:
+    name: Prepare Beta backend request
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'deploy-backend-to-beta') ||
+      (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'beta-backend-active')) ||
+      (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == false && contains(github.event.pull_request.labels.*.name, 'beta-backend-active'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      mode: ${{ steps.source.outputs.mode }}
+      pr_number: ${{ steps.source.outputs.pr_number }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Resolve trusted source
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCH_PR_NUMBER: ${{ inputs.pull_request_number }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_ACTION: ${{ github.event.action }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PR_NUMBER="${DISPATCH_PR_NUMBER:-$EVENT_PR_NUMBER}"
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "A numeric pull request number is required."
+            exit 1
+          fi
+
+          if [[ "$EVENT_ACTION" == "closed" ]]; then
+            SOURCE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/beta" --jq '.object.sha')"
+            echo "mode=restore" >> "$GITHUB_OUTPUT"
+            echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "Restoring the stable Beta backend from $SOURCE_SHA after PR #$PR_NUMBER closed without merging."
+            exit 0
+          fi
+
+          PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+          PR_STATE="$(jq -r '.state' <<< "$PR_JSON")"
+          BASE_REF="$(jq -r '.base.ref' <<< "$PR_JSON")"
+          HEAD_SHA="$(jq -r '.head.sha' <<< "$PR_JSON")"
+          HEAD_REPOSITORY="$(jq -r '.head.repo.full_name' <<< "$PR_JSON")"
+
+          if [[ "$PR_STATE" != "open" ]]; then
+            echo "PR #$PR_NUMBER must be open."
+            exit 1
+          fi
+          if [[ "$BASE_REF" != "beta" ]]; then
+            echo "PR #$PR_NUMBER must target beta; found $BASE_REF."
+            exit 1
+          fi
+          if [[ "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ]]; then
+            echo "Backend previews are restricted to same-repository pull requests."
+            exit 1
+          fi
+
+          echo "mode=preview" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Resolved PR #$PR_NUMBER at $HEAD_SHA."
+
+      - name: Wait for required pull request checks
+        if: steps.source.outputs.mode == 'preview'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          deadline=$((SECONDS + 1800))
+          self_check='Deploy or restore Beta backend'
+
+          while (( SECONDS < deadline )); do
+            checks="$(gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --required 2>&1 || true)"
+            other_checks="$(awk -F '\t' -v self="$self_check" 'NF >= 2 && $1 != self' <<< "$checks")"
+
+            if [[ -z "$other_checks" ]]; then
+              echo "Waiting for required pull request checks to be reported."
+              sleep 10
+              continue
+            fi
+
+            echo "$other_checks"
+
+            if awk -F '\t' '$2 == "fail" || $2 == "cancel" { found = 1 } END { exit !found }' <<< "$other_checks"; then
+              echo "A required pull request check failed or was cancelled."
+              exit 1
+            fi
+
+            if awk -F '\t' '$2 != "pass" && $2 != "skipping" { pending = 1 } END { exit pending }' <<< "$other_checks"; then
+              echo "All required pull request checks except this backend deployment check passed."
+              exit 0
+            fi
+
+            echo "Waiting for remaining required pull request checks."
+            sleep 10
+          done
+
+          echo "Timed out waiting for required pull request checks."
+          exit 1
+
+  beta-backend-preview:
+    name: Deploy or restore Beta backend
+    needs: prepare-backend-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: development
+    concurrency:
+      group: firebase-stable-development
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Revalidate request after acquiring Beta deployment lock
+        env:
+          EXPECTED_SHA: ${{ needs.prepare-backend-preview.outputs.source_sha }}
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ needs.prepare-backend-preview.outputs.mode }}
+          PR_NUMBER: ${{ needs.prepare-backend-preview.outputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$MODE" == "preview" ]]; then
+            PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+            CURRENT_SHA="$(jq -r '.head.sha' <<< "$PR_JSON")"
+            PR_STATE="$(jq -r '.state' <<< "$PR_JSON")"
+            BASE_REF="$(jq -r '.base.ref' <<< "$PR_JSON")"
+            HEAD_REPOSITORY="$(jq -r '.head.repo.full_name' <<< "$PR_JSON")"
+
+            if [[ "$PR_STATE" != "open" || "$BASE_REF" != "beta" || "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" || "$CURRENT_SHA" != "$EXPECTED_SHA" ]]; then
+              echo "::error::Backend preview request is stale after waiting for the shared deployment lock. Expected $EXPECTED_SHA; current PR head is $CURRENT_SHA."
+              exit 1
+            fi
+          else
+            CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/beta" --jq '.object.sha')"
+            ACTIVE="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER" --jq '[.labels[].name] | index("beta-backend-active") != null')"
+            if [[ "$CURRENT_SHA" != "$EXPECTED_SHA" || "$ACTIVE" != "true" ]]; then
+              echo "::error::Stable restoration request is stale or PR #$PR_NUMBER no longer owns the Beta backend."
+              exit 1
+            fi
+          fi
+
+          echo "Validated $MODE request for $EXPECTED_SHA after acquiring the shared deployment lock."
+
+      - name: Checkout trusted source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ needs.prepare-backend-preview.outputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: '24'
+          cache: 'yarn'
+
+      - name: Install root dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Validate environment contract
+        run: yarn env:contract:validate
+
+      - name: Use Node.js for Functions
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: '22'
+          cache: 'yarn'
+          cache-dependency-path: functions/yarn.lock
+
+      - name: Install Functions dependencies
+        run: yarn --cwd functions install --frozen-lockfile
+
+      - name: Validate Functions deploy package
+        run: |
+          yarn check:entitlement-locks
+          yarn validate:functions-package
+          yarn --cwd functions build
+
+      - name: Use Java for Firebase emulators
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Validate Firebase rules
+        run: |
+          yarn test:rules
+          yarn test:storage
+
+      - name: Authenticate to Maintley Beta
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
+
+      - name: Install Google Cloud CLI for Function IAM
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Verify Beta deployment boundary
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
+          REACT_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
+          STRIPE_PUBLIC_KEY: ${{ vars.DEV_REACT_APP_STRIPE_PUBLIC_KEY }}
+        shell: bash
+        run: |
+          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" || "$REACT_FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
+            echo "Refusing to deploy outside Maintley Beta."
+            exit 1
+          fi
+          if [[ "$STRIPE_PUBLIC_KEY" != pk_test_* ]]; then
+            echo "Beta backend previews require a Stripe pk_test_ publishable key."
+            exit 1
+          fi
+
+      - name: Write Beta Functions environment
+        env:
+          MAINTLEY_GITHUB_VARIABLES_JSON: ${{ toJSON(vars) }}
+        run: yarn env:bootstrap --environment development --apply --strict --check-secrets
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.22.3
+
+      - name: Validate Maintley Beta Firebase secrets
+        run: node scripts/validateFirebaseDevelopmentSecrets.cjs --project maintleybeta
+
+      - name: Deploy complete Beta backend
+        run: >-
+          firebase deploy
+          --project beta
+          --only functions,firestore:rules,storage
+          --non-interactive
+          --force
+
+      - name: Ensure HTTPS and callable Function invokers
+        run: node scripts/ensureFirebaseFunctionInvokers.cjs --project maintleybeta
+
+      - name: Validate callable Function preflight
+        run: >-
+          node scripts/validateCallableFunctionsPreflight.cjs
+          --project maintleybeta
+          --origin https://maintleybeta.web.app
+          --functions recordUserActivity,getFamilyMembers
+
+      - name: Record preview ownership
+        if: needs.prepare-backend-preview.outputs.mode == 'preview'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.prepare-backend-preview.outputs.pr_number }}
+          SOURCE_SHA: ${{ needs.prepare-backend-preview.outputs.source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh api --method POST "repos/$GITHUB_REPOSITORY/labels" -f name='beta-backend-active' -f color='8250df' -f description='This PR currently owns the shared Maintley Beta backend.' --silent 2>/dev/null || true
+          gh api --method POST "repos/$GITHUB_REPOSITORY/labels" -f name='deploy-backend-to-beta' -f color='fbca04' -f description='Deploy this trusted PR backend to Maintley Beta after required checks pass.' --silent 2>/dev/null || true
+
+          for OTHER_PR in $(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=all&labels=beta-backend-active&per_page=100" --jq '.[].number'); do
+            if [[ "$OTHER_PR" != "$PR_NUMBER" ]]; then
+              gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/$OTHER_PR/labels/beta-backend-active" --silent || true
+            fi
+          done
+
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels/deploy-backend-to-beta" --silent || true
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" -f 'labels[]=beta-backend-active' --silent
+
+          MARKER='<!-- maintley-beta-backend-preview -->'
+          SHORT_SHA="${SOURCE_SHA:0:12}"
+          BODY="$MARKER
+          **Maintley Beta backend active**
+
+          PR #$PR_NUMBER commit \`$SHORT_SHA\` currently supplies the shared \`maintleybeta\` Functions, Firestore rules, and Storage rules. Localhost and Firebase Hosting previews that use Beta configuration now exercise this backend.
+
+          A later push to this PR redeploys after required checks pass. Merging makes the backend stable; closing without merging restores the current \`beta\` backend. Test data is not rolled back automatically."
+          COMMENT_ID="$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" --jq ".[] | select(.body | contains(\"$MARKER\")) | .id" | head -n 1)"
+          PAYLOAD="$(jq -n --arg body "$BODY" '{body: $body}')"
+          if [[ -n "$COMMENT_ID" ]]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID" --input - <<< "$PAYLOAD" --silent
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --input - <<< "$PAYLOAD" --silent
+          fi
+
+      - name: Record stable restoration
+        if: needs.prepare-backend-preview.outputs.mode == 'restore'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.prepare-backend-preview.outputs.pr_number }}
+          SOURCE_SHA: ${{ needs.prepare-backend-preview.outputs.source_sha }}
+        shell: bash
+        run: |
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels/beta-backend-active" --silent || true
+          SHORT_SHA="${SOURCE_SHA:0:12}"
+          gh pr comment "$PR_NUMBER" --body "The shared Maintley Beta backend was restored from the current \`beta\` commit \`$SHORT_SHA\` because this PR closed without merging. Test data created during preview was not removed."

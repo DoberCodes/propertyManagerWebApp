@@ -124,3 +124,14 @@ export {
 } from './maintleyTeamAdmin';
 export { managePersonalAssistantCredentials } from './personalAssistantCredentials';
 export { personalAssistantApi } from './personalAssistantApi';
+export {
+	cleanupEquipmentSpaceLinks,
+	cleanupTaskSpaceLinks,
+	removePropertySpace,
+	restorePropertySpace,
+	removePropertySupply,
+	restorePropertySupply,
+	setSupplyLinks,
+	setEquipmentSpaceLinks,
+	setTaskSpaceLinks,
+} from './propertyKnowledgeLinks';

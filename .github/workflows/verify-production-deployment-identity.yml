@@ -1,0 +1,115 @@
+name: Verify Production Deployment Identity
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/verify-production-deployment-identity.yml'
+      - '.firebaserc'
+      - 'firebase.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-production-deployment-identity
+  cancel-in-progress: false
+
+jobs:
+  verify-production-identity:
+    name: Verify production identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Validate production identity configuration
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.PROD_FIREBASE_PROJECT_ID }}
+          GOOGLE_SERVICE_ACCOUNT: ${{ vars.PROD_GOOGLE_SERVICE_ACCOUNT }}
+          WORKLOAD_IDENTITY_PROVIDER: ${{ vars.PROD_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+        run: |
+          missing=0
+          for name in \
+            FIREBASE_PROJECT_ID \
+            GOOGLE_SERVICE_ACCOUNT \
+            WORKLOAD_IDENTITY_PROVIDER
+          do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required production environment variable: $name"
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+          if [[ "$FIREBASE_PROJECT_ID" != "mypropertymanager-cda42" ]]; then
+            echo "Refusing to authenticate: production project must be mypropertymanager-cda42."
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Refusing to authenticate: production identity verification must run from Main."
+            exit 1
+          fi
+
+          if [[ "$GOOGLE_SERVICE_ACCOUNT" != "github-production-deploy@mypropertymanager-cda42.iam.gserviceaccount.com" ]]; then
+            echo "Refusing to authenticate with an unexpected production service account."
+            exit 1
+          fi
+
+          if [[ "$WORKLOAD_IDENTITY_PROVIDER" != "projects/581187340388/locations/global/workloadIdentityPools/github-actions/providers/maintley-production" ]]; then
+            echo "Refusing to authenticate with an unexpected production Workload Identity provider."
+            exit 1
+          fi
+
+      - name: Authenticate to Maintley Production
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: ${{ vars.PROD_FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.PROD_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.PROD_GOOGLE_SERVICE_ACCOUNT }}
+
+      - name: Use Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Verify project and Firebase Hosting read access
+        shell: bash
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.PROD_FIREBASE_PROJECT_ID }}
+          GOOGLE_SERVICE_ACCOUNT: ${{ vars.PROD_GOOGLE_SERVICE_ACCOUNT }}
+        run: |
+          active_account="$(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
+          if [[ "$active_account" != "$GOOGLE_SERVICE_ACCOUNT" ]]; then
+            echo "Authenticated account does not match the dedicated production identity."
+            exit 1
+          fi
+
+          resolved_project="$(gcloud projects describe "$FIREBASE_PROJECT_ID" --format='value(projectId)')"
+          if [[ "$resolved_project" != "$FIREBASE_PROJECT_ID" ]]; then
+            echo "Authenticated project does not match the production project."
+            exit 1
+          fi
+
+          access_token="$(gcloud auth print-access-token)"
+          hosting_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $access_token" \
+            "https://firebasehosting.googleapis.com/v1beta1/projects/$FIREBASE_PROJECT_ID/sites")"
+
+          if ! jq --exit-status \
+            --arg expected "projects/$FIREBASE_PROJECT_ID/sites/$FIREBASE_PROJECT_ID" \
+            '(.sites // []) | any(.name == $expected)' \
+            <<< "$hosting_response" > /dev/null
+          then
+            echo "The expected Maintley Production Hosting site was not visible to the production identity."
+            exit 1
+          fi
+
+          echo "Verified keyless read access to the Maintley Production Firebase Hosting site."

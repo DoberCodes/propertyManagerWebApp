@@ -585,6 +585,42 @@ Review deployment configuration before changing billing behavior.
 
 # Testing
 
+## Stripe test cards
+
+Stripe test card numbers are public testing data. They belong in this guide,
+not in `.env` files, GitHub Secrets, Firebase Secret Manager, or customer-facing
+application copy.
+
+| Scenario | Card number | Expected result |
+| --- | --- | --- |
+| Successful payment | `4242 4242 4242 4242` | Checkout succeeds without a required authentication challenge. |
+| Generic decline | `4000 0000 0000 0002` | Checkout reports a declined card and does not grant paid access. |
+| 3D Secure authentication | `4000 0025 0000 3155` | Checkout requires the Stripe test authentication flow. |
+
+For interactive Checkout testing, use any future expiration date, any
+three-digit CVC, and any valid postal code. Never enter real payment details in
+Beta or another Stripe test-mode environment. Consult the
+[Stripe test card documentation](https://docs.stripe.com/testing?testing-method=card-numbers)
+for additional scenarios and current behavior.
+
+## Beta Checkout validation
+
+Maintley Beta must use Stripe test-mode publishable and secret keys, test-mode
+prices, and a Beta webhook endpoint. A complete validation should:
+
+1. Register or sign in to a disposable Beta account on the Free plan.
+2. Start a Homeowner+ monthly or annual Checkout.
+3. Complete Checkout with the successful test card.
+4. Confirm Stripe created a test customer and test subscription.
+5. Confirm Maintley records the Stripe customer and subscription identifiers,
+   resolves the `homeowner_plus` plan, and exposes Homeowner+ capabilities.
+6. Confirm the subscription is visible from the account billing surface.
+7. Cancel or delete the test subscription and remove disposable test data.
+
+Checkout intent alone is not a successful subscription. Verification requires
+an active or trialing Stripe subscription and synchronized Maintley billing
+state.
+
 Useful commands:
 
 npm run test:stripe:sandbox

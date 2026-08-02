@@ -1,5 +1,6 @@
 import {
 	approveTaskWorkflow,
+	createNextRecurringTaskForCompletion,
 	mergeCompletionFinancials,
 	submitTaskCompletionWorkflow,
 	TaskLifecycleDependencies,
@@ -38,6 +39,38 @@ const createDeps = (task: Task | null = baseTask): TaskLifecycleDependencies => 
 });
 
 describe('task lifecycle workflows', () => {
+	it('copies accepted Space links to a locally generated recurring task', async () => {
+		const deps = createDeps({
+			...baseTask,
+			isRecurring: true,
+			recurrenceFrequency: 'monthly',
+			recurrenceInterval: 1,
+		});
+		deps.createTask = jest.fn(async () => 'task-next');
+		deps.copyTaskSpaceLinks = jest.fn(async () => undefined);
+
+		const outcome = await createNextRecurringTaskForCompletion({
+			task: {
+				...baseTask,
+				isRecurring: true,
+				recurrenceFrequency: 'monthly',
+				recurrenceInterval: 1,
+			},
+			taskId: 'task-1',
+			accountId: 'account-1',
+			completionDate: '2026-07-05',
+			notifyUserId: 'user-1',
+			deps,
+		});
+
+		expect(outcome).toBe('created');
+		expect(deps.copyTaskSpaceLinks).toHaveBeenCalledWith({
+			fromTaskId: 'task-1',
+			toTaskId: 'task-next',
+			propertyId: 'property-1',
+		});
+	});
+
 	it('merges completion financials without losing task estimates', () => {
 		expect(
 			mergeCompletionFinancials(baseTask.financials, {
