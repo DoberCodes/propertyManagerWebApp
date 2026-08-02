@@ -816,9 +816,14 @@ const inferCustomerCategory = ({ title, labels, files, body, engineeringCategory
 	return 'improvements';
 };
 
+const hasBreakingDeclaration = ({ title, labels, body }) =>
+	/^[a-z]+(?:\(.+?\))?!:/i.test(String(title || '').trim()) ||
+	labels.some((label) => label === 'breaking' || label === 'breaking-change') ||
+	/^\s*(?:BREAKING(?:[ -]CHANGE)?|breaking)\s*:/im.test(String(body || '')) ||
+	/^\s{0,3}#{1,6}\s+breaking changes?\s*$/im.test(String(body || ''));
+
 const categorize = ({ title, labels, files, body }) => {
 	const text = `${title}\n${body || ''}`.toLowerCase();
-	const labelText = labels.join(' ');
 	const fileText = files.join('\n').toLowerCase();
 	const releaseClassification = resolveReleaseClassification({ title, body });
 
@@ -826,11 +831,7 @@ const categorize = ({ title, labels, files, body }) => {
 	if (releaseClassification?.type === 'feat') return 'highlights';
 	if (releaseClassification?.type === 'fix') return 'fixes';
 
-	if (
-		/breaking change|breaking:/i.test(text) ||
-		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
-		/\bbreaking\b/.test(labelText)
-	) {
+	if (hasBreakingDeclaration({ title, labels, body })) {
 		return 'breaking';
 	}
 
@@ -891,11 +892,7 @@ const inferBump = ({ title, labels, body }) => {
 	if (labels.some((label) => label === 'release:patch' || label === 'release-patch')) {
 		return 'patch';
 	}
-	if (
-		/breaking change|breaking:/.test(text) ||
-		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
-		labels.some((label) => label === 'breaking' || label === 'breaking-change')
-	) {
+	if (hasBreakingDeclaration({ title, labels, body })) {
 		return 'major';
 	}
 	const releaseClassification = resolveReleaseClassification({ title, body });

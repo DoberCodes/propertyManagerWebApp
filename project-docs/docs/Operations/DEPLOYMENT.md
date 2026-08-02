@@ -1118,6 +1118,10 @@ actionable message instead of guessing from file paths. Explicit
 `release:major`, `release:minor`, `release:patch`, and `release:none` labels may
 override version impact for exceptional cases.
 
+The release generator treats only explicit breaking markers as major-version
+signals. Instructions or ordinary prose that mention the words "breaking
+change" do not override a declared `fix:`, `perf:`, or `feat:` classification.
+
 The generator produces two release note layers:
 
 * Customer-facing notes for the public GitHub Release body.

@@ -80,6 +80,11 @@ selects a major release. Internal-only `refactor`, `docs`, `chore`, `ci`,
 release-impact label overrides the inference. They remain visible in engineering
 notes without creating an otherwise empty customer release.
 
+Breaking impact is recognized only from an explicit signal: a `!` Conventional
+Commit marker, a breaking release label, a `BREAKING CHANGE:` footer, or a
+dedicated breaking-change heading. Explanatory PR-template prose must not alter
+the inferred version.
+
 ## Test manifests
 
 Root Node tests are declared in `scripts/testManifest.cjs` and run through:
