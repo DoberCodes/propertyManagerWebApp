@@ -251,6 +251,10 @@ default. `scripts/releaseClassification.cjs` shares this mapping with the
 protected PR-summary workflow so title normalization, summaries, notes, and
 version selection cannot classify the same PR differently.
 
+Major versions require an explicit breaking marker such as `feat!:`, a breaking
+release label, a `BREAKING CHANGE:` footer, or a dedicated breaking-change
+heading. PR-template guidance that merely explains those markers is ignored.
+
 When `package.json` is already ahead of the latest `v*` tag, the generator treats
 that package version as the prepared release version instead of bumping again.
 This allows the automated release-prep PR to own version file changes without

@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
 	formatCustomerReleaseNotes,
@@ -127,6 +129,35 @@ test('classifies fixes as patch releases and customer-facing fixes', () => {
 			engineeringCategory: 'fixes',
 		}),
 		'fixes',
+	);
+});
+
+test('does not treat pull request template guidance as a breaking change', () => {
+	const template = fs
+		.readFileSync(path.join(__dirname, '..', '.github', 'pull_request_template.md'), 'utf8')
+		.replace(
+			'Release type: <!-- feat, feat!, fix, perf, refactor, docs, chore, ci, build, or test -->',
+			'Release type: fix',
+		);
+
+	assert.equal(
+		inferBump({
+			title: 'fix: complete property supplies workspace',
+			labels: [],
+			body: template,
+		}),
+		'patch',
+	);
+});
+
+test('keeps explicit breaking declarations as major releases', () => {
+	assert.equal(
+		inferBump({
+			title: 'Update the property model',
+			labels: [],
+			body: 'BREAKING CHANGE: Existing integrations must use the new endpoint.',
+		}),
+		'major',
 	);
 });
 
