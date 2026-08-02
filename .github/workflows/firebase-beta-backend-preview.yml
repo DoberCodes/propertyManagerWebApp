@@ -178,13 +178,13 @@ jobs:
           echo "Validated $MODE request for $EXPECTED_SHA after acquiring the shared deployment lock."
 
       - name: Checkout trusted source
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.prepare-backend-preview.outputs.source_sha }}
           fetch-depth: 0
 
       - name: Use Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '24'
           cache: 'yarn'
@@ -196,7 +196,7 @@ jobs:
         run: yarn env:contract:validate
 
       - name: Use Node.js for Functions
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '22'
           cache: 'yarn'
@@ -212,7 +212,7 @@ jobs:
           yarn --cwd functions build
 
       - name: Use Java for Firebase emulators
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
@@ -223,14 +223,14 @@ jobs:
           yarn test:storage
 
       - name: Authenticate to Maintley Beta
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
           workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
 
       - name: Install Google Cloud CLI for Function IAM
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
 
       - name: Verify Beta deployment boundary
         env:

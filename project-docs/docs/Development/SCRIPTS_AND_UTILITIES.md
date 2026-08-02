@@ -1411,7 +1411,19 @@ yarn validate:workflows
 `scripts/testManifest.cjs` is authoritative for top-level Node test coverage.
 `scripts/workflowChangeClassification.cjs` provides deterministic changed-file
 classification, and `scripts/validateWorkflowPolicy.cjs` rejects missing
-permissions, timeouts, invalid workflow YAML, and suppressed CI warnings.
+permissions, broad top-level writes, mutable external Action references,
+missing Action release comments, missing GitHub Actions Dependabot coverage,
+timeouts, invalid workflow YAML, and suppressed CI warnings.
+
+Production Hosting route validation is available through:
+
+```bash
+yarn validate:deployed-web --base-url https://PROJECT_ID.web.app
+```
+
+`scripts/validateDeployedWebRoutes.cjs` performs a read-only HTTPS check of the
+public Maintley BrowserRouter routes and confirms that each returns the app
+shell. The production deployment runs it before release finalization.
 
 Preferred naming:
 
