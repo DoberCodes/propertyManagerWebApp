@@ -4,6 +4,8 @@ import type {
 	PropertyDocument,
 } from '../types/Property.types';
 import type { TaskFinancials } from '../types/Task.types';
+import type { PropertySupplyDraft } from '../types/Supply.types';
+import { getPropertySupplyTypeFromLegacyCategory } from '../utils/propertySupplies';
 import type {
 	ExtractedKnowledgeField,
 	ExtractedPartSuggestion,
@@ -91,10 +93,10 @@ type ApplyKnowledgeSuggestionResult = {
 		eventSource: 'document_upload';
 		tags?: string[];
 	};
-	partSystemUpdate?: {
-		systemId: string;
-		items: Device['serviceItems'];
-	};
+	supplySuggestions: Array<{
+		draft: PropertySupplyDraft;
+		equipmentId?: string;
+	}>;
 	taskSuggestions: PropertyKnowledgeTaskSuggestion[];
 	equipmentSuggestions: PropertyKnowledgeEquipmentSuggestion[];
 	appliedSuggestion: PropertyKnowledgeSuggestion;
@@ -1380,9 +1382,6 @@ const normalizeDateValue = (value?: string, fallback = new Date().toISOString())
 const normalizePartLookupValue = (value?: string) =>
 	normalizeSearchText(value).replace(/\s+/g, ' ');
 
-const createServiceItemId = (suggestionId: string, partId: string) =>
-	`pka-${suggestionId}-${partId}`.replace(/[^a-zA-Z0-9_-]/g, '-');
-
 const inferManufacturerFromPartName = (name: string) => {
 	const knownManufacturers = ['Honeywell', 'Trane', 'Ecobee', 'Nest', 'Carrier', 'Lennox'];
 	return knownManufacturers.find((manufacturer) =>
@@ -1553,51 +1552,39 @@ const buildMaintenanceHistorySuggestion = ({
 	};
 };
 
-const buildServiceItemsFromAcceptedParts = ({
+const buildSupplySuggestionsFromAcceptedParts = ({
 	suggestion,
-	system,
 	acceptedByUser,
 	acceptedAt,
 }: {
 	suggestion: PropertyKnowledgeSuggestion;
-	system: Device;
 	acceptedByUser: string;
 	acceptedAt: string;
 }) => {
-	const existingItems = Array.isArray(system.serviceItems)
-		? system.serviceItems
-		: [];
-	const seenNames = new Set(
-		existingItems.map((item) => normalizePartLookupValue(item.name)),
-	);
-	const nextItems = [...existingItems];
-
-	(suggestion.suggestedParts || []).forEach((part) => {
-		if (part.reviewStatus === 'rejected') return;
-		const name = normalizeExtractedValue(part.userEditableName || part.name);
-		if (!name) return;
-		const lookupName = normalizePartLookupValue(name);
-		if (seenNames.has(lookupName)) return;
-		seenNames.add(lookupName);
-
-		const manufacturer = inferManufacturerFromPartName(name);
-		const notes = [
-			`Suggested from ${suggestion.sourceDocumentName || 'source document'}.`,
-			part.sourceText ? `Source text: ${part.sourceText}` : '',
-			`Accepted by ${acceptedByUser} on ${acceptedAt.slice(0, 10)}.`,
-		].filter(Boolean).join('\n');
-
-		nextItems.push({
-			id: createServiceItemId(suggestion.id, part.id),
-			category: part.userEditableCategory || part.category,
-			name,
-			details: `Matched as ${part.label}`,
-			...(manufacturer ? { manufacturer } : {}),
-			notes,
-		});
-	});
-
-	return nextItems.length === existingItems.length ? undefined : nextItems;
+	return (suggestion.suggestedParts || [])
+		.filter((part) => part.reviewStatus !== 'rejected')
+		.map((part) => {
+			const name = normalizeExtractedValue(part.userEditableName || part.name);
+			const category = part.userEditableCategory || part.category;
+			const manufacturer = inferManufacturerFromPartName(name);
+			return {
+				draft: {
+					name,
+					type: getPropertySupplyTypeFromLegacyCategory(category),
+					...(manufacturer ? { manufacturer } : {}),
+					details: `Matched as ${part.label}`,
+					notes: [
+						`Suggested from ${suggestion.sourceDocumentName || 'source document'}.`,
+						part.sourceText ? `Source text: ${part.sourceText}` : '',
+						`Accepted by ${acceptedByUser} on ${acceptedAt.slice(0, 10)}.`,
+					].filter(Boolean).join('\n'),
+				},
+				...(suggestion.relatedSystemId
+					? { equipmentId: suggestion.relatedSystemId }
+					: {}),
+			};
+		})
+		.filter((item) => Boolean(item.draft.name));
 };
 
 const filterFieldsToMissingPropertyMemory = ({
@@ -1910,6 +1897,7 @@ export const applyAcceptedKnowledgeSuggestion = ({
 		return {
 			propertyUpdates: {},
 			systemUpdates: [],
+			supplySuggestions: [],
 			taskSuggestions: [],
 			equipmentSuggestions: [],
 			appliedSuggestion: suggestion,
@@ -1987,25 +1975,11 @@ export const applyAcceptedKnowledgeSuggestion = ({
 		systemUpdateMap.set(acceptedSuggestion.relatedSystemId, currentUpdates);
 	});
 
-	if (acceptedSuggestion.relatedSystemId && acceptedSuggestion.suggestedParts?.length) {
-		const system = systems.find(
-			(candidate) => String(candidate.id) === String(acceptedSuggestion.relatedSystemId),
-		);
-		if (system) {
-			const nextServiceItems = buildServiceItemsFromAcceptedParts({
-				suggestion: acceptedSuggestion,
-				system,
-				acceptedByUser,
-				acceptedAt,
-			});
-			if (nextServiceItems) {
-				const currentUpdates =
-					systemUpdateMap.get(acceptedSuggestion.relatedSystemId) || {};
-				currentUpdates.serviceItems = nextServiceItems;
-				systemUpdateMap.set(acceptedSuggestion.relatedSystemId, currentUpdates);
-			}
-		}
-	}
+	const supplySuggestions = buildSupplySuggestionsFromAcceptedParts({
+		suggestion: acceptedSuggestion,
+		acceptedByUser,
+		acceptedAt,
+	});
 
 	return {
 		propertyUpdates,
@@ -2013,6 +1987,7 @@ export const applyAcceptedKnowledgeSuggestion = ({
 			id,
 			updates,
 		})),
+		supplySuggestions,
 		taskSuggestions: (acceptedSuggestion.suggestedTasks || []).filter(
 			(task) => task.reviewStatus !== 'rejected',
 		),

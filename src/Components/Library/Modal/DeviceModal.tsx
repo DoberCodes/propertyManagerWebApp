@@ -485,7 +485,6 @@ export const DeviceModal = (props: DeviceModalProps) => {
 	}, [selectedAssetType]);
 
 	const completedBasics = missingRequiredFields.length === 0 ? 1 : 0;
-	const partsConfigured = serviceItems.length > 0;
 	const detailsError = submitAttempted && missingRequiredFields.length > 0;
 
 	const emitChange = (name: string, value: any) => {
@@ -794,7 +793,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				primaryButtonDisabled={missingRequiredFields.length > 0}>
 				<StickyTabRail>
 					<ModalTabContainer>
-						<ModalTab
+						{false && <ModalTab
 							type='button'
 							$active={activeTab === 'details'}
 							onClick={() => setActiveTab('details')}>
@@ -806,7 +805,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 									</TabBadge>
 								)}
 							</TabLabel>
-						</ModalTab>
+						</ModalTab>}
 						<ModalTab
 							type='button'
 							$active={activeTab === 'service-items'}
@@ -821,13 +820,10 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				<ScrollBody ref={scrollBodyRef}>
 					<ModalTabContent $active={activeTab === 'details'}>
 						<SummaryBanner>
-							<SummaryTitle>Capture the equipment basics first, then optionally document recurring parts and supplies.</SummaryTitle>
+							<SummaryTitle>Capture the equipment basics first. Supplies are managed from the property record after the equipment is saved.</SummaryTitle>
 							<SummaryMeta>
 								<SummaryPill $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
 									{completedBasics}/1 required item complete
-								</SummaryPill>
-								<SummaryPill $tone={partsConfigured ? 'success' : 'neutral'}>
-									{serviceItems.length} part{serviceItems.length === 1 ? '' : 's'} tracked
 								</SummaryPill>
 							</SummaryMeta>
 							<RequiredList>
@@ -1127,7 +1123,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 						)}
 					</ModalTabContent>
 
-					<ModalTabContent $active={activeTab === 'service-items'}>
+					{false && <ModalTabContent $active={activeTab === 'service-items'}>
 						{/* ── Add new item form ── */}
 						<SectionHeader>
 							<SectionTitle>Parts & Supplies</SectionTitle>
@@ -1575,7 +1571,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 								)
 							)}
 						</div>
-					</ModalTabContent>
+					</ModalTabContent>}
 				</ScrollBody>
 			</GenericModal>
 			<BarcodeScannerModal
@@ -1586,14 +1582,14 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				onClose={() => setIsDeviceScanOpen(false)}
 				onDetected={handleDeviceBarcodeDetected}
 			/>
-			<BarcodeScannerModal
+			{false && <BarcodeScannerModal
 				isOpen={isPartScanOpen}
 				title='Part Capture Assistant'
 				defaultMethod='barcode'
 				captureIntent='part'
 				onClose={() => setIsPartScanOpen(false)}
 				onDetected={handlePartBarcodeDetected}
-			/>
+			/>}
 		</>
 	);
 };

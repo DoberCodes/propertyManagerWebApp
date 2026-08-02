@@ -311,6 +311,15 @@ name
 type
 manufacturer (optional)
 modelOrSku (optional)
+barcodeValue (optional)
+partNumber (optional)
+size (optional)
+details (optional)
+material (optional)
+voltage (optional)
+mervRating (optional)
+compatibility (optional)
+replacementInterval (optional)
 notes (optional)
 isArchived
 source
@@ -322,14 +331,19 @@ updatedAt
 
 Supported types are `filter`, `paint_and_finish`, `lawn_and_garden`,
 `pool_and_spa`, `electrical`, `plumbing`, `hardware`, `cleaning`, and `other`.
-The flexible name and optional manufacturer and model-or-SKU fields preserve
-the product specification a homeowner is likely to need again without turning
-the record into inventory.
+The flexible name, identifiers, product specifications, and replacement details
+preserve what a homeowner is likely to need again without turning the record
+into inventory. Barcode capture is a reviewed input path: Maintley searches the
+Property for an existing identifier before prefilling a new Supply, and never
+saves a scanned result automatically.
 
 Equipment, Spaces, and Tasks connect to a Supply through canonical `uses`
 relationships. One Supply may be used by several records, and the inverse view
 is derived rather than copied onto the Supply. Account managers manage Supply
-records and connections from Property Details. Referenced Supplies are archived
+records and connections from the first-class Property Supplies page. Supplies
+and barcode capture are available on every active plan; role permissions
+continue to control changes. Equipment pages derive and display their connected
+Supplies without owning or copying them. Referenced Supplies are archived
 instead of deleted and may later be restored. New relationships cannot be made
 to an archived Supply or archived Space.
 
@@ -450,6 +464,9 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Add archived-Space recovery and a trusted restore action.
 - [x] Add a dry-run-first exact-match legacy Task location migration utility.
 - [x] Add the first Supply management and Equipment, Space, and Task relationship experience.
+- [x] Promote Supplies to a first-class Property page and move barcode capture to the canonical Supply workflow.
+- [x] Replace Equipment-owned Supply writes with derived connected-Supply views.
+- [x] Add a dry-run-first, repeat-safe migration for embedded Equipment service items.
 - [ ] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
 

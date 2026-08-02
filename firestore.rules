@@ -770,6 +770,15 @@ service cloud.firestore {
           'type',
           'manufacturer',
           'modelOrSku',
+		  'barcodeValue',
+		  'partNumber',
+		  'size',
+		  'details',
+		  'material',
+		  'voltage',
+		  'mervRating',
+		  'compatibility',
+		  'replacementInterval',
           'notes',
           'isArchived',
           'source',
@@ -796,6 +805,15 @@ service cloud.firestore {
         ] &&
         (!('manufacturer' in data) || (data.manufacturer is string && data.manufacturer.size() <= 100)) &&
         (!('modelOrSku' in data) || (data.modelOrSku is string && data.modelOrSku.size() <= 120)) &&
+		(!('barcodeValue' in data) || (data.barcodeValue is string && data.barcodeValue.size() <= 512)) &&
+		(!('partNumber' in data) || (data.partNumber is string && data.partNumber.size() <= 120)) &&
+		(!('size' in data) || (data.size is string && data.size.size() <= 120)) &&
+		(!('details' in data) || (data.details is string && data.details.size() <= 500)) &&
+		(!('material' in data) || (data.material is string && data.material.size() <= 120)) &&
+		(!('voltage' in data) || (data.voltage is string && data.voltage.size() <= 80)) &&
+		(!('mervRating' in data) || (data.mervRating is string && data.mervRating.size() <= 40)) &&
+		(!('compatibility' in data) || (data.compatibility is string && data.compatibility.size() <= 250)) &&
+		(!('replacementInterval' in data) || (data.replacementInterval is string && data.replacementInterval.size() <= 120)) &&
         (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
         data.isArchived is bool &&
         data.source in [

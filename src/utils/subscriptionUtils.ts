@@ -623,11 +623,7 @@ export const canViewTenantInfo = (subscription: SubscriptionData): boolean => {
  * Check if subscription plan allows linked parts & supplies
  */
 export const canLinkParts = (subscription: SubscriptionData): boolean => {
-	if (!isSubscriptionActive(subscription)) {
-		return false;
-	}
-
-	return subscriptionHasCapability(subscription, 'parts.link');
+	return isSubscriptionActive(subscription);
 };
 
 /**

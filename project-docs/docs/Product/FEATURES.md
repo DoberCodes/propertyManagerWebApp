@@ -66,7 +66,7 @@ Current capabilities:
 * Add and manage Spaces such as interior areas, utility locations, exterior
   surfaces, grounds, and amenities from Property Details.
 * Save Supplies such as filters, paint, parts, and property-care products from
-  Property Details.
+  the first-class Property Supplies page.
 
 Homeowner plans keep property setup focused on personal and family homes. They
 may choose a residential classification but cannot create Multi-unit or
@@ -101,10 +101,11 @@ location values remain stored during a conservative exact-match migration
 period rather than being discarded or guessed.
 
 Supplies preserve the product details a property uses without introducing
-inventory management. Account managers may record a Supply name, type,
-manufacturer, model or SKU, and notes, then connect it to multiple Equipment
-records, Spaces, and Tasks. Connected views are derived from canonical
-relationships rather than copied onto each record. Referenced Supplies are
+inventory management. Account managers may record product identifiers,
+specifications, replacement details, and notes, or use reviewed barcode capture
+to prefill them. Supplies are available on every active plan and may connect to
+multiple Equipment records, Spaces, and Tasks. Equipment pages show their
+derived connected Supplies rather than owning copies. Referenced Supplies are
 archived when removed and may be restored later.
 
 ---

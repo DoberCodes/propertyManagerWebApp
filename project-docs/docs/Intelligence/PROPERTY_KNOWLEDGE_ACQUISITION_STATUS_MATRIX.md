@@ -65,7 +65,7 @@ Maintley currently supports conservative suggestions in these field families:
 | Warranty | warranty start date, warranty end date, warranty length, registration required | Warranty context |
 | Invoice and service | invoice number, invoice date, maintenance date, maintenance description, service performed | Maintenance History |
 | Cost | total cost, labor cost, parts cost, tax amount, currency | Maintenance History financials |
-| Parts and supplies | part name, part number, parts replaced, consumables, lubricant type, fluid type | Maintenance History notes or system Parts & Supplies |
+| Parts and supplies | part name, part number, parts replaced, consumables, lubricant type, fluid type | Property-owned Supplies connected to Equipment; Maintenance History notes when work context is the durable fact |
 | Manual metadata | manual version, publication date, manufacturer support URL | Equipment |
 | Service report actions | explicit next step, issue context, provider urgency | Tasks |
 | Service report equipment | controlled equipment type and subtype mentions | Existing Equipment match or reviewed new Equipment |

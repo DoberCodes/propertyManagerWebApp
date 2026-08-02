@@ -156,6 +156,9 @@ yarn migrate:property-memberships:apply
 yarn migrate:task-locations-to-spaces -- --confirm-project=PROJECT_ID
 yarn migrate:task-locations-to-spaces:apply -- --confirm-project=PROJECT_ID
 
+yarn migrate:equipment-supplies -- --confirm-project=PROJECT_ID
+yarn migrate:equipment-supplies:apply -- --confirm-project=PROJECT_ID
+
 yarn migrate:maintenance-events
 yarn migrate:maintenance-events:apply
 
@@ -183,6 +186,13 @@ for a unique, exact normalized match to an active Space within the same account
 and Property. It preserves the original Task field and skips ambiguous,
 unmatched, archived, and cross-boundary candidates. Add
 `--account-id=ACCOUNT_ID` to limit review or apply scope.
+
+The Equipment Supply migration is also dry-run first. It promotes embedded
+`device.serviceItems` into canonical `propertySupplies`, deduplicates identical
+specifications within a Property, and creates deterministic Equipment `uses`
+links. It never removes the legacy arrays. Add `--account-id=ACCOUNT_ID` to
+limit review or apply scope, and rerun the dry-run after applying to confirm
+that no additional Supplies or links remain.
 
 `migrate:tenant-data` is dry-run by default and logs counts and retired field
 names only. The apply command is intentionally limited to environments where

@@ -483,6 +483,15 @@ Optional fields:
 
 * manufacturer
 * modelOrSku
+* barcodeValue
+* partNumber
+* size
+* details
+* material
+* voltage
+* mervRating
+* compatibility
+* replacementInterval
 * notes
 
 Supported `type` values:
@@ -502,6 +511,10 @@ other
 Supplies are stored in the top-level `propertySupplies` collection. Firestore
 rules validate that the referenced Property belongs to the same account.
 Account readers may view Supplies; account managers may create and edit them.
+The first-class Property Supplies page is available on every active plan and
+includes reviewed barcode capture. A scan first checks the Property for an
+existing barcode, part number, or SKU before prefilling a new record. Barcode
+capture does not silently create property knowledge.
 Removal uses a trusted callable: unreferenced Supplies are deleted, while
 referenced Supplies are archived so their accepted context remains available.
 Archived Supplies may be restored by account managers.
@@ -509,6 +522,11 @@ Archived Supplies may be restored by account managers.
 Equipment, Spaces, and Tasks connect to Supplies through canonical `uses`
 relationships. These many-to-many connections are stored only in
 `propertyKnowledgeLinks`; inverse lists shown on a Supply are derived.
+Equipment pages show this derived connected set and do not write embedded
+Supply records. Legacy `device.serviceItems` arrays are temporary read-only
+compatibility fields. A dry-run-first migration creates canonical Supplies and
+deterministic Equipment `uses` links while preserving the embedded source data
+until validation is complete.
 
 ## propertyKnowledgeLinks
 

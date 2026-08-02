@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted - initial implementation
+Accepted for extraction taxonomy; storage ownership superseded by ADR 0036
+
+ADR 0036 makes accepted parts and supplies independent Property-owned Supply
+records connected to Equipment through relationships. References below to
+adding an accepted item "under" Equipment describe the historical review
+experience, not the current storage boundary.
 
 ## Context
 

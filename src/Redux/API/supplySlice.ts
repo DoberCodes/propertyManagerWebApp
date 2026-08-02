@@ -15,6 +15,7 @@ import { apiSlice, docToData } from './apiSlice';
 interface CreatePropertySupplyArgs extends PropertySupplyDraft {
 	accountId: string;
 	propertyId: string;
+	source?: PropertySupply['source'];
 }
 
 interface UpdatePropertySupplyArgs {
@@ -33,6 +34,15 @@ const normalizeDraft = (draft: PropertySupplyDraft) => ({
 	name: draft.name.trim(),
 	manufacturer: draft.manufacturer?.trim() || '',
 	modelOrSku: draft.modelOrSku?.trim() || '',
+	barcodeValue: draft.barcodeValue?.trim() || '',
+	partNumber: draft.partNumber?.trim() || '',
+	size: draft.size?.trim() || '',
+	details: draft.details?.trim() || '',
+	material: draft.material?.trim() || '',
+	voltage: draft.voltage?.trim() || '',
+	mervRating: draft.mervRating?.trim() || '',
+	compatibility: draft.compatibility?.trim() || '',
+	replacementInterval: draft.replacementInterval?.trim() || '',
 	notes: draft.notes?.trim() || '',
 });
 
@@ -71,7 +81,7 @@ const supplySlice = apiSlice.injectEndpoints({
 			PropertySupply,
 			CreatePropertySupplyArgs
 		>({
-			async queryFn({ accountId, propertyId, ...draft }) {
+			async queryFn({ accountId, propertyId, source = 'manual', ...draft }) {
 				try {
 					const userId = auth.currentUser?.uid;
 					if (!userId) return { error: 'User not authenticated' };
@@ -81,7 +91,7 @@ const supplySlice = apiSlice.injectEndpoints({
 						accountId,
 						propertyId,
 						isArchived: false,
-						source: 'manual' as const,
+						source,
 						createdBy: userId,
 						updatedBy: userId,
 						createdAt: now,

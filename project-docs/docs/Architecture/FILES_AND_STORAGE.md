@@ -463,7 +463,10 @@ the records the document supports after the user accepts the suggested changes.
 
 Users must review suggested details before saving them to Property Memory.
 
-After user approval, applied suggestions may update source records such as property details, system details, contractor records, maintenance history, or a system's Parts & Supplies list.
+After user approval, applied suggestions may update source records such as
+property details, system details, contractor records, or maintenance history.
+Accepted part suggestions create or reuse Property-owned Supplies and connect
+them to Equipment through canonical relationships.
 
 Applied suggestions should preserve provenance back to the source document, including sourceDocumentId, sourceDocumentType, extractionMethod, confidence when available, acceptedByUser, and acceptedAt.
 
