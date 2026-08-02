@@ -37,6 +37,13 @@ separate visible checks during the first migration stage. The Beta ruleset
 should continue requiring its existing checks until `Beta PR Gate` has reported
 successfully and consistently.
 
+GitHub Actions Dependabot PRs use a credential-free E2E policy because GitHub
+withholds normal Actions secrets from Dependabot events. The same required
+`e2e` context validates workflow policy and the updated Actions while build,
+Functions, preview, and readiness checks provide execution coverage. The
+exception is limited to `dependabot/github_actions/*`; all other internal PRs
+retain authenticated Playwright smoke coverage.
+
 ## Release Gate
 
 `Release Gate` is the stable validation status for the bot-owned

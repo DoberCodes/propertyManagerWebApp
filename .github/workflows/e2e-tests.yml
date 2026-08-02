@@ -33,6 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
+      DEPENDABOT_ACTIONS_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' && startsWith(github.head_ref, 'dependabot/github_actions/') }}
       E2E_DEMO_EMAIL: ${{ secrets.E2E_DEMO_EMAIL }}
       E2E_DEMO_PASSWORD: ${{ secrets.E2E_DEMO_PASSWORD }}
       REACT_APP_FIREBASE_API_KEY: ${{ secrets.E2E_REACT_APP_FIREBASE_API_KEY }}
@@ -60,6 +61,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Validate e2e environment
+        if: env.DEPENDABOT_ACTIONS_PR != 'true'
         shell: bash
         run: |
           missing=0
@@ -85,11 +87,20 @@ jobs:
             exit 1
           fi
 
+      - name: Explain credential-free Actions validation
+        if: env.DEPENDABOT_ACTIONS_PR == 'true'
+        run: >-
+          echo "GitHub Actions Dependabot pull request detected. Normal Actions
+          secrets are unavailable, so this required check validates workflow
+          policy and the updated Actions without exposing demo credentials."
+
       - name: Resolve e2e suite
         id: suite
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          if [[ "$DEPENDABOT_ACTIONS_PR" == "true" ]]; then
+            SUITE="actions"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
             SUITE="smoke"
           elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             SUITE="smoke-all"
@@ -98,6 +109,10 @@ jobs:
           fi
 
           case "$SUITE" in
+            actions)
+              echo "command=yarn validate:workflows" >> "$GITHUB_OUTPUT"
+              echo "browsers=none" >> "$GITHUB_OUTPUT"
+              ;;
             smoke)
               echo "command=yarn e2e:smoke:chrome" >> "$GITHUB_OUTPUT"
               echo "browsers=chromium" >> "$GITHUB_OUTPUT"
@@ -129,6 +144,7 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install Playwright browsers
+        if: steps.suite.outputs.browsers != 'none'
         shell: bash
         run: |
           if [[ "${{ steps.suite.outputs.browsers }}" == "all" ]]; then
@@ -137,7 +153,7 @@ jobs:
             npx playwright install --with-deps chromium
           fi
 
-      - name: Run Playwright e2e
+      - name: Run selected e2e policy
         run: ${{ steps.suite.outputs.command }}
 
       - name: Cleanup E2E Firebase test data
