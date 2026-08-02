@@ -10,6 +10,7 @@ const rootScriptTests = [
 	'maintenanceHistoryInventoryCore.test.cjs',
 	'maintenanceHistoryWriteContainment.test.cjs',
 	'organizeLocalEnvironment.test.cjs',
+	'productionIdentityPolicy.test.cjs',
 	'propertyTaxonomyMigrationCore.test.cjs',
 	'syncAdrImplementationTrackers.test.cjs',
 	'syncEntitlementPackageLocks.test.cjs',

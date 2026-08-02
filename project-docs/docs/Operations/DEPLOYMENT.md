@@ -509,8 +509,9 @@ Stable Firebase Hosting, rules, and Functions deploy through:
 Merges into `beta` use keyless Workload Identity Federation and the GitHub
 `development` environment. The existing production path on `main` continues to
 authenticate with `google-github-actions/auth` using the
-`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret until the production
-identity migration is completed.
+`FIREBASE_SERVICE_ACCOUNT_JSON` repository secret while the staged production
+identity migration is validated. Production WIF has a dedicated read-only
+canary identity; it is not yet authorized or selected for deployment.
 
 Every merge into `beta` builds and deploys the stable `hosting:beta` target.
 Backend selection remains source-based: `functions/` changes deploy Functions,
@@ -648,7 +649,7 @@ roles do not grant access to the production project.
 Do not create or store a JSON key for this development identity. Add further
 roles only when a changed Beta target requires them. The current production
 workflow continues using its existing credential path until the production
-identity migration is performed.
+identity migration gates are completed.
 
 Keyless authentication is checked by:
 
@@ -661,6 +662,38 @@ when manually dispatched after it exists on the default branch, it verifies
 that GitHub can impersonate the development service account and that the
 expected Maintley Beta Hosting site is visible. It intentionally avoids loading
 application code or printing access tokens.
+
+### Production deployment identity migration
+
+Production Workload Identity Federation is intentionally staged. The GitHub
+`production` environment provides:
+
+```text
+PROD_FIREBASE_PROJECT_ID
+PROD_GOOGLE_WORKLOAD_IDENTITY_PROVIDER
+PROD_GOOGLE_SERVICE_ACCOUNT
+```
+
+The provider admits tokens only from
+`DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
+`production` environment and run from `refs/heads/main`. The GitHub production
+environment independently permits only the `main` branch. During the first
+gate, the dedicated identity has only project metadata and Firebase Hosting
+read access. It cannot deploy or act as a Functions runtime service account.
+
+Keyless production access is checked by:
+
+```text
+.github/workflows/verify-production-deployment-identity.yml
+```
+
+The workflow performs no deployment. It verifies the exact project, provider,
+service account, active authenticated identity, and expected production Hosting
+site. The production deploy workflow must not switch from
+`FIREBASE_SERVICE_ACCOUNT_JSON` until this read-only check passes from Main and
+the exact deploy-role expansion is separately approved. See
+`project-docs/reports/2026-08-02-production-wif-migration.md` for the migration
+gates and rollback sequence.
 
 Pull requests targeting `beta` use:
 

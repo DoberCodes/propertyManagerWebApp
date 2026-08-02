@@ -436,9 +436,17 @@ yarn validate:deployed-web --base-url https://PROJECT_ID.web.app
 
 The production workflow runs this check against `/`, `/login`, `/registration`,
 and `/forgot-password` before tag or GitHub Release creation. The static
-`/legal/` public resource is not a BrowserRouter app-shell route. The check requires HTTPS, rejects
-cross-origin redirects, and verifies that every route returns the Maintley app
-shell rather than a provider 404 or unrelated page.
+`/legal/` public resource is not a BrowserRouter app-shell route. The check
+requires HTTPS, rejects cross-origin redirects, and verifies that every route
+returns the Maintley app shell rather than a provider 404 or unrelated page.
+
+### Production keyless identity canary
+
+After `.github/workflows/verify-production-deployment-identity.yml` reaches
+Main, dispatch it from GitHub Actions. A passing run proves that GitHub can
+exchange an OIDC token for the dedicated production service account and read
+the expected Firebase Hosting site. It does not prove deployment permissions;
+those remain intentionally absent during the first migration gate.
 
 ---
 

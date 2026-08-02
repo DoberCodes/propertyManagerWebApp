@@ -119,6 +119,14 @@ the default production Hosting origin serves the Maintley app shell on its
 public BrowserRouter routes. Tags and GitHub Releases therefore represent a
 verified deployed commit rather than only a successful upload command.
 
+Production identity verification is intentionally separate from deployment.
+`.github/workflows/verify-production-deployment-identity.yml` may read project
+metadata and enumerate the expected Hosting site, but it must not receive
+deployment roles or replace the active production credential until its Main
+canary passes and the role expansion is explicitly approved. Both the GitHub
+environment policy and Google provider claim condition restrict production
+identity issuance to Main.
+
 ## Ruleset rollout safety
 
 Do not add a required status check until it has reported at least once on the
