@@ -113,6 +113,11 @@ Optional jobs must never be configured as required checks. A required context
 must report for every pull request within the ruleset's scope, including when
 heavy work is intentionally skipped.
 
+Activated backend previews wait for required checks before acquiring the shared
+Beta deployment lock. The deploy job revalidates the exact source SHA after it
+obtains the lock, preventing an older queued request from replacing a newer PR
+backend.
+
 ## Release Prep empty state
 
 No releasable changes is a normal, structured outcome. Release Prep asks the

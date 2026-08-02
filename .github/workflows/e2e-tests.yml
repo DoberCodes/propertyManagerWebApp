@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - beta
+  schedule:
+    - cron: '17 9 * * *'
   workflow_dispatch:
     inputs:
       suite:
@@ -14,6 +16,7 @@ on:
         type: choice
         options:
           - smoke
+          - smoke-all
           - workflows
           - full-safe
 
@@ -88,6 +91,8 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             SUITE="smoke"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            SUITE="smoke-all"
           else
             SUITE="${{ github.event.inputs.suite }}"
           fi
@@ -96,6 +101,10 @@ jobs:
             smoke)
               echo "command=yarn e2e:smoke:chrome" >> "$GITHUB_OUTPUT"
               echo "browsers=chromium" >> "$GITHUB_OUTPUT"
+              ;;
+            smoke-all)
+              echo "command=yarn e2e:smoke:all" >> "$GITHUB_OUTPUT"
+              echo "browsers=all" >> "$GITHUB_OUTPUT"
               ;;
             workflows)
               echo "command=yarn e2e:workflows:chrome" >> "$GITHUB_OUTPUT"

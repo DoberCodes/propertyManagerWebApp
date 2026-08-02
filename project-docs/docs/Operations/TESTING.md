@@ -506,11 +506,22 @@ PR smoke suite:
 yarn e2e:smoke:chrome
 ```
 
+Scheduled cross-browser smoke suite:
+
+```bash
+yarn e2e:smoke:all
+```
+
 The PR smoke suite is intentionally non-mutating. It verifies registration
 navigation without submitting a new account, verifies demo login/logout, and
 checks the Support Center without submitting a ticket. It must not create
 Firebase accounts, Stripe customers, properties, tasks, support tickets, or
 checkout sessions.
+
+The same non-mutating smoke coverage runs nightly across Chromium, Firefox,
+WebKit, Mobile Chrome, and Mobile Safari. Mutation-oriented workflow tests must
+prove that the uniquely named record becomes visible; a filled form, unchanged
+route, or unavailable create button is not a passing result.
 
 Workflow coverage:
 
@@ -577,7 +588,10 @@ GitHub Actions:
 * `Beta PR Gate` and `Release Gate` provide stable aggregate statuses while the
   existing individual required checks remain in their canary period. See
   [CI_RELEASE_GATES.md](CI_RELEASE_GATES.md).
-* Manual workflow dispatch can run `smoke`, `workflows`, or `full-safe`.
+* A scheduled nightly run executes `smoke-all` across all configured browser
+  families without creating application records.
+* Manual workflow dispatch can run `smoke`, `smoke-all`, `workflows`, or
+  `full-safe`.
 * E2E requires dedicated `E2E_REACT_APP_FIREBASE_*` secrets and
   `E2E_DEMO_EMAIL` / `E2E_DEMO_PASSWORD`.
 * Manual `workflows` and `full-safe` runs require

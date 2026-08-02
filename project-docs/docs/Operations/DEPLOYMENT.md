@@ -677,10 +677,14 @@ Trusted same-repository pull requests that need real backend validation may use:
 
 Add the `deploy-backend-to-beta` label after the PR's required checks are
 available. The workflow waits for those checks while excluding its own required
-deployment check so the gate cannot wait on itself, reruns the Functions build and
-Firebase emulator rule suites, verifies the development project and Stripe test
-boundary, and deploys the pull request's complete Functions, Firestore-rules,
-and Storage-rules state through the `beta` Firebase alias to `maintleybeta`.
+deployment check so the gate cannot wait on itself. This preparation occurs
+before the workflow acquires the shared Beta deployment lock. After the lock is
+acquired, the workflow revalidates the exact PR SHA, repository, state, and base
+branch so a queued stale request cannot overwrite a newer Beta backend. It then
+reruns the Functions build and Firebase emulator rule suites, verifies the
+development project and Stripe test boundary, and deploys the pull request's
+complete Functions, Firestore-rules, and Storage-rules state through the `beta`
+Firebase alias to `maintleybeta`.
 Using the alias ensures Firebase loads the generated `functions/.env.beta`
 file during non-interactive deployment. Successful activation replaces the
 request label with `beta-backend-active`. Exactly one PR may carry the active
@@ -688,10 +692,12 @@ label, and all backend preview and stable Beta deployments share one concurrency
 lock.
 
 While the label is active, later pushes redeploy automatically after required
-checks pass. Localhost and every Hosting preview configured for Beta continue to
-point directly at `maintleybeta`; there is no per-PR backend copy. Merging the PR
-allows the normal stable Beta deployment to make the state durable. Closing the
-PR without merging deploys the complete backend from the current `beta` branch
+checks pass. An older queued request fails safely if a later push changes the PR
+head before it obtains the deployment lock. Localhost and every Hosting preview
+configured for Beta continue to point directly at `maintleybeta`; there is no
+per-PR backend copy. Merging the PR allows the normal stable Beta deployment to
+make the state durable. Closing the PR without merging deploys the complete
+backend from the current `beta` branch
 and removes ownership. Neither restoration nor merge cleanup deletes test users,
 Firestore records, Storage objects, Stripe test records, or other side effects
 created during validation.

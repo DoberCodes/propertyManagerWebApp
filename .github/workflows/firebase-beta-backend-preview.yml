@@ -19,25 +19,23 @@ permissions:
   contents: read
 
 jobs:
-  beta-backend-preview:
-    name: Deploy or restore Beta backend
+  prepare-backend-preview:
+    name: Prepare Beta backend request
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'deploy-backend-to-beta') ||
       (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'beta-backend-active')) ||
       (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == false && contains(github.event.pull_request.labels.*.name, 'beta-backend-active'))
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    environment: development
-    concurrency:
-      group: firebase-stable-development
-      cancel-in-progress: false
+    timeout-minutes: 35
+    outputs:
+      mode: ${{ steps.source.outputs.mode }}
+      pr_number: ${{ steps.source.outputs.pr_number }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
     permissions:
       checks: read
       contents: read
-      id-token: write
-      issues: write
-      pull-requests: write
+      pull-requests: read
 
     steps:
       - name: Resolve trusted source
@@ -131,10 +129,58 @@ jobs:
           echo "Timed out waiting for required pull request checks."
           exit 1
 
+  beta-backend-preview:
+    name: Deploy or restore Beta backend
+    needs: prepare-backend-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: development
+    concurrency:
+      group: firebase-stable-development
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Revalidate request after acquiring Beta deployment lock
+        env:
+          EXPECTED_SHA: ${{ needs.prepare-backend-preview.outputs.source_sha }}
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ needs.prepare-backend-preview.outputs.mode }}
+          PR_NUMBER: ${{ needs.prepare-backend-preview.outputs.pr_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$MODE" == "preview" ]]; then
+            PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+            CURRENT_SHA="$(jq -r '.head.sha' <<< "$PR_JSON")"
+            PR_STATE="$(jq -r '.state' <<< "$PR_JSON")"
+            BASE_REF="$(jq -r '.base.ref' <<< "$PR_JSON")"
+            HEAD_REPOSITORY="$(jq -r '.head.repo.full_name' <<< "$PR_JSON")"
+
+            if [[ "$PR_STATE" != "open" || "$BASE_REF" != "beta" || "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" || "$CURRENT_SHA" != "$EXPECTED_SHA" ]]; then
+              echo "::error::Backend preview request is stale after waiting for the shared deployment lock. Expected $EXPECTED_SHA; current PR head is $CURRENT_SHA."
+              exit 1
+            fi
+          else
+            CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/beta" --jq '.object.sha')"
+            ACTIVE="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER" --jq '[.labels[].name] | index("beta-backend-active") != null')"
+            if [[ "$CURRENT_SHA" != "$EXPECTED_SHA" || "$ACTIVE" != "true" ]]; then
+              echo "::error::Stable restoration request is stale or PR #$PR_NUMBER no longer owns the Beta backend."
+              exit 1
+            fi
+          fi
+
+          echo "Validated $MODE request for $EXPECTED_SHA after acquiring the shared deployment lock."
+
       - name: Checkout trusted source
         uses: actions/checkout@v5
         with:
-          ref: ${{ steps.source.outputs.source_sha }}
+          ref: ${{ needs.prepare-backend-preview.outputs.source_sha }}
           fetch-depth: 0
 
       - name: Use Node.js
@@ -213,22 +259,7 @@ jobs:
       - name: Validate Maintley Beta Firebase secrets
         run: node scripts/validateFirebaseDevelopmentSecrets.cjs --project maintleybeta
 
-      - name: Confirm restoration still owns Beta
-        id: restore-ownership
-        if: steps.source.outputs.mode == 'restore'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
-        shell: bash
-        run: |
-          ACTIVE="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER" --jq '[.labels[].name] | index("beta-backend-active") != null')"
-          echo "authorized=$ACTIVE" >> "$GITHUB_OUTPUT"
-          if [[ "$ACTIVE" != "true" ]]; then
-            echo "PR #$PR_NUMBER no longer owns the Beta backend; skipping stale restoration."
-          fi
-
       - name: Deploy complete Beta backend
-        if: steps.source.outputs.mode == 'preview' || steps.restore-ownership.outputs.authorized == 'true'
         run: >-
           firebase deploy
           --project beta
@@ -237,11 +268,9 @@ jobs:
           --force
 
       - name: Ensure HTTPS and callable Function invokers
-        if: steps.source.outputs.mode == 'preview' || steps.restore-ownership.outputs.authorized == 'true'
         run: node scripts/ensureFirebaseFunctionInvokers.cjs --project maintleybeta
 
       - name: Validate callable Function preflight
-        if: steps.source.outputs.mode == 'preview' || steps.restore-ownership.outputs.authorized == 'true'
         run: >-
           node scripts/validateCallableFunctionsPreflight.cjs
           --project maintleybeta
@@ -249,11 +278,11 @@ jobs:
           --functions recordUserActivity,getFamilyMembers
 
       - name: Record preview ownership
-        if: steps.source.outputs.mode == 'preview'
+        if: needs.prepare-backend-preview.outputs.mode == 'preview'
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
-          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+          PR_NUMBER: ${{ needs.prepare-backend-preview.outputs.pr_number }}
+          SOURCE_SHA: ${{ needs.prepare-backend-preview.outputs.source_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -287,11 +316,11 @@ jobs:
           fi
 
       - name: Record stable restoration
-        if: steps.source.outputs.mode == 'restore' && steps.restore-ownership.outputs.authorized == 'true'
+        if: needs.prepare-backend-preview.outputs.mode == 'restore'
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.source.outputs.pr_number }}
-          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+          PR_NUMBER: ${{ needs.prepare-backend-preview.outputs.pr_number }}
+          SOURCE_SHA: ${{ needs.prepare-backend-preview.outputs.source_sha }}
         shell: bash
         run: |
           gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels/beta-backend-active" --silent || true

@@ -111,7 +111,17 @@ test('guards shared Beta backend previews with one owner and stable restoration'
 		path.join(rootDir, '.github', 'workflows', 'firebase-deploy-environments.yml'),
 		'utf8',
 	);
+	const prepareJob = previewWorkflow.slice(
+		previewWorkflow.indexOf('  prepare-backend-preview:'),
+		previewWorkflow.indexOf('  beta-backend-preview:'),
+	);
+	const deployJob = previewWorkflow.slice(
+		previewWorkflow.indexOf('  beta-backend-preview:'),
+	);
 
+	assert.match(prepareJob, /Wait for required pull request checks/);
+	assert.doesNotMatch(prepareJob, /group: firebase-stable-development/);
+	assert.match(deployJob, /needs: prepare-backend-preview/);
 	assert.match(previewWorkflow, /group: firebase-stable-development/);
 	assert.match(previewWorkflow, /HEAD_REPOSITORY.*GITHUB_REPOSITORY/);
 	assert.match(previewWorkflow, /gh pr checks .*--required/);
@@ -122,7 +132,10 @@ test('guards shared Beta backend previews with one owner and stable restoration'
 	assert.match(previewWorkflow, /--only functions,firestore:rules,storage/);
 	assert.match(previewWorkflow, /github\.event\.pull_request\.merged == false/);
 	assert.match(previewWorkflow, /beta-backend-active/);
-	assert.match(previewWorkflow, /Confirm restoration still owns Beta/);
+	assert.match(deployJob, /Revalidate request after acquiring Beta deployment lock/);
+	assert.match(deployJob, /CURRENT_SHA.*EXPECTED_SHA/);
+	assert.match(deployJob, /HEAD_REPOSITORY.*GITHUB_REPOSITORY/);
+	assert.match(deployJob, /PR_STATE.*open/);
 	assert.match(stableWorkflow, /ACTIVE_BACKEND_PREVIEWS/);
 	assert.match(stableWorkflow, /Clear pull request backend-preview ownership/);
 });
