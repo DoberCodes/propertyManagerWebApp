@@ -16,11 +16,15 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: read
+
 jobs:
   development-build:
     name: Build stable development app
     if: github.event_name == 'push' && github.ref_name == 'beta'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     environment: development
     permissions:
       contents: read
@@ -60,7 +64,7 @@ jobs:
 
       - name: Build stable Maintley Beta app
         env:
-          CI: false
+          CI: true
           REACT_APP_FIREBASE_API_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_API_KEY }}
           REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.DEV_REACT_APP_FIREBASE_AUTH_DOMAIN }}
           REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
@@ -106,6 +110,7 @@ jobs:
     if: github.event_name == 'push' && github.ref_name == 'beta'
     needs: development-build
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: development
     concurrency:
       group: firebase-stable-development
@@ -303,6 +308,7 @@ jobs:
   build-check:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: production
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
@@ -338,7 +344,7 @@ jobs:
 
       - name: Build app
         env:
-          CI: false
+          CI: true
           REACT_APP_FIREBASE_API_KEY: ${{ vars.PROD_REACT_APP_FIREBASE_API_KEY }}
           REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.PROD_REACT_APP_FIREBASE_AUTH_DOMAIN }}
           REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.PROD_REACT_APP_FIREBASE_PROJECT_ID }}
@@ -381,6 +387,7 @@ jobs:
   deploy:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: production
     needs: [build-check]
     outputs:

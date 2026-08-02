@@ -9,6 +9,9 @@ on:
         type: string
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: release-prep
   cancel-in-progress: true
@@ -16,6 +19,7 @@ concurrency:
 jobs:
   prepare-release-pr:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       actions: write
       contents: write
@@ -43,12 +47,16 @@ jobs:
         run: |
           mkdir -p tmp
 
-          if ! node scripts/generateReleaseNotes.cjs \
+          node scripts/generateReleaseNotes.cjs \
+            --allow-empty \
             --output tmp/release-notes.customer.md \
             --engineering-output tmp/release-notes.engineering.md \
             --metadata-output tmp/release-notes.json \
-            --json > tmp/release-notes.stdout.json; then
-            echo "No release metadata could be generated. Skipping release prep."
+            --json > tmp/release-notes.stdout.json
+
+          ENTRY_COUNT="$(node -e "const data=require('./tmp/release-notes.json'); process.stdout.write(String(data.counts?.entries || 0))")"
+          if [[ "$ENTRY_COUNT" == "0" ]]; then
+            echo "No releaseable changes were found. Skipping release prep."
             echo "has_metadata=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi

@@ -15,6 +15,9 @@ on:
       - synchronize
       - closed
 
+permissions:
+  contents: read
+
 jobs:
   beta-backend-preview:
     name: Deploy or restore Beta backend
@@ -24,6 +27,7 @@ jobs:
       (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'beta-backend-active')) ||
       (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == false && contains(github.event.pull_request.labels.*.name, 'beta-backend-active'))
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: development
     concurrency:
       group: firebase-stable-development

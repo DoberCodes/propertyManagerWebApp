@@ -7,9 +7,13 @@ on:
         description: Version to publish, without the leading v
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   publish-app-version:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: production
     permissions:
       contents: read
