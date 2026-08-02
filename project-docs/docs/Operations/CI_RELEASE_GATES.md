@@ -66,6 +66,13 @@ Classification initially provides evidence without reducing required coverage.
 Conditional heavy-job execution should be introduced only when the permanent
 gate treats an intentional skip as a successful policy decision.
 
+Version impact follows Conventional Commit semantics. `feat` selects a minor
+release, `fix` and `perf` select a patch release, and a breaking declaration
+selects a major release. Internal-only `refactor`, `docs`, `chore`, `ci`,
+`build`, and `test` changes have no product-version impact unless an explicit
+release-impact label overrides the inference. They remain visible in engineering
+notes without creating an otherwise empty customer release.
+
 ## Test manifests
 
 Root Node tests are declared in `scripts/testManifest.cjs` and run through:

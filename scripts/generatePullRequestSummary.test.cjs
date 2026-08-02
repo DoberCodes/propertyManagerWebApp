@@ -59,6 +59,7 @@ test('uses an explicit PR-body declaration when the title and commits are unclas
 
 	assert.equal(classification.type, 'chore');
 	assert.equal(classification.source, 'pull request declaration');
+	assert.equal(classification.bump, 'none');
 	assert.equal(classification.customerCategory, '');
 });
 
