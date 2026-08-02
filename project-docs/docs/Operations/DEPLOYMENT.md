@@ -562,7 +562,14 @@ An authenticated release-PR merge into `main` always deploys `hosting:prod`. Fun
 Firestore rules, and Storage rules retain source-based target detection and are
 added only when their owned files changed. Hosting-only releases therefore
 cannot redeploy Functions or rules. The matching tag and GitHub Release are
-created idempotently only after every selected Firebase target succeeds.
+created idempotently only after every selected Firebase target succeeds and
+the deployed production Hosting origin returns the Maintley app shell for `/`,
+`/login`, `/registration`, and `/forgot-password`. The static `/legal/` public
+resource is intentionally outside this BrowserRouter app-shell check. The smoke
+check uses the default Firebase `web.app` hostname derived from the verified
+production project ID, so it validates the new deployment even while
+custom-domain DNS still points at a previous host. A failed route check blocks
+tag and GitHub Release creation.
 
 If a valid release merge passes its build but Hosting fails before deployment,
 the same workflow supports an explicit recovery dispatch. Set
@@ -580,6 +587,13 @@ publishing that repair commit as an application release.
 The production default Hosting hostname is intentionally populated before DNS
 cutover. This does not move customer traffic: the custom domain continues to
 resolve to the frozen GitHub Pages deployment until the later DNS phase.
+
+External GitHub Actions are pinned to immutable 40-character upstream commit
+SHAs with their reviewed release versions retained as comments. Dependabot
+opens grouped weekly GitHub Actions updates against `beta`; those updates use
+the same PR checks and promotion path as other repository changes. Workflow
+defaults remain read-only, and write or OpenID Connect permissions belong only
+to the jobs that require them.
 
 Recommended setup:
 

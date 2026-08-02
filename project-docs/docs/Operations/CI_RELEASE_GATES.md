@@ -103,12 +103,21 @@ yarn validate:workflows
 The workflow policy validator requires:
 
 * Parseable YAML.
-* Explicit top-level token permissions.
+* Read-only top-level token permissions.
+* Job-scoped write and OpenID Connect permissions.
 * A timeout for every runner job.
 * CI builds that do not suppress warning failures with `CI: false`.
+* Immutable 40-character commit SHAs for every external Action.
+* A visible release-version comment beside every pinned Action.
+* Weekly GitHub Actions Dependabot updates targeting `beta`.
 
 Workflow-specific write access, pull-request access, or OpenID Connect identity
 access belongs on the exact job that requires it.
+
+Production release finalization begins only after Firebase deploy succeeds and
+the default production Hosting origin serves the Maintley app shell on its
+public BrowserRouter routes. Tags and GitHub Releases therefore represent a
+verified deployed commit rather than only a successful upload command.
 
 ## Ruleset rollout safety
 

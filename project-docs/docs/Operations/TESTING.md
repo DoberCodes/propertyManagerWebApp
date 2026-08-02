@@ -428,6 +428,18 @@ npm run validate
 
 Build failures should block deployment.
 
+After a production Hosting deployment, validate the public app-shell routes:
+
+```bash
+yarn validate:deployed-web --base-url https://PROJECT_ID.web.app
+```
+
+The production workflow runs this check against `/`, `/login`, `/registration`,
+and `/forgot-password` before tag or GitHub Release creation. The static
+`/legal/` public resource is not a BrowserRouter app-shell route. The check requires HTTPS, rejects
+cross-origin redirects, and verifies that every route returns the Maintley app
+shell rather than a provider 404 or unrelated page.
+
 ---
 
 # Unit & Integration Tests

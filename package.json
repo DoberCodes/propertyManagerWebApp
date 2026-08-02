@@ -88,6 +88,7 @@
 		"test:firebase-deployment-safety": "node --test scripts/firebaseDeploymentSafety.test.cjs",
 		"pr:summary:test": "node --test scripts/generatePullRequestSummary.test.cjs",
 		"validate:callable-preflight": "node scripts/validateCallableFunctionsPreflight.cjs",
+		"validate:deployed-web": "node scripts/validateDeployedWebRoutes.cjs",
 		"audit:scripts": "node scripts/auditScripts.cjs",
 		"audit:maintenance-history": "node scripts/inventoryMaintenanceHistory.cjs",
 		"test:maintenance-history-inventory": "node --test scripts/maintenanceHistoryInventoryCore.test.cjs",

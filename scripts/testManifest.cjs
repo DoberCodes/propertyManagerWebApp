@@ -16,6 +16,7 @@ const rootScriptTests = [
 	'syncGitHubEnvironment.test.cjs',
 	'taskSpaceMigrationCore.test.cjs',
 	'testManifest.test.cjs',
+	'validateDeployedWebRoutes.test.cjs',
 	'workflowChangeClassification.test.cjs',
 	'workflowPolicy.test.cjs',
 ];
