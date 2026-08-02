@@ -602,6 +602,12 @@ GitHub Actions:
   `yarn check:asset-budgets`, Functions compilation, and the complete Functions
   test manifest.
 * PRs run `E2E Tests / smoke` against Chromium only.
+* GitHub Actions Dependabot PRs cannot receive the normal Actions E2E secrets.
+  Their required `e2e` context therefore runs the workflow-policy suite and
+  exercises the updated checkout, setup, cache, build, preview, and artifact
+  Actions without demo credentials or a browser login. This exception applies
+  only to `dependabot/github_actions/*`; ordinary feature and release PRs retain
+  the authenticated Chromium smoke suite.
 * The `release/next` candidate receives full Build Check coverage and version
   validation because it promotes all accumulated Beta changes, even when its
   visible diff contains only version files.
