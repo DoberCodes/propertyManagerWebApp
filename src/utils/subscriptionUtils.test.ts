@@ -54,6 +54,11 @@ describe('subscriptionUtils', () => {
 		expect(canLinkParts(free)).toBe(true);
 	});
 
+	it('keeps Supplies available on every active plan but not expired access', () => {
+		expect(canLinkParts(activeSubscription('legacy-plan'))).toBe(true);
+		expect(canLinkParts(expiredSubscription('homeowner_plus'))).toBe(false);
+	});
+
 	it('gives Homeowner Plus homeowner Intelligence and five-home limits', () => {
 		const homeownerPlus = activeSubscription('homeowner_plus');
 

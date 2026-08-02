@@ -713,6 +713,11 @@ fields, and the referenced Property account. The removal callable deletes an
 unreferenced Supply and archives a referenced Supply. Direct client deletion is
 denied.
 
+Supply access is not a premium-plan boundary. Every active plan may use the
+Property Supplies page and barcode capture. Account role capabilities determine
+whether the signed-in user may change records or connections; account readers
+retain visibility.
+
 ---
 
 ## maintenanceEventRevisions

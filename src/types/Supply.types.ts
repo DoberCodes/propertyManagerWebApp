@@ -26,6 +26,15 @@ export interface PropertySupply {
 	type: PropertySupplyType;
 	manufacturer?: string;
 	modelOrSku?: string;
+	barcodeValue?: string;
+	partNumber?: string;
+	size?: string;
+	details?: string;
+	material?: string;
+	voltage?: string;
+	mervRating?: string;
+	compatibility?: string;
+	replacementInterval?: string;
 	notes?: string;
 	isArchived: boolean;
 	source: PropertySupplySource;
@@ -40,5 +49,14 @@ export interface PropertySupplyDraft {
 	type: PropertySupplyType;
 	manufacturer?: string;
 	modelOrSku?: string;
+	barcodeValue?: string;
+	partNumber?: string;
+	size?: string;
+	details?: string;
+	material?: string;
+	voltage?: string;
+	mervRating?: string;
+	compatibility?: string;
+	replacementInterval?: string;
 	notes?: string;
 }

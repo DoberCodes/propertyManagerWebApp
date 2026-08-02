@@ -4,6 +4,7 @@ import { TasksTab } from './TasksTab';
 import { MaintenanceTab } from './MaintenanceTab';
 import { CostsTab } from './CostsTab';
 import { DocumentsTab } from './DocumentsTab';
+import { SuppliesTab } from './SuppliesTab';
 import { ContractorsTab } from './ContractorsTab';
 import { RequestsTab } from './RequestsTab';
 import { TenantsTab } from './TenantsTab';
@@ -179,6 +180,10 @@ export const TabSystem = ({
 						permissions={permissions}
 						openCreateDeviceToken={openCreateDeviceToken}
 					/>
+				);
+			case 'supplies':
+				return (
+					<SuppliesTab property={property} permissions={permissions} />
 				);
 			case 'tasks':
 				return (

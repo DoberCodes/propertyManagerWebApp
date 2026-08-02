@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getTaskTimingLabel } from '../../tasks/taskSchedule';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -25,6 +25,7 @@ import {
 	useGetPropertyKnowledgeLinksQuery,
 	useSetEquipmentSpaceLinksMutation,
 } from '../../Redux/API/propertyKnowledgeLinkSlice';
+import { useGetPropertySuppliesQuery } from '../../Redux/API/supplySlice';
 import { useGetPropertySpacesQuery } from '../../Redux/API/spaceSlice';
 import { useDeleteTaskMutation, useGetTasksQuery } from '../../Redux/API/taskSlice';
 import {
@@ -80,12 +81,15 @@ import {
 	parsePartBarcodePayload,
 } from '../../utils/barcodeScanParser';
 import {
-	canLinkParts,
 	canUseRecurringTasks,
 	canTrackWarranties,
 } from '../../utils/subscriptionUtils';
 import { getRoleCapabilities } from '../../utils/permissions';
-import { getEquipmentSpaceIds } from '../../types/PropertyKnowledgeLink.types';
+import {
+	getEndpointSupplyIds,
+	getEquipmentSpaceIds,
+} from '../../types/PropertyKnowledgeLink.types';
+import { getPropertySupplyTypeLabel } from '../../utils/propertySupplies';
 import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
 import {
 	DeviceServiceItem,
@@ -309,6 +313,7 @@ const sanitizeDeviceServiceItem = (item: DeviceServiceItem): DeviceServiceItem =
 
 export const DeviceDetailPage: React.FC = () => {
 	const feedback = useAppFeedback();
+	const navigate = useNavigate();
 	const { slug, deviceSlug } = useParams<{ slug: string; deviceSlug: string }>();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const applianceAction = searchParams.get('action');
@@ -330,10 +335,7 @@ export const DeviceDetailPage: React.FC = () => {
 	const canLogMaintenanceActions =
 		!isTeamMemberAccount || roleCapabilities.canManageMaintenanceHistory;
 	const canUploadDocumentActions = canLogMaintenanceActions;
-	const canAccessParts =
-		canManageApplianceActions &&
-		!!currentUser?.subscription &&
-		canLinkParts(currentUser.subscription);
+	const canManageSupplies = canManageApplianceActions;
 	const canAccessWarranty =
 		!!currentUser?.subscription && canTrackWarranties(currentUser.subscription);
 	const canAccessRecurringTasks =
@@ -479,6 +481,14 @@ export const DeviceDetailPage: React.FC = () => {
 			{ skip: !property?.id || !propertyAccountId },
 		);
 	const { data: propertySpaces = [] } = useGetPropertySpacesQuery(
+		{
+			accountId: propertyAccountId,
+			propertyId: property?.id || '',
+			includeArchived: true,
+		},
+		{ skip: !property?.id || !propertyAccountId },
+	);
+	const { data: propertySupplies = [] } = useGetPropertySuppliesQuery(
 		{
 			accountId: propertyAccountId,
 			propertyId: property?.id || '',
@@ -699,7 +709,45 @@ export const DeviceDetailPage: React.FC = () => {
 			),
 		[deviceFiles, devicePhotoFile],
 	);
-	const serviceParts = useMemo(() => device?.serviceItems || [], [device?.serviceItems]);
+	const legacyServiceParts = useMemo(
+		() => device?.serviceItems || [],
+		[device?.serviceItems],
+	);
+	// Embedded service items remain read-only until the migration confirms that
+	// every record has a canonical property Supply and equipment relationship.
+	const serviceParts = legacyServiceParts;
+	const canAccessParts = false;
+	const linkedSupplyIds = useMemo(
+		() =>
+			device?.id
+				? getEndpointSupplyIds(
+						propertyKnowledgeLinks,
+						'equipment',
+						String(device.id),
+					)
+				: [],
+		[device?.id, propertyKnowledgeLinks],
+	);
+	const linkedSupplies = useMemo(
+		() =>
+			propertySupplies.filter((supply) => linkedSupplyIds.includes(supply.id)),
+		[linkedSupplyIds, propertySupplies],
+	);
+	const unmigratedLegacyServiceParts = useMemo(
+		() =>
+			legacyServiceParts.filter((item: DeviceServiceItem) => {
+				const name = String(item.name || '').trim().toLowerCase();
+				const partNumber = String(item.partNumber || '').trim().toLowerCase();
+				return !linkedSupplies.some((supply) => {
+					if (String(supply.name || '').trim().toLowerCase() !== name) return false;
+					const supplyPartNumber = String(supply.partNumber || '')
+						.trim()
+						.toLowerCase();
+					return !partNumber || !supplyPartNumber || partNumber === supplyPartNumber;
+				});
+			}),
+		[legacyServiceParts, linkedSupplies],
+	);
 	const resolvedDeviceStatus = device?.decommissionDate
 		? 'Decommissioned'
 		: device?.status || 'Active';
@@ -834,11 +882,20 @@ export const DeviceDetailPage: React.FC = () => {
 	);
 
 	const serviceFilterItems = useMemo(
-		() => serviceParts.filter((part: DeviceServiceItem) => {
-			const text = `${part.category || ''} ${part.name || ''}`.toLowerCase();
-			return text.includes('filter');
-		}),
-		[serviceParts],
+		() => {
+			const canonicalFilters = linkedSupplies.filter((supply) => {
+				const text = `${supply.type || ''} ${supply.name || ''}`.toLowerCase();
+				return text.includes('filter');
+			});
+			const legacyFilters = unmigratedLegacyServiceParts.filter(
+				(part: DeviceServiceItem) => {
+					const text = `${part.category || ''} ${part.name || ''}`.toLowerCase();
+					return text.includes('filter');
+				},
+			);
+			return [...canonicalFilters, ...legacyFilters];
+		},
+		[linkedSupplies, unmigratedLegacyServiceParts],
 	);
 
 	const hasRecurringTask = useMemo(
@@ -1315,7 +1372,11 @@ export const DeviceDetailPage: React.FC = () => {
 			count: applianceMaintenanceFeedRecords.length,
 		},
 		{ id: 'documents' as any, label: 'Documents', count: documentCount },
-		{ id: 'parts' as any, label: 'Parts', count: serviceParts.length },
+		{
+			id: 'parts' as any,
+			label: 'Supplies',
+			count: linkedSupplies.length + unmigratedLegacyServiceParts.length,
+		},
 	];
 
 	const handleAddPart = async () => {
@@ -2273,6 +2334,81 @@ export const DeviceDetailPage: React.FC = () => {
 				)}
 
 				{activeTab === 'parts' && (
+					<TabContent>
+						<SectionContainer>
+							<SectionBlock>
+								<SectionEyebrow>Connected Property Knowledge</SectionEyebrow>
+								<SectionTitleStrong>Supplies used by this equipment</SectionTitleStrong>
+								<SectionDescription>
+									Supplies belong to {property?.title || 'this property'} and can be connected to more than one equipment item, Space, or Task.
+								</SectionDescription>
+							</SectionBlock>
+							<PhotoActions style={{ marginBottom: 16 }}>
+								<ScanButton
+									type='button'
+									onClick={() =>
+										navigate(
+											`/property/${property?.slug}?tab=supplies&equipmentId=${encodeURIComponent(String(device?.id || ''))}`,
+										)
+									}
+									disabled={!property?.slug}>
+									{canManageSupplies ? 'Manage Property Supplies' : 'View Property Supplies'}
+								</ScanButton>
+								<PhotoHelperText>
+									Add, scan, or connect Supplies from the property record.
+								</PhotoHelperText>
+							</PhotoActions>
+
+							{linkedSupplies.length > 0 ? (
+								<MobileCardStack>
+									{linkedSupplies.map((supply) => (
+										<MobileDetailCard key={supply.id}>
+											<MobileDetailHeader>
+												<MobileDetailTitle>{supply.name}</MobileDetailTitle>
+												<span style={{ display: 'inline-flex', padding: '4px 8px', backgroundColor: supply.isArchived ? COLORS.gray100 : COLORS.successLight, color: supply.isArchived ? COLORS.textSecondary : COLORS.successDark, borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
+													{supply.isArchived ? 'Archived' : getPropertySupplyTypeLabel(supply.type)}
+												</span>
+											</MobileDetailHeader>
+											<MobileDetailMeta>
+												{[
+													supply.manufacturer,
+													supply.partNumber ? `Part ${supply.partNumber}` : '',
+													supply.size,
+													supply.replacementInterval,
+												].filter(Boolean).join(' · ') || 'No additional product details recorded yet.'}
+											</MobileDetailMeta>
+										</MobileDetailCard>
+									))}
+								</MobileCardStack>
+							) : (
+								<EmptyState>
+									<p>No property Supplies are connected to this equipment yet.</p>
+								</EmptyState>
+							)}
+
+							{unmigratedLegacyServiceParts.length > 0 && (
+								<SectionBlock style={{ marginTop: 20 }}>
+									<SectionEyebrow>Earlier equipment records</SectionEyebrow>
+									<SectionDescription>
+										These details remain visible while Maintley promotes them into property Supplies. They can no longer be edited here.
+									</SectionDescription>
+									<ServiceItemDetailsList>
+										{unmigratedLegacyServiceParts.map((part: DeviceServiceItem, index: number) => (
+											<ServiceItemDetail key={`${part.id || index}-legacy`}>
+												<strong>{part.name}</strong>
+												{getServiceItemKeyDetails(part) !== 'Not recorded'
+													? ` · ${getServiceItemKeyDetails(part)}`
+													: ''}
+											</ServiceItemDetail>
+										))}
+									</ServiceItemDetailsList>
+								</SectionBlock>
+							)}
+						</SectionContainer>
+					</TabContent>
+				)}
+
+				{false && activeTab === 'parts' && (
 					<TabContent>
 						<SectionContainer>
 							{!canAccessParts && (

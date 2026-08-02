@@ -257,7 +257,11 @@ task creates or updates Maintenance History. A completion attachment should
 still be stored as a property document first, then reused on the completed task
 or resulting Maintenance Event so the file remains part of Property Memory.
 
-When accepted part suggestions are linked to a specific equipment or system, the apply step may add them to that system's Parts & Supplies list. These records should retain source context and should not be created without user review.
+When accepted part suggestions are linked to specific Equipment, the apply step
+creates or reuses a Property-owned Supply and adds the canonical Equipment
+`uses` relationship. It does not write an embedded Equipment parts list.
+Accepted Supplies retain source-document context and are never created without
+user review.
 
 ---
 

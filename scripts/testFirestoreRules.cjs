@@ -105,6 +105,11 @@ const createPropertySupply = (overrides = {}) => ({
 	type: 'filter',
 	manufacturer: 'Example Filters',
 	modelOrSku: 'EF-16251',
+	barcodeValue: '012345678905',
+	partNumber: 'EF-16251',
+	size: '16 x 25 x 1',
+	mervRating: '11',
+	replacementInterval: 'Every 3 months',
 	notes: 'MERV 11',
 	isArchived: false,
 	source: 'manual',
@@ -1268,6 +1273,11 @@ async function run() {
 			ownerDb
 				.doc('propertySupplies/supply-invalid-type')
 				.set(createPropertySupply({ type: 'inventory' })),
+		);
+		await assertFails(
+			ownerDb.doc('propertySupplies/supply-invalid-barcode').set(
+				createPropertySupply({ barcodeValue: 'x'.repeat(513) }),
+			),
 		);
 		await assertSucceeds(
 			ownerDb.doc('propertySupplies/supply-owned').update({

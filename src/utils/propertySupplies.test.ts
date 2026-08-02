@@ -1,4 +1,7 @@
 import {
+	buildPropertySupplyDraftFromBarcode,
+	buildPropertySupplyDraftFromServiceItem,
+	findPropertySupplyByBarcode,
 	getPropertySupplyTypeLabel,
 	sortPropertySupplies,
 } from './propertySupplies';
@@ -32,5 +35,35 @@ describe('propertySupplies', () => {
 		expect(getPropertySupplyTypeLabel('paint_and_finish')).toBe(
 			'Paint & finish',
 		);
+	});
+
+	it('preserves equipment service-item details when promoting a Supply', () => {
+		expect(
+			buildPropertySupplyDraftFromServiceItem({
+				category: 'filter',
+				name: 'Furnace filter',
+				partNumber: 'ABC-123',
+				size: '16 x 25 x 1',
+				mervRating: '11',
+				replacementInterval: 'Every 3 months',
+			}),
+		).toMatchObject({
+			type: 'filter',
+			partNumber: 'ABC-123',
+			size: '16 x 25 x 1',
+			mervRating: '11',
+			replacementInterval: 'Every 3 months',
+		});
+	});
+
+	it('captures a scanned barcode for reviewed Supply creation', () => {
+		const draft = buildPropertySupplyDraftFromBarcode('012345678905');
+		expect(draft.barcodeValue).toBe('012345678905');
+		expect(draft.partNumber).toBe('012345678905');
+	});
+
+	it('finds an existing Supply before a scanned duplicate is created', () => {
+		const existing = { ...supply('1', 'Air Filter'), barcodeValue: 'ABC-123' };
+		expect(findPropertySupplyByBarcode([existing], 'abc-123')?.id).toBe('1');
 	});
 });

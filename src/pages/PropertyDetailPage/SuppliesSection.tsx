@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { GenericModal } from '../../Components/Library/Modal';
+import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
 import { MultiSelect } from '../../Components/Library';
 import {
 	FormGroup,
@@ -31,6 +33,8 @@ import {
 } from '../../types/Supply.types';
 import { RoleCapabilities } from '../../utils/permissions';
 import {
+	buildPropertySupplyDraftFromBarcode,
+	findPropertySupplyByBarcode,
 	getPropertySupplyTypeLabel,
 	PROPERTY_SUPPLY_TYPE_OPTIONS,
 } from '../../utils/propertySupplies';
@@ -48,6 +52,7 @@ import {
 	SupplyDetailList,
 	SupplyFormError,
 	SupplyFormHint,
+	SupplyHeaderActions,
 	SupplyLinkedCount,
 	SupplyMetadata,
 	SupplyNotes,
@@ -76,6 +81,15 @@ const EMPTY_DRAFT: PropertySupplyDraft = {
 	type: 'filter',
 	manufacturer: '',
 	modelOrSku: '',
+	barcodeValue: '',
+	partNumber: '',
+	size: '',
+	details: '',
+	material: '',
+	voltage: '',
+	mervRating: '',
+	compatibility: '',
+	replacementInterval: '',
 	notes: '',
 };
 
@@ -109,6 +123,7 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 	property,
 	permissions,
 }) => {
+	const [searchParams, setSearchParams] = useSearchParams();
 	const canManageSupplies = permissions?.canManageProperties ?? false;
 	const accountId = String(property.accountId || property.userId || '').trim();
 	const {
@@ -162,6 +177,7 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 	const [formError, setFormError] = useState('');
 	const [actionError, setActionError] = useState('');
 	const [showArchived, setShowArchived] = useState(false);
+	const [isScanOpen, setIsScanOpen] = useState(false);
 
 	const activeSupplies = useMemo(
 		() => supplies.filter((supply) => !supply.isArchived),
@@ -175,6 +191,8 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		() => new Map(devices.map((device) => [String(device.id), device])),
 		[devices],
 	);
+	const equipmentContextId = String(searchParams.get('equipmentId') || '').trim();
+	const equipmentContext = deviceById.get(equipmentContextId);
 	const spaceById = useMemo(
 		() => new Map(spaces.map((space) => [space.id, space])),
 		[spaces],
@@ -202,7 +220,10 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		setActionError('');
 		setEditingSupply(null);
 		setDraft(EMPTY_DRAFT);
-		setConnections(EMPTY_CONNECTIONS);
+		setConnections({
+			...EMPTY_CONNECTIONS,
+			equipmentIds: equipmentContextId ? [equipmentContextId] : [],
+		});
 		setFormError('');
 		setIsFormOpen(true);
 	};
@@ -215,10 +236,40 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 			type: supply.type,
 			manufacturer: supply.manufacturer || '',
 			modelOrSku: supply.modelOrSku || '',
+			barcodeValue: supply.barcodeValue || '',
+			partNumber: supply.partNumber || '',
+			size: supply.size || '',
+			details: supply.details || '',
+			material: supply.material || '',
+			voltage: supply.voltage || '',
+			mervRating: supply.mervRating || '',
+			compatibility: supply.compatibility || '',
+			replacementInterval: supply.replacementInterval || '',
 			notes: supply.notes || '',
 		});
 		setConnections(connectionsForSupply(supply.id));
 		setFormError('');
+		setIsFormOpen(true);
+	};
+
+	const handleBarcodeDetected = (rawValue: string) => {
+		const existingSupply = findPropertySupplyByBarcode(supplies, rawValue);
+		setIsScanOpen(false);
+		if (existingSupply) {
+			setSelectedSupply(existingSupply);
+			setActionError(
+				`${existingSupply.name} already uses this barcode. Maintley opened the existing Supply instead of creating a duplicate.`,
+			);
+			return;
+		}
+		setEditingSupply(null);
+		setConnections({
+			...EMPTY_CONNECTIONS,
+			equipmentIds: equipmentContextId ? [equipmentContextId] : [],
+		});
+		setDraft(buildPropertySupplyDraftFromBarcode(rawValue));
+		setFormError('');
+		setActionError('');
 		setIsFormOpen(true);
 	};
 
@@ -337,21 +388,46 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 			value: space.id,
 			label: `${space.name}${space.isArchived ? ' (archived)' : ''}`,
 		}));
+	const visibleActiveSupplies = equipmentContextId
+		? activeSupplies.filter((supply) =>
+				connectionsForSupply(supply.id).equipmentIds.includes(equipmentContextId),
+		  )
+		: activeSupplies;
+	const clearEquipmentContext = () => {
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.delete('equipmentId');
+		setSearchParams(nextParams);
+	};
 
 	return (
 		<SuppliesContainer aria-labelledby="property-supplies-heading">
 			<SuppliesHeader>
 				<SuppliesHeading>
-					<h3 id="property-supplies-heading">Supplies</h3>
+					<h3 id="property-supplies-heading">
+						{equipmentContext
+							? `Supplies for ${equipmentContext.type || 'Equipment'}`
+							: 'Supplies'}
+					</h3>
 					<p>
-						Save the filters, paint, parts, and products this property uses so
-						the right details are easy to find later.
+						{equipmentContext
+							? 'These property Supplies are connected to this equipment. New Supplies created here will be connected automatically.'
+							: 'Save the filters, paint, parts, and products this property uses so the right details are easy to find later.'}
 					</p>
 				</SuppliesHeading>
 				{canManageSupplies && (
-					<AddSupplyButton type="button" onClick={openCreateForm}>
-						Add Supply
-					</AddSupplyButton>
+					<SupplyHeaderActions>
+						{equipmentContext && (
+							<AddSupplyButton type="button" onClick={clearEquipmentContext}>
+								View All
+							</AddSupplyButton>
+						)}
+						<AddSupplyButton type="button" onClick={() => setIsScanOpen(true)}>
+							Scan Barcode
+						</AddSupplyButton>
+						<AddSupplyButton type="button" onClick={openCreateForm}>
+							Add Supply
+						</AddSupplyButton>
+					</SupplyHeaderActions>
 				)}
 			</SuppliesHeader>
 
@@ -364,7 +440,7 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 			{actionError && (
 				<SupplyFormError role="alert">{actionError}</SupplyFormError>
 			)}
-			{!isLoading && !loadError && activeSupplies.length === 0 && (
+			{!isLoading && !loadError && visibleActiveSupplies.length === 0 && (
 				<SuppliesEmptyState>
 					<strong>No active Supplies</strong>
 					<p>
@@ -374,9 +450,9 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 					</p>
 				</SuppliesEmptyState>
 			)}
-			{activeSupplies.length > 0 && (
+			{visibleActiveSupplies.length > 0 && (
 				<SuppliesGrid>
-					{activeSupplies.map((supply) => (
+					{visibleActiveSupplies.map((supply) => (
 						<SupplyCard key={supply.id}>
 							<SupplyCardHeader>
 								<strong>{supply.name}</strong>
@@ -384,10 +460,12 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 									{getPropertySupplyTypeLabel(supply.type)}
 								</SupplyTypeBadge>
 							</SupplyCardHeader>
-							{(supply.manufacturer || supply.modelOrSku) && (
+							{(supply.manufacturer || supply.modelOrSku || supply.partNumber || supply.size) && (
 								<SupplyMetadata>
 									{supply.manufacturer && <span>{supply.manufacturer}</span>}
 									{supply.modelOrSku && <span>{supply.modelOrSku}</span>}
+									{supply.partNumber && <span>Part {supply.partNumber}</span>}
+									{supply.size && <span>{supply.size}</span>}
 								</SupplyMetadata>
 							)}
 							{supply.notes && <SupplyNotes>{supply.notes}</SupplyNotes>}
@@ -551,6 +629,116 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 					/>
 				</FormGroup>
 				<FormGroup>
+					<FormLabel htmlFor="supply-barcode">Barcode or GTIN (optional)</FormLabel>
+					<FormInput
+						id="supply-barcode"
+						value={draft.barcodeValue || ''}
+						maxLength={512}
+						onChange={(event) =>
+							setDraft((current) => ({ ...current, barcodeValue: event.target.value }))
+						}
+						placeholder="Scan or enter the product code"
+					/>
+				</FormGroup>
+				<FormGroup>
+					<FormLabel htmlFor="supply-part-number">Part number (optional)</FormLabel>
+					<FormInput
+						id="supply-part-number"
+						value={draft.partNumber || ''}
+						maxLength={120}
+						onChange={(event) =>
+							setDraft((current) => ({ ...current, partNumber: event.target.value }))
+						}
+					/>
+				</FormGroup>
+				<FormGroup>
+					<FormLabel htmlFor="supply-size">Size or specification (optional)</FormLabel>
+					<FormInput
+						id="supply-size"
+						value={draft.size || ''}
+						maxLength={120}
+						onChange={(event) =>
+							setDraft((current) => ({ ...current, size: event.target.value }))
+						}
+						placeholder="16 x 25 x 1, satin finish, 12 V"
+					/>
+				</FormGroup>
+				<FormGroup>
+					<FormLabel htmlFor="supply-replacement">Replacement interval (optional)</FormLabel>
+					<FormInput
+						id="supply-replacement"
+						value={draft.replacementInterval || ''}
+						maxLength={120}
+						onChange={(event) =>
+							setDraft((current) => ({ ...current, replacementInterval: event.target.value }))
+						}
+						placeholder="Every 3 months"
+					/>
+				</FormGroup>
+				<details>
+					<summary>More specifications</summary>
+					<FormGroup>
+						<FormLabel htmlFor="supply-merv">MERV rating (optional)</FormLabel>
+						<FormInput
+							id="supply-merv"
+							value={draft.mervRating || ''}
+							maxLength={40}
+							onChange={(event) =>
+								setDraft((current) => ({ ...current, mervRating: event.target.value }))
+							}
+							placeholder="MERV 11"
+						/>
+					</FormGroup>
+					<FormGroup>
+						<FormLabel htmlFor="supply-material">Material or finish (optional)</FormLabel>
+						<FormInput
+							id="supply-material"
+							value={draft.material || ''}
+							maxLength={120}
+							onChange={(event) =>
+								setDraft((current) => ({ ...current, material: event.target.value }))
+							}
+							placeholder="Satin white"
+						/>
+					</FormGroup>
+					<FormGroup>
+						<FormLabel htmlFor="supply-voltage">Voltage (optional)</FormLabel>
+						<FormInput
+							id="supply-voltage"
+							value={draft.voltage || ''}
+							maxLength={80}
+							onChange={(event) =>
+								setDraft((current) => ({ ...current, voltage: event.target.value }))
+							}
+							placeholder="12 V"
+						/>
+					</FormGroup>
+					<FormGroup>
+						<FormLabel htmlFor="supply-compatibility">Works with (optional)</FormLabel>
+						<FormInput
+							id="supply-compatibility"
+							value={draft.compatibility || ''}
+							maxLength={250}
+							onChange={(event) =>
+								setDraft((current) => ({ ...current, compatibility: event.target.value }))
+							}
+							placeholder="Compatible models or applications"
+						/>
+					</FormGroup>
+					<FormGroup>
+						<FormLabel htmlFor="supply-details">Product details (optional)</FormLabel>
+						<FormTextarea
+							id="supply-details"
+							value={draft.details || ''}
+							maxLength={500}
+							onChange={(event) =>
+								setDraft((current) => ({ ...current, details: event.target.value }))
+							}
+							placeholder="Other product specifications worth keeping"
+						/>
+					</FormGroup>
+				</details>
+				<FormGroup>
 					<FormLabel htmlFor="supply-notes">Notes (optional)</FormLabel>
 					<FormTextarea
 						id="supply-notes"
@@ -611,6 +799,15 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 				</SupplyConnectionFields>
 			</GenericModal>
 
+			<BarcodeScannerModal
+				isOpen={isScanOpen}
+				title="Supply Barcode Scanner"
+				defaultMethod="barcode"
+				captureIntent="part"
+				onClose={() => setIsScanOpen(false)}
+				onDetected={handleBarcodeDetected}
+			/>
+
 			<GenericModal
 				isOpen={Boolean(supplyToDelete)}
 				title={
@@ -653,7 +850,16 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 						: ''}
 				</SupplyFormHint>
 				{selectedSupply &&
-					(selectedSupply.manufacturer || selectedSupply.modelOrSku) && (
+					(selectedSupply.manufacturer ||
+						selectedSupply.modelOrSku ||
+						selectedSupply.partNumber ||
+						selectedSupply.size ||
+						selectedSupply.mervRating ||
+						selectedSupply.material ||
+						selectedSupply.voltage ||
+						selectedSupply.compatibility ||
+						selectedSupply.replacementInterval ||
+						selectedSupply.barcodeValue) && (
 						<SupplyMetadata>
 							{selectedSupply.manufacturer && (
 								<span>{selectedSupply.manufacturer}</span>
@@ -661,8 +867,29 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 							{selectedSupply.modelOrSku && (
 								<span>{selectedSupply.modelOrSku}</span>
 							)}
+							{selectedSupply.partNumber && (
+								<span>Part {selectedSupply.partNumber}</span>
+							)}
+							{selectedSupply.size && <span>{selectedSupply.size}</span>}
+							{selectedSupply.mervRating && (
+								<span>{selectedSupply.mervRating}</span>
+							)}
+							{selectedSupply.material && <span>{selectedSupply.material}</span>}
+							{selectedSupply.voltage && <span>{selectedSupply.voltage}</span>}
+							{selectedSupply.compatibility && (
+								<span>Works with {selectedSupply.compatibility}</span>
+							)}
+							{selectedSupply.replacementInterval && (
+								<span>{selectedSupply.replacementInterval}</span>
+							)}
+							{selectedSupply.barcodeValue && (
+								<span>Barcode {selectedSupply.barcodeValue}</span>
+							)}
 						</SupplyMetadata>
 					)}
+				{selectedSupply?.details && (
+					<SupplyNotes>{selectedSupply.details}</SupplyNotes>
+				)}
 				{selectedSupply?.notes && (
 					<SupplyNotes>{selectedSupply.notes}</SupplyNotes>
 				)}

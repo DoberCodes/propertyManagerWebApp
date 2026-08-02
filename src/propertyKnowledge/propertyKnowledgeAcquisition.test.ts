@@ -804,7 +804,7 @@ describe('property knowledge acquisition', () => {
 		});
 	});
 
-	it('applies accepted part suggestions to the related system service items', () => {
+	it('promotes accepted part suggestions to property Supply drafts', () => {
 		const accepted = acceptKnowledgeSuggestion(
 			{
 				id: 'suggestion-parts-1',
@@ -861,16 +861,19 @@ describe('property knowledge acquisition', () => {
 			acceptedAt: '2026-06-26T13:10:00.000Z',
 		});
 
-		expect(result.systemUpdates).toHaveLength(1);
-		expect(result.systemUpdates[0].updates.serviceItems?.[0]).toMatchObject({
+		expect(result.systemUpdates).toHaveLength(0);
+		expect(result.supplySuggestions).toHaveLength(1);
+		expect(result.supplySuggestions[0]).toMatchObject({
+			equipmentId: 'system-1',
+			draft: {
 			name: 'Honeywell T6 Pro Smart Thermostat',
-			category: 'accessory',
+			type: 'other',
 			manufacturer: 'Honeywell',
+			},
 		});
-		expect(result.systemUpdates[0].updates.serviceItems?.[0].notes).toContain(
+		expect(result.supplySuggestions[0].draft.notes).toContain(
 			'Source text: Honeywell T6 Pro Smart Thermostat',
 		);
-		expect(result.systemUpdates[0].updates.serviceItems).toHaveLength(1);
 		expect(accepted.suggestedParts?.[1].reviewStatus).toBe('rejected');
 	});
 });
