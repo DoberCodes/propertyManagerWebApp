@@ -677,9 +677,12 @@ PROD_GOOGLE_SERVICE_ACCOUNT
 The provider admits tokens only from
 `DoberFamilyVentures/propertyManagerWebApp` jobs that declare the GitHub
 `production` environment and run from `refs/heads/main`. The GitHub production
-environment independently permits only the `main` branch. During the first
-gate, the dedicated identity has only project metadata and Firebase Hosting
-read access. It cannot deploy or act as a Functions runtime service account.
+environment permits `main` and `release/next` because release validation needs
+production build variables. The provider's independent Main-ref condition
+prevents release candidates from receiving the cloud identity. During the
+first gate, the dedicated identity has only project metadata and Firebase
+Hosting read access. It cannot deploy or act as a Functions runtime service
+account.
 
 Keyless production access is checked by:
 
