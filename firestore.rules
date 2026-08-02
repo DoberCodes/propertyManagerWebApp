@@ -83,6 +83,17 @@ service cloud.firestore {
         hasLegacyManageRole(accountId);
     }
 
+    function canManagePropertyKnowledge(accountId) {
+      return hasAnyRole(accountId, [
+          'account_owner',
+          'admin',
+          'manager',
+          'property_manager',
+          'assistant_manager'
+        ]) ||
+        hasLegacyManageRole(accountId);
+    }
+
     function accountOwnerDocPath(accountId) {
       return /databases/$(database)/documents/users/$(accountId);
     }
@@ -723,7 +734,7 @@ service cloud.firestore {
         propertySpaceMatchesProperty(request.resource.data) &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.updatedBy == request.auth.uid &&
-        canManageAccount(request.resource.data.accountId);
+        canManagePropertyKnowledge(request.resource.data.accountId);
       allow update: if isAuthenticated() &&
         propertySpaceDataIsValid(resource.data) &&
         propertySpaceDataIsValid(request.resource.data) &&
@@ -734,8 +745,98 @@ service cloud.firestore {
         request.resource.data.createdAt == resource.data.createdAt &&
         request.resource.data.source == resource.data.source &&
         request.resource.data.updatedBy == request.auth.uid &&
-        canManageAccount(resource.data.accountId);
+        canManagePropertyKnowledge(resource.data.accountId);
       // Deletion is function-owned so referenced Spaces can be archived instead.
+      allow delete: if false;
+    }
+
+    function propertySupplyDataIsValid(data) {
+      return data.keys().hasAll([
+          'accountId',
+          'propertyId',
+          'name',
+          'type',
+          'isArchived',
+          'source',
+          'createdBy',
+          'updatedBy',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'accountId',
+          'propertyId',
+          'name',
+          'type',
+          'manufacturer',
+          'modelOrSku',
+          'notes',
+          'isArchived',
+          'source',
+          'createdBy',
+          'updatedBy',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.accountId is string &&
+        data.propertyId is string &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 100 &&
+        data.type in [
+          'filter',
+          'paint_and_finish',
+          'lawn_and_garden',
+          'pool_and_spa',
+          'electrical',
+          'plumbing',
+          'hardware',
+          'cleaning',
+          'other'
+        ] &&
+        (!('manufacturer' in data) || (data.manufacturer is string && data.manufacturer.size() <= 100)) &&
+        (!('modelOrSku' in data) || (data.modelOrSku is string && data.modelOrSku.size() <= 120)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+        data.isArchived is bool &&
+        data.source in [
+          'manual',
+          'document_review',
+          'intelligence_review',
+          'migration'
+        ] &&
+        data.createdBy is string &&
+        data.updatedBy is string &&
+        data.createdAt is string &&
+        data.updatedAt is string;
+    }
+
+    function propertySupplyMatchesProperty(data) {
+      return exists(/databases/$(database)/documents/properties/$(data.propertyId)) &&
+        get(/databases/$(database)/documents/properties/$(data.propertyId)).data.accountId == data.accountId;
+    }
+
+    match /propertySupplies/{supplyId} {
+      allow read: if isAuthenticated() &&
+        ('accountId' in resource.data) &&
+        canReadAccount(resource.data.accountId);
+      allow create: if isAuthenticated() &&
+        propertySupplyDataIsValid(request.resource.data) &&
+        propertySupplyMatchesProperty(request.resource.data) &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        canManagePropertyKnowledge(request.resource.data.accountId);
+      allow update: if isAuthenticated() &&
+        propertySupplyDataIsValid(resource.data) &&
+        propertySupplyDataIsValid(request.resource.data) &&
+        propertySupplyMatchesProperty(request.resource.data) &&
+        request.resource.data.accountId == resource.data.accountId &&
+        request.resource.data.propertyId == resource.data.propertyId &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.source == resource.data.source &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        canManagePropertyKnowledge(resource.data.accountId);
+      // Deletion is function-owned so referenced Supplies can be archived instead.
       allow delete: if false;
     }
 

@@ -1,5 +1,7 @@
 import {
 	getEquipmentSpaceIds,
+	getEndpointSupplyIds,
+	getSupplyEndpointIds,
 	getTaskSpaceIds,
 	PropertyKnowledgeLink,
 } from './PropertyKnowledgeLink.types';
@@ -39,5 +41,36 @@ describe('Property Knowledge Link selectors', () => {
 
 		expect(getTaskSpaceIds(links, 'task-1')).toEqual(['space-1']);
 		expect(getEquipmentSpaceIds(links, 'equipment-1')).toEqual(['space-2']);
+	});
+
+	it('derives both sides of Supply relationships without duplicate state', () => {
+		const links = [
+			makeLink({
+				id: 'supply-link-1',
+				fromType: 'equipment',
+				fromId: 'equipment-1',
+				relationshipType: 'uses',
+				toType: 'supply',
+				toId: 'supply-1',
+			}),
+			makeLink({
+				id: 'supply-link-2',
+				fromType: 'space',
+				fromId: 'space-1',
+				relationshipType: 'uses',
+				toType: 'supply',
+				toId: 'supply-1',
+			}),
+		];
+
+		expect(getSupplyEndpointIds(links, 'supply-1', 'equipment')).toEqual([
+			'equipment-1',
+		]);
+		expect(getSupplyEndpointIds(links, 'supply-1', 'space')).toEqual([
+			'space-1',
+		]);
+		expect(getEndpointSupplyIds(links, 'equipment', 'equipment-1')).toEqual([
+			'supply-1',
+		]);
 	});
 });

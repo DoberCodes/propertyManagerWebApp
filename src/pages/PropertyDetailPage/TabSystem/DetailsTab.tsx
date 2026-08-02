@@ -4,6 +4,7 @@ import { SectionHeader } from '../../../Components/Library/InfoCards/InfoCardSty
 import { DetailsEditHeader } from '../PropertyDetailPage.styles';
 import { PropertyDetailSection } from '../PropertyDetailSection';
 import { SpacesSection } from '../SpacesSection';
+import { SuppliesSection } from '../SuppliesSection';
 
 export const DetailsTab: React.FC<DetailsTabProps> = ({
 	property,
@@ -25,6 +26,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				homeownerMode={homeownerMode}
 			/>
 			<SpacesSection property={property} permissions={permissions} />
+			<SuppliesSection property={property} permissions={permissions} />
 		</>
 	);
 };

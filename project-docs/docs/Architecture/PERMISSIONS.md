@@ -687,6 +687,32 @@ same account and property boundary and rejects new links to archived Spaces.
 Recurring Task generation may copy already accepted Task-to-Space links through
 the trusted writer. Task deletion removes its outgoing links.
 
+Trusted Supply relationship writes support Equipment, Space, or Task `uses`
+Supply for account managers. The callable validates the Property, Supply, and
+every selected endpoint against the same account and property and rejects new
+links to archived Supplies or Spaces.
+
+---
+
+## propertySupplies
+
+Read:
+
+* Account readers through an account- and property-scoped query
+
+Create and update:
+
+* Account managers
+
+Remove and restore:
+
+* Account managers through a trusted callable
+
+Rules validate the Supply field contract, immutable ownership and creation
+fields, and the referenced Property account. The removal callable deletes an
+unreferenced Supply and archives a referenced Supply. Direct client deletion is
+denied.
+
 ---
 
 ## maintenanceEventRevisions

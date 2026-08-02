@@ -65,6 +65,8 @@ Current capabilities:
 * Track property type classifications.
 * Add and manage Spaces such as interior areas, utility locations, exterior
   surfaces, grounds, and amenities from Property Details.
+* Save Supplies such as filters, paint, parts, and property-care products from
+  Property Details.
 
 Homeowner plans keep property setup focused on personal and family homes. They
 may choose a residential classification but cannot create Multi-unit or
@@ -97,6 +99,13 @@ connections. Referenced Spaces are archived when removed so saved context stays
 visible; account managers can review and restore archived Spaces. Existing Task
 location values remain stored during a conservative exact-match migration
 period rather than being discarded or guessed.
+
+Supplies preserve the product details a property uses without introducing
+inventory management. Account managers may record a Supply name, type,
+manufacturer, model or SKU, and notes, then connect it to multiple Equipment
+records, Spaces, and Tasks. Connected views are derived from canonical
+relationships rather than copied onto each record. Referenced Supplies are
+archived when removed and may be restored later.
 
 ---
 

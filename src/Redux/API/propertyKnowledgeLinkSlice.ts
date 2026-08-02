@@ -16,6 +16,14 @@ interface SetTaskSpaceLinksArgs {
 	spaceIds: string[];
 }
 
+interface SetSupplyLinksArgs {
+	propertyId: string;
+	supplyId: string;
+	equipmentIds: string[];
+	spaceIds: string[];
+	taskIds: string[];
+}
+
 interface GetPropertyKnowledgeLinksArgs {
 	accountId: string;
 	propertyId?: string;
@@ -27,6 +35,16 @@ interface RemovePropertySpaceResult {
 }
 
 interface RestorePropertySpaceResult {
+	success: boolean;
+	restored: boolean;
+}
+
+interface RemovePropertySupplyResult {
+	success: boolean;
+	archived: boolean;
+}
+
+interface RestorePropertySupplyResult {
 	success: boolean;
 	restored: boolean;
 }
@@ -45,10 +63,7 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 						constraints.push(where('propertyId', '==', propertyId));
 					}
 					const snapshot = await getDocs(
-						query(
-							collection(db, 'propertyKnowledgeLinks'),
-							...constraints,
-						),
+						query(collection(db, 'propertyKnowledgeLinks'), ...constraints),
 					);
 					return {
 						data: snapshot.docs
@@ -103,6 +118,24 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['PropertyKnowledgeLinks'],
 		}),
 
+		setSupplyLinks: builder.mutation<
+			{ success: boolean; linkCount: number },
+			SetSupplyLinksArgs
+		>({
+			async queryFn(args) {
+				try {
+					const result = await callFirebaseFunction<
+						SetSupplyLinksArgs,
+						{ success: boolean; linkCount: number }
+					>('setSupplyLinks', args);
+					return { data: result.data };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Supplies', 'PropertyKnowledgeLinks'],
+		}),
+
 		removePropertySpace: builder.mutation<
 			RemovePropertySpaceResult,
 			{ spaceId: string; propertyId: string }
@@ -138,13 +171,52 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 			},
 			invalidatesTags: ['Spaces', 'PropertyKnowledgeLinks'],
 		}),
+
+		removePropertySupply: builder.mutation<
+			RemovePropertySupplyResult,
+			{ supplyId: string; propertyId: string }
+		>({
+			async queryFn({ supplyId }) {
+				try {
+					const result = await callFirebaseFunction<
+						{ supplyId: string },
+						RemovePropertySupplyResult
+					>('removePropertySupply', { supplyId });
+					return { data: result.data };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Supplies', 'PropertyKnowledgeLinks'],
+		}),
+
+		restorePropertySupply: builder.mutation<
+			RestorePropertySupplyResult,
+			{ supplyId: string; propertyId: string }
+		>({
+			async queryFn({ supplyId }) {
+				try {
+					const result = await callFirebaseFunction<
+						{ supplyId: string },
+						RestorePropertySupplyResult
+					>('restorePropertySupply', { supplyId });
+					return { data: result.data };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Supplies', 'PropertyKnowledgeLinks'],
+		}),
 	}),
 });
 
 export const {
 	useGetPropertyKnowledgeLinksQuery,
 	useRemovePropertySpaceMutation,
+	useRemovePropertySupplyMutation,
 	useRestorePropertySpaceMutation,
+	useRestorePropertySupplyMutation,
 	useSetEquipmentSpaceLinksMutation,
+	useSetSupplyLinksMutation,
 	useSetTaskSpaceLinksMutation,
 } = propertyKnowledgeLinkSlice;

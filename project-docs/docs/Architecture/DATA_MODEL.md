@@ -167,6 +167,7 @@ Core collections include:
 * accountMemberships
 * properties
 * propertySpaces
+* propertySupplies
 * propertyKnowledgeLinks
 * devices
 * tasks
@@ -460,6 +461,55 @@ Stored legacy values remain readable by compatibility and historical paths.
 Accepted Equipment-to-Space and Task-to-Space locations use canonical
 relationship records.
 
+## propertySupplies
+
+Represents a material, part, consumable, or product specification used by one
+property. Supplies are property knowledge rather than inventory records.
+
+Required fields:
+
+* accountId
+* propertyId
+* name
+* type
+* isArchived
+* source
+* createdBy
+* updatedBy
+* createdAt
+* updatedAt
+
+Optional fields:
+
+* manufacturer
+* modelOrSku
+* notes
+
+Supported `type` values:
+
+```text
+filter
+paint_and_finish
+lawn_and_garden
+pool_and_spa
+electrical
+plumbing
+hardware
+cleaning
+other
+```
+
+Supplies are stored in the top-level `propertySupplies` collection. Firestore
+rules validate that the referenced Property belongs to the same account.
+Account readers may view Supplies; account managers may create and edit them.
+Removal uses a trusted callable: unreferenced Supplies are deleted, while
+referenced Supplies are archived so their accepted context remains available.
+Archived Supplies may be restored by account managers.
+
+Equipment, Spaces, and Tasks connect to Supplies through canonical `uses`
+relationships. These many-to-many connections are stored only in
+`propertyKnowledgeLinks`; inverse lists shown on a Supply are derived.
+
 ## propertyKnowledgeLinks
 
 Represents one accepted connection between independent property-owned records.
@@ -467,15 +517,16 @@ The first supported relationships are:
 
 * Equipment `located_in` Space
 * Task `occurs_in` Space
+* Equipment, Space, or Task `uses` Supply
 
 Required fields:
 
 * accountId
 * propertyId
-* fromType (`equipment` or `task`)
+* fromType (`equipment`, `space`, or `task`, constrained by the relationship)
 * fromId
-* relationshipType (`located_in` or `occurs_in`)
-* toType (`space`)
+* relationshipType (`located_in`, `occurs_in`, or `uses`)
+* toType (`space` or `supply`, constrained by the relationship)
 * toId
 * source (`manual` or `migration` for an explicitly reviewed backfill)
 * createdAt
@@ -488,9 +539,9 @@ document ID is deterministic for the property, relationship type, and both
 endpoints. Account readers may read links. Direct client writes are denied;
 trusted callable functions validate the Property, source record, Space,
 account boundary, archived state, and required role before replacing links.
-Account managers connect Equipment; users with task-management permission
-connect Tasks. Inverse Space equipment and task lists are derived from these
-records rather than stored separately.
+Account managers connect Equipment and manage Supply connections; users with
+task-management permission connect Tasks to Spaces. Inverse Space and Supply
+lists are derived from these records rather than stored separately.
 
 Task links are many-to-many. A dry-run-first migration may link a legacy Task
 location only when it exactly and uniquely matches one active Space in the same

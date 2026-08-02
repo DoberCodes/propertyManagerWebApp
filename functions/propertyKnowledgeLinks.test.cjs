@@ -2,14 +2,22 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
 	buildPropertyKnowledgeLinkId,
+	normalizeKnowledgeEndpointIds,
 	normalizeSpaceIds,
 } = require('./lib/propertyKnowledgeLinks.js');
 
 test('normalizes selected Space IDs deterministically', () => {
-	assert.deepEqual(normalizeSpaceIds([' space-b ', 'space-a', 'space-b', '', null]), [
-		'space-a',
-		'space-b',
-	]);
+	assert.deepEqual(
+		normalizeSpaceIds([' space-b ', 'space-a', 'space-b', '', null]),
+		['space-a', 'space-b'],
+	);
+});
+
+test('normalizes Supply endpoint IDs with the same deterministic contract', () => {
+	assert.deepEqual(
+		normalizeKnowledgeEndpointIds([' task-b ', 'task-a', 'task-b', undefined]),
+		['task-a', 'task-b'],
+	);
 });
 
 test('builds a stable relationship ID from both endpoints', () => {
@@ -36,6 +44,17 @@ test('builds a stable relationship ID from both endpoints', () => {
 			fromType: 'task',
 			fromId: 'task-1',
 			relationshipType: 'occurs_in',
+		}),
+	);
+	assert.notEqual(
+		first,
+		buildPropertyKnowledgeLinkId({
+			...input,
+			fromType: 'equipment',
+			fromId: 'equipment-1',
+			relationshipType: 'uses',
+			toType: 'supply',
+			toId: 'supply-1',
 		}),
 	);
 });

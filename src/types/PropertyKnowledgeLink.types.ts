@@ -6,7 +6,10 @@ export type PropertyKnowledgeEndpointType =
 	| 'supply'
 	| 'maintenance_event';
 
-export type PropertyKnowledgeRelationshipType = 'located_in' | 'occurs_in';
+export type PropertyKnowledgeRelationshipType =
+	| 'located_in'
+	| 'occurs_in'
+	| 'uses';
 
 export type PropertyKnowledgeLinkSource =
 	| 'manual'
@@ -55,5 +58,35 @@ export const getTaskSpaceIds = (
 				link.fromId === taskId &&
 				link.relationshipType === 'occurs_in' &&
 				link.toType === 'space',
+		)
+		.map((link) => link.toId);
+
+export const getSupplyEndpointIds = (
+	links: PropertyKnowledgeLink[],
+	supplyId: string,
+	endpointType: 'equipment' | 'space' | 'task',
+): string[] =>
+	links
+		.filter(
+			(link) =>
+				link.fromType === endpointType &&
+				link.relationshipType === 'uses' &&
+				link.toType === 'supply' &&
+				link.toId === supplyId,
+		)
+		.map((link) => link.fromId);
+
+export const getEndpointSupplyIds = (
+	links: PropertyKnowledgeLink[],
+	endpointType: 'equipment' | 'space' | 'task',
+	endpointId: string,
+): string[] =>
+	links
+		.filter(
+			(link) =>
+				link.fromType === endpointType &&
+				link.fromId === endpointId &&
+				link.relationshipType === 'uses' &&
+				link.toType === 'supply',
 		)
 		.map((link) => link.toId);

@@ -194,6 +194,7 @@ exports.deleteUserAccount = functions
                 });
                 for (const collectionName of [
                     'propertySpaces',
+                    'propertySupplies',
                     'propertyKnowledgeLinks',
                 ]) {
                     const connectedKnowledgeSnapshot = await db
