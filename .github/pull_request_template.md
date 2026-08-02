@@ -1,3 +1,11 @@
+## Release Classification
+
+Release type: <!-- feat, feat!, fix, perf, refactor, docs, chore, ci, build, or test -->
+
+The PR-summary workflow uses this declaration, an existing Conventional Commit
+PR-title prefix, or Conventional Commit prefixes in the commits to normalize the
+PR title and calculate release impact. Use `feat!` only for a breaking change.
+
 ## Release Note Guide
 
 Use `Customer Release Note` to tell the user-visible story in 1-3 short

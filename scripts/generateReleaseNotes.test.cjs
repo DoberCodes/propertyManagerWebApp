@@ -2,7 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+	formatCustomerReleaseNotes,
 	getReleasePrepVersionFromSubject,
+	inferBump,
+	inferCustomerCategory,
 	selectMergedReleaseBoundary,
 	selectAutomaticReleaseVersion,
 } = require('./generateReleaseNotes.cjs');
@@ -97,4 +100,82 @@ test('does not lock the package version to a mismatched release subject', () => 
 
 	assert.equal(result.selectedAutomaticVersion, '2.8.3');
 	assert.equal(result.targetIsMatchingReleasePrep, false);
+});
+
+test('classifies features as minor releases and customer-facing new features', () => {
+	assert.equal(inferBump({ title: 'feat: add connected property supplies', labels: [], body: '' }), 'minor');
+	assert.equal(
+		inferCustomerCategory({
+			title: 'feat: add connected property supplies',
+			labels: [],
+			files: ['src/pages/PropertyDetailPage/SuppliesSection.tsx'],
+			body: '',
+			engineeringCategory: 'highlights',
+		}),
+		'whatsNew',
+	);
+});
+
+test('classifies fixes as patch releases and customer-facing fixes', () => {
+	assert.equal(inferBump({ title: 'fix: preserve archived relationships', labels: [], body: '' }), 'patch');
+	assert.equal(
+		inferCustomerCategory({
+			title: 'fix: preserve archived relationships',
+			labels: [],
+			files: ['src/example.ts'],
+			body: '',
+			engineeringCategory: 'fixes',
+		}),
+		'fixes',
+	);
+});
+
+test('keeps internal maintenance out of customer release notes', () => {
+	assert.equal(inferBump({ title: 'ci: validate PR titles', labels: [], body: '' }), 'patch');
+	assert.equal(
+		inferCustomerCategory({
+			title: 'ci: validate PR titles',
+			labels: [],
+			files: ['.github/workflows/pull-request-summary.yml'],
+			body: '',
+			engineeringCategory: 'maintenance',
+		}),
+		'',
+	);
+});
+
+test('allows explicit release-impact labels to override inferred bumps', () => {
+	assert.equal(
+		inferBump({ title: 'fix: compatibility repair', labels: ['release:minor'], body: '' }),
+		'minor',
+	);
+	assert.equal(
+		inferBump({ title: 'feat: internal prototype', labels: ['release:none'], body: '' }),
+		'none',
+	);
+});
+
+test('keeps an explicit feature label in New Features even when backend files changed', () => {
+	assert.equal(
+		inferCustomerCategory({
+			title: 'Add connected property supplies',
+			labels: ['feature'],
+			files: ['functions/propertyKnowledgeLinks.ts'],
+			body: '',
+			engineeringCategory: 'backend',
+		}),
+		'whatsNew',
+	);
+});
+
+test('renders features separately from improvements', () => {
+	const notes = formatCustomerReleaseNotes({
+		version: '2.13.0',
+		entries: [
+			{ customerCategory: 'whatsNew', customerSummary: 'Add connected property supplies' },
+			{ customerCategory: 'improvements', customerSummary: 'Improve dashboard responsiveness' },
+		],
+	});
+	assert.match(notes, /## New Features[\s\S]*Add connected property supplies/);
+	assert.match(notes, /## Improvements[\s\S]*Improve dashboard responsiveness/);
 });

@@ -1085,6 +1085,16 @@ Generates release notes from project history. The latest merged `Release v...`
 commit after the latest version tag is treated as the boundary so an unpublished
 or delayed tag does not cause changes from earlier prepared releases to repeat.
 
+Release classification follows Conventional Commit prefixes on merged PR
+titles: `feat:` maps to a minor release and New Features, `fix:` maps to a patch
+release and Fixes, `perf:` maps to a patch release and Improvements, and
+`feat!:` maps to a major release. Internal prefixes (`refactor:`, `docs:`,
+`chore:`, `ci:`, `build:`, and `test:`) remain available to engineering notes
+without appearing in customer notes by default. The protected PR-summary
+workflow normalizes a missing PR-title prefix from a `Release type:` body
+declaration or Conventional Commit prefixes in the PR's commits. The explicit
+body declaration takes priority so authors can correct the automated title.
+
 The generator recognizes a matching release-preparation merge at `HEAD` and
 keeps its prepared package version. Subsequent product commits continue to bump
 from that prepared version. The policy is covered by:

@@ -1029,6 +1029,24 @@ merged PR titles, labels, and files are preferred over raw commit messages.
 Direct commits are still included but reported as warnings so releases can move
 toward a PR-based pattern.
 
+Pull requests into `beta` use Conventional Commit prefixes as the shared release
+classification contract. `feat:` produces a minor release and a **New
+Features** entry, `fix:` produces a patch release and a **Fixes** entry, and
+`perf:` produces a patch release and an **Improvements** entry. `feat!:` marks a
+breaking feature and produces a major release. `refactor:`, `docs:`, `chore:`,
+`ci:`, `build:`, and `test:` remain visible in engineering notes but are omitted
+from customer notes by default.
+
+The PR-summary workflow resolves the classification from the `Release type:`
+declaration in the PR body, an existing PR-title prefix, or the highest-impact
+Conventional Commit prefix in the PR. The body declaration takes priority so an
+author can correct an earlier automated classification. The workflow then normalizes the PR title so the
+summary, release-note category, and semantic-version calculation consume the
+same signal. If no classification is available, the workflow fails with an
+actionable message instead of guessing from file paths. Explicit
+`release:major`, `release:minor`, `release:patch`, and `release:none` labels may
+override version impact for exceptional cases.
+
 The generator produces two release note layers:
 
 * Customer-facing notes for the public GitHub Release body.
@@ -1045,15 +1063,19 @@ Maintley now shows clearer dashboard focus controls for each user.
 ```
 
 Maintley's pull request template includes a `Customer Release Note` section so
-user-visible changes can be captured before merge.
+user-visible changes can be captured before merge. It also includes a `Release
+Classification` declaration for PRs whose title and commits do not already use
+Conventional Commit prefixes.
 
 Pull requests targeting `beta` receive a deterministic engineering summary from
 `.github/workflows/pull-request-summary.yml`. The workflow updates only the
 content between `maintley-pr-summary` markers and preserves every manually
 written section outside that block. It derives the summary from GitHub's changed
 file metadata and commit subjects; it does not read changed-file contents or
-dotenv values. Live build and test conclusions remain authoritative in the PR's
-required checks.
+dotenv values. The generated block reports release type, version impact,
+customer-note destination, and the source of that classification. The same
+workflow normalizes the PR-title prefix. Live build and test conclusions remain
+authoritative in the PR's required checks.
 
 The updater uses `pull_request_target` so the write-capable job runs trusted
 workflow and generator code rather than code from the feature branch. It checks

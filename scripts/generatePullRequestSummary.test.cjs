@@ -6,8 +6,10 @@ const {
 	SUMMARY_START,
 	buildSummary,
 	redactSensitiveText,
+	resolveReleaseClassification,
 	updatePullRequestBody,
 } = require('./generatePullRequestSummary.cjs');
+const { normalizePullRequestTitle } = require('./releaseClassification.cjs');
 
 const metadata = {
 	files: [
@@ -25,6 +27,53 @@ test('builds a deterministic summary from metadata without file contents', () =>
 	assert.match(summary, /CI\/CD and release automation: 1 file/);
 	assert.match(summary, /Secure Beta deployment/);
 	assert.match(summary, /1 automated test file changed/);
+	assert.match(summary, /Release classification/);
+	assert.match(summary, /Missing/);
+});
+
+test('uses the highest Conventional Commit impact and normalizes the PR title', () => {
+	const classification = resolveReleaseClassification({
+		title: 'Add connected property supplies',
+		body: '',
+		commits: [
+			{ commit: { message: 'fix: correct archived Space links' } },
+			{ commit: { message: 'feat: add connected property supplies' } },
+		],
+	});
+
+	assert.equal(classification.type, 'feat');
+	assert.equal(classification.bump, 'minor');
+	assert.equal(classification.customerCategory, 'whatsNew');
+	assert.equal(
+		normalizePullRequestTitle('Add connected property supplies', classification),
+		'feat: Add connected property supplies',
+	);
+});
+
+test('uses an explicit PR-body declaration when the title and commits are unclassified', () => {
+	const classification = resolveReleaseClassification({
+		title: 'Update release automation',
+		body: '## Release Classification\n\nRelease type: chore',
+		commits: [{ commit: { message: 'Update workflow' } }],
+	});
+
+	assert.equal(classification.type, 'chore');
+	assert.equal(classification.source, 'pull request declaration');
+	assert.equal(classification.customerCategory, '');
+});
+
+test('lets an edited PR-body declaration replace an earlier automated title prefix', () => {
+	const classification = resolveReleaseClassification({
+		title: 'feat: add release classification',
+		body: '## Release Classification\n\nRelease type: fix',
+		commits: [{ commit: { message: 'feat: add release classification' } }],
+	});
+
+	assert.equal(classification.type, 'fix');
+	assert.equal(
+		normalizePullRequestTitle('feat: add release classification', classification),
+		'fix: add release classification',
+	);
 });
 
 test('replaces only the marked block and preserves manual content', () => {

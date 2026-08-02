@@ -2,6 +2,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+	normalizePullRequestTitle,
+	resolveReleaseClassification,
+} = require('./releaseClassification.cjs');
 
 const SUMMARY_START = '<!-- maintley-pr-summary:start -->';
 const SUMMARY_END = '<!-- maintley-pr-summary:end -->';
@@ -105,6 +109,7 @@ function buildSummary(metadata) {
 	const testFiles = files
 		.map((file) => normalizeFile(file.filename || file))
 		.filter(isTestFile);
+	const releaseClassification = resolveReleaseClassification(metadata);
 	const lines = [
 		'### Automated PR Summary',
 		'',
@@ -115,6 +120,15 @@ function buildSummary(metadata) {
 	];
 	if (areas.length === 0) lines.push('- No changed files were reported.');
 	else for (const area of areas) lines.push(`- ${area.label}: ${area.count} file${area.count === 1 ? '' : 's'}`);
+	lines.push('', '#### Release classification', '');
+	if (releaseClassification) {
+		lines.push(`- Type: ${releaseClassification.label}`);
+		lines.push(`- Version impact: ${releaseClassification.bump}`);
+		lines.push(`- Customer release notes: ${releaseClassification.customerCategoryLabel}`);
+		lines.push(`- Source: ${releaseClassification.source}`);
+	} else {
+		lines.push('- Missing. Add a Conventional Commit prefix to the PR title or commits, or declare `Release type:` in the PR body.');
+	}
 	lines.push('', '#### Change summary', '');
 	if (subjects.length === 0) lines.push('- No commit subjects were available.');
 	else for (const subject of subjects) lines.push(`- ${subject}`);
@@ -148,15 +162,16 @@ function updatePullRequestBody(body, summary) {
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
-	const options = { metadata: '', body: '', output: '' };
+	const options = { metadata: '', body: '', output: '', titleOutput: '' };
 	for (let index = 0; index < argv.length; index += 1) {
 		const argument = argv[index];
 		if (argument === '--metadata') options.metadata = argv[++index] || '';
 		else if (argument === '--body') options.body = argv[++index] || '';
 		else if (argument === '--output') options.output = argv[++index] || '';
+		else if (argument === '--title-output') options.titleOutput = argv[++index] || '';
 		else throw new Error(`Unknown argument: ${argument}`);
 	}
-	for (const [name, value] of Object.entries(options)) {
+	for (const [name, value] of Object.entries(options).filter(([name]) => name !== 'titleOutput')) {
 		if (!value) throw new Error(`Missing required --${name} argument.`);
 	}
 	return options;
@@ -167,8 +182,22 @@ function main() {
 		const options = parseArgs();
 		const metadata = JSON.parse(fs.readFileSync(path.resolve(options.metadata), 'utf8'));
 		const body = fs.readFileSync(path.resolve(options.body), 'utf8');
-		const updated = updatePullRequestBody(body, buildSummary(metadata));
+		const summaryMetadata = { ...metadata, body };
+		const classification = resolveReleaseClassification(summaryMetadata);
+		if (!classification) {
+			throw new Error(
+				'No release classification found. Prefix the PR title or a commit with feat:, fix:, perf:, chore:, docs:, ci:, build:, test:, or refactor:, or add Release type: to the PR body.',
+			);
+		}
+		const updated = updatePullRequestBody(body, buildSummary(summaryMetadata));
 		fs.writeFileSync(path.resolve(options.output), updated, 'utf8');
+		if (options.titleOutput) {
+			fs.writeFileSync(
+				path.resolve(options.titleOutput),
+				`${normalizePullRequestTitle(metadata.title, classification)}\n`,
+				'utf8',
+			);
+		}
 		console.log('Maintley PR summary generated without reading changed-file contents.');
 	} catch (error) {
 		console.error(`Maintley PR summary generation failed: ${error.message}`);
@@ -187,6 +216,7 @@ module.exports = {
 	isTestFile,
 	normalizeFile,
 	redactSensitiveText,
+	resolveReleaseClassification,
 	summarizeAreas,
 	updatePullRequestBody,
 };
