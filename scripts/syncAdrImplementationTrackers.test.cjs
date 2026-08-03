@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
 	MANAGED_START,
@@ -36,6 +38,31 @@ test('parses a structured ADR implementation checklist', () => {
 	]);
 	assert.match(buildIssueBody(adr), /- \[x\] First phase/);
 	assert.match(buildIssueBody(adr), /- \[ \] Final phase/);
+});
+
+test('repository ADRs use standard titles and status lines', () => {
+	const adrDirectory = path.resolve(__dirname, '../project-docs/ADR');
+	const files = fs
+		.readdirSync(adrDirectory)
+		.filter((file) => /^\d{4}-.+\.md$/.test(file))
+		.sort();
+
+	assert.ok(files.length > 0);
+
+	for (const file of files) {
+		const content = fs.readFileSync(path.join(adrDirectory, file), 'utf8');
+		const expectedNumber = file.slice(0, 4);
+		assert.match(
+			content,
+			new RegExp(`^# ADR ${expectedNumber}: .+`, 'm'),
+			`${file} must use the standard numbered ADR title`,
+		);
+		assert.match(
+			content,
+			/^Status: .+/m,
+			`${file} must use a single-line ADR status`,
+		);
+	}
 });
 
 test('updates only the managed section and preserves tracker notes', () => {

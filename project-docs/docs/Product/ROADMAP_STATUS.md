@@ -1,6 +1,6 @@
 # Roadmap Status
 
-Last reviewed: 2026-06-30
+Last reviewed: 2026-08-02
 
 ## Purpose
 
@@ -17,372 +17,251 @@ implementation notes.
 
 ## Current Direction
 
-Maintley is moving toward:
+Maintley preserves and connects a property's operational knowledge:
 
 ```text
-Properties
+Property Memory
     -> Maintenance Events
     -> Maintley Intelligence
     -> User Action
 ```
 
-Near-term work should strengthen:
-
-* property-first organization
-* Maintenance Events as the long-term history model
-* Maintley Intelligence as explainable, derived guidance
-* personal and role-aware dashboard focus
-* clear customer-facing plan promises
-* mobile-first usability
+Near-term work should strengthen the existing platform through migration
+evidence, compatibility retirement, deployment validation, and documentation
+accuracy. New workflows should remain deferred until the current release and
+data boundaries are stable.
 
 ## Now
 
-### Product Promise Alignment
+### Compatibility Boundary Completion
 
-Status: Active
+Status: Active cleanup
 
-Source:
+Sources:
 
-* `project-docs/reports/roadmap-review-2026-06-30.md`
-* `project-docs/docs/Product/MAINTLEY_PLAN_FEATURE_MATRIX.md`
-
-Goal:
-
-Align public pricing, plan matrix, and runtime language with what Maintley
-currently supports.
-
-Current decisions:
-
-* Full Property Audit is in active implementation. Public entitlement language
-  should remain conservative until the shipped experience is verified.
-* Ongoing Maintley Intelligence is a roadmap item, not a current plan
-  entitlement.
-* Current Maintley Intelligence value includes Quick Property Scan, Dashboard
-  Recommendations, Setup Recommendations, and Property Insight observations.
-* Avoid `Home Health` and score-based framing in runtime UI.
-
-### Dashboard Maintley Intelligence
-
-Status: Active
-
-Source:
-
-* `project-docs/ADR/0017-personal-focus-dashboard.md`
-* `project-docs/reports/dashboard-alignment-audit-2026-06-30.md`
-
-Goal:
-
-Make the dashboard personal-first, role-aware, and action-oriented.
+* `project-docs/ADR/0022-account-access-resolver-contract.md`
+* `project-docs/ADR/0023-property-documents-as-first-class-records.md`
+* `project-docs/ADR/0024-maintenance-event-migration-completion.md`
 
 Completed:
 
-* Dashboard score/health framing removed.
-* Recent maintenance moved lower.
-* Standalone seasonal guidance removed from the dashboard.
-* Dashboard scope preference added.
-* Dashboard Maintley Intelligence consumer added.
-* Dashboard create-task recommendations prefill property and linked system
-  context where available.
+* Shared account access, Property Document, and Maintenance Event adapters own
+  active compatibility reads.
+* Build-time boundaries prevent new direct consumers from bypassing those
+  adapters.
+* Remaining property, maintenance, contractor, document, and user consumers
+  have been consolidated behind the shared boundaries.
 
 Remaining:
 
-* Decide whether `Action Center` is a named surface or just dashboard language.
+* Decide whether account access should normalize multiple membership roles or
+  retain one effective role.
+* Inventory production legacy account links, embedded documents, suggestions,
+  and maintenance records.
+* Retire fallbacks only after migration, parity, rollback, and deduplication
+  evidence is approved.
 
-### Task Permission Follow-Through
+### Firebase Hosting Migration Closure
 
-Status: Active
+Status: Production hosting active; final validation remains
 
 Source:
 
-* `firestore.rules`
-* `src/Redux/API/taskSlice.tsx`
+* `project-docs/ADR/0028-firebase-hosting-and-browser-routing-migration.md`
+* `project-docs/docs/Operations/DEPLOYMENT.md`
 
-Goal:
+Completed:
 
-Ensure maintenance leads and assigned team members can manage tasks within their
-allowed property scope.
+* Separate Maintley Beta and production Firebase environments are established.
+* Pull-request previews and stable Beta deployments use Firebase Hosting.
+* Release-gated production builds deploy to Firebase Hosting.
+* `maintleyapp.com` resolves to Firebase Hosting with TLS and clean browser
+  routes.
+* Function-generated links use canonical clean routes.
 
 Remaining:
 
-* Deploy Firestore rules.
-* Deploy matching client build if older task records require account context
-  backfill.
-* Re-test task assignment as a Maintenance Lead assigned to multiple
-  properties.
+* Record production validation for authentication, Stripe returns, email links,
+  deep links, PWA behavior, and rollback.
+* Validate clean routes in signed Android builds and then remove the temporary
+  Android `HashRouter` profile.
+* Retire the frozen GitHub Pages guard after the observation period and complete
+  the repository privacy decision.
+
+### Entitlement Rollout Closure
+
+Status: Active operational validation
+
+Source:
+
+* `project-docs/ADR/0032-centralized-entitlement-architecture.md`
+
+Completed:
+
+* The shared entitlement catalog and resolver own primary application and
+  Function capability checks.
+* Trials, complimentary grants, lifecycle communications, downgrade continuity,
+  and administrative access management use the centralized model.
+* Rule-relevant access is mirrored into trusted fields with emulator coverage.
+
+Remaining:
+
+* Complete deployed-web and signed-Android parity evidence.
+* Migrate any approved synthetic Stripe access one account at a time.
+* Remove compatibility adapters only after every supported client uses trusted
+  entitlement paths.
 
 ## Next
 
-### Report Builder Hardening
+### Controlled Data Migration Evidence
 
-Status: Completed cleanup, with future architecture decision remaining
-
-Source:
-
-* `project-docs/reports/2026-06-30-reporting-system-audit.md`
+Status: Planning required before mutation
 
 Goal:
 
-Finish report builder cleanup before expanding reporting.
+Close the remaining Property Document and Maintenance Event compatibility
+layers without losing historical records or provenance.
 
-Completed:
+Required before implementation:
 
-* Confirmed targeted Report Builder lint check is clean.
-* Confirmed report adapter tests pass.
-* Kept the category/template workflow as the active report selection path.
-* Centralized repeated report export routing for generic CSV reports.
+* production inventory review
+* explicit backfill design approval
+* dry-run and repeat-run evidence
+* rollback and parity reporting
+* duplicate and unresolved-record handling
+
+### Maintley Resolution Engine Completion
+
+Status: Accepted initial implementation
+
+Source:
+
+* `project-docs/ADR/0020-maintley-resolution-engine.md`
+
+Current behavior:
+
+The engine produces typed resolution plans and preserves resolution metadata,
+while the UI continues using existing recommendation actions.
 
 Remaining:
 
-* Decide when server-side report generation becomes required for sensitive or
-  portfolio-wide reporting.
+* Guided completion review
+* Additional upload, scan, Knowledge review, contractor, and task-review paths
+* Inline completion for simple Equipment details
 
-### Unit And Suite Containment
+### Storage Permission Follow-Through
 
-Status: In progress
+Status: Accepted initial implementation
 
 Source:
 
-* `project-docs/ADR/0001-remove-units-from-core-experience.md`
-* `project-docs/docs/Product/PRODUCT_DIRECTION.md`
-
-Goal:
-
-Keep the primary experience property-first while avoiding accidental unit/suite
-surface area.
-
-Decision:
-
-Keep only the Unit/Suite compatibility needed for existing records while
-Maintley remains focused on property-first maintenance workflows.
-
-Completed:
-
-* Dormant Unit and Suite routes, detail pages, property tabs, modal, handlers,
-  and current-source write hooks have been retired.
-* Dead Unit/Suite filter and navigation scaffolding has been removed from active
-  property, task, device, resident, and request surfaces.
-* Unit and suite report templates are hidden from active Report Builder
-  availability while legacy adapters remain available for existing data paths.
+* `project-docs/ADR/0021-storage-write-permission-contract.md`
 
 Remaining:
 
-* Keep legacy `unitId` and `suiteId` read compatibility where existing records
-  need location context.
-* Keep Unit/Suite rules, reporting/export adapters, and cascade deletion until a
-  production inventory and migration prove they can be removed safely.
-* Do not relaunch unit/suite management without a new product decision and ADR
-  update.
+* Decide and implement a narrower maintenance-file upload predicate.
+* Add role-level emulator coverage for the approved uploader role.
 
-### Property Knowledge Acquisition Status Matrix
+The current stricter Storage Rules remain authoritative until that work is
+approved and deployed.
 
-Status: Completed
+## Completed Foundations
 
-Source:
+### Property-first Experience
 
-* `project-docs/ADR/0011-property-knowledge-acquisition.md`
-* `project-docs/ADR/0015-pdf-invoice-acquisition-v1.md`
-* `project-docs/docs/Intelligence/PROPERTY_KNOWLEDGE_ACQUISITION_STATUS_MATRIX.md`
+Status: Implemented
 
-Goal:
+Properties remain the primary organizational level. Dormant Unit and Suite
+management has been removed while narrow legacy read compatibility remains
+behind documented boundaries.
 
-Create a clear support matrix for document and information extraction.
+### Maintenance Events
 
-The matrix should track:
+Status: Implemented foundation; migration compatibility remains
 
-* PDFs and invoices
-* manuals
-* warranties
-* receipts
-* photos
-* general documents
+Maintenance Events are the canonical long-term maintenance record. ADR 0024
+tracks the evidence required before legacy compatibility queries can be
+removed.
 
-Each input type should list supported fields, review requirements, accepted
-Property Memory outputs, and limitations.
+### Maintley Intelligence and Property Review
 
-Completed:
+Status: Implemented foundation
 
-* Added a source support matrix for PDFs, invoices, receipts, manuals,
-  warranties, photos, general documents, inspection reports, and contractor
-  documents.
-* Documented supported field families, review rules, current limitations, and
-  deferred capabilities.
+The shared Intelligence engine supports Quick Scan, dashboard guidance,
+readiness, and the customer-facing Home or Property Review. Future consumers
+must reuse the shared engine instead of creating separate recommendation logic.
 
-### Property Confirmation During Acquisition
+### Connected Property Knowledge
 
-Status: Completed, first phase
+Status: Implemented
 
-Source:
+Spaces, Equipment, Supplies, Documents, and Tasks are Property-owned records
+connected through relationships. Spaces and Supplies are available through
+their current Property experiences, and Documents can connect to multiple
+records without changing ownership.
 
-* `project-docs/docs/Intelligence/PROPERTY_KNOWLEDGE_ACQUISITION_STATUS_MATRIX.md`
-* `project-docs/docs/Intelligence/PROPERTY_KNOWLEDGE_ACQUISITION.md`
+### Homeowner Plans and Access
 
-Goal:
+Status: Implemented
 
-Detect clearly labeled service, job, installation, or property addresses in
-uploaded documents and warn the reviewer when the detected address appears to
-belong to a different property than the selected upload target.
+Homeowner+ multi-property access, trials, lifecycle communication, downgrade
+continuity, and centralized grants are available through the current plan and
+entitlement model.
 
-Constraint:
+### Personal Assistant Read API
 
-Property confirmation should be a review safeguard. It should not automatically
-rewrite property records, create new properties, block document storage, or let
-Maintley Intelligence parse raw documents.
+Status: Implemented owner-only first phase
 
-Completed:
-
-* Add address candidate extraction to invoice and receipt text acquisition.
-* Add deterministic address normalization and comparison utilities.
-* Surface a clear review warning before applying suggested Property Memory
-  changes when the document address conflicts with the selected property
-  address.
-* Add tests for exact match, partial match, clear mismatch, contractor address
-  ignored, and missing address cases.
-
-Remaining:
-
-* Keep multi-property reassignment deferred until Maintley has an intentional
-  document reassignment workflow.
+The read-only API and Maintley-role-gated token management support the private
+owner integration described by ADR 0034. Broader third-party or write access is
+not part of the current phase.
 
 ## Later
 
-### Full Property Audit
+### Structured Work Sessions
 
-Status: Active implementation
+Status: Proposed
 
-Source:
+ADR 0037 remains intentionally deferred. Tasks continue to use the existing
+completion workflow until guided, resumable execution is separately approved.
 
-* `project-docs/docs/Intelligence/PROPERTY_INTELLIGENCE.md`
-* `project-docs/docs/Intelligence/RECOMMENDATION_ENGINE.md`
-* `project-docs/ADR/0006-maintley-intelligence-architecture.md`
+### Professional Contribution and Business Stewardship
 
-Goal:
+Status: Proposed
 
-Provide a comprehensive, user-requested review of property record completeness,
-maintenance coverage, documentation, lifecycle planning, and property
-maintainability.
+ADRs 0026 and 0027 describe future ownership transfer, professional
+contribution, attribution, and Organization concepts. They are architectural
+intent, not current production behavior.
 
-Constraint:
-
-Full Property Audit should use the shared Maintley Intelligence engine. It
-should not become a separate recommendation system.
-
-Current direction:
-
-Property Audit should be asset-centered rather than a long flat recommendation
-list. It should show summary counts, top priority assets, category browsing,
-and asset reviews powered by Knowledge Pack-derived findings.
-
-### Ongoing Maintley Intelligence
+### Ongoing Maintley Intelligence and Intelligence Center
 
 Status: Roadmap
 
-Source:
+Seasonal guidance, cost trends, lifecycle forecasts, warranty timing, and a
+dedicated Intelligence destination remain future capabilities. They should not
+be presented as current plan entitlements until concrete product surfaces are
+implemented.
 
-* `project-docs/docs/Intelligence/PROPERTY_INTELLIGENCE.md`
-* `project-docs/docs/Intelligence/RECOMMENDATION_ENGINE.md`
-
-Goal:
-
-Surface scheduled or contextual guidance as Maintley records improve.
-
-Examples:
-
-* seasonal reminders
-* cost trends
-* lifecycle forecasts
-* warranty timing
-* personalized observations
-
-Constraint:
-
-This should not be promised as a current paid feature until a concrete product
-surface exists.
-
-### Intelligence Center
-
-Status: Roadmap
-
-Goal:
-
-Decide whether Maintley needs a dedicated destination for intelligence history,
-audit results, saved recommendations, or portfolio scans.
-
-## Completed
-
-### Maintenance Events Direction
-
-Status: Completed, with legacy compatibility
-
-Source:
-
-* `project-docs/ADR/0007-maintenance-events-as-historical-source-of-truth.md`
-* `project-docs/docs/Architecture/MAINTENANCE_EVENT_SCHEMA.md`
-
-Summary:
-
-Maintenance Events are the canonical long-term maintenance record. Legacy
-maintenance history compatibility remains where needed.
-
-### Property Setup Assistant
-
-Status: Completed and evolving
-
-Source:
-
-* `project-docs/ADR/0005-property-setup-assistant.md`
-
-Summary:
-
-The assistant supports progressive setup, system creation, and suggested
-maintenance generation. Future work should use Maintley Intelligence language
-instead of older `Home Health` framing.
-
-### Maintley Intelligence Foundation
-
-Status: Completed foundation
-
-Source:
-
-* `project-docs/ADR/0006-maintley-intelligence-architecture.md`
-* `project-docs/docs/Intelligence/PROPERTY_INTELLIGENCE.md`
-
-Summary:
-
-The shared engine supports Quick Property Scan and Dashboard Recommendations.
-Future consumers should continue using the shared engine.
-
-## Deferred
-
-### Units And Suites As Primary Navigation
-
-Status: Deferred
-
-Reason:
-
-The product is currently prioritizing simple, property-first workflows.
-
-Current guidance:
-
-Represent separate rentable areas as separate properties when practical.
-
-### Server-Side Report Generation
+### Server-side Report Generation
 
 Status: Deferred pending sensitivity and scale needs
 
-Reason:
-
-Current reporting is client-side and export-oriented. Server-side generation is
-likely needed later for sensitive financial, tenant, team, and portfolio-wide
-reporting.
+Current reporting remains client-side and export-oriented. Server-side
+generation should be reconsidered for sensitive, portfolio-wide, or materially
+larger reports.
 
 ## Open Decisions
 
-1. Is `Action Center` a named dashboard component or only product language?
-2. Should unit/suite functionality remain hidden compatibility or become an
-   intentional property-management feature?
-3. What is the smallest useful Full Property Audit v1?
-4. What concrete surface will represent Ongoing Maintley Intelligence?
-5. When does reporting require server-side generation?
+1. Should account access normalize multiple membership roles or retain one
+   effective role?
+2. When should the controlled Property Document and Maintenance Event
+   inventories and backfills begin?
+3. When has the Firebase Hosting observation period produced enough evidence to
+   remove the Android hash-routing profile and frozen Pages guard?
+4. Which maintenance-scoped role, if any, should upload maintenance files
+   without receiving broader document-management permission?
+5. When should the remaining Resolution Engine UX move from typed plans to
+   guided completion?
 
 ## Maintenance Process
 

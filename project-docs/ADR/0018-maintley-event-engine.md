@@ -1,9 +1,8 @@
-ADR: Maintley Event Engine
-Status
+# ADR 0018: Maintley Event Engine
 
-Accepted - initial implementation
+Status: Accepted - initial implementation
 
-Context
+## Context
 
 Maintley now contains multiple long-running workflows that produce meaningful milestones.
 
@@ -21,7 +20,7 @@ These workflows currently generate notifications, intelligence history, and stat
 
 Maintley requires a consistent event model that allows one workflow to inform multiple user experiences without duplicating logic.
 
-Decision
+## Decision
 
 Maintley will introduce a centralized Event Engine.
 
@@ -168,7 +167,7 @@ Seasonal Guidance Available
 Weather Advisory
 Warranty Expiring
 Maintenance Reminder
-Consequences
+## Consequences
 
 Benefits
 
@@ -183,7 +182,7 @@ Tradeoffs
 
 Introduces centralized event model.
 Consumers must subscribe to events instead of generating notifications directly.
-Future Considerations
+## Future Considerations
 
 Future consumers may include:
 
@@ -198,7 +197,7 @@ Calendar Integrations
 
 Events should remain platform-independent regardless of future delivery mechanisms.
 
-Initial Implementation
+## Initial Implementation
 
 The first implementation stores event lifecycle records in:
 

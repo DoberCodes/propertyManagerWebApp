@@ -1,9 +1,8 @@
-ADR: PDF Invoice Acquisition v1
-Status
+# ADR 0015: PDF Invoice Acquisition v1
 
-Accepted - initial implementation
+Status: Accepted - initial implementation
 
-Context
+## Context
 
 Most contractor invoices, receipts, and service records arrive as PDF files.
 Maintley's first Property Knowledge Acquisition implementation handled document
@@ -15,7 +14,7 @@ increase bundle size and make mobile behavior less predictable. PDF processing i
 also slower than normal uploads and should not block users from saving the
 canonical document.
 
-Decision
+## Decision
 
 PDF invoice acquisition will be handled as a backend processing step.
 
@@ -52,7 +51,7 @@ user reviews/applies
 If processing cannot extract usable information, the document should move to a
 failed or not-reviewed state with a calm retry path.
 
-Implementation Strategy
+## Implementation Strategy
 
 The React application should save the document record and set
 `acquisitionStatus = processing`. Backend processing is triggered from the
@@ -75,7 +74,7 @@ runtime that can reliably include PDF rendering and OCR tooling.
 Derived page images should be temporary or stored under an internal processing
 path with cleanup. They should not count as user-facing Property Documents.
 
-Boundaries
+## Boundaries
 
 Do not:
 
@@ -86,7 +85,7 @@ Do not:
 * Treat rendered page images as user documents.
 * Let Maintley Intelligence parse raw documents.
 
-Consequences
+## Consequences
 
 Benefits:
 
@@ -101,7 +100,7 @@ Tradeoffs:
 * Rendered-page OCR needs a worker/runtime with reliable native PDF rendering.
 * Users may see a short processing state before suggestions are available.
 
-Future Considerations
+## Future Considerations
 
 Future phases may add:
 
