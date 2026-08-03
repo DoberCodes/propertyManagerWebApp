@@ -112,7 +112,9 @@ Property Documents may connect to multiple Equipment records, Spaces, Tasks,
 and Supplies without being copied into those features. Account managers edit
 these connections from the Property Documents experience. Equipment, Space,
 Task, and Supply views show the derived connected Documents while legacy
-Document assignments remain visible during migration.
+Document assignments remain visible during migration. If a Document upload or
+metadata edit succeeds but its connection update fails, Maintley keeps the
+Document available and tells the user to reopen it and retry the connections.
 
 ---
 
