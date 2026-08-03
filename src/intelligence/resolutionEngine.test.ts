@@ -16,7 +16,7 @@ const makeFinding = (
 	description: 'Water Heater does not have an install date recorded.',
 	whyItMatters:
 		'Install dates help with maintenance planning, warranty review, and long-term replacement planning.',
-	suggestedActionLabel: 'Open system record',
+	suggestedActionLabel: 'Open equipment record',
 	suggestedActionType: 'edit_system',
 	requiredPlan: 'homeowner',
 	requiredCapabilities: [],

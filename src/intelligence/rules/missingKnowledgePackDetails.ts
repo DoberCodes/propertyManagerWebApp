@@ -46,10 +46,10 @@ export const missingKnowledgePackDetailsRule: MaintleyIntelligenceRule = {
 					priority: 'medium',
 					source: 'knowledge_pack',
 					title: `Add filter size for ${systemName}`,
-					description: `${systemName} does not have a filter size recorded in Maintley's system record.`,
+					description: `${systemName} does not have a filter size recorded in Maintley's equipment record.`,
 					whyItMatters:
 						'Knowing the filter size makes future replacements easier and helps keep supplies easier to find.',
-					suggestedActionLabel: 'Open system record',
+					suggestedActionLabel: 'Open equipment record',
 					suggestedActionType: 'edit_system',
 					metadata: {
 						systemId: system.id,

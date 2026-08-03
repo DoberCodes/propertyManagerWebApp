@@ -1,6 +1,6 @@
 # ADR 0021: Storage Write Permission Contract
 
-Status: Accepted
+Status: Accepted - initial implementation
 
 Date: 2026-07-06
 
@@ -64,6 +64,24 @@ changing the customer-facing upload flows.
 
 If a workflow needs broader write ability than the rules should grant directly,
 move that workflow behind a Cloud Function instead of widening Storage rules.
+
+## Implementation Tracking
+
+* [x] Separate account and property read predicates from management predicates.
+* [x] Require management access for property documents and equipment files.
+* [x] Restrict team-member files to account managers.
+* [x] Restrict profile images to the owning user.
+* [x] Keep feedback attachments function-owned.
+* [x] Cover owner, read-only member, outsider, feedback, and quota behavior in
+  Storage Rules tests.
+* [ ] Define and implement the narrower maintenance-file upload predicate while
+  keeping deletion more restrictive.
+* [ ] Add role-level rule tests for the approved maintenance uploader role.
+
+The current Storage Rules are stricter than the intended maintenance-file
+contract: a maintenance-scoped team member cannot upload maintenance files.
+That restriction remains in place until the narrower predicate and its tests
+are separately approved; this ADR status does not change permissions.
 
 ## Consequences
 

@@ -375,7 +375,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					</AuditTitleRow>
 					<AuditText>
 						A broader review of saved {reviewLanguage.recordPlural}, maintenance coverage,
-						and equipment details, organized by {isHomeowner ? 'equipment' : 'system'} so you can improve the
+						and equipment details, organized by equipment so you can improve the
 						{' '}{reviewLanguage.subjectNoun} memory over time.
 						{isFreePlan
 							? ` A lightweight record check remains available. ${reviewLanguage.label} is the deeper ${intelligenceUpgradePlan} layer.`
@@ -461,8 +461,8 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 									<li>
 										Reviewing {systems.length}{' '}
 										{systems.length === 1
-											? isHomeowner ? 'equipment record' : 'system'
-											: isHomeowner ? 'equipment records' : 'systems'}
+											? 'equipment record'
+											: 'equipment records'}
 									</li>
 									<li>Organizing opportunities by record</li>
 									<li>Building the review summary</li>
@@ -627,7 +627,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						<PromptRow>
 							<PromptText>
 								Run a {reviewLanguage.label} when you want a broader look at saved
-								records, grouped by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance coverage.
+								records, grouped by equipment, documentation, and maintenance coverage.
 							</PromptText>
 						</PromptRow>
 					)}
@@ -641,7 +641,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 				<ReviewInfoBody>
 					<ReviewInfoLead>
 						{reviewLanguage.label} looks across the records saved for this {reviewLanguage.subjectNoun} and
-						groups opportunities by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance
+						groups opportunities by equipment, documentation, and maintenance
 						coverage.
 						{isFreePlan
 							? ` A lightweight record check remains available. This deeper review unlocks with ${intelligenceUpgradePlan}.`
@@ -664,7 +664,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					<ReviewInfoItem $tone='assets'>
 						<strong>Asset Reviews</strong>
 						<span>
-							Organizes opportunities by {isHomeowner ? 'equipment' : 'system'} so you can improve
+							Organizes opportunities by equipment so you can improve
 							one record at a time instead of sorting through a long flat list.
 						</span>
 					</ReviewInfoItem>

@@ -1,6 +1,6 @@
 # ADR 0025: Standardize User-Facing Equipment Terminology
 
-Status: Accepted
+Status: Implemented
 Date: 2026-07-10
 Accepted: 2026-07-10
 Decision Source: Manual
@@ -64,6 +64,17 @@ Any persisted text cleanup must be:
 Historical snapshots and maintenance records may preserve old wording when that
 wording represents what Maintley displayed at the time. Prefer normalizing
 display text at render time over mutating immutable historical records.
+
+## Implementation Tracking
+
+* [x] Use Equipment across active navigation, record labels, actions, account
+  summaries, admin metrics, and Maintley Intelligence copy.
+* [x] Preserve the `devices` collection, legacy relationship fields, route
+  values, action values, and permission identifiers.
+* [x] Preserve Appliances when it identifies a real-world equipment category.
+* [x] Add a build-time terminology guard for legacy user-facing record labels.
+* [x] Add regression tests that distinguish user-facing labels from technical
+  identifiers and valid categories.
 
 ## Consequences
 
