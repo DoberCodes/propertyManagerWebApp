@@ -1,22 +1,16 @@
 import type { Analytics } from 'firebase/analytics';
 import app from '../config/firebase';
+import {
+	ANALYTICS_EVENT_PARAM_ALLOWLIST,
+	isAnalyticsActionSource,
+	type AnalyticsEventName,
+} from './analyticsContract';
+
+export type { AnalyticsActionSource, AnalyticsEventName } from './analyticsContract';
+export { getAnalyticsErrorCode } from './analyticsContract';
 
 export type AnalyticsParamValue = string | number | boolean | null | undefined;
 export type AnalyticsParams = Record<string, AnalyticsParamValue>;
-
-export type AnalyticsEventName =
-	| 'route_viewed'
-	| 'property_created'
-	| 'equipment_created'
-	| 'task_created'
-	| 'task_completed'
-	| 'maintenance_history_added'
-	| 'property_setup_proposal_viewed'
-	| 'property_setup_proposal_dismissed'
-	| 'property_setup_plan_confirmed'
-	| 'property_setup_plan_activated'
-	| 'property_scan_completed'
-	| 'report_downloaded';
 
 const isPlaceholderValue = (value: string) =>
 	[/^YOUR_/i, /^REPLACE_/i, /^TODO$/i, /^changeme$/i].some((pattern) =>
@@ -96,14 +90,29 @@ export const sanitizeAnalyticsParams = (
 	);
 };
 
+export const sanitizeAnalyticsEventParams = (
+	eventName: AnalyticsEventName,
+	params: AnalyticsParams = {},
+): Record<string, string | number | boolean> => {
+	const allowedKeys = new Set(ANALYTICS_EVENT_PARAM_ALLOWLIST[eventName]);
+	const allowedParams = Object.fromEntries(
+		Object.entries(params).filter(
+			([key, value]) =>
+				allowedKeys.has(key) &&
+				(key !== 'action_source' || isAnalyticsActionSource(value)),
+		),
+	);
+	return sanitizeAnalyticsParams({
+		app_area: 'maintley',
+		...allowedParams,
+	});
+};
+
 export const trackAnalyticsEvent = async (
 	eventName: AnalyticsEventName,
 	params?: AnalyticsParams,
 ) => {
-	const cleanedParams = sanitizeAnalyticsParams({
-		app_area: 'maintley',
-		...params,
-	});
+	const cleanedParams = sanitizeAnalyticsEventParams(eventName, params);
 
 	if (analyticsDebug) {
 		console.info('[analytics]', eventName, cleanedParams);
@@ -118,6 +127,32 @@ export const trackAnalyticsEvent = async (
 	} catch (error) {
 		if (analyticsDebug) {
 			console.warn('Maintley analytics event failed:', error);
+		}
+	}
+};
+
+export const configureAnalyticsIdentity = async ({
+	userId,
+	roleFamily,
+	planFamily,
+}: {
+	userId: string | null;
+	roleFamily: string;
+	planFamily: string;
+}) => {
+	const analytics = await getAnalyticsInstance();
+	if (!analytics) return;
+
+	try {
+		const { setUserId, setUserProperties } = await import('firebase/analytics');
+		setUserId(analytics, userId);
+		setUserProperties(analytics, {
+			role_family: roleFamily,
+			plan_family: planFamily,
+		});
+	} catch (error) {
+		if (analyticsDebug) {
+			console.warn('Maintley analytics identity unavailable:', error);
 		}
 	}
 };

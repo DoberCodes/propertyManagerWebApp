@@ -2101,6 +2101,7 @@ export const Properties = () => {
 
 			const clonedDevice = stripUndefinedValues({
 				...deviceFields,
+				analyticsSource: 'import',
 				userId: currentUser!.id,
 				location: {
 					propertyId: newProperty.id,
@@ -2176,6 +2177,7 @@ export const Properties = () => {
 
 			const clonedTask = stripUndefinedValues({
 				...taskFields,
+				analyticsSource: 'import',
 				userId: currentUser!.id,
 				propertyId: newProperty.id,
 				property: newProperty.title,

@@ -1,4 +1,9 @@
-import { sanitizeAnalyticsParams } from './analytics';
+import {
+	getAnalyticsErrorCode,
+	sanitizeAnalyticsEventParams,
+	sanitizeAnalyticsParams,
+} from './analytics';
+import { ANALYTICS_EVENT_PARAM_ALLOWLIST } from './analyticsContract';
 
 describe('analytics helpers', () => {
 	it('removes empty values and keeps simple GA-safe values', () => {
@@ -23,5 +28,63 @@ describe('analytics helpers', () => {
 		const longValue = ' a'.repeat(80);
 
 		expect(sanitizeAnalyticsParams({ value: ` ${longValue} ` }).value).toHaveLength(100);
+	});
+
+	it('allows only documented parameters for each event', () => {
+		expect(
+			sanitizeAnalyticsEventParams('document_uploaded', {
+				document_count: 2,
+				document_category: 'invoice',
+				document_name: 'Private invoice.pdf',
+				property_address: '123 Private Street',
+			}),
+		).toEqual({
+			app_area: 'maintley',
+			document_count: 2,
+			document_category: 'invoice',
+		});
+	});
+
+	it('drops invalid action source values', () => {
+		expect(
+			sanitizeAnalyticsEventParams('task_created', {
+				action_source: 'clicked from a private note',
+				task_status: 'Initiated',
+			}),
+		).toEqual({
+			app_area: 'maintley',
+			task_status: 'Initiated',
+		});
+	});
+
+	it('keeps direct identifiers and customer content out of the event contract', () => {
+		const allowedKeys = Object.values(ANALYTICS_EVENT_PARAM_ALLOWLIST).flat();
+		const forbiddenKeys = [
+			'email',
+			'name',
+			'address',
+			'notes',
+			'description',
+			'filename',
+			'document_id',
+			'property_id',
+			'task_id',
+			'user_id',
+			'url',
+		];
+
+		forbiddenKeys.forEach((key) => expect(allowedKeys).not.toContain(key));
+	});
+
+	it('reduces raw failures to controlled error categories', () => {
+		expect(getAnalyticsErrorCode({ code: 'permission-denied' })).toBe(
+			'permission_denied',
+		);
+		expect(getAnalyticsErrorCode(new Error('Failed to fetch: network offline'))).toBe(
+			'network_unavailable',
+		);
+		expect(getAnalyticsErrorCode(new Error('Customer content'))).toBe(
+			'unexpected_error',
+		);
 	});
 });

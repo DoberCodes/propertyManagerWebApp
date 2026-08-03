@@ -316,6 +316,7 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 						{ success: boolean; id: string }
 					>('createMaintenanceEvent', { event: historyData });
 					void trackAnalyticsEvent('maintenance_history_added', {
+						action_source: 'user',
 						event_type: String(historyData.eventType || 'maintenance_recorded'),
 						event_source: String(historyData.eventSource || 'manual_entry'),
 						has_attachment: Boolean(resolvedCompletionFileData),

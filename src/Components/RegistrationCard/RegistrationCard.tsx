@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import {
 	Input,
@@ -50,6 +50,10 @@ import {
 	previewComplimentaryAccessCode,
 	redeemComplimentaryAccessCode,
 } from '../../services/complimentaryAccessCodeService';
+import {
+	getAnalyticsErrorCode,
+	trackAnalyticsEvent,
+} from '../../analytics/analytics';
 
 // Map selected account type to appropriate role
 const getRoleFromAccountType = (accountType: string): string => {
@@ -104,6 +108,7 @@ export const RegistrationCard = () => {
 		name: string;
 		title: string;
 	} | null>(null);
+	const hasTrackedSignupStartedRef = useRef(false);
 
 	const handleViewDocument = (filename: string, title: string) => {
 		setSelectedDocument({ name: filename, title });
@@ -126,6 +131,21 @@ export const RegistrationCard = () => {
 		!inviteMode &&
 		!isTenantSignup &&
 		complimentaryCode.trim().length > 0;
+	const registrationMode = inviteMode
+		? inviteType === 'tenant'
+			? 'tenant_invite'
+			: 'team_invite'
+		: isTenantSignup
+			? 'tenant'
+			: 'standard';
+
+	const trackSignupBlocked = (stage: string, reasonCode: string) => {
+		void trackAnalyticsEvent('workflow_validation_blocked', {
+			workflow_name: 'signup',
+			workflow_stage: stage,
+			reason_code: reasonCode,
+		});
+	};
 
 	const enableInviteMode = () => {
 		setInviteMode(true);
@@ -259,10 +279,12 @@ export const RegistrationCard = () => {
 
 	const validateStep1 = () => {
 		if (!firstName.trim()) {
+			trackSignupBlocked('profile', 'first_name_required');
 			setError('Please enter your first name');
 			return false;
 		}
 		if (!lastName.trim()) {
+			trackSignupBlocked('profile', 'last_name_required');
 			setError('Please enter your last name');
 			return false;
 		}
@@ -271,29 +293,35 @@ export const RegistrationCard = () => {
 
 	const validateStep2 = async () => {
 		if (!email.trim()) {
+			trackSignupBlocked('account', 'email_required');
 			setError('Please enter your email address');
 			return false;
 		}
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!emailRegex.test(email)) {
+			trackSignupBlocked('account', 'email_invalid');
 			setError('Please enter a valid email address');
 			return false;
 		}
 		if (emailExists) {
+			trackSignupBlocked('account', 'email_already_registered');
 			setError(
 				'This email is already registered. Please use a different email or sign in instead.',
 			);
 			return false;
 		}
 		if (password.length < 8) {
+			trackSignupBlocked('account', 'password_too_short');
 			setError('Password must be at least 8 characters long');
 			return false;
 		}
 		if (!confirmed) {
+			trackSignupBlocked('account', 'password_confirmation_mismatch');
 			setError('Passwords do not match');
 			return false;
 		}
 		if (!agreedToTerms) {
+			trackSignupBlocked('account', 'legal_agreement_required');
 			setError(
 				'You must agree to the Terms of Service, Privacy Policy, Maintenance Disclaimer, Subscription Terms, and EULA to continue',
 			);
@@ -302,12 +330,14 @@ export const RegistrationCard = () => {
 
 		if (inviteMode) {
 			if (!inviteCodeInput.trim()) {
+				trackSignupBlocked('account', 'invitation_code_required');
 				setError('Invitation code is required for invite registration');
 				return false;
 			}
 
 			const inviteValid = await validateInvite();
 			if (!inviteValid) {
+				trackSignupBlocked('account', 'invitation_invalid');
 				setError(
 					'This invitation is invalid or expired. Please verify the code and email.',
 				);
@@ -325,6 +355,7 @@ export const RegistrationCard = () => {
 		// Plan selection is handled by the embedded paywall
 		// User must select a plan to proceed
 		if (!selectedPlan) {
+			trackSignupBlocked('plan', 'plan_required');
 			setError('Please select a subscription plan');
 			return false;
 		}
@@ -334,6 +365,14 @@ export const RegistrationCard = () => {
 	const handleNext = async () => {
 		setError('');
 		if (step === 1 && validateStep1()) {
+			if (!hasTrackedSignupStartedRef.current) {
+				hasTrackedSignupStartedRef.current = true;
+				void trackAnalyticsEvent('signup_started', {
+					registration_mode: registrationMode,
+					has_access_code: hasRegistrationAccessCode,
+					starting_audience: isTenantSignup ? 'tenant' : accountType,
+				});
+			}
 			setStep(2);
 		} else if (step === 2 && (await validateStep2())) {
 			if (inviteMode || isTenantSignup) {
@@ -409,6 +448,7 @@ export const RegistrationCard = () => {
 			return;
 		}
 		setLoading(true);
+		let signupStage = 'account_creation';
 
 		try {
 			// Map selected account type to appropriate role
@@ -448,6 +488,13 @@ export const RegistrationCard = () => {
 				},
 				inviteMode ? inviteType : undefined,
 			);
+			void trackAnalyticsEvent('signup_completed', {
+				registration_mode: registrationMode,
+				selected_plan: signupPlan,
+				used_access_code: hasRegistrationAccessCode,
+				requires_checkout: Boolean(user.subscription?.pendingCheckoutPlan),
+			});
+			signupStage = 'post_signup_access';
 
 			// Store session in localStorage
 			localStorage.setItem(
@@ -486,6 +533,11 @@ export const RegistrationCard = () => {
 			);
 		} catch (error: any) {
 			console.error('RegistrationCard: Registration error', error);
+			void trackAnalyticsEvent('workflow_error_shown', {
+				workflow_name: 'signup',
+				workflow_stage: signupStage,
+				error_code: getAnalyticsErrorCode(error),
+			});
 			if (isPaidCheckoutSelection && auth.currentUser) {
 				navigate('/paywall?checkout=failed', { replace: true });
 				return;

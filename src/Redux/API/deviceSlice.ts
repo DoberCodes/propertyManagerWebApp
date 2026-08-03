@@ -22,7 +22,38 @@ import {
 	getEffectiveAccessPlanId,
 	getMaxDevicesForPlan,
 } from '../../utils/subscriptionUtils';
-import { trackAnalyticsEvent } from '../../analytics/analytics';
+import {
+	AnalyticsActionSource,
+	trackAnalyticsEvent,
+} from '../../analytics/analytics';
+
+type CreateDeviceInput = Omit<Device, 'id'> & {
+	analyticsSource?: AnalyticsActionSource;
+};
+
+const DEVICE_IDENTITY_FIELDS = new Set([
+	'type',
+	'assetType',
+	'assetVariant',
+	'assetCategory',
+	'brand',
+	'model',
+	'serialNumber',
+]);
+const DEVICE_INSTALLATION_FIELDS = new Set([
+	'installationDate',
+	'installDate',
+	'purchaseDate',
+	'warrantyExpiration',
+]);
+const DEVICE_LOCATION_FIELDS = new Set(['location', 'spaceIds']);
+const DEVICE_MAINTENANCE_FIELDS = new Set([
+	'filterSize',
+	'maintenanceFrequency',
+	'lastServiceDate',
+	'nextServiceDate',
+	'status',
+]);
 
 const readDeviceQuery = async (...clauses: ReturnType<typeof where>[]) => {
 	const snapshot = await getDocs(query(collection(db, 'devices'), ...clauses));
@@ -122,9 +153,10 @@ const deviceSlice = apiSlice.injectEndpoints({
 			providesTags: ['Devices'],
 		}),
 
-		createDevice: builder.mutation<Device, Omit<Device, 'id'>>({
+		createDevice: builder.mutation<Device, CreateDeviceInput>({
 			async queryFn(newDevice) {
 				try {
+					const { analyticsSource = 'user', ...deviceInput } = newDevice;
 					const currentUser = auth.currentUser;
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
@@ -162,7 +194,7 @@ const deviceSlice = apiSlice.injectEndpoints({
 
 						const nowIso = new Date().toISOString();
 						transaction.set(deviceRef, {
-							...normalizeDeviceDates(newDevice),
+							...normalizeDeviceDates(deviceInput),
 							userId: targetUserId,
 							accountId: targetUserId,
 							createdAt: nowIso,
@@ -174,8 +206,9 @@ const deviceSlice = apiSlice.injectEndpoints({
 							updatedAt: nowIso,
 						});
 					});
-					const normalizedDevice = normalizeDeviceDates(newDevice);
+					const normalizedDevice = normalizeDeviceDates(deviceInput);
 					void trackAnalyticsEvent('equipment_created', {
+						action_source: analyticsSource,
 						equipment_type: String(
 							normalizedDevice.assetType || normalizedDevice.type || 'unspecified',
 						),
@@ -204,14 +237,37 @@ const deviceSlice = apiSlice.injectEndpoints({
 
 		updateDevice: builder.mutation<
 			Device,
-			{ id: string; updates: Partial<Device> }
+			{
+				id: string;
+				updates: Partial<Device>;
+				analyticsSource?: AnalyticsActionSource;
+			}
 		>({
-			async queryFn({ id, updates }) {
+			async queryFn({ id, updates, analyticsSource = 'user' }) {
 				try {
 					const docRef = doc(db, 'devices', id);
+					const changedFields = Object.keys(updates).filter(
+						(key) => key !== 'updatedAt',
+					);
 					await updateDoc(docRef, {
 						...normalizeDeviceDates(updates),
 						updatedAt: new Date().toISOString(),
+					});
+					void trackAnalyticsEvent('equipment_updated', {
+						action_source: analyticsSource,
+						changed_field_count: changedFields.length,
+						changed_identity: changedFields.some((field) =>
+							DEVICE_IDENTITY_FIELDS.has(field),
+						),
+						changed_installation: changedFields.some((field) =>
+							DEVICE_INSTALLATION_FIELDS.has(field),
+						),
+						changed_location: changedFields.some((field) =>
+							DEVICE_LOCATION_FIELDS.has(field),
+						),
+						changed_maintenance_details: changedFields.some((field) =>
+							DEVICE_MAINTENANCE_FIELDS.has(field),
+						),
 					});
 					return { data: { id, ...normalizeDeviceDates(updates) } as Device };
 				} catch (error: any) {
