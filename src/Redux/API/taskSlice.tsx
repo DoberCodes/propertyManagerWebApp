@@ -30,7 +30,10 @@ import {
 	submitTaskCompletionWorkflow,
 	TaskLifecycleDependencies,
 } from '../../tasks/taskLifecycleWorkflow';
-import { trackAnalyticsEvent } from '../../analytics/analytics';
+import {
+	trackAnalyticsEvent,
+	type AnalyticsActionSource,
+} from '../../analytics/analytics';
 import {
 	createTrustedRecurringTask,
 	generateNextTrustedRecurringTask,
@@ -39,6 +42,10 @@ import {
 
 const TRUSTED_RECURRING_TASK_WRITES_ENABLED =
 	process.env.REACT_APP_ENABLE_TRUSTED_RECURRING_TASK_WRITES === 'true';
+
+type CreateTaskInput = Omit<Task, 'id'> & {
+	analyticsSource?: AnalyticsActionSource;
+};
 
 const recurrenceKeys = new Set([
 	'isRecurring',
@@ -346,9 +353,13 @@ export const taskSlice = apiSlice.injectEndpoints({
 			providesTags: ['Tasks'],
 		}),
 
-		createTask: builder.mutation<Task, Omit<Task, 'id'>>({
+		createTask: builder.mutation<Task, CreateTaskInput>({
 			async queryFn(newTask) {
 				try {
+					const {
+						analyticsSource = 'user',
+						...taskInput
+					} = newTask;
 					const currentUser = auth.currentUser;
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
@@ -357,12 +368,12 @@ export const taskSlice = apiSlice.injectEndpoints({
 					const canUseRecurringTaskFeature =
 						await canAccountUseRecurringTasks(targetUserId);
 					const recurrenceIsTrusted =
-						TRUSTED_RECURRING_TASK_WRITES_ENABLED && newTask.isRecurring === true;
+						TRUSTED_RECURRING_TASK_WRITES_ENABLED && taskInput.isRecurring === true;
 					const preparedTask = withDefaultTaskNotificationSchedule(
 						(recurrenceIsTrusted
-							? newTask
+							? taskInput
 							: removeRecurringFieldsForPlan(
-									newTask as Record<string, any>,
+									taskInput as Record<string, any>,
 									canUseRecurringTaskFeature,
 							  )) as Omit<Task, 'id'>,
 					);
@@ -393,6 +404,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 						createdTaskId = docRef.id;
 					}
 					void trackAnalyticsEvent('task_created', {
+						action_source: analyticsSource,
 						task_priority: String(preparedTask.priority || 'unspecified'),
 						task_status: String(preparedTask.status || 'unspecified'),
 						has_due_date: Boolean(preparedTask.dueDate),
@@ -510,6 +522,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 							deps: createTaskLifecycleDependencies(),
 						});
 						void trackAnalyticsEvent('task_completed', {
+							action_source: 'user',
 							completion_path: 'task_update',
 							task_priority: String(existingTask.priority || 'unspecified'),
 							has_completion_file: Boolean((preparedUpdates as any).completionFile),
@@ -582,6 +595,7 @@ export const taskSlice = apiSlice.injectEndpoints({
 						createTaskLifecycleDependencies(),
 					);
 					void trackAnalyticsEvent('task_completed', {
+						action_source: 'user',
 						completion_path: 'completion_workflow',
 						has_completion_file: Boolean(completionFile),
 						has_financials: Boolean(financials),

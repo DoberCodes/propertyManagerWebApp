@@ -273,6 +273,7 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 						console.warn('Could not publish Quick Scan event:', eventError);
 					}
 					void trackAnalyticsEvent('property_scan_completed', {
+						action_source: 'user',
 						scan_type: payload.scanType,
 						recommendation_count: payload.summary.recommendations,
 						overdue_count: payload.summary.overdue,
@@ -336,6 +337,7 @@ const propertyIntelligenceSlice = apiSlice.injectEndpoints({
 						console.warn('Could not publish Property Audit event:', eventError);
 					}
 					void trackAnalyticsEvent('property_scan_completed', {
+						action_source: 'user',
 						scan_type: payload.scanType,
 						recommendation_count: payload.summary.recommendations,
 						overdue_count: payload.summary.overdue,

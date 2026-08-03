@@ -13,6 +13,7 @@ import type {
 } from '../types/Property.types';
 import type { PropertyKnowledgeSuggestion } from '../types/PropertyKnowledge.types';
 import { canUsePropertyKnowledgeAcquisition } from '../utils/subscriptionUtils';
+import { trackAnalyticsEvent } from '../analytics/analytics';
 import {
 	preparePropertyMemoryDocumentUploads,
 	startPropertyDocumentKnowledgeProcessing,
@@ -213,6 +214,32 @@ export const usePropertyDocumentUploadWorkflow = () => {
 					}
 				}),
 			);
+
+			const uploadedCategories = Array.from(
+				new Set(uploadBatches.map((batch) => batch.category)),
+			);
+			const connectionContexts = documentConnectionRequests.map(
+				({ context }) => context,
+			);
+			void trackAnalyticsEvent('document_uploaded', {
+				action_source: 'user',
+				document_count: savedDocuments.length,
+				document_category:
+					uploadedCategories.length === 1 ? uploadedCategories[0] : 'mixed',
+				has_equipment_connection: connectionContexts.some(
+					(context) => (context.assetIds?.length || 0) > 0,
+				),
+				has_space_connection: connectionContexts.some(
+					(context) => (context.spaceIds?.length || 0) > 0,
+				),
+				has_task_connection: connectionContexts.some(
+					(context) => (context.taskIds?.length || 0) > 0,
+				),
+				has_supply_connection: connectionContexts.some(
+					(context) => (context.supplyIds?.length || 0) > 0,
+				),
+				review_enabled: canUseDocumentReview,
+			});
 
 			startPropertyDocumentKnowledgeProcessing({
 				propertyId: resolvedPropertyId,

@@ -2052,7 +2052,10 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			const linkedSupplyIds = new Set<string>();
 			await Promise.all(
 				result.systemUpdates.map((systemUpdate) =>
-					updateDevice(systemUpdate).unwrap(),
+					updateDevice({
+						...systemUpdate,
+						analyticsSource: 'ai_suggestion',
+					}).unwrap(),
 				),
 			);
 
@@ -2132,6 +2135,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					}
 					const definition = getAssetDefinition(equipment.assetType);
 					const created = await createDevice({
+						analyticsSource: 'ai_suggestion',
 						userId: String((currentUser as any)?.id || property.userId),
 						type: normalizeAssetType(equipment.assetType),
 						assetType: normalizeAssetType(equipment.assetType),
@@ -2193,6 +2197,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 							? equipmentIdsByType.get(normalizeAssetType(task.relatedAssetType))
 							: undefined);
 					const createdTask = await createTask({
+						analyticsSource: 'ai_suggestion',
 						userId: String((currentUser as any)?.id || property.userId),
 						propertyId: property.id,
 						property: property.id,

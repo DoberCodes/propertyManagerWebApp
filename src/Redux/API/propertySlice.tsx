@@ -872,6 +872,7 @@ const propertySlice = apiSlice.injectEndpoints({
 		createProperty: builder.mutation<Property, Omit<Property, 'id'>>({
 			async queryFn(newProperty) {
 				try {
+					let propertySequence = 1;
 					const currentUser = auth.currentUser;
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
@@ -919,6 +920,7 @@ const propertySlice = apiSlice.injectEndpoints({
 						const accountSnapshot = await transaction.get(accountRef);
 						const accountData = accountSnapshot.data() || {};
 						const currentPropertyCount = Number(accountData.propertyCount || 0);
+						propertySequence = currentPropertyCount + 1;
 
 						if (currentPropertyCount >= maxProperties) {
 							throw new Error(
@@ -960,6 +962,8 @@ const propertySlice = apiSlice.injectEndpoints({
 					const savedSnapshot = await getDoc(doc(db, 'properties', propertyRef.id));
 					const savedData = docToData(savedSnapshot) as Property;
 					void trackAnalyticsEvent('property_created', {
+						action_source: 'user',
+						property_sequence: propertySequence,
 						property_type: String(savedData.propertyType || 'unspecified'),
 						has_group: Boolean(savedData.groupId),
 						has_notes: Boolean(String(savedData.notes || '').trim()),

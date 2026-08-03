@@ -43,7 +43,10 @@ import {
 import { normalizeAssetType } from '../../utils/systemTypes';
 import { COLORS } from '../../constants/colors';
 import { LoadingState } from '../LoadingState';
-import { trackAnalyticsEvent } from '../../analytics/analytics';
+import {
+	getAnalyticsErrorCode,
+	trackAnalyticsEvent,
+} from '../../analytics/analytics';
 import {
 	activatePropertySetupMaintenancePlan,
 	type PropertySetupTaskProposal,
@@ -205,6 +208,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	);
 	const areaPanelRef = useRef<HTMLDivElement | null>(null);
 	const hasTrackedProposalViewRef = useRef(false);
+	const hasTrackedSetupStartRef = useRef(false);
 	const [isSavingAssistant, setIsSavingAssistant] = useState(false);
 	const [isSaveComplete, setIsSaveComplete] = useState(false);
 	const [completionSummary, setCompletionSummary] =
@@ -237,6 +241,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 	useEffect(() => {
 		hasTrackedProposalViewRef.current = false;
+		hasTrackedSetupStartRef.current = false;
 		setWasDraftRestored(false);
 	}, [property.id]);
 
@@ -250,8 +255,22 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		}
 
 		setIsOpen(true);
+		if (!hasTrackedSetupStartRef.current) {
+			hasTrackedSetupStartRef.current = true;
+			void trackAnalyticsEvent('property_setup_started', {
+				entry_point: 'property_creation',
+				reviewed_count: savedSetupProgress.reviewed,
+				total_count: savedSetupProgress.total,
+			});
+		}
 		onInitialOpenHandled?.();
-	}, [initiallyOpen, canUseAssistant, onInitialOpenHandled]);
+	}, [
+		canUseAssistant,
+		initiallyOpen,
+		onInitialOpenHandled,
+		savedSetupProgress.reviewed,
+		savedSetupProgress.total,
+	]);
 
 	useEffect(() => {
 		if (!isOpen || !currentUser?.id || typeof window === 'undefined') return;
@@ -313,7 +332,17 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			left: 0,
 			behavior: 'auto',
 		});
-	}, [selectedAreaId]);
+		if (isOpen) {
+			const stageIndex = PROPERTY_SETUP_AREAS.findIndex(
+				(area) => area.id === selectedAreaId,
+			);
+			void trackAnalyticsEvent('property_setup_stage_viewed', {
+				setup_stage: selectedAreaId,
+				stage_index: stageIndex >= 0 ? stageIndex + 1 : 0,
+				stage_count: PROPERTY_SETUP_AREAS.length,
+			});
+		}
+	}, [isOpen, selectedAreaId]);
 
 	if (!canUseAssistant || !currentUser) {
 		return null;
@@ -330,6 +359,12 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setCompletionSummary(null);
 		setSelectedAreaId(getFirstIncompleteSetupAreaId({ items: nextDraftItems }));
 		setIsOpen(true);
+		hasTrackedSetupStartRef.current = true;
+		void trackAnalyticsEvent('property_setup_started', {
+			entry_point: savedSetupProgress.reviewed > 0 ? 'resume' : 'property_detail',
+			reviewed_count: savedSetupProgress.reviewed,
+			total_count: savedSetupProgress.total,
+		});
 	};
 
 	const selectedAreaIndex = Math.max(
@@ -436,6 +471,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		try {
 			return await createDevice(
 				stripUndefinedValues({
+					analyticsSource: 'setup_assistant',
 					userId: currentUser.id,
 					type: normalizeAssetType(item.system.deviceType),
 					assetType: normalizeAssetType(item.system.deviceType),
@@ -536,6 +572,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				try {
 					const createdTask = await createTask(
 						stripUndefinedValues({
+							analyticsSource: 'setup_assistant',
 							userId: currentUser.id,
 							propertyId: property.id,
 							property: property.title,
@@ -954,6 +991,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				linked_task_count: linkedTaskIdSet.size,
 				trusted_activation_enabled: TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED,
 			});
+			if (nextProgress.isComplete && !savedSetupProgress.isComplete) {
+				void trackAnalyticsEvent('property_setup_completed', {
+					created_equipment_count: createdApplianceCount,
+					created_task_count: createdTaskCount,
+					linked_task_count: linkedTaskIdSet.size,
+					restored_draft: wasDraftRestored,
+				});
+			}
 			await waitForMinimumDuration(saveStartedAt);
 			setLocalSetupAssistant(nextSetupAssistant);
 			setDraftItems(nextItems);
@@ -971,6 +1016,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		} catch (error) {
 			await waitForMinimumDuration(saveStartedAt);
 			console.error('Failed to save property setup assistant:', error);
+			void trackAnalyticsEvent('workflow_error_shown', {
+				workflow_name: 'property_setup',
+				workflow_stage: 'save_progress',
+				error_code: getAnalyticsErrorCode(error),
+			});
 			feedback.notify('Could not save setup progress. Please try again.');
 		} finally {
 			setIsSavingAssistant(false);

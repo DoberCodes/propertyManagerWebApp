@@ -256,6 +256,10 @@ src/analytics/
 Analytics is intentionally treated as a product-learning system, not a customer
 record system.
 
+The authoritative event definitions, activation rules, funnels, and GA4 setup
+handoff are documented in `Product/ANALYTICS_MEASUREMENT_PLAN.md`. ADR 0038
+defines the privacy and behavioral-telemetry decision.
+
 It may track:
 
 * Sanitized route views using route patterns such as `/property/:slug`
@@ -264,6 +268,13 @@ It may track:
   property scans, and report downloads
 * Non-identifying metadata such as route area, task priority, report type,
   counts, booleans, and workflow source
+
+The event contract uses event-specific parameter allowlists. Workflows that can
+create records through several paths use a controlled `action_source` so setup
+automation, imports, system activity, accepted AI suggestions, and self-directed
+user actions remain analytically distinct. Authenticated GA4 sessions may use an
+opaque Firebase UID through the GA4 User-ID API, plus broad role and plan family
+properties. Record IDs are not event parameters.
 
 It must not track:
 

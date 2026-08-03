@@ -2,7 +2,15 @@ import { useEffect, useMemo } from 'react';
 import { matchPath, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../Redux/store/store';
-import { trackAnalyticsEvent } from './analytics';
+import {
+	configureAnalyticsIdentity,
+	trackAnalyticsEvent,
+} from './analytics';
+import {
+	getAnalyticsPlanFamily,
+	getAnalyticsRoleFamily,
+} from './analyticsIdentity';
+import { getEffectiveAccessPlanId } from '../utils/subscriptionUtils';
 
 type RouteDefinition = {
 	pattern: string;
@@ -80,6 +88,17 @@ export const AnalyticsRouteTracker = () => {
 	const authState = currentUser ? 'signed_in' : 'signed_out';
 	const userRole = currentUser?.role || 'anonymous';
 	const isTeamMember = currentUser?.isTeamMemberAccount === true;
+	const userId = currentUser?.id || null;
+	const roleFamily = getAnalyticsRoleFamily(currentUser?.role);
+	const planFamily = getAnalyticsPlanFamily(
+		currentUser?.subscription
+			? getEffectiveAccessPlanId(currentUser.subscription)
+			: undefined,
+	);
+
+	useEffect(() => {
+		void configureAnalyticsIdentity({ userId, roleFamily, planFamily });
+	}, [planFamily, roleFamily, userId]);
 
 	useEffect(() => {
 		void trackAnalyticsEvent('route_viewed', {
