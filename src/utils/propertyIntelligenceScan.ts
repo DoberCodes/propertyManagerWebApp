@@ -1,4 +1,8 @@
 import { Device, Property } from '../types/Property.types';
+import { PropertyDocument } from '../types/Property.types';
+import { PropertyKnowledgeLink } from '../types/PropertyKnowledgeLink.types';
+import { PropertySpace } from '../types/Space.types';
+import { PropertySupply } from '../types/Supply.types';
 import { Task } from '../types/Task.types';
 import {
 	runMaintleyIntelligence,
@@ -93,6 +97,10 @@ export interface PropertyScanInput {
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
+	documents?: PropertyDocument[];
+	spaces?: PropertySpace[];
+	supplies?: PropertySupply[];
+	propertyKnowledgeLinks?: PropertyKnowledgeLink[];
 	dismissedRecommendationIds?: string[];
 	createdAt?: string;
 }
@@ -112,6 +120,25 @@ export interface PropertyScanResult {
 		overdue: number;
 	};
 }
+
+export const getPropertyScanRelationshipEvidenceLabels = (
+	metadata?: Record<string, unknown>,
+): string[] => {
+	const evidence = metadata?.relationshipEvidence;
+	if (!Array.isArray(evidence)) return [];
+
+	return Array.from(
+		new Set(
+			evidence
+				.map((item) =>
+					item && typeof item === 'object' && 'label' in item
+						? String((item as { label?: unknown }).label || '').trim()
+						: '',
+				)
+				.filter(Boolean),
+		),
+	);
+};
 
 export const QUICK_PROPERTY_SCAN_LIMIT = QUICK_SCAN_FINDING_LIMIT;
 
@@ -336,6 +363,10 @@ export const runPropertyScanV1 = ({
 	systems,
 	tasks,
 	maintenanceHistory,
+	documents = [],
+	spaces = [],
+	supplies = [],
+	propertyKnowledgeLinks = [],
 	dismissedRecommendationIds = [],
 	createdAt = new Date().toISOString(),
 }: PropertyScanInput): PropertyScanResult => {
@@ -345,6 +376,10 @@ export const runPropertyScanV1 = ({
 		systems,
 		tasks,
 		maintenanceHistory,
+		documents,
+		spaces,
+		supplies,
+		propertyKnowledgeLinks,
 		createdAt,
 	});
 	const recommendations = result.findings.map((finding) =>

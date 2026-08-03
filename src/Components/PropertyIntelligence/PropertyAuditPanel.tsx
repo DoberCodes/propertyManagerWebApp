@@ -21,9 +21,14 @@ import {
 	PropertyAuditCategory,
 } from '../../intelligence/consumers/propertyAudit';
 import { Device, Property } from '../../types/Property.types';
+import { PropertyDocument } from '../../types/Property.types';
+import { PropertyKnowledgeLink } from '../../types/PropertyKnowledgeLink.types';
+import { PropertySpace } from '../../types/Space.types';
+import { PropertySupply } from '../../types/Supply.types';
 import { Task } from '../../types/Task.types';
 import {
 	maintleyFindingToPropertyScanRecommendation,
+	getPropertyScanRelationshipEvidenceLabels,
 	PropertyScanActionType,
 	PropertyScanRecommendation,
 } from '../../utils/propertyIntelligenceScan';
@@ -41,6 +46,10 @@ interface PropertyAuditPanelProps {
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
+	documents?: PropertyDocument[];
+	spaces?: PropertySpace[];
+	supplies?: PropertySupply[];
+	propertyKnowledgeLinks?: PropertyKnowledgeLink[];
 	canRunAudit: boolean;
 	resolvedRecommendationIds?: string[];
 	subscription?: SubscriptionData | null;
@@ -115,6 +124,10 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	systems,
 	tasks,
 	maintenanceHistory,
+	documents = [],
+	spaces = [],
+	supplies = [],
+	propertyKnowledgeLinks = [],
 	canRunAudit,
 	resolvedRecommendationIds = [],
 	subscription,
@@ -276,6 +289,10 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 				systems,
 				tasks,
 				maintenanceHistory,
+				documents,
+				spaces,
+				supplies,
+				propertyKnowledgeLinks,
 				createdAt,
 			},
 			{
@@ -555,13 +572,24 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 																		</AssetFindingGroupHeader>
 																		<FindingList>
 																			{group.findings.map((finding) => {
-																				const recommendation =
-																					maintleyFindingToPropertyScanRecommendation(finding);
+																const recommendation =
+																	maintleyFindingToPropertyScanRecommendation(finding);
+																const relationshipEvidence =
+																	getPropertyScanRelationshipEvidenceLabels(
+																		finding.metadata,
+																	).slice(0, 5);
 																				return (
 																					<FindingRow key={finding.id}>
 																						<FindingText>
 																							<strong>{finding.title}</strong>
-																							<span>{finding.whyItMatters}</span>
+																			<span>{finding.whyItMatters}</span>
+																			{relationshipEvidence.length > 0 ? (
+																				<FindingEvidenceList>
+																					{relationshipEvidence.map((label) => (
+																						<li key={label}>{label}</li>
+																					))}
+																				</FindingEvidenceList>
+																			) : null}
 																						</FindingText>
 																						<FindingAction
 																							type='button'
@@ -1284,6 +1312,15 @@ const FindingText = styled.div`
 	strong {
 		color: #172033;
 		font-size: 14px;
+	}
+`;
+
+const FindingEvidenceList = styled.ul`
+	margin: 2px 0 0;
+	padding-left: 18px;
+
+	li + li {
+		margin-top: 2px;
 	}
 `;
 

@@ -153,17 +153,17 @@ const afterDst = lifecycle.formatLifecycleDate(Date.UTC(2026, 2, 8, 8, 30), 'Ame
 assert.ok(beforeDst.includes('EST'));
 assert.ok(afterDst.includes('EDT'));
 
-delete process.env.APP_ROUTER_MODE;
-assert.strictEqual(
-	links.buildAppRouteUrl('/dashboard', 'https://maintleyapp.com/'),
-	'https://maintleyapp.com/#/dashboard',
-);
-process.env.APP_ROUTER_MODE = 'browser';
 assert.strictEqual(
 	links.buildAppRouteUrl('/dashboard', 'https://maintleyapp.com/'),
 	'https://maintleyapp.com/dashboard',
 );
-delete process.env.APP_ROUTER_MODE;
+assert.strictEqual(
+	links.buildAppRouteUrl(
+		'/checkout/complete?session_id={CHECKOUT_SESSION_ID}',
+		'https://maintleyapp.com/',
+	),
+	'https://maintleyapp.com/checkout/complete?session_id={CHECKOUT_SESSION_ID}',
+);
 
 const emailSourceFiles = [
 	'createFamilyInvite.ts',
@@ -210,5 +210,12 @@ assert.ok(
 	!emailBrandSource.includes('operational memory'),
 	'emailBrand.ts must keep internal product philosophy out of the customer footer',
 );
+
+const taskReminderSource = fs.readFileSync(
+	path.join(projectRoot, 'functions', 'taskReminderEmails.ts'),
+	'utf8',
+);
+assert.match(taskReminderSource, /buildAppRouteUrl\(`\/tasks\/\$\{/);
+assert.doesNotMatch(taskReminderSource, /\/properties\/\$\{/);
 
 console.log('Email branding and access lifecycle template tests passed.');

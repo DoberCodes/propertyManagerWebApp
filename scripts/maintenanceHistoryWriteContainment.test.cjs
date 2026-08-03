@@ -37,3 +37,26 @@ test('legacy record corrections cross the server-owned promotion boundary', () =
 	assert.match(server, /export const correctMaintenanceHistoryRecord/);
 	assert.match(server, /buildPromotedLegacyMaintenanceEvent/);
 });
+
+test('maintenance migration remains report-only until a reviewed backfill exists', () => {
+	const packageManifest = JSON.parse(read('package.json'));
+	const schema = read(
+		'project-docs/docs/Architecture/MAINTENANCE_EVENT_SCHEMA.md',
+	);
+
+	assert.equal(packageManifest.scripts['migrate:maintenance-events'], undefined);
+	assert.equal(
+		packageManifest.scripts['migrate:maintenance-events:apply'],
+		undefined,
+	);
+	assert.equal(
+		fs.existsSync(
+			path.join(root, 'scripts/migrateMaintenanceHistoryToEvents.cjs'),
+		),
+		false,
+	);
+	assert.match(
+		schema,
+		/replacement\s+controlled backfill requires separate approval/i,
+	);
+});

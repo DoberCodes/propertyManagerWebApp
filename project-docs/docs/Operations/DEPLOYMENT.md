@@ -90,17 +90,13 @@ The production build is written to:
 build/
 ```
 
-The root `package.json` retains `deploy` and `deploy:gh-pages` as guard
-commands during the Firebase Hosting migration. Both commands intentionally
-exit with an error before publishing anything.
+The root `package.json` retains `deploy` and `deploy:gh-pages` as retirement
+guards. Both commands intentionally exit with an error before publishing
+anything.
 
-No repository-supported command may update the `gh-pages` branch during the
-migration freeze. The last verified GitHub Pages build remains online as the
-current site and future rollback target until Firebase cutover is complete.
-
-The production Firebase default Hosting site receives release builds before
-the custom-domain cutover. DNS continues to serve the frozen GitHub Pages build
-until the routing, authentication, billing-return, PWA, and Android gates pass.
+No repository-supported command may update the `gh-pages` branch. Production
+web traffic is served by Firebase Hosting on `maintleyapp.com`; Firebase Hosting
+release versions, not a new Pages publication, are the web rollback boundary.
 
 Release identity is verified from GitHub pull-request metadata rather than from
 one merge-subject format. The merge must belong to a merged `Release vX.Y.Z`
@@ -121,22 +117,19 @@ Production Hosting must not be deployed through the generic manual backend
 target input. The release merge, synchronized version files, production build,
 and production environment approval form its deployment boundary.
 
-Until DNS cutover, `maintleyapp.com` remains on the frozen GitHub Pages build;
-the Firebase default production hostname is the candidate validation surface.
-
-Function-generated links and callbacks remain on their currently deployed hash
-URL behavior during this Hosting-only stage. Do not treat Stripe, lifecycle
-email, invitation, or Function-generated support-link returns as migrated until
-the coordinated Functions and DNS phase updates and deploys those producers.
-Client-generated and static-site links use clean routes in the Hosting build.
+The production custom domain and Firebase default hostname serve the same
+BrowserRouter artifact. Function-generated links and callbacks use canonical
+clean routes for Stripe returns, lifecycle messages, reminders, and support
+links. The packaged Android profile remains the only temporary HashRouter
+consumer.
 
 ---
 
-# GitHub Pages Migration Freeze
+# GitHub Pages Retirement Guard
 
-GitHub Pages continues to serve the last verified production build, but
-publishing is frozen for the duration of the Firebase Hosting and BrowserRouter
-migration.
+GitHub Pages is no longer Maintley's production host. Publishing remains
+disabled so historical repository commands cannot accidentally restore the
+retired hosting path.
 
 The former automatic workflow has been removed:
 
@@ -146,9 +139,8 @@ The former automatic workflow has been removed:
 
 The `deploy` and `deploy:gh-pages` package commands invoke
 `scripts/assertGitHubPagesFrozen.cjs` and exit unsuccessfully. Do not bypass the
-guard or update the `gh-pages` branch manually. Rollback during the migration
-means restoring DNS or hosting to the existing verified Pages build, not
-publishing a new Pages build.
+guard or update the `gh-pages` branch manually. Web rollback uses Firebase
+Hosting release history and the documented production deployment process.
 
 PWA files live in `public/` and are copied to the root of `build/` during
 `npm run build`:

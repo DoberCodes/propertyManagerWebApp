@@ -7,6 +7,7 @@ import {
 	renderMaintleyEmailButton,
 	renderMaintleyEmailShell,
 } from './emailBrand';
+import { buildAppRouteUrl, getCanonicalAppOrigin } from './emailLinks';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -81,8 +82,8 @@ export const sendWelcomeSignupEmail = functions
 			return null;
 		}
 
-		const appUrl = String(process.env.APP_URL || 'https://maintleyapp.com').trim();
-		const quickStartUrl = `${appUrl.replace(/\/$/, '')}/#/dashboard`;
+		const appUrl = getCanonicalAppOrigin();
+		const quickStartUrl = buildAppRouteUrl('/dashboard', appUrl);
 		const resend = getResendClient(RESEND_API_KEY.value());
 
 		if (!resend) {

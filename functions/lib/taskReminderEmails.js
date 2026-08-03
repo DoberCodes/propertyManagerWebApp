@@ -40,6 +40,7 @@ const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
 const taskDisplayStatus_1 = require("./taskDisplayStatus");
 const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
+const emailLinks_1 = require("./emailLinks");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -132,9 +133,9 @@ const resolvePropertyLabel = async (task) => {
 };
 const getTaskReminderHtml = ({ name, message, task, propertyLabel, appUrl, }) => {
     const displayStatus = (0, taskDisplayStatus_1.getTaskDisplayStatus)(task);
-    const taskUrl = task.propertyId
-        ? `${appUrl.replace(/\/$/, '')}/properties/${encodeURIComponent(task.propertyId)}`
-        : appUrl;
+    const taskUrl = task.id
+        ? (0, emailLinks_1.buildAppRouteUrl)(`/tasks/${encodeURIComponent(task.id)}`, appUrl)
+        : (0, emailLinks_1.buildAppRouteUrl)('/tasks', appUrl);
     return `
 		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">
 			<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF8; padding:24px 0;">

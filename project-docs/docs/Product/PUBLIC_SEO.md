@@ -23,10 +23,10 @@ terms before Maintley has enough public content and authority.
 
 # Current Public SEO Pages
 
-The public app still uses `HashRouter` for the authenticated React experience.
-
-To support clean crawlable URLs without changing app routing yet, Maintley ships
-static public pages from `public/`:
+The production web application uses `BrowserRouter` with Firebase Hosting SPA
+fallbacks. Maintley also ships static public pages from `public/` so search
+content can retain dedicated HTML, metadata, canonical URLs, and structured
+data:
 
 * `/`
 * `/features/`
@@ -271,8 +271,8 @@ Recommended next SEO phases:
    Maintley needs more polished share cards.
 6. Submit `https://maintleyapp.com/sitemap.xml` in Google Search Console and
    Bing Webmaster Tools after deploy.
-7. Consider moving public marketing routes from static HTML to first-class clean
-   React routes if Maintley moves away from `HashRouter`.
+7. Re-evaluate static marketing-page ownership only if server rendering or a
+   different public-content architecture provides measurable search value.
 
 Run `npm run validate:seo` before deploying public page changes. The validator
 checks page metadata, canonical URLs, JSON-LD parsing, and sitemap coverage.

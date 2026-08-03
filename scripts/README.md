@@ -111,8 +111,9 @@ yarn deploy
 yarn deploy:gh-pages
 ```
 
-Both commands intentionally fail. They are retained as visible migration guards
-so a familiar deployment command cannot publish to GitHub Pages accidentally.
+Both commands intentionally fail. They are retained as visible retirement
+guards so a familiar deployment command cannot publish to GitHub Pages
+accidentally. The `gh-pages` package is no longer installed.
 
 ## Firebase Hosting validation
 
@@ -162,8 +163,7 @@ yarn migrate:equipment-supplies:apply -- --confirm-project=PROJECT_ID
 yarn migrate:document-relationships -- --confirm-project=PROJECT_ID
 yarn migrate:document-relationships:apply -- --confirm-project=PROJECT_ID
 
-yarn migrate:maintenance-events
-yarn migrate:maintenance-events:apply
+yarn audit:maintenance-history -- --confirm-project=PROJECT_ID
 
 yarn migrate:equipment-terminology
 yarn migrate:equipment-terminology:apply
@@ -475,7 +475,7 @@ Before running migrations, cleanup scripts, or destructive operations:
 * `e2e:workflows:chrome` and `e2e:full-safe` use the demo account and are intended for manual workflow validation.
 * GitHub Actions runs `cleanup:test-data:full` after manual E2E workflow suites and requires `E2E_FIREBASE_SERVICE_ACCOUNT_JSON`.
 * E2E scripts are intended to be cross-platform.
-* `deploy` and `deploy:gh-pages` intentionally fail during the migration.
+* `deploy` and `deploy:gh-pages` intentionally fail as retirement guards.
 * No supported repository command publishes to GitHub Pages.
 * build:signed is the local signed Android artifact helper.
 * stripe:webhook:auto in functions/package.json is currently Unix-only.
