@@ -6,7 +6,7 @@ import { assertAccountRole } from './accountAuthz';
 if (!admin.apps.length) admin.initializeApp();
 
 const db = admin.firestore();
-const RELATIONSHIP_MANAGER_ROLES = [
+export const RELATIONSHIP_MANAGER_ROLES = [
 	'account_owner',
 	'admin',
 	'manager',
@@ -443,7 +443,7 @@ const getSupplyEndpointRef = (
 	return db.collection('tasks').doc(endpointId);
 };
 
-const supplyEndpointMatchesProperty = ({
+export const supplyEndpointMatchesProperty = ({
 	endpointType,
 	endpoint,
 	accountId,
@@ -476,7 +476,7 @@ const getDocumentEndpointRef = (
 	return getSupplyEndpointRef(endpointType, endpointId);
 };
 
-const documentEndpointMatchesProperty = ({
+export const documentEndpointMatchesProperty = ({
 	endpointType,
 	endpoint,
 	accountId,
@@ -500,6 +500,58 @@ const documentEndpointMatchesProperty = ({
 		propertyId,
 	});
 };
+
+export const canConnectDocumentEndpoint = ({
+	endpointType,
+	endpointExists,
+	endpoint,
+	accountId,
+	propertyId,
+	alreadyLinked,
+}: {
+	endpointType: DocumentEndpointType;
+	endpointExists: boolean;
+	endpoint: FirebaseFirestore.DocumentData;
+	accountId: string;
+	propertyId: string;
+	alreadyLinked: boolean;
+}): boolean =>
+	endpointExists &&
+	documentEndpointMatchesProperty({
+		endpointType,
+		endpoint,
+		accountId,
+		propertyId,
+	}) &&
+	(![SPACE_TYPE, SUPPLY_TYPE].includes(endpointType) ||
+		endpoint.isArchived !== true ||
+		alreadyLinked);
+
+export const canConnectSupplyEndpoint = ({
+	endpointType,
+	endpointExists,
+	endpoint,
+	accountId,
+	propertyId,
+	alreadyLinked,
+}: {
+	endpointType: SupplyEndpointType;
+	endpointExists: boolean;
+	endpoint: FirebaseFirestore.DocumentData;
+	accountId: string;
+	propertyId: string;
+	alreadyLinked: boolean;
+}): boolean =>
+	endpointExists &&
+	supplyEndpointMatchesProperty({
+		endpointType,
+		endpoint,
+		accountId,
+		propertyId,
+	}) &&
+	(endpointType !== SPACE_TYPE ||
+		endpoint.isArchived !== true ||
+		alreadyLinked);
 
 const withoutUndefined = (value: unknown): unknown => {
 	if (Array.isArray(value)) {
@@ -646,16 +698,14 @@ export const setDocumentLinks = functions.region('us-central1').https.onCall(
 			const endpoint = snapshot.data() || {};
 			const existingKey = `${desired.type}|${desired.id}`;
 			if (
-				!snapshot.exists ||
-				!documentEndpointMatchesProperty({
+				!canConnectDocumentEndpoint({
 					endpointType: desired.type,
+					endpointExists: snapshot.exists,
 					endpoint,
 					accountId,
 					propertyId,
-				}) ||
-				((desired.type === SPACE_TYPE || desired.type === SUPPLY_TYPE) &&
-					endpoint.isArchived === true &&
-					!existingByEndpoint.has(existingKey))
+					alreadyLinked: existingByEndpoint.has(existingKey),
+				})
 			) {
 				throw new functions.https.HttpsError(
 					'invalid-argument',
@@ -857,16 +907,16 @@ export const setSupplyLinks = functions.region('us-central1').https.onCall(
 			const desired = desiredEndpoints[index];
 			const endpoint = snapshot.data() || {};
 			if (
-				!snapshot.exists ||
-				!supplyEndpointMatchesProperty({
+				!canConnectSupplyEndpoint({
 					endpointType: desired.type,
+					endpointExists: snapshot.exists,
 					endpoint,
 					accountId,
 					propertyId,
-				}) ||
-				(desired.type === SPACE_TYPE &&
-					endpoint.isArchived === true &&
-					!existingByEndpoint.has(`${desired.type}|${desired.id}`))
+					alreadyLinked: existingByEndpoint.has(
+						`${desired.type}|${desired.id}`,
+					),
+				})
 			) {
 				throw new functions.https.HttpsError(
 					'invalid-argument',

@@ -37,6 +37,7 @@ import {
 	mergeKnowledgeSuggestion,
 } from 'propertyKnowledge/propertyKnowledgeAcquisition';
 import { usePropertyDocumentUploadWorkflow } from 'propertyKnowledge/usePropertyDocumentUploadWorkflow';
+import { getDocumentEditFailureMessage } from 'propertyKnowledge/documentConnectionReliability';
 import {
 	deletePropertyDocumentFromCollection,
 	updatePropertyDocumentInCollection,
@@ -678,6 +679,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		}
 
 		setIsSaving(true);
+		let documentDetailsSaved = false;
 		try {
 			await updateProperty({
 				id: property.id,
@@ -699,6 +701,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 				fileName: trimmedName,
 				category: editCategory,
 			});
+			documentDetailsSaved = true;
 			await setDocumentLinks({
 				propertyId: property.id,
 				documentId: editingDocument.id,
@@ -708,7 +711,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 			closeEditModal();
 		} catch (error) {
 			console.error('Error updating property document:', error);
-			feedback.notify('Could not update document. Please try again.');
+			feedback.notify(
+				getDocumentEditFailureMessage(documentDetailsSaved),
+				'error',
+			);
 		} finally {
 			setIsSaving(false);
 		}

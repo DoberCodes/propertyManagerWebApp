@@ -23,6 +23,10 @@ import {
 	getEmbeddedPropertyDocuments,
 	getEmbeddedPropertyKnowledgeSuggestions,
 } from './propertyMemoryRecordService';
+import {
+	getDocumentConnectionFailureMessage,
+	saveDocumentConnections,
+} from './documentConnectionReliability';
 
 type PropertyDocumentUploadBatch = {
 	files: File[];
@@ -184,34 +188,25 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				},
 			}).unwrap();
 
-			await Promise.all(
-				documentConnectionRequests.map(async ({ documentId, context }) => {
+			const connectionSaveResult = await saveDocumentConnections(
+				documentConnectionRequests.map(({ documentId, context }) => {
 					const equipmentIds = context.assetIds || [];
 					const spaceIds = context.spaceIds || [];
 					const taskIds = context.taskIds || [];
 					const supplyIds = context.supplyIds || [];
-					if (
-						equipmentIds.length === 0 &&
-						spaceIds.length === 0 &&
-						taskIds.length === 0 &&
-						supplyIds.length === 0
-					) return;
-					try {
-						await setDocumentLinks({
-							propertyId: resolvedPropertyId,
-							documentId,
-							equipmentIds,
-							spaceIds,
-							taskIds,
-							supplyIds,
-						}).unwrap();
-					} catch (error) {
-						console.warn(
-							'Document uploaded, but its canonical connections could not be saved.',
-							error,
-						);
-					}
+					return {
+						propertyId: resolvedPropertyId,
+						documentId,
+						equipmentIds,
+						spaceIds,
+						taskIds,
+						supplyIds,
+					};
 				}),
+				(request) => setDocumentLinks(request).unwrap(),
+			);
+			const connectionFailureMessage = getDocumentConnectionFailureMessage(
+				connectionSaveResult.failedDocumentIds.length,
 			);
 
 			startPropertyDocumentKnowledgeProcessing({
@@ -232,7 +227,12 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				0,
 			);
 
-			if (notify) {
+			if (connectionFailureMessage) {
+				console.warn(connectionFailureMessage, {
+					failedDocumentIds: connectionSaveResult.failedDocumentIds,
+				});
+				feedback.notify(connectionFailureMessage, 'error');
+			} else if (notify) {
 				feedback.notify(
 					getUploadFeedbackMessage({
 						totalSuggestedDetails,
