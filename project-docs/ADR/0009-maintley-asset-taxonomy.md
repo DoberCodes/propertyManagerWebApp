@@ -1,4 +1,4 @@
-ADR-0009: Maintley Asset Taxonomy
+# ADR 0009: Maintley Asset Taxonomy
 
 Status: Accepted - initial implementation
 
