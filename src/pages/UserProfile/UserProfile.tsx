@@ -292,7 +292,7 @@ export const UserProfile: React.FC = () => {
 			icon: faHouse,
 		},
 		{
-			label: 'Systems',
+			label: 'Equipment',
 			value: areSystemsLoading ? '—' : summarySystems.length,
 			icon: faGear,
 		},
@@ -718,7 +718,7 @@ export const UserProfile: React.FC = () => {
 	}, 0);
 	const deleteImpactItems = [
 		{ label: 'properties', value: summaryProperties.length },
-		{ label: 'systems', value: summarySystems.length },
+		{ label: 'equipment records', value: summarySystems.length },
 		{ label: 'maintenance records', value: maintenanceRecordCount },
 		{ label: 'uploaded documents', value: documentsCount },
 	].filter((item) => item.value > 0);

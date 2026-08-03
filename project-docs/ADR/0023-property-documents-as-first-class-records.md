@@ -1,6 +1,6 @@
 # ADR 0023: Property Documents as First-Class Records
 
-Status: Accepted
+Status: Accepted - phased implementation
 
 Date: 2026-07-06
 
@@ -86,6 +86,23 @@ without deleting legacy data.
 
 Cloud Functions should eventually own multi-record document workflows that need
 atomic state transitions.
+
+## Implementation Tracking
+
+* [x] Add the shared property-owned document adapter and compatibility reads.
+* [x] Add first-class `propertyDocuments` and
+  `propertyKnowledgeSuggestions` collections.
+* [x] Write new document acquisition records through the collection-first path.
+* [x] Add rules, Functions, deletion handling, and API consumers for first-class
+  records.
+* [x] Implement first-class Document relationships through ADR 0036.
+* [x] Provide a dry-run-first, repeat-safe relationship migration.
+* [ ] Inventory and backfill remaining embedded documents, suggestions, and
+  provenance records.
+* [ ] Add property summary fields only where a measured query need justifies
+  them.
+* [ ] Retire direct embedded-array dependencies and compatibility mirrors after
+  backfill parity is validated.
 
 ## Consequences
 

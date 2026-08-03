@@ -1,6 +1,6 @@
 # ADR 0032: Centralized Entitlement Architecture
 
-Status: Accepted
+Status: Accepted - phased implementation
 
 Date: 2026-07-23
 
@@ -802,3 +802,22 @@ architecture:
 
 Internal grants remain additive. Restrictive administrative action is outside
 the grant merge model and requires a separate permissioned and audited policy.
+
+## Implementation Tracking
+
+* [x] Add the shared, versioned entitlement catalog and resolver.
+* [x] Resolve plan capabilities, limits, and additive internal grants through a
+  common contract.
+* [x] Move primary client and Function gates behind entitlement helpers and add
+  boundary validation.
+* [x] Mirror rule-relevant access into trusted Firestore and Storage fields with
+  emulator coverage.
+* [x] Implement source support for trials, complimentary grants, lifecycle
+  communications, downgrade continuity, and administrative management.
+* [ ] Complete deployed-web and signed-Android observation and parity evidence.
+* [ ] Migrate synthetic Stripe access one account at a time through the approved
+  inventory, grant, observation, and rollback sequence.
+* [ ] Remove compatibility and fallback adapters only after every supported
+  client uses trusted entitlement paths.
+* [ ] Complete post-rollout operational evidence and close the remaining
+  readiness report gates.

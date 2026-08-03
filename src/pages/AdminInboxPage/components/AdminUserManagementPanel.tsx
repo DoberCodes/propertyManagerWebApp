@@ -842,7 +842,7 @@ export const AdminUserManagementPanel: React.FC<AdminUserManagementPanelProps> =
                             <UserDetailsValue>{String(details.metrics.propertyCount)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>
-                            <UserDetailsKey>Systems</UserDetailsKey>
+                            <UserDetailsKey>Equipment</UserDetailsKey>
                             <UserDetailsValue>{String(details.metrics.systemCount)}</UserDetailsValue>
                         </UserDetailsItem>
                         <UserDetailsItem>

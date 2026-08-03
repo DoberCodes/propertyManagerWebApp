@@ -1,6 +1,6 @@
 # ADR 0019: Property Audit Asset Review Experience
 
-Status: Accepted
+Status: Implemented
 
 Date: 2026-07-03
 
@@ -100,7 +100,7 @@ completed/remaining progress as Knowledge Pack checklists become more explicit.
 6. Actions remain attached to findings.
 
 Asset reviews should keep Maintley actions close to the underlying finding:
-Open System Record, Create Task, Review Task, Upload Document, or similar.
+Open Equipment Record, Create Task, Review Task, Upload Document, or similar.
 
 ## Implementation Direction
 
@@ -125,6 +125,17 @@ The first implementation should:
 * Use `General Property` for findings that are not tied to a specific asset.
 * Avoid fake completion percentages until the underlying checklist model is
   explicit enough to support them.
+
+## Implementation Tracking
+
+* [x] Preserve the shared Maintley Intelligence engine.
+* [x] Store backwards-compatible recommendations and derived audit views.
+* [x] Group detailed findings into asset-centered reviews.
+* [x] Show top priorities before the full asset review list.
+* [x] Keep category counts as a browse layer.
+* [x] Group expanded asset findings by audit area.
+* [x] Use `General Property` for findings without an equipment relationship.
+* [x] Avoid presenting unsupported completion percentages.
 
 ## Consequences
 

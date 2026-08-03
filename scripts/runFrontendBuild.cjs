@@ -23,6 +23,7 @@ const commands = [
 	['scripts/validateFrontendEnv.cjs'],
 	['scripts/checkCleanWebRoutes.cjs'],
 	['scripts/checkEntitlementBoundaries.cjs'],
+	['scripts/checkEquipmentTerminology.cjs'],
 	['node_modules/react-scripts/bin/react-scripts.js', 'build'],
 ];
 

@@ -80,7 +80,7 @@ const latestSnapshot = {
 			description:
 				'Install dates make warranty tracking, service planning, and future replacements easier.',
 			reason: 'Maintley found systems without recorded install dates.',
-			suggestedActionLabel: 'Review Systems',
+			suggestedActionLabel: 'Review Equipment',
 			suggestedActionType: 'open_systems',
 			createdAt: '2026-06-01T12:00:00.000Z',
 			status: 'active',

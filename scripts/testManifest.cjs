@@ -1,6 +1,7 @@
 const rootScriptTests = [
 	'bootstrapEnvironment.test.cjs',
 	'checkEntitlementPackageVersion.test.cjs',
+	'checkEquipmentTerminology.test.cjs',
 	'dependabotE2ePolicy.test.cjs',
 	'environmentContract.test.cjs',
 	'extractReleasePullRequestNotes.test.cjs',

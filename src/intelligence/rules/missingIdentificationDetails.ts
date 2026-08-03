@@ -26,10 +26,10 @@ export const missingIdentificationDetailsRule: MaintleyIntelligenceRule = {
 					title: `Add ${missingFields.join(', ')} for ${systemName}`,
 					description: `${systemName} is missing ${missingFields.join(
 						', ',
-					)} in the saved system record.`,
+					)} in the saved equipment record.`,
 					whyItMatters:
 						'Make and model details make records more useful when finding manuals, parts, or service notes.',
-					suggestedActionLabel: 'Open system record',
+					suggestedActionLabel: 'Open equipment record',
 					suggestedActionType: 'edit_system',
 					metadata: {
 						systemId: system.id,
