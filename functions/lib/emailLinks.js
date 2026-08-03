@@ -11,8 +11,6 @@ exports.getCanonicalAppOrigin = getCanonicalAppOrigin;
 const buildAppRouteUrl = (route, origin = (0, exports.getCanonicalAppOrigin)()) => {
     const normalizedOrigin = normalizeOrigin(origin);
     const normalizedRoute = `/${String(route || '').trim().replace(/^\/?#?\/?/, '')}`;
-    return process.env.APP_ROUTER_MODE === 'browser'
-        ? `${normalizedOrigin}${normalizedRoute}`
-        : `${normalizedOrigin}/#${normalizedRoute}`;
+    return `${normalizedOrigin}${normalizedRoute}`;
 };
 exports.buildAppRouteUrl = buildAppRouteUrl;

@@ -28,6 +28,7 @@ import {
 	isProhibitedSelfGrantTarget,
 } from './adminEntitlementGrantPolicy';
 import { getComplimentaryAccessCodeHash } from './complimentaryAccessCodes';
+import { buildAppRouteUrl, getCanonicalAppOrigin } from './emailLinks';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -938,10 +939,11 @@ const resolveSuccessUrl = (providedValue: unknown): string => {
 	const provided = String(providedValue || '').trim();
 	if (provided) return provided;
 
-	const baseUrl = resolveAdminCheckoutBaseUrl();
-	return baseUrl
-		? `${baseUrl}/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}`
-		: 'https://maintley.com/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}';
+	const baseUrl = resolveAdminCheckoutBaseUrl() || getCanonicalAppOrigin();
+	return buildAppRouteUrl(
+		'/checkout/complete?session_id={CHECKOUT_SESSION_ID}',
+		baseUrl,
+	);
 };
 
 const isMissingStripeResourceError = (error: unknown): boolean => {
@@ -961,10 +963,8 @@ const resolveCancelUrl = (providedValue: unknown): string => {
 	const provided = String(providedValue || '').trim();
 	if (provided) return provided;
 
-	const baseUrl = resolveAdminCheckoutBaseUrl();
-	return baseUrl
-		? `${baseUrl}/#/paywall?checkout=cancelled`
-		: 'https://maintley.com/#/paywall?checkout=cancelled';
+	const baseUrl = resolveAdminCheckoutBaseUrl() || getCanonicalAppOrigin();
+	return buildAppRouteUrl('/paywall?checkout=cancelled', baseUrl);
 };
 
 const resolveStripeProductIdForPlan = async (

@@ -1,6 +1,6 @@
 # ADR 0035: Homeowner+ Multi-Property Consolidation
 
-Status: Accepted
+Status: Implemented
 
 Date: 2026-07-30
 
@@ -54,6 +54,14 @@ The retired `multi_homeowner` identifier must not be offered through pricing,
 registration, checkout, admin plan selection, or entitlement resolution. Since
 no production accounts used the plan at retirement, no customer migration is
 required.
+
+## Implementation Tracking
+
+- [x] Consolidate homeowner premium access into one Homeowner+ plan.
+- [x] Preserve the approved Homeowner+ price and multi-Property limit.
+- [x] Remove the unused multiple-homeowner plan from active configuration.
+- [x] Preserve record visibility and safe downgrade behavior.
+- [x] Align billing, entitlements, Support content, and tests.
 
 ## Consequences
 

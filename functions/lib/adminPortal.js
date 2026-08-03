@@ -47,6 +47,7 @@ const subscriptionEntitlements_1 = require("./subscriptionEntitlements");
 const entitlements_1 = require("@maintley/entitlements");
 const adminEntitlementGrantPolicy_1 = require("./adminEntitlementGrantPolicy");
 const complimentaryAccessCodes_1 = require("./complimentaryAccessCodes");
+const emailLinks_1 = require("./emailLinks");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -720,10 +721,8 @@ const resolveSuccessUrl = (providedValue) => {
     const provided = String(providedValue || '').trim();
     if (provided)
         return provided;
-    const baseUrl = resolveAdminCheckoutBaseUrl();
-    return baseUrl
-        ? `${baseUrl}/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}`
-        : 'https://maintley.com/#/checkout/complete?session_id={CHECKOUT_SESSION_ID}';
+    const baseUrl = resolveAdminCheckoutBaseUrl() || (0, emailLinks_1.getCanonicalAppOrigin)();
+    return (0, emailLinks_1.buildAppRouteUrl)('/checkout/complete?session_id={CHECKOUT_SESSION_ID}', baseUrl);
 };
 const isMissingStripeResourceError = (error) => {
     const stripeError = error;
@@ -735,10 +734,8 @@ const resolveCancelUrl = (providedValue) => {
     const provided = String(providedValue || '').trim();
     if (provided)
         return provided;
-    const baseUrl = resolveAdminCheckoutBaseUrl();
-    return baseUrl
-        ? `${baseUrl}/#/paywall?checkout=cancelled`
-        : 'https://maintley.com/#/paywall?checkout=cancelled';
+    const baseUrl = resolveAdminCheckoutBaseUrl() || (0, emailLinks_1.getCanonicalAppOrigin)();
+    return (0, emailLinks_1.buildAppRouteUrl)('/paywall?checkout=cancelled', baseUrl);
 };
 const resolveStripeProductIdForPlan = async (planId, billingCycle) => {
     const priceId = resolveStripePriceIdForPlan(planId, billingCycle);

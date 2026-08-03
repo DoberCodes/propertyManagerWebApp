@@ -10,6 +10,7 @@ import {
 } from './emailService';
 import { resolveAccountIdForUser } from './accountAuthz';
 import { publishMaintleyEventRecord } from './maintleyEventEngine';
+import { buildAppRouteUrl } from './emailLinks';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -300,8 +301,7 @@ export const submitFeedback = functions
 		const escapedUserName = escapeHtml(data.userName || 'there');
 		const userEmail = (data.userEmail || '').trim() || undefined;
 		const supportEmail = process.env.SUPPORT_EMAIL || 'maintleyapp@gmail.com';
-		const helpCenterUrl =
-			process.env.HELP_CENTER_URL || 'https://maintleyapp.com/#/help';
+		const helpCenterUrl = buildAppRouteUrl('/help');
 
 		const rawAttachments = Array.isArray(data.attachments)
 			? data.attachments

@@ -41,6 +41,7 @@ const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
 const accountAuthz_1 = require("./accountAuthz");
 const maintleyEventEngine_1 = require("./maintleyEventEngine");
+const emailLinks_1 = require("./emailLinks");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -211,7 +212,7 @@ exports.submitFeedback = functions
     const escapedUserName = (0, emailService_1.escapeHtml)(data.userName || 'there');
     const userEmail = (data.userEmail || '').trim() || undefined;
     const supportEmail = process.env.SUPPORT_EMAIL || 'maintleyapp@gmail.com';
-    const helpCenterUrl = process.env.HELP_CENTER_URL || 'https://maintleyapp.com/#/help';
+    const helpCenterUrl = process.env.HELP_CENTER_URL || (0, emailLinks_1.buildAppRouteUrl)('/help');
     const rawAttachments = Array.isArray(data.attachments)
         ? data.attachments
         : [];

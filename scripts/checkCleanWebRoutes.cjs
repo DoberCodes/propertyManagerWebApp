@@ -3,7 +3,15 @@ const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
 const roots = ['src', 'public', 'e2e'];
-const directFiles = ['scripts/seedDemoAccount.cjs', 'scripts/syncPublicPricing.cjs'];
+const directFiles = [
+	'scripts/seedDemoAccount.cjs',
+	'scripts/syncPublicPricing.cjs',
+	'functions/adminPortal.ts',
+	'functions/emailLinks.ts',
+	'functions/submitFeedback.ts',
+	'functions/taskReminderEmails.ts',
+	'functions/welcomeSignupEmail.ts',
+];
 const extensions = new Set(['.ts', '.tsx', '.js', '.cjs', '.json', '.html']);
 const failures = [];
 
