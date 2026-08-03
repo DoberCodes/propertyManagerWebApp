@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { RootState, AppDispatch } from 'Redux/store';
-import { beginAuthTransition, setCurrentUser } from 'Redux/Slices/userSlice';
+import { setCurrentUser } from 'Redux/Slices/userSlice';
 import {
 	useGetAllMaintenanceHistoryForUserQuery,
 	useUpdateUserMutation,
@@ -116,15 +116,17 @@ import {
 	updatePassword,
 	reauthenticateWithCredential,
 	EmailAuthProvider,
-	signOut,
 } from 'firebase/auth';
 import { auth } from 'config/firebase';
 import { callFirebaseFunction } from 'config/firebaseFunctions';
 import { getCustomerBillingPortalUrl } from 'utils/authLinks';
+import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
+import { finalizeDeletedAccountSession } from '../../services/accountDeletionSession';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 	const navigate = useNavigate();
+	const feedback = useAppFeedback();
 	const deleteConfirmationInputId = 'delete-account-confirmation-input';
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateUser] = useUpdateUserMutation();
@@ -850,9 +852,12 @@ export const UserProfile: React.FC = () => {
 				'deleteUserAccount',
 				{ userId: currentUser.id },
 			);
-			dispatch(beginAuthTransition());
-			await signOut(auth);
-			navigate('/login', { replace: true });
+			await finalizeDeletedAccountSession({
+				userId: currentUser.id,
+				dispatch,
+				navigate,
+				notify: feedback.notify,
+			});
 		} catch (deleteError: any) {
 			console.error('Delete account error:', deleteError);
 			if (deleteError.code === 'functions/permission-denied') {

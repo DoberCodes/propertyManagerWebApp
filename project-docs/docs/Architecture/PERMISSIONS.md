@@ -1140,6 +1140,13 @@ Typical protected workflows include:
 
 These workflows should never rely solely on client-side authorization.
 
+After the trusted account-deletion workflow succeeds, the client treats the
+account as deleted even if its final Firebase sign-out request fails. Maintley
+clears account-scoped client state, ends the local authenticated session, and
+resolves authentication loading before routing away. Web users return to the
+public landing page with a deletion confirmation. Native users continue through
+the existing root-route welcome and sign-in experience.
+
 ---
 
 # Team Member Rules
