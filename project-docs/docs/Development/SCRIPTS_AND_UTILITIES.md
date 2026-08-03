@@ -45,6 +45,11 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 - `version:entitlements -- <version>` updates the bundled entitlement package and both Yarn lockfile entries together.
 - `sync:entitlement-locks` repairs both lockfile entries from the current bundled entitlement package version.
 - `check:entitlement-locks` verifies synchronization without modifying files and runs in GitHub deployment workflows.
+- `check:compatibility-boundaries` prevents new client code from bypassing the
+  shared account, Property Memory, and Maintenance History adapters. It is a
+  read-only build gate.
+- `check:equipment-terminology` prevents legacy record terminology from
+  returning to active user-facing copy. It is a read-only build gate.
 
 ### Entitlement Package Version Workflow
 

@@ -24,6 +24,7 @@ import {
 	isContinuityEvent,
 } from 'utils/maintenanceEventUtils';
 import { mergeMaintenanceHistoryWithDeviceSources } from 'maintenanceHistory/maintenanceHistoryAdapter';
+import { getEmbeddedPropertyDocuments } from 'propertyKnowledge/propertyMemoryRecordService';
 import {
 	runDashboardIntelligence,
 	type DashboardIntelligenceSuggestion,
@@ -1308,8 +1309,9 @@ export const DashboardTab = () => {
 		allProperties.forEach((property: any) => {
 			const propertyName = String(property?.title || 'Home').trim();
 
-			if (Array.isArray(property?.documents)) {
-				property.documents.forEach((document: any) => {
+			const propertyDocuments = getEmbeddedPropertyDocuments(property);
+			if (propertyDocuments.length > 0) {
+				propertyDocuments.forEach((document: any) => {
 					const uploadedAt = new Date(String(document?.uploadedAt || document?.updatedAt || ''));
 					if (Number.isNaN(uploadedAt.getTime())) return;
 

@@ -69,6 +69,7 @@
 		"check:clean-web-routes": "node scripts/checkCleanWebRoutes.cjs",
 		"check:entitlement-boundaries": "node scripts/checkEntitlementBoundaries.cjs",
 		"check:equipment-terminology": "node scripts/checkEquipmentTerminology.cjs",
+		"check:compatibility-boundaries": "node scripts/checkCompatibilityBoundaries.cjs",
 		"check:entitlement-package-version": "node scripts/checkEntitlementPackageVersion.cjs",
 		"test:entitlement-package-version": "node --test scripts/checkEntitlementPackageVersion.test.cjs",
 		"sync:entitlement-locks": "node scripts/syncEntitlementPackageLocks.cjs",

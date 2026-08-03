@@ -357,6 +357,19 @@ reports which ADRs would be eligible for tracker creation.
 * testFirebaseRules.cjs
 * testStorageRules.cjs
 * inventoryMaintenanceHistory.cjs
+* checkCompatibilityBoundaries.cjs
+
+### Compatibility boundary validation
+
+`checkCompatibilityBoundaries.cjs` is a read-only frontend build gate. It
+prevents new data slices and screens from bypassing the shared account-access,
+Property Memory, or Maintenance History compatibility boundaries.
+
+```bash
+yarn check:compatibility-boundaries
+```
+
+Its Node tests are included in `yarn test:scripts:ci`.
 
 ### Maintenance History migration inventory
 

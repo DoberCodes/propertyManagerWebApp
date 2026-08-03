@@ -12,6 +12,7 @@ import { useGetAllDevicesQuery } from 'Redux/API/deviceSlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from 'Redux/API/teamSlice';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
+import { getEmbeddedPropertyDocuments } from '../../propertyKnowledge/propertyMemoryRecordService';
 import { FileUploader } from 'Components/Library/FileUploader';
 import { uploadUserProfileImage } from 'utils/userProfileImageUpload';
 import {
@@ -711,9 +712,7 @@ export const UserProfile: React.FC = () => {
 		!isTeamMemberAccount && ownedPropertiesCount > 0 && activeTeamMembersCount > 0;
 	const maintenanceRecordCount = maintenanceHistory.length;
 	const documentsCount = summaryProperties.reduce((total: number, property: any) => {
-		const propertyDocuments = Array.isArray(property.documents)
-			? property.documents.length
-			: 0;
+		const propertyDocuments = getEmbeddedPropertyDocuments(property).length;
 		return total + propertyDocuments;
 	}, 0);
 	const deleteImpactItems = [

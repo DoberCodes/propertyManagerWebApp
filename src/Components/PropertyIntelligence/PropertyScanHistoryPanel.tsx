@@ -15,6 +15,7 @@ import type {
 import { PropertyScanRecommendation } from '../../utils/propertyIntelligenceScan';
 import { COLORS } from '../../constants/colors';
 import { selectIsHomeowner } from '../../Redux/selectors/permissionSelectors';
+import { usePropertyMemoryRecords } from '../../propertyKnowledge/usePropertyMemoryRecords';
 
 interface PropertyScanHistoryPanelProps {
 	propertyId: string;
@@ -133,7 +134,7 @@ const getKnowledgeDocumentLabel = (
 const getTargetEntityLabel = (value?: string): string => {
 	switch (value) {
 		case 'system':
-			return 'Asset/System';
+			return 'Equipment';
 		case 'maintenanceHistory':
 			return 'Maintenance History';
 		case 'contractor':
@@ -155,6 +156,7 @@ export const PropertyScanHistoryPanel: React.FC<
 	PropertyScanHistoryPanelProps
 > = ({ propertyId, accountId, canRunScan, property }) => {
 	const isHomeowner = useSelector(selectIsHomeowner);
+	const { knowledgeSuggestions } = usePropertyMemoryRecords(property);
 	const historyLanguage = {
 		panelLabel: isHomeowner
 			? 'Home Intelligence history'
@@ -181,14 +183,12 @@ export const PropertyScanHistoryPanel: React.FC<
 	);
 	const appliedKnowledgeSuggestions = useMemo<PropertyKnowledgeSuggestion[]>(
 		() =>
-			Array.isArray(property?.knowledgeSuggestions)
-				? property.knowledgeSuggestions.filter(
-						(suggestion) =>
-							suggestion.status === 'applied' &&
-							getAddedKnowledgeCount(suggestion) > 0,
-				  )
-				: [],
-		[property?.knowledgeSuggestions],
+			knowledgeSuggestions.filter(
+				(suggestion) =>
+					suggestion.status === 'applied' &&
+					getAddedKnowledgeCount(suggestion) > 0,
+			),
+		[knowledgeSuggestions],
 	);
 	const timelineItems = useMemo<HistoryTimelineItem[]>(
 		() =>

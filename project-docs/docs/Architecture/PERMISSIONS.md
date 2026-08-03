@@ -363,6 +363,24 @@ Maintenance History Access
 
 Property assignment should reduce visibility before restricting actions whenever possible.
 
+Client data slices resolve account and property assignment through:
+
+```text
+src/Redux/API/accountContext.ts
+```
+
+`resolveAccountAccessContext` is the shared normalization boundary for account
+IDs, the effective account, team-member scope, assigned property IDs, and role
+capabilities. Property, Task, Equipment, Contractor, Unit, and Maintenance
+queries use this context instead of independently resolving team membership.
+Firestore and Storage Rules remain authoritative; the client context prevents
+inconsistent visibility and unnecessary unauthorized queries.
+
+Legacy account-link fallbacks remain inside the shared resolver until migration
+inventory and parity validation show they can be removed safely. New data
+slices must not call the lower-level accessible-account helper directly or
+recreate team-member lookup logic.
+
 ---
 
 # UI Roles
