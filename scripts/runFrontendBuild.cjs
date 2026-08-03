@@ -24,6 +24,7 @@ const commands = [
 	['scripts/checkCleanWebRoutes.cjs'],
 	['scripts/checkEntitlementBoundaries.cjs'],
 	['scripts/checkEquipmentTerminology.cjs'],
+	['scripts/checkCompatibilityBoundaries.cjs'],
 	['node_modules/react-scripts/bin/react-scripts.js', 'build'],
 ];
 

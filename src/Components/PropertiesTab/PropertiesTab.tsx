@@ -86,6 +86,7 @@ import { USER_ROLES } from '../../constants/roles';
 import { COLORS } from '../../constants/colors';
 import { finalizeFirstPropertyTrial } from '../../services/entitlementGrantService';
 import { isHomeownerPlusTrialEnabled } from '../../entitlements/planAvailability';
+import { getEmbeddedPropertyDocuments } from '../../propertyKnowledge/propertyMemoryRecordService';
 import {
 	Wrapper,
 	TopActions,
@@ -511,9 +512,7 @@ export const Properties = () => {
 				propertyAggregates.taskByProperty.get(propertyId)?.documents || 0;
 			const deviceDocuments =
 				propertyAggregates.deviceByProperty.get(propertyId)?.documents || 0;
-			const propertyDocuments = Array.isArray(property.documents)
-				? property.documents.length
-				: 0;
+			const propertyDocuments = getEmbeddedPropertyDocuments(property).length;
 			const propertyPhotoDocument = property.image ? 1 : 0;
 			return (
 				count +

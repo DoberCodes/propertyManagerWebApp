@@ -14,15 +14,16 @@ import {
 import { auth, db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import {
-	PropertyShare,
 	Unit,
 	PropertyGroupMembership,
 } from '../../types/Property.types';
 import { PropertyGroup, Property } from '../Slices/propertyDataSlice';
 import { apiSlice, docToData } from './apiSlice';
 import {
-	resolveAccessibleAccountIds,
+	filterRecordsByAccessProperties,
+	resolveAccountAccessContext,
 	resolveTargetUserId,
+	type AccountAccessContext,
 } from './accountContext';
 import {
 	canPropertyGroups,
@@ -127,176 +128,12 @@ const fetchPropertiesByIds = async (propertyIds: string[]): Promise<Property[]> 
 	return Array.from(propertiesById.values());
 };
 
-const getReceivedPropertySharesForUser = async (
-	userId: string,
-	profileEmail?: string,
-	authEmail?: string | null,
-): Promise<PropertyShare[]> => {
-	void userId;
-	void profileEmail;
-	void authEmail;
-	// Shared properties feature retired.
-	return [];
-
-	/*
-	const shareMap = new Map<string, PropertyShare>();
-
-	const sharesByUserQuery = query(
-		collection(db, 'propertyShares'),
-		where('sharedWithUserId', '==', userId),
-	);
-	const sharesByUserSnapshot = await getDocs(sharesByUserQuery);
-	sharesByUserSnapshot.docs.forEach((shareDoc) => {
-		const share = docToData(shareDoc) as PropertyShare;
-		if (share?.id) {
-			shareMap.set(share.id, share);
-		}
-	});
-
-	for (const email of getShareRecipientEmailCandidates(profileEmail, authEmail)) {
-		const sharesByEmailQuery = query(
-			collection(db, 'propertyShares'),
-			where('sharedWithEmail', '==', email),
-		);
-		const sharesByEmailSnapshot = await getDocs(sharesByEmailQuery);
-		sharesByEmailSnapshot.docs.forEach((shareDoc) => {
-			const share = docToData(shareDoc) as PropertyShare;
-			if (share?.id) {
-				shareMap.set(share.id, share);
-			}
-		});
-	}
-
-	return Array.from(shareMap.values());
-	*/
-};
-
-const getTeamMemberForAccountUser = async (
-	accountIds: string[],
-	userData: any,
-	userId: string,
-	authEmail?: string | null,
-): Promise<TeamMemberAccess | null> => {
-	const normalizedEmail = String(userData?.email || authEmail || '')
-		.trim()
-		.toLowerCase();
-	const teamMemberId = String(userData?.teamMemberId || '').trim();
-
-	for (const accountId of accountIds) {
-		try {
-			let membersSnapshot;
-			if (teamMemberId) {
-				const memberDoc = await getDoc(doc(db, 'teamMembers', teamMemberId));
-				if (memberDoc.exists()) {
-					const member = docToData(memberDoc) as TeamMemberAccess;
-					if (member?.accountId === accountId || !member?.accountId) {
-						return member;
-					}
-				}
-			}
-
-			if (normalizedEmail) {
-				const membersQuery = query(
-					collection(db, 'teamMembers'),
-					where('accountId', '==', accountId),
-					where('email', '==', normalizedEmail),
-				);
-				membersSnapshot = await getDocs(membersQuery);
-				if (!membersSnapshot.empty) {
-					return docToData(membersSnapshot.docs[0]) as TeamMemberAccess;
-				}
-
-				const accountMembersQuery = query(
-					collection(db, 'teamMembers'),
-					where('accountId', '==', accountId),
-				);
-				membersSnapshot = await getDocs(accountMembersQuery);
-				const emailMatch = membersSnapshot.docs
-					.map((memberDoc) => docToData(memberDoc) as TeamMemberAccess)
-					.find(
-						(member) =>
-							String(member?.email || '').trim().toLowerCase() ===
-							normalizedEmail,
-					);
-				if (emailMatch) {
-					return emailMatch;
-				}
-			}
-
-			const userAccountQuery = query(
-				collection(db, 'teamMembers'),
-				where('accountId', '==', accountId),
-				where('userAccountId', '==', userId),
-			);
-			membersSnapshot = await getDocs(userAccountQuery);
-			if (!membersSnapshot.empty) {
-				return docToData(membersSnapshot.docs[0]) as TeamMemberAccess;
-			}
-		} catch (error) {
-			console.warn('Could not resolve team member access:', error);
-		}
-	}
-
-	return null;
-};
-
-type TeamMemberAccess = {
-	id?: string;
-	accountId?: string;
-	email?: string;
-	role?: string;
-	userAccountId?: string;
-	linkedProperties?: string[];
-};
-
-const isTeamMemberScopedProfile = (
-	userData: any,
-	teamMember: TeamMemberAccess | null,
-): boolean => {
-	if (userData?.isAccountOwner === true) {
-		return false;
-	}
-
-	if (
-		String(userData?.role || '').trim().toLowerCase() === 'admin' ||
-		String(teamMember?.role || '').trim().toLowerCase() === 'admin'
-	) {
-		return false;
-	}
-
-	if (
-		String(userData?.subscription?.promoCode || '')
-			.trim()
-			.toUpperCase()
-			.startsWith('TEAM-')
-	) {
-		return true;
-	}
-
-	return userData?.isTeamMemberAccount === true || !!teamMember;
-};
-
-const getLinkedPropertyIdSet = (teamMember: TeamMemberAccess | null) =>
-	new Set((teamMember?.linkedProperties || []).filter(Boolean));
-
-const scopePropertiesToTeamMember = (
-	properties: Property[],
-	teamMember: TeamMemberAccess | null,
-): Property[] => {
-	const linkedPropertyIds = getLinkedPropertyIdSet(teamMember);
-	if (linkedPropertyIds.size === 0) {
-		return [];
-	}
-
-	return properties.filter((property) => linkedPropertyIds.has(property.id));
-};
-
-const scopeGroupsToTeamMember = async (
+const scopeGroupsToAccessContext = async (
 	groups: PropertyGroup[],
-	teamMember: TeamMemberAccess | null,
+	accessContext: AccountAccessContext,
 	targetUserId: string,
 ): Promise<PropertyGroup[]> => {
-	const linkedPropertyIds = getLinkedPropertyIdSet(teamMember);
+	const linkedPropertyIds = new Set(accessContext.allowedPropertyIds);
 	if (linkedPropertyIds.size === 0) {
 		return [];
 	}
@@ -425,18 +262,10 @@ const propertySlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const accessContext = await resolveAccountAccessContext();
+					const accessibleAccountIds = accessContext.accountIds;
 					const targetUserId = await resolveTargetUserId();
-					const currentTeamMember = await getTeamMemberForAccountUser(
-						accessibleAccountIds,
-						userData,
-						userId,
-						currentUser.email,
-					);
-					const isTeamMemberScoped = isTeamMemberScopedProfile(
-						userData,
-						currentTeamMember,
-					);
+					const isTeamMemberScoped = accessContext.isScopedTeamMember;
 
 					// Get property groups
 					const groupDocs = [] as any[];
@@ -513,33 +342,6 @@ const propertySlice = apiSlice.injectEndpoints({
 
 					const normalizedUserEmail = String(userEmail || '').trim().toLowerCase();
 
-					let shares: PropertyShare[] = [];
-					let coOwnerSharedProperties: Property[] = [];
-					let regularSharedProperties: Property[] = [];
-					try {
-						shares = await getReceivedPropertySharesForUser(
-							userId,
-							userEmail,
-							currentUser.email,
-						);
-
-						const coOwnerShares = shares.filter(
-							(share) => share.permission === 'co-owner',
-						);
-						const regularShares = shares.filter(
-							(share) => share.permission !== 'co-owner',
-						);
-
-						coOwnerSharedProperties = await fetchPropertiesByIds(
-							coOwnerShares.map((share) => share.propertyId),
-						);
-						regularSharedProperties = await fetchPropertiesByIds(
-							regularShares.map((share) => share.propertyId),
-						);
-					} catch (sharesError) {
-						console.warn('Could not fetch shared property links:', sharesError);
-					}
-
 					let tenantInvitePropertyIds: string[] = [];
 					if (normalizedUserEmail) {
 						try {
@@ -572,11 +374,6 @@ const propertySlice = apiSlice.injectEndpoints({
 					// Fetch properties for each group
 					const groupsWithProperties: PropertyGroup[] = await Promise.all(
 						groups.map(async (group) => {
-							const isSharedGroup =
-								group.name?.toLowerCase() === 'shared properties';
-							const isMyPropertiesGroup =
-								group.name?.toLowerCase() === 'my properties';
-
 							const groupMemberships = membershipsByGroupId.get(group.id) || [];
 							let ownedProperties = groupMemberships
 								.map((membership) => propertyById.get(membership.propertyId))
@@ -598,18 +395,8 @@ const propertySlice = apiSlice.injectEndpoints({
 									.filter(Boolean) as Property[];
 							}
 
-							let sharedProperties: Property[] = [];
-							if (shares.length > 0) {
-								if (isMyPropertiesGroup) {
-									sharedProperties = [...coOwnerSharedProperties];
-								} else if (isSharedGroup) {
-									sharedProperties = [...regularSharedProperties];
-								}
-							}
-
-							const allProperties = [...ownedProperties, ...sharedProperties];
 							const uniqueProperties = Array.from(
-								new Map(allProperties.map((p) => [p.id, p])).values(),
+								new Map(ownedProperties.map((property) => [property.id, property])).values(),
 							);
 
 							return {
@@ -620,36 +407,6 @@ const propertySlice = apiSlice.injectEndpoints({
 					);
 
 					let finalGroups: PropertyGroup[] = [...groupsWithProperties];
-
-					const sharedPropertyList = [
-						...coOwnerSharedProperties,
-						...regularSharedProperties,
-					];
-					const representedPropertyIds = new Set(
-						finalGroups
-							.flatMap((group) => group.properties || [])
-							.map((property) => property.id)
-							.filter(Boolean),
-					);
-					const unrepresentedSharedProperties = Array.from(
-						new Map(
-							sharedPropertyList
-								.filter((property) => property?.id && !representedPropertyIds.has(property.id))
-								.map((property) => [property.id, property]),
-						).values(),
-					) as Property[];
-
-					if (unrepresentedSharedProperties.length > 0) {
-						finalGroups.push({
-							id: `virtual-${targetUserId}-shared-with-me`,
-							name: 'Shared With Me',
-							userId: targetUserId,
-							accountId: targetUserId,
-							properties: unrepresentedSharedProperties,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-						});
-					}
 
 					if (String(userData?.role || '').trim().toLowerCase() === 'tenant') {
 						const tenantScopedIds = new Set<string>(tenantInvitePropertyIds);
@@ -720,9 +477,9 @@ const propertySlice = apiSlice.injectEndpoints({
 						String(userData?.role || '').trim().toLowerCase() === 'tenant';
 
 					if (isTeamMemberScoped && !isTenantUser) {
-						finalGroups = await scopeGroupsToTeamMember(
+						finalGroups = await scopeGroupsToAccessContext(
 							finalGroups,
-							currentTeamMember,
+							accessContext,
 							targetUserId,
 						);
 					}
@@ -796,16 +553,10 @@ const propertySlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const targetUserId = await resolveTargetUserId();
+					const accessContext = await resolveAccountAccessContext();
 					await assertCanManagePropertyGroups(targetUserId);
-					const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-					const userData = userDoc.data() || {};
-					const currentTeamMember = await getTeamMemberForAccountUser(
-						[targetUserId],
-						userData,
-						currentUser.uid,
-					);
 
-					if (isTeamMemberScopedProfile(userData, currentTeamMember)) {
+					if (accessContext.isScopedTeamMember) {
 						return {
 							error:
 								'Team member accounts cannot create property groups. Ask the account owner to manage property groups.',
@@ -910,17 +661,8 @@ const propertySlice = apiSlice.injectEndpoints({
 							console.warn('Tenant access sync in getProperties skipped:', syncError);
 						}
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
-					const currentTeamMember = await getTeamMemberForAccountUser(
-						accessibleAccountIds,
-						userData,
-						userId,
-						currentUser.email,
-					);
-					const isTeamMemberScoped = isTeamMemberScopedProfile(
-						userData,
-						currentTeamMember,
-					);
+					const accessContext = await resolveAccountAccessContext();
+					const accessibleAccountIds = accessContext.accountIds;
 
 					let tenantInviteProperties: Property[] = [];
 					if (normalizedUserEmail) {
@@ -1052,85 +794,22 @@ const propertySlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					// Get shared properties - separate co-owners from regular shares
-					const coOwnerSharedProperties: Property[] = [];
-					const regularSharedProperties: Property[] = [];
-					try {
-						const shares = await getReceivedPropertySharesForUser(
-							userId,
-							userEmail,
-							currentUser.email,
-						);
-
-						const coOwnerShares = shares.filter(
-							(share) => share.permission === 'co-owner',
-						);
-						const regularShares = shares.filter(
-							(share) => share.permission !== 'co-owner',
-						);
-
-							// Process co-owner shares (treated as ownership)
-							const coOwnerPropertyIds = coOwnerShares.map(
-								(share) => share.propertyId,
-							);
-							if (coOwnerPropertyIds.length > 0) {
-								// Process in batches of 10
-								for (let i = 0; i < coOwnerPropertyIds.length; i += 10) {
-									const batch = coOwnerPropertyIds.slice(i, i + 10);
-									const propertiesQuery = query(
-										collection(db, 'properties'),
-										where('__name__', 'in', batch),
-									);
-									const propertiesSnapshot = await getDocs(propertiesQuery);
-									const properties = propertiesSnapshot.docs
-										.map((doc) => docToData(doc) as Property)
-										.filter(Boolean) as Property[];
-									coOwnerSharedProperties.push(...properties);
-								}
-							}
-
-							// Process regular shares
-							const regularPropertyIds = regularShares.map(
-								(share) => share.propertyId,
-							);
-							if (regularPropertyIds.length > 0) {
-								// Process in batches of 10
-								for (let i = 0; i < regularPropertyIds.length; i += 10) {
-									const batch = regularPropertyIds.slice(i, i + 10);
-									const propertiesQuery = query(
-										collection(db, 'properties'),
-										where('__name__', 'in', batch),
-									);
-									const propertiesSnapshot = await getDocs(propertiesQuery);
-									const properties = propertiesSnapshot.docs
-										.map((doc) => docToData(doc) as Property)
-										.filter(Boolean) as Property[];
-									regularSharedProperties.push(...properties);
-								}
-							}
-					} catch (shareLookupError) {
-						console.warn(
-							'Could not fetch shared/co-owner properties:',
-							shareLookupError,
-						);
-					}
-
 					// Combine and deduplicate
 					const allProperties = [
 						...accountProperties,
 						...ownedProperties,
 						...coOwnerProperties,
-						...coOwnerSharedProperties,
 						...adminProperties,
-						...regularSharedProperties,
 						...tenantInviteProperties,
 					];
 					const uniqueProperties = Array.from(
 						new Map(allProperties.map((p) => [p.id, p])).values(),
 					);
-					const returnedProperties = isTeamMemberScoped
-						? scopePropertiesToTeamMember(uniqueProperties, currentTeamMember)
-						: uniqueProperties;
+					const returnedProperties = filterRecordsByAccessProperties(
+						uniqueProperties,
+						accessContext,
+						(property) => property.id,
+					);
 
 					return { data: returnedProperties };
 				} catch (error: any) {
@@ -1198,15 +877,9 @@ const propertySlice = apiSlice.injectEndpoints({
 						return { error: 'User not authenticated' };
 					}
 					const targetUserId = await resolveTargetUserId();
-					const currentUserDoc = await getDoc(doc(db, 'users', currentUser.uid));
-					const currentUserData = currentUserDoc.data() || {};
-					const currentTeamMember = await getTeamMemberForAccountUser(
-						[targetUserId],
-						currentUserData,
-						currentUser.uid,
-					);
+					const accessContext = await resolveAccountAccessContext();
 
-					if (isTeamMemberScopedProfile(currentUserData, currentTeamMember)) {
+					if (accessContext.isScopedTeamMember) {
 						return {
 							error:
 								'Team member accounts cannot create properties. Ask the account owner to add properties and assign access.',
@@ -1380,7 +1053,14 @@ const propertySlice = apiSlice.injectEndpoints({
 					if (!propertyId) {
 						return { data: [] };
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const accessContext = await resolveAccountAccessContext();
+					if (
+						accessContext.isScopedTeamMember &&
+						!accessContext.allowedPropertyIds.includes(propertyId)
+					) {
+						return { data: [] };
+					}
+					const accessibleAccountIds = accessContext.accountIds;
 					const units: Unit[] = [];
 					for (const accountId of accessibleAccountIds) {
 						const q = query(
@@ -1431,7 +1111,8 @@ const propertySlice = apiSlice.injectEndpoints({
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const accessContext = await resolveAccountAccessContext();
+					const accessibleAccountIds = accessContext.accountIds;
 					const units: Unit[] = [];
 					for (const accountId of accessibleAccountIds) {
 						const q = query(
@@ -1447,7 +1128,13 @@ const propertySlice = apiSlice.injectEndpoints({
 					const uniqueUnits = Array.from(
 						new Map(units.map((unit) => [unit.id, unit])).values(),
 					) as Unit[];
-					return { data: uniqueUnits };
+					return {
+						data: filterRecordsByAccessProperties(
+							uniqueUnits,
+							accessContext,
+							(unit) => unit.propertyId,
+						),
+					};
 				} catch (error) {
 					return { error: (error as Error).message };
 				}

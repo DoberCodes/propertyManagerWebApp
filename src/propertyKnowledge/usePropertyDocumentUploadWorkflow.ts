@@ -19,6 +19,10 @@ import {
 	type PropertyMemoryDocumentUploadContext,
 } from './propertyDocumentUploads';
 import type { ProcessPropertyDocumentAcquisitionResponse } from './propertyKnowledgeProcessing';
+import {
+	getEmbeddedPropertyDocuments,
+	getEmbeddedPropertyKnowledgeSuggestions,
+} from './propertyMemoryRecordService';
 
 type PropertyDocumentUploadBatch = {
 	files: File[];
@@ -49,14 +53,12 @@ type UploadPropertyDocumentsResult = {
 };
 
 const getExistingDocuments = (property: any): PropertyDocument[] =>
-	Array.isArray(property?.documents) ? property.documents : [];
+	getEmbeddedPropertyDocuments(property);
 
 const getExistingKnowledgeSuggestions = (
 	property: any,
 ): PropertyKnowledgeSuggestion[] =>
-	Array.isArray(property?.knowledgeSuggestions)
-		? property.knowledgeSuggestions
-		: [];
+	getEmbeddedPropertyKnowledgeSuggestions(property);
 
 const getKnowledgeSuggestionCount = (
 	suggestion?: PropertyKnowledgeSuggestion,

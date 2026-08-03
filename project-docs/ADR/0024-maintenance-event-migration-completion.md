@@ -68,6 +68,8 @@ Phase 3:
 * [x] Add report-only inventory tooling with duplicate, unresolved-property,
   and embedded-history classification.
 * [x] Remove the obsolete unreviewed backfill command and apply mode.
+* [x] Add a build-time boundary check that prevents new direct legacy collection
+  readers outside the shared maintenance-history query adapters.
 * [ ] Review a production inventory and approve a controlled backfill design.
 * [ ] Backfill eligible legacy records with provenance, parity reporting,
   rollback evidence, and deduplication tests.

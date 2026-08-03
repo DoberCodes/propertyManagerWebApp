@@ -97,6 +97,8 @@ atomic state transitions.
   records.
 * [x] Implement first-class Document relationships through ADR 0036.
 * [x] Provide a dry-run-first, repeat-safe relationship migration.
+* [x] Route active direct embedded-document and suggestion reads through the
+  shared property-memory adapter and enforce that boundary during builds.
 * [ ] Inventory and backfill remaining embedded documents, suggestions, and
   provenance records.
 * [ ] Add property summary fields only where a measured query need justifies

@@ -71,6 +71,7 @@ import { COLORS } from '../../../constants/colors';
 import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
 import { useGetMaintenanceEventRevisionsByPropertyQuery } from '../../../Redux/API/maintenanceSlice';
 import { isMultiUnitProperty } from '../../../utils/propertyTaxonomy';
+import { getEmbeddedPropertyDocuments } from '../../../propertyKnowledge/propertyMemoryRecordService';
 
 const maintenanceEventTypeLabels: Record<string, string> = {
 	task_completed: 'Task Completed',
@@ -403,8 +404,8 @@ export const MaintenanceTab = ({
 		String(record?.historySource || '').startsWith('property.') ||
 		String(record?.historySource || '') === 'device.maintenanceHistory';
 	const propertyDocuments = useMemo<PropertyDocument[]>(
-		() => (Array.isArray(property?.documents) ? property.documents : []),
-		[property?.documents],
+		() => getEmbeddedPropertyDocuments(property),
+		[property],
 	);
 
 	const { isMobile } = useSelector((state: any) => state.app);

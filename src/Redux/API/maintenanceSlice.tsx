@@ -10,7 +10,7 @@ import { auth, db } from '../../config/firebase';
 import { callFirebaseFunction } from '../../config/firebaseFunctions';
 import { apiSlice, docToData } from './apiSlice';
 import {
-	resolveAccessibleAccountIds,
+	resolveAccountAccessContext,
 	resolveTargetUserId,
 } from './accountContext';
 import { TaskFinancials } from '../../types/Task.types';
@@ -70,7 +70,14 @@ const maintenanceSlice = apiSlice.injectEndpoints({
 					const readCancelled = () => signal.aborted || Boolean(authContextChanged());
 					let accessibleAccountIds: string[] = [];
 					try {
-						accessibleAccountIds = await resolveAccessibleAccountIds();
+						const accessContext = await resolveAccountAccessContext();
+						if (
+							accessContext.isScopedTeamMember &&
+							!accessContext.allowedPropertyIds.includes(propertyId)
+						) {
+							return { data: [] };
+						}
+						accessibleAccountIds = accessContext.accountIds;
 					} catch (accountContextError) {
 						if (readCancelled()) return { data: [] };
 						console.warn(

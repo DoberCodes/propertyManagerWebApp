@@ -27,7 +27,7 @@ Status meanings used here:
 | 0019 Property Audit Asset Review | Implemented | Shared audit derivation, stored asset/category views, top priorities, category browsing, asset reviews, and tests are present. |
 | 0020 Resolution Engine | Accepted - initial implementation | Typed plans exist for equipment edits, task creation, and maintenance history. The UI uses action labels but does not yet provide the complete guided resolution review. |
 | 0021 Storage Write Contract | Accepted - initial implementation | Read/write predicates, manager-only writes, quota checks, and rule tests are present. Maintenance-scoped uploads remain more restrictive than the intended contract. |
-| 0022 Account Access Resolver | Accepted - phased implementation | Shared client and server helpers exist, with task/equipment property scoping and tests. Remaining slices and the `membershipRoles` contract still need consolidation. |
+| 0022 Account Access Resolver | Accepted - phased implementation | Primary client data slices and server helpers use shared account/property access boundaries with parity tests. The `membershipRoles` contract and later legacy-fallback retirement remain. |
 | 0023 First-Class Property Documents | Accepted - phased implementation | Collection-first documents, suggestions, relationships, rules, Functions, and compatibility adapters exist. Backfill and retirement of embedded compatibility data remain. |
 | 0024 Maintenance Event Migration | Accepted - phased implementation | The shared adapter and canonical write boundary are active. Production inventory, controlled backfill, parity evidence, and compatibility removal remain. |
 | 0025 Equipment Terminology | Implemented | Active visible record terminology is Equipment, technical contracts remain compatible, and a build-time regression guard now protects the boundary. |
@@ -45,9 +45,9 @@ role predicate and rule tests are separately approved.
 ### Account access normalization
 
 ADR 0022 includes `membershipRoles` in the target context. The current resolver
-exposes one effective `userRole` and capability booleans. High-risk task and
-equipment consumers use the resolver, while several other data consumers still
-use only the accessible-account helper.
+exposes one effective `userRole` and capability booleans. Primary client data
+slices now use the resolver, but legacy account-link discovery remains inside
+that shared boundary until migration inventory proves it can be retired.
 
 ### Resolution experience
 

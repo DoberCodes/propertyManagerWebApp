@@ -417,6 +417,10 @@ adapted result rather than reading `devices.maintenanceHistory` directly.
 Embedded compatibility records remain visible but read-only until an approved
 controlled backfill creates their canonical Maintenance Events.
 
+Only the shared property- and account-history query adapters may read the legacy
+`maintenanceHistory` collection. A build-time compatibility check prevents new
+screens or data slices from creating an additional legacy query path.
+
 New maintenance records should be written to:
 
 ```text

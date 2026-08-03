@@ -1549,6 +1549,13 @@ mirrors while older surfaces and triggers finish moving to the collection-backed
 model. New workflows should read collection-backed records and merge embedded
 records only as a fallback.
 
+Active UI code must cross the shared property-memory adapter before reading an
+embedded document or knowledge-suggestion mirror. This keeps the compatibility
+fallback explicit and allows collection-backed records to replace it without
+another screen-specific migration. Aggregate compatibility metrics that still
+use embedded records also call the adapter rather than reading the arrays
+directly.
+
 Typical property document fields:
 
 * id
