@@ -472,10 +472,10 @@ export const PropertiesGrid = styled.div<{
 	${({ $isHomeowner, $singleProperty }) =>
 		$isHomeowner && $singleProperty
 			? `
-		justify-items: center;
+		justify-items: start;
 		grid-template-columns: 340px;
 		max-width: 340px;
-		margin: 8px auto 0;
+		margin: 8px 0 0;
 	`
 			: ''}
 
@@ -485,8 +485,9 @@ export const PropertiesGrid = styled.div<{
 		justify-items: center;
 
 		${({ $isHomeowner, $singleProperty }) =>
-		$isHomeowner && $singleProperty
-			? `
+			$isHomeowner && $singleProperty
+				? `
+			justify-items: start;
 			grid-template-columns: 300px;
 			max-width: 300px;
 		`
@@ -501,13 +502,15 @@ export const PropertiesGrid = styled.div<{
 		padding: 0;
 
 		${({ $isHomeowner, $singleProperty }) =>
-		$isHomeowner && $singleProperty
-			? `
+			$isHomeowner && $singleProperty
+				? `
+			justify-items: center;
 			grid-template-columns: 1fr;
 			width: 100%;
 			max-width: none;
+			margin: 8px auto 0;
 		`
-			: ''}
+				: ''}
 	}
 `;
 
