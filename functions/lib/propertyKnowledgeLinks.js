@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupDocumentLinks = exports.cleanupTaskSpaceLinks = exports.cleanupEquipmentSpaceLinks = exports.restorePropertySupply = exports.removePropertySupply = exports.setSupplyLinks = exports.setDocumentLinks = exports.restorePropertySpace = exports.removePropertySpace = exports.setTaskSpaceLinks = exports.setEquipmentSpaceLinks = exports.buildPropertyKnowledgeLinkId = exports.normalizeKnowledgeEndpointIds = exports.normalizeSpaceIds = void 0;
+exports.cleanupDocumentLinks = exports.cleanupTaskSpaceLinks = exports.cleanupEquipmentSpaceLinks = exports.restorePropertySupply = exports.removePropertySupply = exports.setSupplyLinks = exports.setDocumentLinks = exports.canConnectSupplyEndpoint = exports.canConnectDocumentEndpoint = exports.documentEndpointMatchesProperty = exports.supplyEndpointMatchesProperty = exports.restorePropertySpace = exports.removePropertySpace = exports.setTaskSpaceLinks = exports.setEquipmentSpaceLinks = exports.buildPropertyKnowledgeLinkId = exports.normalizeKnowledgeEndpointIds = exports.normalizeSpaceIds = exports.RELATIONSHIP_MANAGER_ROLES = void 0;
 const crypto_1 = require("crypto");
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions/v1"));
@@ -41,7 +41,7 @@ const accountAuthz_1 = require("./accountAuthz");
 if (!admin.apps.length)
     admin.initializeApp();
 const db = admin.firestore();
-const RELATIONSHIP_MANAGER_ROLES = [
+exports.RELATIONSHIP_MANAGER_ROLES = [
     'account_owner',
     'admin',
     'manager',
@@ -202,7 +202,7 @@ exports.setEquipmentSpaceLinks = functions
         throw new functions.https.HttpsError('invalid-argument', 'Equipment can be connected to up to 100 Spaces.');
     }
     const { accountId } = await getOwnedProperty(propertyId);
-    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, exports.RELATIONSHIP_MANAGER_ROLES);
     const equipmentRef = db.collection('devices').doc(equipmentId);
     const equipmentSnapshot = await equipmentRef.get();
     const equipment = equipmentSnapshot.data() || {};
@@ -266,7 +266,7 @@ exports.removePropertySpace = functions
     }
     const space = spaceSnapshot.data() || {};
     const accountId = String(space.accountId || '').trim();
-    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, exports.RELATIONSHIP_MANAGER_ROLES);
     const linksSnapshot = await db
         .collection('propertyKnowledgeLinks')
         .where('toId', '==', spaceId)
@@ -307,7 +307,7 @@ exports.restorePropertySpace = functions
     }
     const space = spaceSnapshot.data() || {};
     const accountId = String(space.accountId || '').trim();
-    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, exports.RELATIONSHIP_MANAGER_ROLES);
     if (space.isArchived !== true) {
         return { success: true, restored: false };
     }
@@ -335,6 +335,7 @@ const supplyEndpointMatchesProperty = ({ endpointType, endpoint, accountId, prop
     return (String(endpoint.accountId || endpoint.userId || '') === accountId &&
         String(endpoint.propertyId || '') === propertyId);
 };
+exports.supplyEndpointMatchesProperty = supplyEndpointMatchesProperty;
 const getDocumentEndpointRef = (endpointType, endpointId) => {
     if (endpointType === SUPPLY_TYPE) {
         return db.collection('propertySupplies').doc(endpointId);
@@ -346,13 +347,36 @@ const documentEndpointMatchesProperty = ({ endpointType, endpoint, accountId, pr
         return (String(endpoint.accountId || '') === accountId &&
             String(endpoint.propertyId || '') === propertyId);
     }
-    return supplyEndpointMatchesProperty({
+    return (0, exports.supplyEndpointMatchesProperty)({
         endpointType,
         endpoint,
         accountId,
         propertyId,
     });
 };
+exports.documentEndpointMatchesProperty = documentEndpointMatchesProperty;
+const canConnectDocumentEndpoint = ({ endpointType, endpointExists, endpoint, accountId, propertyId, alreadyLinked, }) => endpointExists &&
+    (0, exports.documentEndpointMatchesProperty)({
+        endpointType,
+        endpoint,
+        accountId,
+        propertyId,
+    }) &&
+    (![SPACE_TYPE, SUPPLY_TYPE].includes(endpointType) ||
+        endpoint.isArchived !== true ||
+        alreadyLinked);
+exports.canConnectDocumentEndpoint = canConnectDocumentEndpoint;
+const canConnectSupplyEndpoint = ({ endpointType, endpointExists, endpoint, accountId, propertyId, alreadyLinked, }) => endpointExists &&
+    (0, exports.supplyEndpointMatchesProperty)({
+        endpointType,
+        endpoint,
+        accountId,
+        propertyId,
+    }) &&
+    (endpointType !== SPACE_TYPE ||
+        endpoint.isArchived !== true ||
+        alreadyLinked);
+exports.canConnectSupplyEndpoint = canConnectSupplyEndpoint;
 const withoutUndefined = (value) => {
     if (Array.isArray(value)) {
         return value
@@ -397,7 +421,7 @@ exports.setDocumentLinks = functions.region('us-central1').https.onCall(async (d
     if (!accountId) {
         throw new functions.https.HttpsError('failed-precondition', 'This property is missing its account connection.');
     }
-    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, exports.RELATIONSHIP_MANAGER_ROLES);
     const documentRef = db.collection('propertyDocuments').doc(documentId);
     const documentSnapshot = await documentRef.get();
     const embeddedDocuments = Array.isArray(property.documents)
@@ -441,16 +465,14 @@ exports.setDocumentLinks = functions.region('us-central1').https.onCall(async (d
         const desired = desiredEndpoints[index];
         const endpoint = snapshot.data() || {};
         const existingKey = `${desired.type}|${desired.id}`;
-        if (!snapshot.exists ||
-            !documentEndpointMatchesProperty({
-                endpointType: desired.type,
-                endpoint,
-                accountId,
-                propertyId,
-            }) ||
-            ((desired.type === SPACE_TYPE || desired.type === SUPPLY_TYPE) &&
-                endpoint.isArchived === true &&
-                !existingByEndpoint.has(existingKey))) {
+        if (!(0, exports.canConnectDocumentEndpoint)({
+            endpointType: desired.type,
+            endpointExists: snapshot.exists,
+            endpoint,
+            accountId,
+            propertyId,
+            alreadyLinked: existingByEndpoint.has(existingKey),
+        })) {
             throw new functions.https.HttpsError('invalid-argument', 'One or more selected records are no longer available.');
         }
     }
@@ -555,7 +577,7 @@ exports.setSupplyLinks = functions.region('us-central1').https.onCall(async (dat
         throw new functions.https.HttpsError('invalid-argument', 'A Supply can connect to up to 100 records of each type.');
     }
     const { accountId } = await getOwnedProperty(propertyId);
-    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, exports.RELATIONSHIP_MANAGER_ROLES);
     const supplyRef = db.collection('propertySupplies').doc(supplyId);
     const supplySnapshot = await supplyRef.get();
     const supply = supplySnapshot.data() || {};
@@ -591,16 +613,14 @@ exports.setSupplyLinks = functions.region('us-central1').https.onCall(async (dat
         const snapshot = endpointSnapshots[index];
         const desired = desiredEndpoints[index];
         const endpoint = snapshot.data() || {};
-        if (!snapshot.exists ||
-            !supplyEndpointMatchesProperty({
-                endpointType: desired.type,
-                endpoint,
-                accountId,
-                propertyId,
-            }) ||
-            (desired.type === SPACE_TYPE &&
-                endpoint.isArchived === true &&
-                !existingByEndpoint.has(`${desired.type}|${desired.id}`))) {
+        if (!(0, exports.canConnectSupplyEndpoint)({
+            endpointType: desired.type,
+            endpointExists: snapshot.exists,
+            endpoint,
+            accountId,
+            propertyId,
+            alreadyLinked: existingByEndpoint.has(`${desired.type}|${desired.id}`),
+        })) {
             throw new functions.https.HttpsError('invalid-argument', 'One or more selected records are no longer available.');
         }
     }
@@ -658,7 +678,7 @@ exports.removePropertySupply = functions
     }
     const supply = supplySnapshot.data() || {};
     const accountId = String(supply.accountId || '').trim();
-    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, exports.RELATIONSHIP_MANAGER_ROLES);
     const linksSnapshot = await db
         .collection('propertyKnowledgeLinks')
         .where('toId', '==', supplyId)
@@ -708,7 +728,7 @@ exports.restorePropertySupply = functions
     }
     const supply = supplySnapshot.data() || {};
     const accountId = String(supply.accountId || '').trim();
-    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, RELATIONSHIP_MANAGER_ROLES);
+    await (0, accountAuthz_1.assertAccountRole)(context.auth.uid, accountId, exports.RELATIONSHIP_MANAGER_ROLES);
     if (supply.isArchived !== true) {
         return { success: true, restored: false };
     }
