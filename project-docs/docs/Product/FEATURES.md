@@ -108,6 +108,12 @@ multiple Equipment records, Spaces, and Tasks. Equipment pages show their
 derived connected Supplies rather than owning copies. Referenced Supplies are
 archived when removed and may be restored later.
 
+Property Documents may connect to multiple Equipment records, Spaces, Tasks,
+and Supplies without being copied into those features. Account managers edit
+these connections from the Property Documents experience. Equipment, Space,
+Task, and Supply views show the derived connected Documents while legacy
+Document assignments remain visible during migration.
+
 ---
 
 # Property Setup Assistant
@@ -263,6 +269,8 @@ Current capabilities:
 * Service records.
 * Invoices.
 * General supporting files.
+* Property-owned Documents connected to Equipment, Spaces, Tasks, and Supplies.
+* Contextual Document views derived from accepted relationships.
 
 Photos and documents are treated as distinct user concepts even when stored using the same backend storage services.
 

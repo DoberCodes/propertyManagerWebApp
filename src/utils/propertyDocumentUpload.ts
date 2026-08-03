@@ -58,6 +58,14 @@ export const withPropertyDocumentLinks = (
 			...(document.links?.taskIds || []),
 			...(links.taskIds || []),
 		].filter((value, index, values) => values.indexOf(value) === index),
+		spaceIds: [
+			...(document.links?.spaceIds || []),
+			...(links.spaceIds || []),
+		].filter((value, index, values) => values.indexOf(value) === index),
+		supplyIds: [
+			...(document.links?.supplyIds || []),
+			...(links.supplyIds || []),
+		].filter((value, index, values) => values.indexOf(value) === index),
 		maintenanceEventIds: [
 			...(document.links?.maintenanceEventIds || []),
 			...(links.maintenanceEventIds || []),

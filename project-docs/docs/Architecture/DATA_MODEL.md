@@ -536,15 +536,16 @@ The first supported relationships are:
 * Equipment `located_in` Space
 * Task `occurs_in` Space
 * Equipment, Space, or Task `uses` Supply
+* Document `documents` Equipment, Space, Task, or Supply
 
 Required fields:
 
 * accountId
 * propertyId
-* fromType (`equipment`, `space`, or `task`, constrained by the relationship)
+* fromType (`equipment`, `space`, `task`, or `document`, constrained by the relationship)
 * fromId
-* relationshipType (`located_in`, `occurs_in`, or `uses`)
-* toType (`space` or `supply`, constrained by the relationship)
+* relationshipType (`located_in`, `occurs_in`, `uses`, or `documents`)
+* toType (`equipment`, `space`, `task`, or `supply`, constrained by the relationship)
 * toId
 * source (`manual` or `migration` for an explicitly reviewed backfill)
 * createdAt
@@ -567,6 +568,16 @@ account and Property. It does not clear the legacy field, infer partial matches,
 or choose between duplicate names. A new recurring Task inherits accepted Space
 links from the Task that generated it. Deleting a Task removes its outgoing
 relationship records.
+
+Document links are many-to-many and always originate from a first-class
+Property Document. Account managers replace the accepted Equipment, Space,
+Task, and Supply connections through a trusted callable that validates every
+endpoint against the same account and Property. Contextual screens derive their
+Document lists from these records. A compatibility adapter also recognizes
+legacy Document arrays and singular assignment fields until backfill is
+complete. Deleting a Document removes its canonical links; deleting an
+Equipment or Task removes links to that endpoint. Referenced Spaces and Supplies
+are archived rather than deleted.
 
 ## Property Groups
 
@@ -1580,14 +1591,21 @@ other intermediate output are derived processing artifacts only.
 
 * assetIds
 * taskIds
+* spaceIds
+* supplyIds
 * maintenanceEventIds, reserved for future maintenance-event migration
 * contractorIds, reserved for future contractor document links
 * warrantyIds, reserved for future warranty document links
-* partIds, reserved for future part document links
+* partIds, legacy part or Supply compatibility reference
 
-Property, equipment, task, and task-completion document screens upload documents into the property document record. Upload context should not automatically create permanent ownership. Links to assets, tasks, Maintenance Events, contractors, warranties, parts, or costs should be created by reviewed Property Knowledge suggestions or explicit user actions.
+Property, equipment, task, and task-completion document screens upload documents into the property document record. Explicit contextual uploads and user-reviewed changes may create canonical `documents` relationships to Equipment, Spaces, Tasks, or Supplies. Upload context never changes Document ownership, and inferred connections still require review.
 
-Maintenance-event, contractor, warranty, and part links are supported by the model but should be migrated in a later phase.
+The `links` arrays and legacy singular assignment fields are compatibility
+mirrors rather than relationship authority. A dry-run-first migration creates
+missing first-class Document records and deterministic canonical relationships,
+reports missing or cross-property endpoints, and never removes embedded records
+or legacy arrays. Maintenance-event, contractor, warranty, and unresolved part
+links should be migrated in a later phase.
 
 Legacy document fields such as `name`, `url`, `category`, `assignedDeviceId`, and `assignedTaskId` may remain during migration.
 

@@ -9,7 +9,8 @@ export type PropertyKnowledgeEndpointType =
 export type PropertyKnowledgeRelationshipType =
 	| 'located_in'
 	| 'occurs_in'
-	| 'uses';
+	| 'uses'
+	| 'documents';
 
 export type PropertyKnowledgeLinkSource =
 	| 'manual'
@@ -90,3 +91,39 @@ export const getEndpointSupplyIds = (
 				link.toType === 'supply',
 		)
 		.map((link) => link.toId);
+
+export type DocumentRelationshipEndpointType =
+	| 'equipment'
+	| 'space'
+	| 'task'
+	| 'supply';
+
+export const getDocumentEndpointIds = (
+	links: PropertyKnowledgeLink[],
+	documentId: string,
+	endpointType: DocumentRelationshipEndpointType,
+): string[] =>
+	links
+		.filter(
+			(link) =>
+				link.fromType === 'document' &&
+				link.fromId === documentId &&
+				link.relationshipType === 'documents' &&
+				link.toType === endpointType,
+		)
+		.map((link) => link.toId);
+
+export const getEndpointDocumentIds = (
+	links: PropertyKnowledgeLink[],
+	endpointType: DocumentRelationshipEndpointType,
+	endpointId: string,
+): string[] =>
+	links
+		.filter(
+			(link) =>
+				link.fromType === 'document' &&
+				link.relationshipType === 'documents' &&
+				link.toType === endpointType &&
+				link.toId === endpointId,
+		)
+		.map((link) => link.fromId);

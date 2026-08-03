@@ -116,6 +116,8 @@ const deletePropertyScopedCollections = async (propertyId, accountId, propertyTi
         'tenantProfiles',
         'favorites',
         'maintenanceRequests',
+        'propertyDocuments',
+        'propertyKnowledgeSuggestions',
         'propertySpaces',
         'propertySupplies',
         'propertyKnowledgeLinks',

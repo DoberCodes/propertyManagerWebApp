@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { apiSlice } from '../Redux/API/apiSlice';
 import { useUpdatePropertyMutation } from '../Redux/API/propertySlice';
+import { useSetDocumentLinksMutation } from '../Redux/API/propertyKnowledgeLinkSlice';
 import type { AppDispatch, RootState } from '../Redux/store/store';
 import { useAppFeedback } from '../Components/Library/AppFeedback/AppFeedbackProvider';
 import type {
@@ -102,6 +103,7 @@ export const usePropertyDocumentUploadWorkflow = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const feedback = useAppFeedback();
 	const [updateProperty] = useUpdatePropertyMutation();
+	const [setDocumentLinks] = useSetDocumentLinksMutation();
 	const canUseDocumentReview = canUsePropertyKnowledgeAcquisition(
 		currentUser?.subscription,
 	);
@@ -140,6 +142,10 @@ export const usePropertyDocumentUploadWorkflow = () => {
 			const savedDocuments: PropertyDocument[] = [];
 			const knowledgeSuggestions: PropertyKnowledgeSuggestion[] = [];
 			const processableDocuments: PropertyDocument[] = [];
+			const documentConnectionRequests: Array<{
+				documentId: string;
+				context: PropertyMemoryDocumentUploadContext;
+			}> = [];
 
 			for (const batch of uploadBatches) {
 				const result = await preparePropertyMemoryDocumentUploads({
@@ -153,6 +159,14 @@ export const usePropertyDocumentUploadWorkflow = () => {
 					enableKnowledgeAcquisition: canUseDocumentReview,
 				});
 				savedDocuments.push(...result.documents);
+				if (batch.uploadContext) {
+					result.documents.forEach((document) => {
+						documentConnectionRequests.push({
+							documentId: document.id,
+							context: batch.uploadContext as PropertyMemoryDocumentUploadContext,
+						});
+					});
+				}
 				knowledgeSuggestions.push(...result.knowledgeSuggestions);
 				processableDocuments.push(...result.processableDocuments);
 			}
@@ -167,6 +181,36 @@ export const usePropertyDocumentUploadWorkflow = () => {
 					],
 				},
 			}).unwrap();
+
+			await Promise.all(
+				documentConnectionRequests.map(async ({ documentId, context }) => {
+					const equipmentIds = context.assetIds || [];
+					const spaceIds = context.spaceIds || [];
+					const taskIds = context.taskIds || [];
+					const supplyIds = context.supplyIds || [];
+					if (
+						equipmentIds.length === 0 &&
+						spaceIds.length === 0 &&
+						taskIds.length === 0 &&
+						supplyIds.length === 0
+					) return;
+					try {
+						await setDocumentLinks({
+							propertyId: resolvedPropertyId,
+							documentId,
+							equipmentIds,
+							spaceIds,
+							taskIds,
+							supplyIds,
+						}).unwrap();
+					} catch (error) {
+						console.warn(
+							'Document uploaded, but its canonical connections could not be saved.',
+							error,
+						);
+					}
+				}),
+			);
 
 			startPropertyDocumentKnowledgeProcessing({
 				propertyId: resolvedPropertyId,
@@ -204,7 +248,13 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				canUseDocumentReview,
 			};
 		},
-		[canUseDocumentReview, dispatch, feedback, updateProperty],
+		[
+			canUseDocumentReview,
+			dispatch,
+			feedback,
+			setDocumentLinks,
+			updateProperty,
+		],
 	);
 
 	return {

@@ -1365,6 +1365,14 @@ async function run() {
 			),
 		);
 		await assertSucceeds(
+			propertyManagerDb.doc('propertyDocuments/property-document-manager').set(
+				createPropertyDocument({
+					id: 'property-document-manager',
+					name: 'Manager upload',
+				}),
+			),
+		);
+		await assertSucceeds(
 			legacyOwnerDb
 				.doc('propertyDocuments/property-document-legacy-created')
 				.set(
@@ -1394,16 +1402,39 @@ async function run() {
 					}),
 				),
 		);
+		await assertFails(
+			ownerDb.doc('propertyDocuments/property-document-account-mismatch').set(
+				createPropertyDocument({
+					id: 'property-document-account-mismatch',
+					accountId: outsiderUid,
+					name: 'Cross-account upload attempt',
+				}),
+			),
+		);
 		await assertSucceeds(
 			ownerDb.doc('propertyDocuments/property-document-owned').update({
 				acquisitionStatus: 'reviewed',
 				updatedAt: '2026-07-01T13:00:00.000Z',
 			}),
 		);
+		await assertSucceeds(
+			propertyManagerDb
+				.doc('propertyDocuments/property-document-manager')
+				.update({
+					name: 'Manager-renamed upload',
+					updatedAt: '2026-07-01T13:10:00.000Z',
+				}),
+		);
 		await assertFails(
 			ownerDb.doc('propertyDocuments/property-document-owned').update({
 				accountId: outsiderUid,
 				updatedAt: '2026-07-01T13:30:00.000Z',
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('propertyDocuments/property-document-owned').update({
+				propertyId: 'another-property',
+				updatedAt: '2026-07-01T13:35:00.000Z',
 			}),
 		);
 		await assertFails(
@@ -1413,6 +1444,11 @@ async function run() {
 		);
 		await assertSucceeds(
 			ownerDb.doc('propertyDocuments/property-document-created').delete(),
+		);
+		await assertSucceeds(
+			propertyManagerDb
+				.doc('propertyDocuments/property-document-manager')
+				.delete(),
 		);
 
 		await assertSucceeds(
