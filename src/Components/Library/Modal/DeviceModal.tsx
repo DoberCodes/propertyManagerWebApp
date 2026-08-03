@@ -34,6 +34,11 @@ import { useGetDevicesQuery } from '../../../Redux/API/deviceSlice';
 import { useGetPropertySpacesQuery } from '../../../Redux/API/spaceSlice';
 import { ApplianceDocumentsPanel } from '../../ApplianceDocumentsPanel/ApplianceDocumentsPanel';
 import {
+	EquipmentSuppliesReview,
+	type PendingEquipmentSupplyDraft,
+} from '../../EquipmentSuppliesReview/EquipmentSuppliesReview';
+import type { PropertySupply } from '../../../types/Supply.types';
+import {
 	getAssetVariantOptions,
 	getAssetTypeOptions,
 	normalizeAssetType,
@@ -98,6 +103,11 @@ interface DeviceModalProps {
 	selectedSpaceIds?: string[];
 	onSelectedSpaceIdsChange?: (spaceIds: string[]) => void;
 	canManageSpaces?: boolean;
+	propertySupplies?: PropertySupply[];
+	selectedSupplyIds?: string[];
+	onSelectedSupplyIdsChange?: (supplyIds: string[]) => void;
+	pendingSupplies?: PendingEquipmentSupplyDraft[];
+	onPendingSuppliesChange?: (supplies: PendingEquipmentSupplyDraft[]) => void;
 }
 
 const TabLabel = styled.span`
@@ -811,7 +821,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 							$active={activeTab === 'service-items'}
 							onClick={() => setActiveTab('service-items')}>
 							<TabLabel>
-								Parts & Supplies
+								Supplies
 							</TabLabel>
 						</ModalTab>
 					</ModalTabContainer>
@@ -820,7 +830,7 @@ export const DeviceModal = (props: DeviceModalProps) => {
 				<ScrollBody ref={scrollBodyRef}>
 					<ModalTabContent $active={activeTab === 'details'}>
 						<SummaryBanner>
-							<SummaryTitle>Capture the equipment basics first. Supplies are managed from the property record after the equipment is saved.</SummaryTitle>
+							<SummaryTitle>Capture the equipment basics, review its Spaces, Documents, and property Supplies, then save everything together.</SummaryTitle>
 							<SummaryMeta>
 								<SummaryPill $tone={missingRequiredFields.length === 0 ? 'success' : 'neutral'}>
 									{completedBasics}/1 required item complete
@@ -1121,6 +1131,20 @@ export const DeviceModal = (props: DeviceModalProps) => {
 								)}
 							</FormGroupFull>
 						)}
+					</ModalTabContent>
+					<ModalTabContent $active={activeTab === 'service-items'}>
+						<EquipmentSuppliesReview
+							key={`${props.deviceId || 'new'}-${props.isOpen ? 'open' : 'closed'}`}
+							supplies={props.propertySupplies || []}
+							selectedSupplyIds={props.selectedSupplyIds || []}
+							onSelectedSupplyIdsChange={
+								props.onSelectedSupplyIdsChange || (() => undefined)
+							}
+							pendingSupplies={props.pendingSupplies || []}
+							onPendingSuppliesChange={
+								props.onPendingSuppliesChange || (() => undefined)
+							}
+						/>
 					</ModalTabContent>
 
 					{false && <ModalTabContent $active={activeTab === 'service-items'}>

@@ -21,6 +21,8 @@ export type AnalyticsEventName =
 	| 'property_created'
 	| 'equipment_created'
 	| 'equipment_updated'
+	| 'space_created'
+	| 'supply_created'
 	| 'task_created'
 	| 'task_completed'
 	| 'maintenance_history_added'
@@ -81,6 +83,18 @@ export const ANALYTICS_EVENT_PARAM_ALLOWLIST: Record<
 		'changed_installation',
 		'changed_location',
 		'changed_maintenance_details',
+	],
+	space_created: [
+		'action_source',
+		'space_source',
+		'space_type',
+		'is_generated',
+	],
+	supply_created: [
+		'action_source',
+		'entry_point',
+		'supply_type',
+		'has_identifier',
 	],
 	task_created: [
 		'action_source',

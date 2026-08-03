@@ -31,6 +31,8 @@ parameters allowlisted there may be sent.
 | `property_setup_completed` | The accepted setup plan reaches completion | Initial property memory established |
 | `equipment_created` | An equipment record is saved | Equipment creation, separated by source |
 | `equipment_updated` | An equipment record is updated | Record enrichment without collecting changed values |
+| `space_created` | A reviewed manual or generated Space is saved | Property organization, separated by source |
+| `supply_created` | A reviewed Property Supply is saved | Reusable property knowledge, separated by entry point |
 | `task_created` | A task is saved | Action planning, separated by source |
 | `task_completed` | Task completion succeeds | Maintenance execution |
 | `maintenance_history_added` | A Maintenance Event is recorded | Preserved service knowledge |

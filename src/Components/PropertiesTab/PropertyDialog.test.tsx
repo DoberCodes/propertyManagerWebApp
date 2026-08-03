@@ -5,6 +5,47 @@ import { store } from '../../Redux/store/store';
 import { PropertyDialog } from './PropertyDialog';
 
 describe('PropertyDialog', () => {
+	test('reviews the Spaces generated from bedroom and bathroom counts', async () => {
+		const user = userEvent.setup();
+
+		render(
+			<Provider store={store}>
+				<PropertyDialog
+					isOpen
+					onClose={jest.fn()}
+					onSave={jest.fn()}
+					groups={[]}
+				/>
+			</Provider>,
+		);
+
+		await user.type(
+			screen.getByPlaceholderText('Enter property name'),
+			'Reviewed Home',
+		);
+		await user.type(
+			screen.getByPlaceholderText('Enter address'),
+			'100 Review Lane',
+		);
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+
+		const bedroomInput = screen.getByLabelText('Bedrooms');
+		const bathroomInput = screen.getByLabelText('Bathrooms');
+		await user.clear(bedroomInput);
+		await user.type(bedroomInput, '2');
+		await user.clear(bathroomInput);
+		await user.type(bathroomInput, '1.5');
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+
+		expect(screen.getByText('Spaces Maintley will create')).toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'Bedroom 1, Bedroom 2, Bathroom 1, Half Bathroom 1',
+			),
+		).toBeInTheDocument();
+	});
+
 	test('toggling Is Rental updates formData and onSave receives isRental', async () => {
 		const user = userEvent.setup();
 		const onSave = jest.fn();

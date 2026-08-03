@@ -257,6 +257,7 @@ name
 type
 notes (optional)
 sortOrder (optional)
+generationKey (optional for reviewed generated Spaces)
 isArchived
 source
 createdBy
@@ -279,6 +280,16 @@ in the first experience. `isArchived` is present from the first schema version
 so referenced Spaces can later be retained instead of deleted. Iconography may
 be added as presentation metadata in a future phase, but this implementation
 does not prematurely define an icon contract.
+
+Residential Property creation previews and, after confirmation, creates
+numbered Bedroom, Bathroom, and Half Bathroom Spaces from the accepted counts.
+The Property Setup Assistant previews applicable Kitchen, Bathroom, Laundry
+Room, Garage, and Exterior Space connections before saving. Utility Systems
+and Safety equipment do not create inferred Spaces. Generated Spaces carry a
+stable `generationKey`, allowing setup to reuse a renamed generated Space. An
+active normalized name-and-type match is also reused for manually created
+Spaces. Archived matches block automatic creation and require explicit review
+instead of being silently restored or duplicated.
 
 Existing task location text and equipment `unitId` or `suiteId` location fields
 are temporary compatibility fields. Task location text is hidden from current
@@ -356,6 +367,14 @@ continue to control changes. Equipment pages derive and display their connected
 Supplies without owning or copying them. Referenced Supplies are archived
 instead of deleted and may later be restored. New relationships cannot be made
 to an archived Supply or archived Space.
+
+Equipment create and edit reviews may create a new Property Supply or connect
+an existing one. New Supply drafts are reviewed before the Equipment save,
+persist only after the Equipment record succeeds, and then receive a canonical
+`uses` relationship. Removing the Equipment connection does not remove the
+Supply or its other Equipment, Space, Task, or Document relationships. New
+Equipment workflows do not write embedded `serviceItems`; those fields remain
+read-only compatibility data.
 
 ## Documents
 
@@ -493,6 +512,8 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Add a dry-run-first, repeat-safe Document relationship migration with unresolved-reference reporting.
 - [x] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
+- [x] Add reviewed, repeat-safe Property and Setup Assistant Space generation.
+- [x] Add reviewed canonical Supply creation and connection from Equipment workflows.
 
 Quick Scan and Property Review now consume accepted relationship records as
 read-only supporting evidence. Existing findings may identify connected Spaces,

@@ -1178,6 +1178,47 @@ async function run() {
 				}),
 			),
 		);
+		await assertSucceeds(
+			ownerDb.doc('propertySpaces/property-1__bedroom_1').set(
+				createPropertySpace({
+					name: 'Bedroom 1',
+					type: 'interior',
+					generationKey: 'bedroom:1',
+					source: 'property_profile',
+				}),
+			),
+		);
+		await assertSucceeds(
+			ownerDb.doc('propertySpaces/property-1__setup_kitchen').set(
+				createPropertySpace({
+					name: 'Kitchen',
+					generationKey: 'setup:kitchen',
+					source: 'setup_assistant',
+				}),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-invalid-generation').set(
+				createPropertySpace({ generationKey: '', source: 'property_profile' }),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-generated-without-key').set(
+				createPropertySpace({ source: 'setup_assistant' }),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-manual-with-key').set(
+				createPropertySpace({ generationKey: 'setup:kitchen', source: 'manual' }),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/property-1__bedroom_1').update({
+				generationKey: 'bedroom:2',
+				updatedBy: ownerUid,
+				updatedAt: '2026-07-01T12:30:00.000Z',
+			}),
+		);
 		await assertFails(
 			maintenanceLeadDb.doc('propertySpaces/space-lead-created').set(
 				createPropertySpace({

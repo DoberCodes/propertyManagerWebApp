@@ -427,6 +427,7 @@ Optional fields:
 
 * notes
 * sortOrder
+* generationKey, stable key for a reviewed generated Space
 
 Supported `type` values:
 
@@ -445,6 +446,14 @@ Garage, Mechanical Room, Roof, Lawn, and Pool. `sortOrder` provides stable
 display ordering without making ordering part of ownership. `isArchived`
 allows a future linked Space to remain available after removal from ordinary
 views.
+
+Residential Property creation may create reviewed generated Spaces for each
+Bedroom, full Bathroom, and Half Bathroom. Setup may create or reuse Kitchen,
+Bathroom, Laundry Room, Garage, and Exterior Spaces before connecting accepted
+Equipment and Tasks. Generation is idempotent: `generationKey` is checked
+first, followed by an active normalized name-and-type match. Archived matches
+require review and are neither restored nor duplicated automatically. Utility
+Systems and Safety records do not infer Spaces.
 
 Spaces are stored in the top-level `propertySpaces` collection. Firestore rules
 validate that the referenced Property exists and carries the same `accountId`.
@@ -527,6 +536,11 @@ Supply records. Legacy `device.serviceItems` arrays are temporary read-only
 compatibility fields. A dry-run-first migration creates canonical Supplies and
 deterministic Equipment `uses` links while preserving the embedded source data
 until validation is complete.
+
+Equipment create and edit experiences may stage reviewed Supply drafts and
+existing Supply connections. The Equipment record is saved first; new Supplies
+then become Property-owned records and canonical relationships are applied
+without replacing the Supply's other accepted endpoint relationships.
 
 ## propertyKnowledgeLinks
 
@@ -1679,7 +1693,10 @@ Accepted contractor suggestions should become contractor records for the propert
 
 Accepted invoice, financial, service, part, and supply suggestions should become Maintenance Event history when they describe completed work or a received invoice. Incomplete part mentions may be retained in history notes so useful property context is not lost simply because a full model number is unavailable.
 
-Accepted part and supply suggestions that are linked to specific equipment may become `serviceItems` on the related device record. This preserves parts and supplies inside the existing equipment source record rather than creating a parallel parts collection in this phase.
+Accepted part and supply suggestions that are linked to specific Equipment
+become Property Supply records with canonical `uses` relationships after user
+review. Legacy `serviceItems` remain read-only compatibility data and are not a
+target for new accepted suggestions.
 
 The Part Knowledge Catalog is a taxonomy used by Property Knowledge Acquisition. It should define conservative matches and target fields, but it should not update records directly or generate recommendations.
 
