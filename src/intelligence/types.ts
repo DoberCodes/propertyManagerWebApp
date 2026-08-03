@@ -1,4 +1,12 @@
-import { Asset, Device, Property } from '../types/Property.types';
+import {
+	Asset,
+	Device,
+	Property,
+	PropertyDocument,
+} from '../types/Property.types';
+import { PropertyKnowledgeLink } from '../types/PropertyKnowledgeLink.types';
+import { PropertySpace } from '../types/Space.types';
+import { PropertySupply } from '../types/Supply.types';
 import { Task } from '../types/Task.types';
 
 export type MaintleyFindingCategory =
@@ -71,14 +79,24 @@ export interface MaintleyFinding {
 	createdAt: string;
 }
 
+export interface MaintleyRelationshipEvidence {
+	linkId: string;
+	relationshipType: PropertyKnowledgeLink['relationshipType'];
+	source: PropertyKnowledgeLink['source'];
+	label: string;
+}
+
 export interface MaintleyIntelligenceInput {
 	property: Property;
 	assets?: Asset[];
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
-	documents?: unknown[];
+	documents?: PropertyDocument[];
 	files?: unknown[];
+	spaces?: PropertySpace[];
+	supplies?: PropertySupply[];
+	propertyKnowledgeLinks?: PropertyKnowledgeLink[];
 	planId?: string;
 	capabilities?: Partial<Record<MaintleyCapability, boolean>>;
 	currentDate?: Date | string;
@@ -91,8 +109,11 @@ export interface MaintleyIntelligenceContext {
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
-	documents: unknown[];
+	documents: PropertyDocument[];
 	files: unknown[];
+	spaces?: PropertySpace[];
+	supplies?: PropertySupply[];
+	propertyKnowledgeLinks?: PropertyKnowledgeLink[];
 	planId?: string;
 	capabilities: Partial<Record<MaintleyCapability, boolean>>;
 	currentDate: Date;

@@ -451,6 +451,17 @@ An inline disclosure labeled `Why this recommendation?` may expand to show:
 
 * The record-based evidence sentence
 * A short affected system or task list
+* Accepted connected-property context, such as the Space where affected
+  Equipment is located, a Supply used by the affected record, or a Document
+  connected to it
+
+Connected-property context is supporting evidence only. Intelligence reads
+canonical accepted relationships for the current Property and resolves their
+active records. It does not create a recommendation merely because a
+relationship exists, change recommendation priority, or treat an inferred or
+unaccepted relationship as fact. Quick Scan and Property Review persist this
+bounded evidence with the finding so the explanation remains available in the
+saved Intelligence snapshot.
 
 This keeps recommendations scannable while giving curious users a clear answer to:
 

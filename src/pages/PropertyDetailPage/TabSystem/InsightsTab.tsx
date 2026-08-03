@@ -14,6 +14,10 @@ import {
 import { SubscriptionData } from '../../../utils/subscriptionUtils';
 import type { RoleCapabilities } from '../../../utils/permissions';
 import { COLORS } from '../../../constants/colors';
+import { usePropertyMemoryRecords } from '../../../propertyKnowledge/usePropertyMemoryRecords';
+import { useGetPropertyKnowledgeLinksQuery } from '../../../Redux/API/propertyKnowledgeLinkSlice';
+import { useGetPropertySpacesQuery } from '../../../Redux/API/spaceSlice';
+import { useGetPropertySuppliesQuery } from '../../../Redux/API/supplySlice';
 
 type InsightsWorkspaceTab = 'overview' | 'suggested-details' | 'history';
 
@@ -61,6 +65,31 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 	onUpdateMaintenanceHistory,
 	onRecommendationAction,
 }) => {
+	const resolvedAccountId = String(
+		accountId || property.accountId || property.userId || '',
+	).trim();
+	const { documents: propertyDocuments } = usePropertyMemoryRecords(property);
+	const { data: propertySpaces = [] } = useGetPropertySpacesQuery(
+		{
+			accountId: resolvedAccountId,
+			propertyId: property.id,
+			includeArchived: false,
+		},
+		{ skip: !resolvedAccountId || !property.id },
+	);
+	const { data: propertySupplies = [] } = useGetPropertySuppliesQuery(
+		{
+			accountId: resolvedAccountId,
+			propertyId: property.id,
+			includeArchived: false,
+		},
+		{ skip: !resolvedAccountId || !property.id },
+	);
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId: resolvedAccountId, propertyId: property.id },
+			{ skip: !resolvedAccountId || !property.id },
+		);
 	const [searchParams, setSearchParams] = useSearchParams();
 	const requestedWorkspaceTab = searchParams.get('insightsTab');
 	const requestedSuggestionId = searchParams.get('suggestionId');
@@ -135,6 +164,10 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 						systems={propertyDevices}
 						tasks={tasks}
 						maintenanceHistory={maintenanceHistoryRecords}
+						documents={propertyDocuments}
+						spaces={propertySpaces}
+						supplies={propertySupplies}
+						propertyKnowledgeLinks={propertyKnowledgeLinks}
 						canRunScan={canRunScan}
 						showSetupPrompt={showSetupPrompt}
 						resolvedRecommendationIds={resolvedRecommendationIds}
@@ -146,6 +179,10 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({
 						systems={propertyDevices}
 						tasks={tasks}
 						maintenanceHistory={maintenanceHistoryRecords}
+						documents={propertyDocuments}
+						spaces={propertySpaces}
+						supplies={propertySupplies}
+						propertyKnowledgeLinks={propertyKnowledgeLinks}
 						canRunAudit={canRunScan}
 						resolvedRecommendationIds={resolvedRecommendationIds}
 						subscription={subscription}

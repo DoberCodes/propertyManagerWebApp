@@ -1,6 +1,6 @@
 # ADR 0036: Connected Property Knowledge Model
 
-Status: Accepted - phased implementation
+Status: Implemented
 
 Date: 2026-07-31
 
@@ -491,8 +491,15 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Add canonical Document-to-Equipment, Space, Task, and Supply relationships.
 - [x] Add progressive Document connection editing and derived contextual views.
 - [x] Add a dry-run-first, repeat-safe Document relationship migration with unresolved-reference reporting.
-- [ ] Connect accepted relationships to explainable Maintley Intelligence consumers.
+- [x] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
+
+Quick Scan and Property Review now consume accepted relationship records as
+read-only supporting evidence. Existing findings may identify connected Spaces,
+Supplies, or Documents in their explanation when those links involve an affected
+Equipment record or Task. Relationship evidence does not create findings,
+change priority, alter ranking, or accept inferred links. Only canonical links
+and currently available property-owned records are used.
 
 ## Deferred
 

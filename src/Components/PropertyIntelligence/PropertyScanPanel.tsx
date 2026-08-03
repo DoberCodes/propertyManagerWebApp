@@ -15,10 +15,15 @@ import {
 	useSavePropertyScanSnapshotMutation,
 } from '../../Redux/API/propertyIntelligenceSlice';
 import { Device, Property } from '../../types/Property.types';
+import { PropertyDocument } from '../../types/Property.types';
+import { PropertyKnowledgeLink } from '../../types/PropertyKnowledgeLink.types';
+import { PropertySpace } from '../../types/Space.types';
+import { PropertySupply } from '../../types/Supply.types';
 import { Task } from '../../types/Task.types';
 import {
 	getQuickPropertyScanPremiumPreview,
 	getQuickPropertyScanRecommendations,
+	getPropertyScanRelationshipEvidenceLabels,
 	PropertyScanActionType,
 	PropertyScanCategory,
 	PropertyScanRecommendation,
@@ -43,6 +48,10 @@ interface PropertyScanPanelProps {
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
+	documents?: PropertyDocument[];
+	spaces?: PropertySpace[];
+	supplies?: PropertySupply[];
+	propertyKnowledgeLinks?: PropertyKnowledgeLink[];
 	canRunScan: boolean;
 	showSetupPrompt?: boolean;
 	resolvedRecommendationIds?: string[];
@@ -307,6 +316,10 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	systems,
 	tasks,
 	maintenanceHistory,
+	documents = [],
+	spaces = [],
+	supplies = [],
+	propertyKnowledgeLinks = [],
 	canRunScan,
 	showSetupPrompt = false,
 	resolvedRecommendationIds = [],
@@ -492,6 +505,10 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			systems,
 			tasks,
 			maintenanceHistory,
+			documents,
+			spaces,
+			supplies,
+			propertyKnowledgeLinks,
 			dismissedRecommendationIds: dismissedIds,
 			createdAt,
 		});
@@ -824,9 +841,19 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 										const evidenceText = getRecommendationEvidence(recommendation, isHomeowner);
 										const sourceLabel =
 											getRecommendationSourceLabel(recommendation, isHomeowner);
-										const evidenceItems = relatedTasks.length
+										const affectedEvidenceItems = relatedTasks.length
 											? relatedTasks.map((task) => task.title)
 											: relatedSystems.map((item) => getAssetDisplayName(item));
+										const relationshipEvidenceItems =
+											getPropertyScanRelationshipEvidenceLabels(
+												recommendation.metadata,
+											);
+										const evidenceItems = Array.from(
+											new Set([
+												...affectedEvidenceItems,
+												...relationshipEvidenceItems,
+											]),
+										);
 										const visibleEvidenceItems = evidenceItems.slice(0, 5);
 										const hiddenEvidenceItemCount =
 											evidenceItems.length - visibleEvidenceItems.length;

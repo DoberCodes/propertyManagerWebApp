@@ -21,6 +21,34 @@ jest.mock('../../../Redux/API/propertyIntelligenceSlice', () => ({
 	useSavePropertyScanSnapshotMutation: jest.fn(),
 }));
 
+jest.mock('../../../propertyKnowledge/usePropertyMemoryRecords', () => {
+	const memoryRecords = jest.requireActual(
+		'../../../propertyKnowledge/propertyMemoryRecordService',
+	);
+	return {
+		usePropertyMemoryRecords: (property: unknown) => ({
+			documents: memoryRecords.getEmbeddedPropertyDocuments(property),
+			knowledgeSuggestions:
+				memoryRecords.getEmbeddedPropertyKnowledgeSuggestions(property),
+		}),
+	};
+});
+
+jest.mock('../../../Redux/API/propertyKnowledgeLinkSlice', () => ({
+	...jest.requireActual('../../../Redux/API/propertyKnowledgeLinkSlice'),
+	useGetPropertyKnowledgeLinksQuery: () => ({ data: [] }),
+}));
+
+jest.mock('../../../Redux/API/spaceSlice', () => ({
+	...jest.requireActual('../../../Redux/API/spaceSlice'),
+	useGetPropertySpacesQuery: () => ({ data: [] }),
+}));
+
+jest.mock('../../../Redux/API/supplySlice', () => ({
+	...jest.requireActual('../../../Redux/API/supplySlice'),
+	useGetPropertySuppliesQuery: () => ({ data: [] }),
+}));
+
 const latestSnapshot = {
 	id: 'latest-scan',
 	accountId: 'acct-1',

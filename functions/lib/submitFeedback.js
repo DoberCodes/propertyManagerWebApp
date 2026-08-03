@@ -212,7 +212,7 @@ exports.submitFeedback = functions
     const escapedUserName = (0, emailService_1.escapeHtml)(data.userName || 'there');
     const userEmail = (data.userEmail || '').trim() || undefined;
     const supportEmail = process.env.SUPPORT_EMAIL || 'maintleyapp@gmail.com';
-    const helpCenterUrl = process.env.HELP_CENTER_URL || (0, emailLinks_1.buildAppRouteUrl)('/help');
+    const helpCenterUrl = (0, emailLinks_1.buildAppRouteUrl)('/help');
     const rawAttachments = Array.isArray(data.attachments)
         ? data.attachments
         : [];

@@ -7,6 +7,7 @@ import {
 } from './planFilter';
 import { prioritizeMaintleyFindings } from './prioritization';
 import { maintleyIntelligenceRules } from './rules';
+import { addMaintleyRelationshipEvidence } from './relationshipEvidence';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	MaintleyFinding,
@@ -58,6 +59,9 @@ export const runMaintleyIntelligence = (
 		maintenanceHistory,
 		documents: input.documents || [],
 		files: input.files || [],
+		spaces: input.spaces || [],
+		supplies: input.supplies || [],
+		propertyKnowledgeLinks: input.propertyKnowledgeLinks || [],
 		planId,
 		capabilities,
 		currentDate,
@@ -66,7 +70,7 @@ export const runMaintleyIntelligence = (
 	};
 	const rawFindings = aggregateMaintleyFindings(
 		rules.flatMap((rule) => rule.evaluate(context)),
-	);
+	).map((finding) => addMaintleyRelationshipEvidence(finding, context));
 	const findings = prioritizeMaintleyFindings(
 		planId
 			? filterFindingsForPlanAndCapabilities(rawFindings, planId, capabilities)

@@ -579,6 +579,13 @@ complete. Deleting a Document removes its canonical links; deleting an
 Equipment or Task removes links to that endpoint. Referenced Spaces and Supplies
 are archived rather than deleted.
 
+Maintley Intelligence may resolve these canonical links as bounded supporting
+evidence for an existing finding. Quick Scan and Property Review can explain an
+affected Equipment record or Task using its accepted Space, Supply, or Document
+connections. This derived evidence is stored only with the Intelligence
+snapshot metadata; it does not duplicate relationship authority, generate a
+finding on its own, change priority, or accept a proposed relationship.
+
 ## Property Groups
 
 Property groups organize existing property records for portfolio navigation.
