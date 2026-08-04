@@ -181,6 +181,12 @@ Core collections include:
 
 Additional collections may exist for operational, billing, invitation, and compatibility purposes.
 
+`accountDeletionJobs/{userId}` is a server-only operational recovery record for
+self-service deletion. It stores only deletion state, account and Property IDs,
+and aggregate operation counts needed to resume a partially completed cleanup.
+It is removed after managed Firestore and Storage verification and Firebase Auth
+deletion succeed.
+
 ---
 
 # Account Model
@@ -689,6 +695,13 @@ Optional fields may include:
 * photoUrl
 
 Device records should contain descriptive information about the asset itself.
+
+Older Equipment records may contain embedded `serviceItems`. These entries are
+read-only compatibility data. Current Equipment forms do not carry or write
+the field; new and edited Supply knowledge belongs in `propertySupplies` and
+connects to Equipment through canonical `uses` relationships. Compatibility
+readers remain until report-only inventory and migration evidence demonstrate
+parity.
 
 `type` remains the homeowner-facing display label stored on the device record.
 

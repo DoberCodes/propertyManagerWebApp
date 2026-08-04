@@ -514,6 +514,7 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Update current data-model documentation for the first Space phase.
 - [x] Add reviewed, repeat-safe Property and Setup Assistant Space generation.
 - [x] Add reviewed canonical Supply creation and connection from Equipment workflows.
+- [x] Remove legacy embedded Supply editing paths and enforce read-only compatibility.
 
 Quick Scan and Property Review now consume accepted relationship records as
 read-only supporting evidence. Existing findings may identify connected Spaces,

@@ -3,6 +3,7 @@ const rootScriptTests = [
 	'checkEntitlementPackageVersion.test.cjs',
 	'checkEquipmentTerminology.test.cjs',
 	'checkCompatibilityBoundaries.test.cjs',
+	'compatibilityInventoryCore.test.cjs',
 	'dependabotE2ePolicy.test.cjs',
 	'environmentContract.test.cjs',
 	'extractReleasePullRequestNotes.test.cjs',
@@ -30,6 +31,7 @@ const rootScriptTests = [
 ];
 
 const functionTests = [
+	'accountDeletionCore.test.cjs',
 	'accessLifecycleBilling.test.cjs',
 	'activatePropertySetupMaintenancePlan.test.cjs',
 	'complimentaryAccessCodes.test.cjs',

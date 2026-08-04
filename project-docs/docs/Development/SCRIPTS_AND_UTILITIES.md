@@ -46,8 +46,11 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 - `sync:entitlement-locks` repairs both lockfile entries from the current bundled entitlement package version.
 - `check:entitlement-locks` verifies synchronization without modifying files and runs in GitHub deployment workflows.
 - `check:compatibility-boundaries` prevents new client code from bypassing the
-  shared account, Property Memory, and Maintenance History adapters. It is a
-  read-only build gate.
+  shared account, Property Memory, and Maintenance History adapters or writing
+  embedded Equipment Supplies. It is a read-only build gate.
+- `inventory:compatibility` reports aggregate legacy Document, Maintenance
+  History, account-link, and embedded Supply counts. It permanently rejects
+  apply mode and requires explicit Firebase project confirmation.
 - `check:equipment-terminology` prevents legacy record terminology from
   returning to active user-facing copy. It is a read-only build gate.
 

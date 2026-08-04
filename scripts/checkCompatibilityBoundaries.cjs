@@ -64,6 +64,17 @@ const scanCompatibilityBoundaries = (source, relativePath) => {
 		);
 	}
 
+	if (/(?:[{,]\s*)serviceItems\s*:/.test(source)) {
+		failures.push(
+			`${relativePath}: embedded Equipment serviceItems are read-only compatibility data`,
+		);
+	}
+	if (/['"]serviceItems['"]\s*,/.test(source)) {
+		failures.push(
+			`${relativePath}: current Equipment workflows must not target embedded serviceItems`,
+		);
+	}
+
 	return failures;
 };
 
@@ -78,7 +89,7 @@ const run = () => {
 
 	if (failures.length > 0) {
 		console.error(
-			'Compatibility boundary validation failed. Use the shared access, property-memory, and maintenance-history adapters.',
+			'Compatibility boundary validation failed. Use shared adapters and keep embedded Equipment serviceItems read-only.',
 		);
 		for (const failure of failures) console.error(`- ${failure}`);
 		process.exitCode = 1;

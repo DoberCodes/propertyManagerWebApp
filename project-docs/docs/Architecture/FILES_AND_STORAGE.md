@@ -187,6 +187,11 @@ maintenance-files/{propertyId}/{filename}
 
 When introducing new file categories, upload paths should remain documented.
 
+The trusted self-service account deletion callable removes the applicable
+prefixes from this list and verifies that they are empty before deleting the
+Firebase Auth user. Access-only deletion removes the user's profile and
+feedback prefixes without deleting files owned by another account or Property.
+
 ---
 
 # Upload Helpers

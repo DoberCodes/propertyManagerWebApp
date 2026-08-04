@@ -36,7 +36,6 @@ import {
 import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	Device,
-	DeviceServiceItem,
 	Property,
 	PropertyDocumentCategory,
 } from '../../types/Property.types';
@@ -369,7 +368,6 @@ type DeviceFormData = {
 	partNumber?: string;
 	filterSize?: string;
 	specNotes?: string;
-	serviceItems?: DeviceServiceItem[];
 	installationDate: string;
 	decommissionDate?: string;
 	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
@@ -441,7 +439,6 @@ export const DevicesHubPage: React.FC = () => {
 		partNumber: '',
 		filterSize: '',
 		specNotes: '',
-		serviceItems: [],
 		installationDate: '',
 		decommissionDate: '',
 		status: 'Active',
@@ -628,9 +625,7 @@ export const DevicesHubPage: React.FC = () => {
 
 		setIsSavingDevice(true);
 		try {
-			const { spaceIds, serviceItems: legacyServiceItems, ...deviceFields } =
-				deviceFormData;
-			void legacyServiceItems;
+			const { spaceIds, ...deviceFields } = deviceFormData;
 			const deviceData = {
 				...deviceFields,
 				type: deviceFormData.type.trim(),
@@ -808,7 +803,6 @@ export const DevicesHubPage: React.FC = () => {
 			partNumber: '',
 			filterSize: '',
 			specNotes: '',
-			serviceItems: [],
 			installationDate: '',
 			decommissionDate: '',
 			status: 'Active',
@@ -1108,9 +1102,6 @@ export const DevicesHubPage: React.FC = () => {
 								event.currentTarget.name,
 								event.currentTarget.value,
 							)
-						}
-						onServiceItemsChange={(items) =>
-							setDeviceFormData((prev) => ({ ...prev, serviceItems: items }))
 						}
 						selectedSpaceIds={deviceFormData.spaceIds}
 						onSelectedSpaceIdsChange={(spaceIds) =>
@@ -1467,9 +1458,6 @@ export const DevicesHubPage: React.FC = () => {
 							event.currentTarget.name,
 							event.currentTarget.value,
 						)
-					}
-					onServiceItemsChange={(items) =>
-						setDeviceFormData((prev) => ({ ...prev, serviceItems: items }))
 					}
 					selectedSpaceIds={deviceFormData.spaceIds}
 					onSelectedSpaceIdsChange={(spaceIds) =>

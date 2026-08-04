@@ -44,7 +44,6 @@ import { DeviceModal } from '../../../Components/Library/Modal';
 import {
 	Device,
 	Property,
-	DeviceServiceItem,
 	PropertyDocumentCategory,
 } from '../../../types/Property.types';
 import { usePropertyDocumentUploadWorkflow } from '../../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
@@ -117,7 +116,6 @@ interface DeviceFormData {
 	brand: string;
 	model: string;
 	serialNumber?: string;
-	serviceItems?: DeviceServiceItem[];
 	installationDate: string;
 	decommissionDate?: string;
 	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
@@ -182,7 +180,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		brand: '',
 		model: '',
 		serialNumber: '',
-		serviceItems: [],
 		installationDate: '',
 		decommissionDate: '',
 		status: 'Active',
@@ -780,7 +777,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			brand: '',
 			model: '',
 			serialNumber: '',
-			serviceItems: [],
 			installationDate: '',
 			decommissionDate: '',
 			status: 'Active',
@@ -877,7 +873,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			brand: device.brand || '',
 			model: device.model || '',
 			serialNumber: device.serialNumber || '',
-			serviceItems: device.serviceItems || [],
 			installationDate: getDeviceInstallDate(device),
 			decommissionDate: device.decommissionDate || '',
 			status: getResolvedDeviceStatus(device),
@@ -978,9 +973,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				(file) => !removedExistingFileUrls.includes(file.url),
 			);
 
-			const { spaceIds, serviceItems: legacyServiceItems, ...deviceFields } =
-				deviceFormData;
-			void legacyServiceItems;
+			const { spaceIds, ...deviceFields } = deviceFormData;
 			const deviceData = {
 				...deviceFields,
 				type: normalizeAssetType(deviceFormData.assetType || deviceFormData.type),
@@ -1451,9 +1444,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					deviceFormData={deviceFormData}
 					onFormChange={(e) =>
 						handleFormChange(e.currentTarget.name, e.currentTarget.value)
-					}
-					onServiceItemsChange={(items) =>
-						handleFormChange('serviceItems', items)
 					}
 					selectedSpaceIds={deviceFormData.spaceIds}
 					onSelectedSpaceIdsChange={(spaceIds) =>

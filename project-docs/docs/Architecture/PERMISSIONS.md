@@ -1147,6 +1147,18 @@ resolves authentication loading before routing away. Web users return to the
 public landing page with a deletion confirmation. Native users continue through
 the existing root-route welcome and sign-in experience.
 
+The callable builds a deletion manifest before mutation, commits Firestore
+writes in batches below the platform limit, and deletes documented user-,
+account-, and Property-scoped Storage prefixes. It verifies that every managed
+Firestore target and Storage prefix is clear before deleting the Firebase Auth
+user. A verification failure preserves the Auth record and reports failure for
+support follow-up; partial Firestore or Storage cleanup is never presented as a
+completed deletion.
+
+The resumable manifest context is stored in server-only
+`accountDeletionJobs/{userId}`. Clients cannot read or write deletion jobs, and
+the job is removed only after the Auth user is deleted successfully.
+
 ---
 
 # Team Member Rules

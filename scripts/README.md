@@ -357,19 +357,37 @@ reports which ADRs would be eligible for tracker creation.
 * testFirebaseRules.cjs
 * testStorageRules.cjs
 * inventoryMaintenanceHistory.cjs
+* inventoryCompatibilityBoundaries.cjs
 * checkCompatibilityBoundaries.cjs
 
 ### Compatibility boundary validation
 
 `checkCompatibilityBoundaries.cjs` is a read-only frontend build gate. It
 prevents new data slices and screens from bypassing the shared account-access,
-Property Memory, or Maintenance History compatibility boundaries.
+Property Memory, or Maintenance History compatibility boundaries. It also
+rejects new writes to embedded Equipment `serviceItems`.
 
 ```bash
 yarn check:compatibility-boundaries
 ```
 
 Its Node tests are included in `yarn test:scripts:ci`.
+
+### Compatibility inventory
+
+`inventoryCompatibilityBoundaries.cjs` provides one aggregate, report-only
+view of legacy Documents, Maintenance History, user/account links, and embedded
+Equipment Supplies. It has no apply mode, requires the intended Firebase
+project to match the service account, omits record contents, and writes JSON
+only beneath `tmp/`.
+
+```bash
+yarn inventory:compatibility \
+  --confirm-project=mypropertymanager-cda42 \
+  --report=tmp/compatibility-inventory.json
+```
+
+Use `--account-id=<account-id>` when reviewing one account boundary.
 
 ### Maintenance History migration inventory
 
