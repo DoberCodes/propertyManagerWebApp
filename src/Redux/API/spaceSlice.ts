@@ -192,5 +192,6 @@ export const {
 	useGetAccountSpacesQuery,
 	useCreatePropertySpaceMutation,
 	useGetPropertySpacesQuery,
+	useLazyGetPropertySpacesQuery,
 	useUpdatePropertySpaceMutation,
 } = spaceSlice;

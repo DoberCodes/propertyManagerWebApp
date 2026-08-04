@@ -453,8 +453,10 @@ display ordering without making ordering part of ownership. `isArchived`
 allows a future linked Space to remain available after removal from ordinary
 views.
 
-Residential Property creation may create reviewed generated Spaces for each
-Bedroom, full Bathroom, and Half Bathroom. Setup may create or reuse Kitchen,
+Residential Property creation and later profile edits may create reviewed,
+repeat-safe generated Spaces for each Bedroom, full Bathroom, and Half
+Bathroom. Every save checks current active and archived Spaces before creating
+missing records. Setup may create or reuse Kitchen,
 Bathroom, Laundry Room, Garage, and Exterior Spaces before connecting accepted
 Equipment and Tasks. Generation is idempotent: `generationKey` is checked
 first, followed by an active normalized name-and-type match. Archived matches

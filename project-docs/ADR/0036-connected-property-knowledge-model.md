@@ -281,8 +281,10 @@ so referenced Spaces can later be retained instead of deleted. Iconography may
 be added as presentation metadata in a future phase, but this implementation
 does not prematurely define an icon contract.
 
-Residential Property creation previews and, after confirmation, creates
+Residential Property creation and later profile edits preview or reconcile
 numbered Bedroom, Bathroom, and Half Bathroom Spaces from the accepted counts.
+Each save reads current active and archived Spaces before creating anything so
+repeat saves remain safe and archived conflicts remain visible for review.
 The Property Setup Assistant previews applicable Kitchen, Bathroom, Laundry
 Room, Garage, and Exterior Space connections before saving. Utility Systems
 and Safety equipment do not create inferred Spaces. Generated Spaces carry a
@@ -513,6 +515,7 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
 - [x] Add reviewed, repeat-safe Property and Setup Assistant Space generation.
+- [x] Reconcile generated Bedroom and Bathroom Spaces after Property Profile edits.
 - [x] Add reviewed canonical Supply creation and connection from Equipment workflows.
 - [x] Remove legacy embedded Supply editing paths and enforce read-only compatibility.
 

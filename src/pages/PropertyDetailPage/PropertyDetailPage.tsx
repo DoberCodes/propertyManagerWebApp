@@ -87,6 +87,10 @@ import {
 	useGetDevicesQuery,
 } from '../../Redux/API/deviceSlice';
 import { useGetTeamMembersQuery } from '../../Redux/API/teamSlice';
+import {
+	useCreatePropertySpaceMutation,
+	useLazyGetPropertySpacesQuery,
+} from '../../Redux/API/spaceSlice';
 import { TabSystem } from './TabSystem';
 import { TaskFinancials, TaskFormData } from '../../types/Task.types';
 import { MaintenanceHistoryDraftData } from '../../types/PropertyDetailPage.types';
@@ -102,6 +106,10 @@ import {
 } from '../../utils/propertyIntelligenceScan';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
+import {
+	buildPropertyProfileSpaceTemplates,
+	ensureGeneratedPropertySpaces,
+} from '../../propertyKnowledge/propertySpaceGeneration';
 
 export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	props,
@@ -203,6 +211,8 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 	const [deleteMaintenanceHistory] = useDeleteMaintenanceHistoryMutation();
 	const [updateMaintenanceHistory] = useUpdateMaintenanceHistoryMutation();
 	const [createNotification] = useCreateNotificationMutation();
+	const [createPropertySpace] = useCreatePropertySpaceMutation();
+	const [getPropertySpaces] = useLazyGetPropertySpacesQuery();
 	const [removeTenant] = useRemoveManualOccupancyMutation();
 	const [getTenantInvitationCode] = useLazyGetTenantInvitationCodeQuery();
 	const [getTenantInvitationCodesByEmail] =
@@ -272,6 +282,9 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 		skip: !propertyFromLists?.id || Boolean(propertyOverride),
 	});
 	const property = propertyOverride || liveProperty || propertyFromLists;
+	const propertyAccountId = String(
+		property?.accountId || property?.userId || currentUser?.accountId || currentUser?.id || '',
+	).trim();
 
 	const tenantAssignment = useMemo(() => {
 		if (!property || !currentUser?.email || !isUserTenant) {
@@ -668,6 +681,38 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 			id: property.id,
 			updates: sanitizedUpdates,
 		}).unwrap();
+
+		const generatedSpaceTemplates = buildPropertyProfileSpaceTemplates(formData);
+		if (generatedSpaceTemplates.length > 0) {
+			try {
+				const existingSpaces = await getPropertySpaces({
+					accountId: propertyAccountId,
+					propertyId: property.id,
+					includeArchived: true,
+				}).unwrap();
+				const spaceResult = await ensureGeneratedPropertySpaces({
+					accountId: propertyAccountId,
+					propertyId: property.id,
+					templates: generatedSpaceTemplates,
+					existingSpaces,
+					source: 'property_profile',
+					createSpace: (input) => createPropertySpace(input).unwrap(),
+				});
+				if (spaceResult.archivedConflicts.length > 0) {
+					feedback.notify(
+						'Property details were saved. Restore or rename the matching archived Spaces before Maintley can add every Bedroom and Bathroom.',
+					);
+				}
+			} catch (spaceError) {
+				console.error(
+					'Property updated but profile Spaces were not all reconciled:',
+					spaceError,
+				);
+				feedback.notify(
+					'Property details were saved, but Maintley could not add every Bedroom and Bathroom Space. Please try saving again.',
+				);
+			}
+		}
 
 		try {
 			await createNotification({

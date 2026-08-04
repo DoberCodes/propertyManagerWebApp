@@ -1,6 +1,7 @@
 import type { PropertySpace } from '../types/Space.types';
 import {
 	buildPropertyProfileSpaceTemplates,
+	ensureGeneratedPropertySpaces,
 	getSetupAreaSpaceTemplates,
 	hasValidBathroomCount,
 	hasValidBedroomCount,
@@ -79,5 +80,46 @@ describe('property Space generation', () => {
 	it('does not generate automatic utility or safety Spaces', () => {
 		expect(getSetupAreaSpaceTemplates('utility-systems', {})).toEqual([]);
 		expect(getSetupAreaSpaceTemplates('safety', {})).toEqual([]);
+	});
+
+	it('creates missing reviewed Spaces and reuses them on a repeat save', async () => {
+		const templates = buildPropertyProfileSpaceTemplates({
+			bedrooms: 1,
+			bathrooms: 1,
+		});
+		const createdSpaces: PropertySpace[] = [];
+		const createSpace = jest.fn(async (input) => {
+			const created = space({
+				...input,
+				id: `space-${createdSpaces.length + 1}`,
+			});
+			createdSpaces.push(created);
+			return created;
+		});
+
+		const first = await ensureGeneratedPropertySpaces({
+			accountId: 'account-1',
+			propertyId: 'property-1',
+			templates,
+			existingSpaces: [],
+			source: 'property_profile',
+			createSpace,
+		});
+		expect(first.created.map((created) => created.name)).toEqual([
+			'Bedroom 1',
+			'Bathroom 1',
+		]);
+
+		const repeat = await ensureGeneratedPropertySpaces({
+			accountId: 'account-1',
+			propertyId: 'property-1',
+			templates,
+			existingSpaces: createdSpaces,
+			source: 'property_profile',
+			createSpace,
+		});
+		expect(repeat.created).toEqual([]);
+		expect(repeat.reused).toHaveLength(2);
+		expect(createSpace).toHaveBeenCalledTimes(2);
 	});
 });

@@ -53,7 +53,10 @@ import {
 	useCreateDeviceMutation,
 	useGetAllDevicesQuery,
 } from '../../Redux/API/deviceSlice';
-import { useCreatePropertySpaceMutation } from '../../Redux/API/spaceSlice';
+import {
+	useCreatePropertySpaceMutation,
+	useLazyGetPropertySpacesQuery,
+} from '../../Redux/API/spaceSlice';
 import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
@@ -305,6 +308,7 @@ export const Properties = () => {
 	const [createTask] = useCreateTaskMutation();
 	const [createDevice] = useCreateDeviceMutation();
 	const [createPropertySpace] = useCreatePropertySpaceMutation();
+	const [getPropertySpaces] = useLazyGetPropertySpacesQuery();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
 
@@ -577,6 +581,13 @@ export const Properties = () => {
 		any | null
 	>(null);
 	const [propertyToDuplicate, setPropertyToDuplicate] = useState<any | null>(null);
+	const selectedPropertyAccountId = String(
+		selectedPropertyForEdit?.accountId ||
+			selectedPropertyForEdit?.userId ||
+			currentUser?.accountId ||
+			currentUser?.id ||
+			'',
+	).trim();
 	const [copyTasksOnDuplicate, setCopyTasksOnDuplicate] = useState(false);
 	const [copyAppliancesOnDuplicate, setCopyAppliancesOnDuplicate] = useState(true);
 	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -2257,6 +2268,39 @@ export const Properties = () => {
 					id: selectedPropertyForEdit.id,
 					updates: sanitizedUpdates,
 				}).unwrap();
+
+				const generatedSpaceTemplates =
+					buildPropertyProfileSpaceTemplates(formData);
+				if (generatedSpaceTemplates.length > 0) {
+					try {
+						const existingSpaces = await getPropertySpaces({
+							accountId: selectedPropertyAccountId,
+							propertyId: String(selectedPropertyForEdit.id),
+							includeArchived: true,
+						}).unwrap();
+						const spaceResult = await ensureGeneratedPropertySpaces({
+							accountId: selectedPropertyAccountId,
+							propertyId: String(selectedPropertyForEdit.id),
+							templates: generatedSpaceTemplates,
+							existingSpaces,
+							source: 'property_profile',
+							createSpace: (input) => createPropertySpace(input).unwrap(),
+						});
+						if (spaceResult.archivedConflicts.length > 0) {
+							feedback.notify(
+								'Property details were saved. Restore or rename the matching archived Spaces before Maintley can add every Bedroom and Bathroom.',
+							);
+						}
+					} catch (spaceError) {
+						console.error(
+							'Property updated but profile Spaces were not all reconciled:',
+							spaceError,
+						);
+						feedback.notify(
+							'Property details were saved, but Maintley could not add every Bedroom and Bathroom Space. Please try saving again.',
+						);
+					}
+				}
 
 				try {
 					await applyDashboardVisibilityPreference(

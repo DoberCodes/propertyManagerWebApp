@@ -212,7 +212,13 @@ const ONBOARDING_HOME_STEPS: PropertyDialogStep[] = [
 		key: 'group',
 		title: 'Home Basics',
 		navTitle: 'Basics',
-		hint: 'Name, address, and type',
+		hint: 'Name and address',
+	},
+	{
+		key: 'details',
+		title: 'Home Profile',
+		navTitle: 'Profile',
+		hint: 'Style, bedrooms, and bathrooms',
 	},
 ];
 
@@ -830,40 +836,10 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 							</FormField>
 						</FormRow>
 						{isOnboardingHomeCreateFlow && (
-							<FormField>
-								<Label>{recordTitleLabel} Type</Label>
-								<SelectField
-									value={formData.propertyType}
-									disabled
-									onChange={(e) =>
-										handleInputChange(
-											'propertyType',
-											e.target.value as PropertyFormData['propertyType'],
-										)
-									}>
-									<option value='residential'>Residential</option>
-								</SelectField>
-							</FormField>
-						)}
-						{isOnboardingHomeCreateFlow && (
-							<FormField>
-								<Label>Home style</Label>
-								<SelectField
-									value={formData.propertyClassification || ''}
-									onChange={(e) =>
-										handleInputChange('propertyClassification', e.target.value as PropertyClassification)
-									}>
-									{getPropertyClassificationOptions('residential').map((option) => (
-										<option key={option.value} value={option.value}>{option.label}</option>
-									))}
-								</SelectField>
-							</FormField>
-						)}
-						{isOnboardingHomeCreateFlow && (
 							<OnboardingNextStepBanner>
 								<FontAwesomeIcon icon={faInfoCircle} />
 								<span>
-									<strong>Next:</strong> after saving, Maintley will confirm your {recordLowerLabel} and let you choose whether to continue setup now.
+									<strong>Next:</strong> add the home profile Maintley will use to organize Bedrooms and Bathrooms as Spaces.
 								</span>
 							</OnboardingNextStepBanner>
 						)}
