@@ -100,6 +100,13 @@ visible; account managers can review and restore archived Spaces. Existing Task
 location values remain stored during a conservative exact-match migration
 period rather than being discarded or guessed.
 
+New residential Properties preview numbered Bedroom, Bathroom, and Half
+Bathroom Spaces before saving. The Setup Assistant previews whether it will
+create or reuse applicable Kitchen, Bathroom, Laundry Room, Garage, and
+Exterior Spaces before connecting accepted Equipment and Tasks. Reopening setup
+reuses the stable generated Space or an active matching manual Space instead of
+creating duplicates. Archived matches require review.
+
 Supplies preserve the product details a property uses without introducing
 inventory management. Account managers may record product identifiers,
 specifications, replacement details, and notes, or use reviewed barcode capture
@@ -107,6 +114,11 @@ to prefill them. Supplies are available on every active plan and may connect to
 multiple Equipment records, Spaces, and Tasks. Equipment pages show their
 derived connected Supplies rather than owning copies. Referenced Supplies are
 archived when removed and may be restored later.
+
+Equipment create and edit reviews can connect existing Property Supplies or
+stage new Supplies, including reviewed barcode input. New records are saved as
+Property Supplies only after Equipment succeeds, and removing a connection does
+not remove the shared Supply.
 
 Property Documents may connect to multiple Equipment records, Spaces, Tasks,
 and Supplies without being copied into those features. Account managers edit

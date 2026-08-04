@@ -11,11 +11,17 @@ import { auth, db } from '../../config/firebase';
 import { PropertySupply, PropertySupplyDraft } from '../../types/Supply.types';
 import { sortPropertySupplies } from '../../utils/propertySupplies';
 import { apiSlice, docToData } from './apiSlice';
+import {
+	type AnalyticsActionSource,
+	trackAnalyticsEvent,
+} from '../../analytics/analytics';
 
 interface CreatePropertySupplyArgs extends PropertySupplyDraft {
 	accountId: string;
 	propertyId: string;
 	source?: PropertySupply['source'];
+	analyticsSource?: AnalyticsActionSource;
+	analyticsEntryPoint?: 'property_supplies' | 'equipment_review' | 'document_review';
 }
 
 interface UpdatePropertySupplyArgs {
@@ -81,7 +87,14 @@ const supplySlice = apiSlice.injectEndpoints({
 			PropertySupply,
 			CreatePropertySupplyArgs
 		>({
-			async queryFn({ accountId, propertyId, source = 'manual', ...draft }) {
+			async queryFn({
+				accountId,
+				propertyId,
+				source = 'manual',
+				analyticsSource,
+				analyticsEntryPoint,
+				...draft
+			}) {
 				try {
 					const userId = auth.currentUser?.uid;
 					if (!userId) return { error: 'User not authenticated' };
@@ -101,6 +114,25 @@ const supplySlice = apiSlice.injectEndpoints({
 						collection(db, 'propertySupplies'),
 						supplyData,
 					);
+					const resolvedAnalyticsSource =
+						analyticsSource ||
+						(source === 'document_review' || source === 'intelligence_review'
+							? 'ai_suggestion'
+							: source === 'migration'
+								? 'import'
+								: 'user');
+					void trackAnalyticsEvent('supply_created', {
+						action_source: resolvedAnalyticsSource,
+						entry_point:
+							analyticsEntryPoint ||
+							(source === 'document_review' || source === 'intelligence_review'
+								? 'document_review'
+								: 'property_supplies'),
+						supply_type: draft.type,
+						has_identifier: Boolean(
+							draft.barcodeValue || draft.modelOrSku || draft.partNumber,
+						),
+					});
 					return { data: { id: supplyRef.id, ...supplyData } };
 				} catch (error: any) {
 					return { error: error.message };

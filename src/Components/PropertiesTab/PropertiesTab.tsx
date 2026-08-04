@@ -53,6 +53,7 @@ import {
 	useCreateDeviceMutation,
 	useGetAllDevicesQuery,
 } from '../../Redux/API/deviceSlice';
+import { useCreatePropertySpaceMutation } from '../../Redux/API/spaceSlice';
 import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
@@ -87,6 +88,10 @@ import { COLORS } from '../../constants/colors';
 import { finalizeFirstPropertyTrial } from '../../services/entitlementGrantService';
 import { isHomeownerPlusTrialEnabled } from '../../entitlements/planAvailability';
 import { getEmbeddedPropertyDocuments } from '../../propertyKnowledge/propertyMemoryRecordService';
+import {
+	buildPropertyProfileSpaceTemplates,
+	ensureGeneratedPropertySpaces,
+} from '../../propertyKnowledge/propertySpaceGeneration';
 import {
 	Wrapper,
 	TopActions,
@@ -299,6 +304,7 @@ export const Properties = () => {
 	const [createNotification] = useCreateNotificationMutation();
 	const [createTask] = useCreateTaskMutation();
 	const [createDevice] = useCreateDeviceMutation();
+	const [createPropertySpace] = useCreatePropertySpaceMutation();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
 
@@ -2353,6 +2359,31 @@ export const Properties = () => {
 
 				if ('data' in result) {
 					let firstPropertyTrialActivationFailed = false;
+					const generatedSpaceTemplates =
+						buildPropertyProfileSpaceTemplates(formData);
+					if (generatedSpaceTemplates.length > 0) {
+						reportProgress?.({
+							title: 'Creating reviewed Spaces...',
+							text: 'Maintley is adding the Bedrooms and Bathrooms shown in your review.',
+						});
+						try {
+							await ensureGeneratedPropertySpaces({
+								accountId: String(
+									result.data.accountId || result.data.userId || currentUser!.id,
+								),
+								propertyId: String(result.data.id),
+								templates: generatedSpaceTemplates,
+								existingSpaces: [],
+								source: 'property_profile',
+								createSpace: (input) => createPropertySpace(input).unwrap(),
+							});
+						} catch (spaceError) {
+							console.error('Property created but reviewed Spaces were not all created:', spaceError);
+							feedback.notify(
+								'Your property was saved, but Maintley could not add every reviewed Space. The Setup Assistant can safely retry without creating duplicates.',
+							);
+						}
+					}
 					if (shouldFinalizeFirstPropertyTrial) {
 						reportProgress?.({
 							title: 'Activating Homeowner+...',

@@ -6,6 +6,15 @@ import { useDispatch } from 'react-redux';
 import { useCreateDeviceMutation } from '../../Redux/API/deviceSlice';
 import { useUpdatePropertyMutation } from '../../Redux/API/propertySlice';
 import { useCreateTaskMutation } from '../../Redux/API/taskSlice';
+import {
+	useCreatePropertySpaceMutation,
+	useGetPropertySpacesQuery,
+} from '../../Redux/API/spaceSlice';
+import {
+	useGetPropertyKnowledgeLinksQuery,
+	useSetEquipmentSpaceLinksMutation,
+	useSetTaskSpaceLinksMutation,
+} from '../../Redux/API/propertyKnowledgeLinkSlice';
 import { apiSlice } from '../../Redux/API/apiSlice';
 import type { AppDispatch } from '../../Redux/store/store';
 import { User } from '../../Redux/Slices/userSlice';
@@ -56,6 +65,16 @@ import {
 	readPropertySetupDraft,
 	writePropertySetupDraft,
 } from './propertySetupDraft';
+import {
+	buildPropertyProfileSpaceTemplates,
+	ensureGeneratedPropertySpaces,
+	getSetupAreaSpaceTemplates,
+	planGeneratedPropertySpaces,
+} from '../../propertyKnowledge/propertySpaceGeneration';
+import {
+	getEquipmentSpaceIds,
+	getTaskSpaceIds,
+} from '../../types/PropertyKnowledgeLink.types';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -186,6 +205,19 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [createDevice] = useCreateDeviceMutation();
 	const [createTask] = useCreateTaskMutation();
+	const [createPropertySpace] = useCreatePropertySpaceMutation();
+	const [setEquipmentSpaceLinks] = useSetEquipmentSpaceLinksMutation();
+	const [setTaskSpaceLinks] = useSetTaskSpaceLinksMutation();
+	const accountId = String(property.accountId || property.userId || currentUser?.id || '').trim();
+	const { data: propertySpaces = [] } = useGetPropertySpacesQuery(
+		{ accountId, propertyId: property.id, includeArchived: true },
+		{ skip: !accountId || !property.id },
+	);
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId, propertyId: property.id },
+			{ skip: !accountId || !property.id },
+		);
 	const initialSetupAssistant = property.setupAssistant || {};
 	const [localSetupAssistant, setLocalSetupAssistant] =
 		useState<PropertySetupAssistantState>(initialSetupAssistant);
@@ -201,6 +233,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [hasUserDraftChanges, setHasUserDraftChanges] = useState(false);
 	const [wasDraftRestored, setWasDraftRestored] = useState(false);
 	const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
+	const [isSaveReviewOpen, setIsSaveReviewOpen] = useState(false);
 	const [isAssistantCardCollapsed, setIsAssistantCardCollapsed] =
 		useState(savedSetupProgress.isComplete);
 	const [selectedAreaId, setSelectedAreaId] = useState<PropertySetupAreaId>(
@@ -230,6 +263,29 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					String(device.location?.propertyId || '') === String(property.id),
 			),
 		[devices, property.id],
+	);
+	const reviewedSetupSpaceTemplates = useMemo(() => {
+		const templates = [
+			...buildPropertyProfileSpaceTemplates(property),
+			...PROPERTY_SETUP_AREAS.flatMap((area) => {
+				const hasPresentItem = area.itemIds.some(
+					(itemId) => draftItems[itemId]?.status === 'present',
+				);
+				return hasPresentItem
+					? getSetupAreaSpaceTemplates(area.id, property)
+					: [];
+			}),
+		];
+		return Array.from(
+			new Map(templates.map((template) => [template.generationKey, template])).values(),
+		);
+	}, [draftItems, property]);
+	const reviewedSetupSpacePlan = useMemo(
+		() => planGeneratedPropertySpaces(reviewedSetupSpaceTemplates, propertySpaces),
+		[reviewedSetupSpaceTemplates, propertySpaces],
+	);
+	const hasArchivedSpaceConflict = reviewedSetupSpacePlan.some(
+		(entry) => entry.status === 'archived_conflict',
 	);
 
 	useEffect(() => {
@@ -355,6 +411,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setWasDraftRestored(false);
 		hasTrackedProposalViewRef.current = false;
 		setIsCloseConfirmOpen(false);
+		setIsSaveReviewOpen(false);
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setSelectedAreaId(getFirstIncompleteSetupAreaId({ items: nextDraftItems }));
@@ -814,7 +871,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const handleNext = () => {
 		if (isSavingAssistant) return;
 		if (isLastArea) {
-			handleDone();
+			setIsSaveReviewOpen(true);
 			return;
 		}
 		setSelectedAreaId(PROPERTY_SETUP_AREAS[selectedAreaIndex + 1].id);
@@ -828,6 +885,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			});
 		}
 		setIsCloseConfirmOpen(false);
+		setIsSaveReviewOpen(false);
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
@@ -883,6 +941,37 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		let createdTaskCount = 0;
 
 		try {
+			if (!accountId) {
+				throw new Error('This property is missing its account connection.');
+			}
+			if (hasArchivedSpaceConflict) {
+				throw new Error(
+					'One or more matching Spaces are archived. Restore or rename those Spaces before saving setup.',
+				);
+			}
+			const ensuredSpaces = await ensureGeneratedPropertySpaces({
+				accountId,
+				propertyId: property.id,
+				templates: reviewedSetupSpaceTemplates,
+				existingSpaces: propertySpaces,
+				source: 'setup_assistant',
+				createSpace: (input) => createPropertySpace(input).unwrap(),
+			});
+			if (ensuredSpaces.archivedConflicts.length > 0) {
+				throw new Error(
+					'A matching Space was archived while setup was open. Review the Property Spaces before trying again.',
+				);
+			}
+			const spaceIdsByArea = new Map<PropertySetupAreaId, string[]>();
+			PROPERTY_SETUP_AREAS.forEach((area) => {
+				const ids = getSetupAreaSpaceTemplates(area.id, property)
+					.map((template) =>
+						ensuredSpaces.spacesByGenerationKey.get(template.generationKey)?.id,
+					)
+					.filter((id): id is string => Boolean(id));
+				spaceIdsByArea.set(area.id, ids);
+			});
+
 			for (const [itemId, itemState] of Object.entries(draftItems) as Array<
 				[SuggestedSystemId, PropertySetupAssistantItemState]
 			>) {
@@ -932,6 +1021,40 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						createdTaskCount += recreatedTaskResult.createdTaskIds.length;
 					}
 					taskIds.forEach((taskId) => linkedTaskIdSet.add(taskId));
+					const itemArea = PROPERTY_SETUP_AREAS.find((area) =>
+						area.itemIds.includes(itemId),
+					);
+					const applicableSpaceIds = itemArea
+						? spaceIdsByArea.get(itemArea.id) || []
+						: [];
+					if (device?.id && applicableSpaceIds.length > 0) {
+						await setEquipmentSpaceLinks({
+							propertyId: property.id,
+							equipmentId: String(device.id),
+							spaceIds: Array.from(
+								new Set([
+									...getEquipmentSpaceIds(
+										propertyKnowledgeLinks,
+										String(device.id),
+									),
+									...applicableSpaceIds,
+								]),
+							),
+						}).unwrap();
+					}
+					for (const taskId of taskIds) {
+						if (applicableSpaceIds.length === 0) continue;
+						await setTaskSpaceLinks({
+							propertyId: property.id,
+							taskId,
+							spaceIds: Array.from(
+								new Set([
+									...getTaskSpaceIds(propertyKnowledgeLinks, taskId),
+									...applicableSpaceIds,
+								]),
+							),
+						}).unwrap();
+					}
 
 					const nextItemState: PropertySetupAssistantItemState = {
 						...itemState,
@@ -1005,6 +1128,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			setHasUserDraftChanges(false);
 			setWasDraftRestored(false);
 			setIsCloseConfirmOpen(false);
+			setIsSaveReviewOpen(false);
 			setCompletionSummary({
 				applianceLabels: Array.from(applianceLabelSet),
 				applianceCount: applianceLabelSet.size,
@@ -1380,7 +1504,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 											{isSavingAssistant
 												? 'Saving...'
 												: isLastArea
-													? 'Done'
+													? 'Review'
 													: 'Next'}
 										</AssistantButton>
 									</NavigationActions>
@@ -1405,9 +1529,60 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 								</SecondaryAction>
 								<AssistantButton
 									type='button'
-									onClick={handleDone}
+									onClick={() => {
+										setIsCloseConfirmOpen(false);
+										setIsSaveReviewOpen(true);
+									}}
 									disabled={isSavingAssistant}>
-									{isSavingAssistant ? 'Saving...' : 'Save & Create'}
+									Review Changes
+								</AssistantButton>
+							</ConfirmActions>
+						</ConfirmPanel>
+					)}
+					{isSaveReviewOpen && (
+						<ConfirmPanel role='alertdialog' aria-modal='true'>
+							<ConfirmTitle>Review setup changes</ConfirmTitle>
+							<ConfirmText>
+								{reviewedSetupSpacePlan.length > 0
+									? 'Confirm how Maintley will handle each Space before saving:'
+									: 'No automatic Spaces apply to the selected Utility Systems or Safety equipment. Equipment and suggested tasks will still be created as reviewed.'}
+							</ConfirmText>
+							{reviewedSetupSpacePlan.length > 0 && (
+								<ReviewList>
+									{reviewedSetupSpacePlan.map((entry) => (
+										<li key={entry.template.generationKey}>
+											<strong>{entry.space?.name || entry.template.name}</strong>
+											{' - '}
+											{entry.status === 'create'
+												? 'Create new Space'
+												: entry.status === 'reuse'
+													? 'Reuse existing Space'
+													: 'Archived match requires review'}
+										</li>
+									))}
+								</ReviewList>
+							)}
+							<ConfirmText>
+								Equipment and suggested tasks will be connected to the applicable
+								Spaces. Utility Systems and Safety equipment remain unassigned unless
+								you connect a Space yourself.
+							</ConfirmText>
+							<ConfirmActions>
+								<SecondaryAction
+									type='button'
+									onClick={() => setIsSaveReviewOpen(false)}
+									disabled={isSavingAssistant}>
+									Back
+								</SecondaryAction>
+								<AssistantButton
+									type='button'
+									onClick={handleDone}
+									disabled={isSavingAssistant || hasArchivedSpaceConflict}>
+									{hasArchivedSpaceConflict
+										? 'Review Archived Spaces'
+										: isSavingAssistant
+											? 'Saving...'
+											: 'Save & Create'}
 								</AssistantButton>
 							</ConfirmActions>
 						</ConfirmPanel>

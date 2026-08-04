@@ -1,9 +1,10 @@
 import {
-	addDoc,
 	collection,
 	doc,
 	getDocs,
 	query,
+	runTransaction,
+	setDoc,
 	updateDoc,
 	where,
 } from 'firebase/firestore';
@@ -11,10 +12,13 @@ import { auth, db } from '../../config/firebase';
 import { PropertySpace, PropertySpaceDraft } from '../../types/Space.types';
 import { sortPropertySpaces } from '../../utils/propertySpaces';
 import { apiSlice, docToData } from './apiSlice';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
 
 interface CreatePropertySpaceArgs extends PropertySpaceDraft {
 	accountId: string;
 	propertyId: string;
+	generationKey?: string;
+	source?: PropertySpace['source'];
 }
 
 interface UpdatePropertySpaceArgs {
@@ -86,7 +90,13 @@ const spaceSlice = apiSlice.injectEndpoints({
 			PropertySpace,
 			CreatePropertySpaceArgs
 		>({
-			async queryFn({ accountId, propertyId, ...draft }) {
+			async queryFn({
+				accountId,
+				propertyId,
+				generationKey,
+				source = 'manual',
+				...draft
+			}) {
 				try {
 					const userId = auth.currentUser?.uid;
 					if (!userId) return { error: 'User not authenticated' };
@@ -97,17 +107,52 @@ const spaceSlice = apiSlice.injectEndpoints({
 						notes: draft.notes?.trim() || '',
 						accountId,
 						propertyId,
+						...(generationKey ? { generationKey } : {}),
 						isArchived: false,
-						source: 'manual' as const,
+						source,
 						createdBy: userId,
 						updatedBy: userId,
 						createdAt: now,
 						updatedAt: now,
 					};
-					const spaceRef = await addDoc(
-						collection(db, 'propertySpaces'),
-						spaceData,
-					);
+					const generatedId = generationKey
+						? `${propertyId}__${generationKey.replace(/[^a-z0-9]+/gi, '_')}`
+						: '';
+					const spaceRef = generatedId
+						? doc(db, 'propertySpaces', generatedId)
+						: doc(collection(db, 'propertySpaces'));
+					const existingGeneratedSpace = generatedId
+						? await runTransaction(db, async (transaction) => {
+								const snapshot = await transaction.get(spaceRef);
+								if (snapshot.exists()) {
+									return docToData(snapshot) as PropertySpace;
+								}
+								transaction.set(spaceRef, spaceData);
+								return null;
+							})
+						: null;
+					if (!generatedId) {
+						await setDoc(spaceRef, spaceData);
+					}
+					if (existingGeneratedSpace) {
+						return { data: existingGeneratedSpace };
+					}
+					void trackAnalyticsEvent('space_created', {
+						action_source:
+							source === 'setup_assistant'
+								? 'setup_assistant'
+								: source === 'property_profile'
+									? 'system'
+									: source === 'document_review' ||
+										  source === 'intelligence_review'
+										? 'ai_suggestion'
+										: source === 'migration'
+											? 'import'
+											: 'user',
+						space_source: source,
+						space_type: draft.type,
+						is_generated: Boolean(generationKey),
+					});
 					return { data: { id: spaceRef.id, ...spaceData } };
 				} catch (error: any) {
 					return { error: error.message };

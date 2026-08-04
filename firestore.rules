@@ -684,6 +684,7 @@ service cloud.firestore {
           'type',
           'notes',
           'sortOrder',
+		  'generationKey',
           'isArchived',
           'source',
           'createdBy',
@@ -707,9 +708,14 @@ service cloud.firestore {
         ] &&
         (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
         (!('sortOrder' in data) || (data.sortOrder is number && data.sortOrder >= 0)) &&
+		(!('generationKey' in data) || (data.generationKey is string && data.generationKey.size() > 0 && data.generationKey.size() <= 80)) &&
+		(!('generationKey' in data) || data.source in ['property_profile', 'setup_assistant']) &&
+		(!(data.source in ['property_profile', 'setup_assistant']) || ('generationKey' in data)) &&
         data.isArchived is bool &&
         data.source in [
           'manual',
+		  'property_profile',
+		  'setup_assistant',
           'document_review',
           'intelligence_review',
           'migration'
@@ -744,6 +750,8 @@ service cloud.firestore {
         request.resource.data.createdBy == resource.data.createdBy &&
         request.resource.data.createdAt == resource.data.createdAt &&
         request.resource.data.source == resource.data.source &&
+		(('generationKey' in resource.data) == ('generationKey' in request.resource.data)) &&
+		(!('generationKey' in resource.data) || request.resource.data.generationKey == resource.data.generationKey) &&
         request.resource.data.updatedBy == request.auth.uid &&
         canManagePropertyKnowledge(resource.data.accountId);
       // Deletion is function-owned so referenced Spaces can be archived instead.
