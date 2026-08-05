@@ -80,7 +80,6 @@ import {
 } from '../../utils/deviceSlug';
 import {
 	parseDeviceBarcodePayload,
-	parsePartBarcodePayload,
 } from '../../utils/barcodeScanParser';
 import {
 	canUseRecurringTasks,
@@ -92,29 +91,23 @@ import {
 	getEquipmentSpaceIds,
 } from '../../types/PropertyKnowledgeLink.types';
 import { getPropertySupplyTypeLabel } from '../../utils/propertySupplies';
-import { LockedFeatureCallout } from '../../Components/Library/LockedFeatureCallout';
 import {
 	DeviceServiceItem,
 	PropertyDocumentCategory,
 } from '../../types/Property.types';
 import {
-	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS,
-	DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY,
 	buildDeviceServiceItemDetails,
 } from '../../constants/deviceServiceItems';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
 import { LoadingState } from '../../Components/LoadingState';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
-import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, DynamicFieldsGrid, PartsTable, RecordSuggestionList, RecordSuggestionItem, ServiceItemDetailsList, ServiceItemDetail } from './DeviceDetailPage.styles';
-
-type PartFormState = Omit<DeviceServiceItem, 'id'>;
+import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, RecordSuggestionList, RecordSuggestionItem, ServiceItemDetailsList, ServiceItemDetail } from './DeviceDetailPage.styles';
 
 type DeviceEditFormState = {
 	type: string;
 	brand: string;
 	model: string;
 	serialNumber?: string;
-	serviceItems?: DeviceServiceItem[];
 	installationDate: string;
 	decommissionDate?: string;
 	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
@@ -284,10 +277,6 @@ const getUniqueDisplayParts = (...parts: Array<string | undefined | null>): stri
 const getApplianceProfileTitle = (device: any): string =>
 	getUniqueDisplayParts(device?.brand, device?.type).join(' ') || 'Equipment';
 
-const getServiceItemCategoryLabel = (category?: string): string =>
-	DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.find((option) => option.value === category)?.label ||
-	String(category || 'Part');
-
 const getServiceItemDetails = (item: DeviceServiceItem): Array<{ label: string; value: string }> => [
 	{ label: 'Part #', value: item.partNumber || '' },
 	{ label: 'Size', value: item.size || '' },
@@ -306,11 +295,6 @@ const getServiceItemKeyDetails = (item: DeviceServiceItem): string =>
 		.slice(0, 4)
 		.map((detail) => `${detail.label}: ${detail.value}`)
 		.join(' / ') || buildDeviceServiceItemDetails(item) || 'Not recorded';
-
-const sanitizeDeviceServiceItem = (item: DeviceServiceItem): DeviceServiceItem =>
-	Object.fromEntries(
-		Object.entries(item).filter(([, value]) => value !== undefined),
-	) as DeviceServiceItem;
 
 export const DeviceDetailPage: React.FC = () => {
 	const feedback = useAppFeedback();
@@ -350,7 +334,6 @@ export const DeviceDetailPage: React.FC = () => {
 		brand: '',
 		model: '',
 		serialNumber: '',
-		serviceItems: [],
 		installationDate: '',
 		decommissionDate: '',
 		status: 'Active',
@@ -366,7 +349,6 @@ export const DeviceDetailPage: React.FC = () => {
 	const [areQuickActionsOpen, setAreQuickActionsOpen] = useState(false);
 	const [showTaskModal, setShowTaskModal] = useState(false);
 	const [showRecurringTaskModal, setShowRecurringTaskModal] = useState(false);
-	const [showPartModal, setShowPartModal] = useState(false);
 	const [selectedTask, setSelectedTask] = useState<any | null>(null);
 	const [taskToComplete, setTaskToComplete] = useState<any | null>(null);
 	const [isEditingTask, setIsEditingTask] = useState(false);
@@ -396,24 +378,8 @@ export const DeviceDetailPage: React.FC = () => {
 		notes: '',
 	});
 	const [isSavingQuickLog, setIsSavingQuickLog] = useState(false);
-	const [editingPartIndex, setEditingPartIndex] = useState<number | null>(null);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 	const [isDeviceScanOpen, setIsDeviceScanOpen] = useState(false);
-	const [isPartScanOpen, setIsPartScanOpen] = useState(false);
-	const [partFormData, setPartFormData] = useState<PartFormState>({
-		name: '',
-		category: 'part',
-		details: '',
-		partNumber: '',
-		size: '',
-		manufacturer: '',
-		material: '',
-		voltage: '',
-		mervRating: '',
-		compatibility: '',
-		replacementInterval: '',
-		notes: '',
-	});
 
 	const [updateDevice] = useUpdateDeviceMutation();
 	const [deleteTask] = useDeleteTaskMutation();
@@ -421,23 +387,6 @@ export const DeviceDetailPage: React.FC = () => {
 	const [createContractor, { isLoading: isCreatingContractor }] =
 		useCreateContractorMutation();
 	const { uploadPropertyDocuments } = usePropertyDocumentUploadWorkflow();
-
-	const resetPartForm = () => {
-		setPartFormData({
-			name: '',
-			category: 'part',
-			details: '',
-			partNumber: '',
-			size: '',
-			manufacturer: '',
-			material: '',
-			voltage: '',
-			mervRating: '',
-			compatibility: '',
-			replacementInterval: '',
-			notes: '',
-		});
-	};
 
 
 	const deviceId = useMemo(() => getDeviceIdFromSlug(deviceSlug), [deviceSlug]);
@@ -717,8 +666,6 @@ export const DeviceDetailPage: React.FC = () => {
 	);
 	// Embedded service items remain read-only until the migration confirms that
 	// every record has a canonical property Supply and equipment relationship.
-	const serviceParts = legacyServiceParts;
-	const canAccessParts = false;
 	const linkedSupplyIds = useMemo(
 		() =>
 			device?.id
@@ -772,13 +719,6 @@ export const DeviceDetailPage: React.FC = () => {
 			files.length > 0,
 		);
 	}, [device, deviceInstallDate]);
-	const activePartFields = useMemo(
-		() =>
-			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY[partFormData.category] ||
-			DEVICE_SERVICE_ITEM_FIELDS_BY_CATEGORY.other,
-		[partFormData.category],
-	);
-
 
 
 	const applianceAssignedDocumentEntries = useMemo(() => {
@@ -1216,7 +1156,6 @@ export const DeviceDetailPage: React.FC = () => {
 			brand: device?.brand || '',
 			model: device?.model || '',
 			serialNumber: device?.serialNumber || '',
-			serviceItems: device?.serviceItems || [],
 			installationDate: deviceInstallDate,
 			decommissionDate: device?.decommissionDate || '',
 			status: device?.decommissionDate ? 'Decommissioned' : device?.status || 'Active',
@@ -1237,7 +1176,6 @@ export const DeviceDetailPage: React.FC = () => {
 			brand: device.brand || '',
 			model: device.model || '',
 			serialNumber: device.serialNumber || '',
-			serviceItems: device.serviceItems || [],
 			installationDate: deviceInstallDate,
 			decommissionDate: device.decommissionDate || '',
 			status: device.decommissionDate ? 'Decommissioned' : device.status || 'Active',
@@ -1383,98 +1321,6 @@ export const DeviceDetailPage: React.FC = () => {
 		},
 	];
 
-	const handleAddPart = async () => {
-		if (!canManageApplianceActions || !canAccessParts) return;
-		if (!device || !partFormData.name.trim()) return;
-
-		const newPart = sanitizeDeviceServiceItem({
-			id: `${Date.now()}`,
-			name: partFormData.name.trim(),
-			category: partFormData.category,
-			details: buildDeviceServiceItemDetails(partFormData) || undefined,
-			partNumber: partFormData.partNumber?.trim() || undefined,
-			size: partFormData.size?.trim() || undefined,
-			manufacturer: partFormData.manufacturer?.trim() || undefined,
-			material: partFormData.material?.trim() || undefined,
-			voltage: partFormData.voltage?.trim() || undefined,
-			mervRating: partFormData.mervRating?.trim() || undefined,
-			compatibility: partFormData.compatibility?.trim() || undefined,
-			replacementInterval: partFormData.replacementInterval?.trim() || undefined,
-			notes: partFormData.notes?.trim() || undefined,
-		});
-
-		const updatedParts = [...serviceParts, newPart].map(sanitizeDeviceServiceItem);
-		await updateDevice({
-			id: device.id,
-			updates: { serviceItems: updatedParts },
-		}).unwrap();
-
-		resetPartForm();
-	};
-
-	const handleUpdatePart = async () => {
-		if (!canManageApplianceActions || !canAccessParts) return;
-		if (!device || editingPartIndex === null || !partFormData.name.trim()) return;
-
-		const updatedParts = [...serviceParts];
-		updatedParts[editingPartIndex] = sanitizeDeviceServiceItem({
-			...serviceParts[editingPartIndex],
-			name: partFormData.name.trim(),
-			category: partFormData.category,
-			details: buildDeviceServiceItemDetails(partFormData) || undefined,
-			partNumber: partFormData.partNumber?.trim() || undefined,
-			size: partFormData.size?.trim() || undefined,
-			manufacturer: partFormData.manufacturer?.trim() || undefined,
-			material: partFormData.material?.trim() || undefined,
-			voltage: partFormData.voltage?.trim() || undefined,
-			mervRating: partFormData.mervRating?.trim() || undefined,
-			compatibility: partFormData.compatibility?.trim() || undefined,
-			replacementInterval: partFormData.replacementInterval?.trim() || undefined,
-			notes: partFormData.notes?.trim() || undefined,
-		});
-
-		await updateDevice({
-			id: device.id,
-			updates: { serviceItems: updatedParts.map(sanitizeDeviceServiceItem) },
-		}).unwrap();
-
-		resetPartForm();
-		setEditingPartIndex(null);
-	};
-
-	const handleDeletePart = async (index: number) => {
-		if (!canManageApplianceActions || !canAccessParts) return;
-		if (!device) return;
-
-		const updatedParts = serviceParts
-			.filter((_: any, i: number) => i !== index)
-			.map(sanitizeDeviceServiceItem);
-		await updateDevice({
-			id: device.id,
-			updates: { serviceItems: updatedParts },
-		}).unwrap();
-	};
-
-	const handleEditPart = (index: number) => {
-		if (!canManageApplianceActions || !canAccessParts) return;
-		const part = serviceParts[index];
-		setPartFormData({
-			name: part.name || '',
-			category: part.category || 'part',
-			details: part.details || '',
-			partNumber: part.partNumber || '',
-			size: part.size || '',
-			manufacturer: part.manufacturer || '',
-			material: part.material || '',
-			voltage: part.voltage || '',
-			mervRating: part.mervRating || '',
-			compatibility: part.compatibility || '',
-			replacementInterval: part.replacementInterval || '',
-			notes: part.notes || '',
-		});
-		setEditingPartIndex(index);
-	};
-
 	const handleDeviceBarcodeDetected = async (rawValue: string) => {
 		if (!canManageApplianceActions) return;
 		if (!device) return;
@@ -1509,26 +1355,6 @@ export const DeviceDetailPage: React.FC = () => {
 
 		if (Object.keys(updates).length === 0) return;
 		await updateDevice({ id: device.id, updates });
-	};
-
-	const handlePartBarcodeDetected = (rawValue: string) => {
-		if (!canManageApplianceActions || !canAccessParts) return;
-		const parsed = parsePartBarcodePayload(rawValue);
-		setPartFormData((prev) => ({
-			...prev,
-			name: parsed.name || prev.name,
-			category: parsed.category || prev.category,
-			details: parsed.details || prev.details,
-			partNumber: parsed.partNumber || prev.partNumber,
-			size: parsed.size || prev.size,
-			manufacturer: parsed.manufacturer || prev.manufacturer,
-			material: parsed.material || prev.material,
-			voltage: parsed.voltage || prev.voltage,
-			mervRating: parsed.mervRating || prev.mervRating,
-			compatibility: parsed.compatibility || prev.compatibility,
-			replacementInterval: parsed.replacementInterval || prev.replacementInterval,
-			notes: parsed.notes || prev.notes,
-		}));
 	};
 
 	const handleSelectPhotoClick = () => {
@@ -1602,22 +1428,7 @@ export const DeviceDetailPage: React.FC = () => {
 
 		switch (pendingAction) {
 			case 'add_part':
-				if (!canManageApplianceActions || !canAccessParts) break;
-				setPartFormData({
-					name: '',
-					category: 'part',
-					details: '',
-					partNumber: '',
-					size: '',
-					manufacturer: '',
-					material: '',
-					voltage: '',
-					mervRating: '',
-					compatibility: '',
-					replacementInterval: '',
-					notes: '',
-				});
-				setShowPartModal(true);
+				setActiveTab('parts');
 				break;
 			case 'add-task':
 				if (!canCreateTaskActions || !deviceTaskTemplate) break;
@@ -1661,7 +1472,6 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 	}, [
 		applianceAction,
-		canAccessParts,
 		canCreateTaskActions,
 		canLogMaintenanceActions,
 		canManageApplianceActions,
@@ -2412,227 +2222,6 @@ export const DeviceDetailPage: React.FC = () => {
 					</TabContent>
 				)}
 
-				{false && activeTab === 'parts' && (
-					<TabContent>
-						<SectionContainer>
-							{!canAccessParts && (
-								<LockedFeatureCallout
-									title={
-										isTeamMemberAccount
-											? 'Parts & Service is limited by your assigned role'
-											: 'Parts & Service is locked on your current plan'
-									}
-									description={
-										isTeamMemberAccount
-											? 'Your account access is controlled by the account holder.'
-											: 'Track part inventory, filter specs, and service component history by upgrading to the Property plan or higher.'
-									}
-									upgradeLabel='Upgrade for Parts'
-									showUpgradeAction={!isTeamMemberAccount}
-									compact
-								/>
-							)}
-							<SectionBlock>
-								<SectionEyebrow>Warranty and Documents</SectionEyebrow>
-								<SectionTitleStrong>Parts, Filters, and Service Knowledge</SectionTitleStrong>
-								<SectionDescription>
-									Capture part numbers, specs, and service notes so replacements are fast in the field.
-								</SectionDescription>
-							</SectionBlock>
-							<SectionHeader>Parts & Service</SectionHeader>
-							<PhotoActions style={{ marginBottom: 10 }}>
-								<ScanButton
-									type='button'
-									onClick={() => setIsPartScanOpen(true)}
-									disabled={!canAccessParts}>
-									Scan Part Barcode
-								</ScanButton>
-								<PhotoHelperText>
-									Scan to prefill part number, size/spec, and notes fields.
-								</PhotoHelperText>
-							</PhotoActions>
-
-							{/* Add/Edit Form
-							<PartsForm>
-								<div style={{ marginBottom: editingPartIndex !== null ? 12 : 0 }}>
-									<div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: '#374151' }}>
-										{editingPartIndex !== null ? 'Edit Part' : 'Add New Part'}
-									</div>
-								</div>
-
-								<FormRow>
-									<FormField>
-										<FormLabel>Part Name</FormLabel>
-										<FormInput
-											type='text'
-											placeholder='Part Name'
-											value={partFormData.name}
-											disabled={!canAccessParts}
-											onChange={(e) =>
-												setPartFormData({ ...partFormData, name: e.target.value })
-											}
-										/>
-									</FormField>
-									<FormField>
-										<FormLabel>Category</FormLabel>
-										<FormSelect
-											value={partFormData.category}
-											disabled={!canAccessParts}
-											onChange={(e) =>
-												setPartFormData({ ...partFormData, category: e.target.value })
-											}>
-											{DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.map((option) => (
-												<option key={option.value} value={option.value}>
-													{option.label}
-												</option>
-											))}
-										</FormSelect>
-									</FormField>
-
-									<ButtonGroup>
-										{editingPartIndex !== null ? (
-											<>
-												<SubmitButton onClick={handleUpdatePart} disabled={!canAccessParts}>Update</SubmitButton>
-												<CancelButton onClick={handleCancelEdit} disabled={!canAccessParts}>Cancel</CancelButton>
-											</>
-										) : (
-											<SubmitButton onClick={handleAddPart} disabled={!canAccessParts}>Add Part</SubmitButton>
-										)}
-									</ButtonGroup>
-								</FormRow>
-
-								<DynamicFieldsGrid>
-									{activePartFields.map((field) => (
-										<FormField key={String(field.key)}>
-											<FormLabel>{field.label}</FormLabel>
-											<FormInput
-												type={field.type || 'text'}
-												placeholder={field.placeholder}
-												value={String(partFormData[field.key] || '')}
-												disabled={!canAccessParts}
-												onChange={(e) =>
-													setPartFormData({
-														...partFormData,
-														[field.key]: e.target.value,
-													})
-												}
-											/>
-										</FormField>
-									))}
-								</DynamicFieldsGrid>
-
-								<FormField>
-									<FormLabel>Additional Notes</FormLabel>
-									<FormTextarea
-										placeholder='Any relevant details for this part, such as installation tips or preferred vendor.'
-										value={partFormData.notes || ''}
-										disabled={!canAccessParts}
-										onChange={(e) =>
-											setPartFormData({ ...partFormData, notes: e.target.value })
-										}
-									/>
-								</FormField>
-							</PartsForm> */}
-
-							{/* Parts Table */}
-							{serviceParts.length > 0 ? (
-								isMobile ? (
-									<MobileCardStack>
-										{serviceParts.map((part: DeviceServiceItem, index: number) => (
-											<MobileDetailCard key={`${part.id}-${index}`}>
-												<MobileDetailHeader>
-													<MobileDetailTitle>{part.name}</MobileDetailTitle>
-													<span style={{ display: 'inline-flex', padding: '4px 8px', backgroundColor: COLORS.successLight, color: COLORS.successDark, borderRadius: '999px', fontSize: '12px', fontWeight: 700 }}>
-														{getServiceItemCategoryLabel(part.category)}
-													</span>
-												</MobileDetailHeader>
-												<MobileDetailMeta>
-													{getServiceItemDetails(part).length > 0 ? (
-														<ServiceItemDetailsList>
-															{getServiceItemDetails(part).map((detail) => (
-																<ServiceItemDetail key={`${part.id}-${detail.label}`}>
-																	<strong>{detail.label}:</strong> {detail.value}
-																</ServiceItemDetail>
-															))}
-														</ServiceItemDetailsList>
-													) : (
-														<div>No part details recorded yet.</div>
-													)}
-												</MobileDetailMeta>
-												{canAccessParts && (
-													<ButtonGroup>
-														<ActionButton onClick={() => handleEditPart(index)}>
-															<FontAwesomeIcon icon={faEdit} />
-															Edit
-														</ActionButton>
-														<ActionButton className='delete' onClick={() => handleDeletePart(index)}>
-															<FontAwesomeIcon icon={faTrash} />
-															Delete
-														</ActionButton>
-													</ButtonGroup>
-												)}
-											</MobileDetailCard>
-										))}
-									</MobileCardStack>
-								) : (
-									<PartsTable>
-										<thead>
-											<tr>
-												<th>Name</th>
-												<th>Type</th>
-												<th>Key Details</th>
-												<th>Replacement</th>
-												<th>Notes</th>
-												<th style={{ width: '150px' }}>Actions</th>
-											</tr>
-										</thead>
-										<tbody>
-											{serviceParts.map((part: DeviceServiceItem, index: number) => (
-												<tr key={`${part.id}-${index}`}>
-													<td style={{ fontWeight: 500 }}>{part.name}</td>
-													<td>
-														<span
-															style={{
-																display: 'inline-block',
-																padding: '4px 8px',
-																backgroundColor: COLORS.successLight,
-																color: COLORS.successDark,
-																borderRadius: '4px',
-																fontSize: '12px',
-																fontWeight: 500,
-															}}>
-															{getServiceItemCategoryLabel(part.category)}
-														</span>
-													</td>
-													<td>{getServiceItemKeyDetails(part)}</td>
-													<td>{part.replacementInterval || 'Not recorded'}</td>
-													<td>{part.notes || part.details || 'Not recorded'}</td>
-													<td>
-														<ActionButton onClick={() => handleEditPart(index)} disabled={!canAccessParts}>
-															<FontAwesomeIcon icon={faEdit} />
-															Edit
-														</ActionButton>
-														<ActionButton
-															className='delete'
-															disabled={!canAccessParts}
-															onClick={() => handleDeletePart(index)}>
-															<FontAwesomeIcon icon={faTrash} />
-															Delete
-														</ActionButton>
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</PartsTable>
-								)
-							) : (
-								<EmptyState>
-									<p>No parts or filters added yet. Add filter sizes, part numbers, or replacement notes when they are useful.</p>
-								</EmptyState>
-							)}
-						</SectionContainer>
-					</TabContent>
-				)}
 
 				<TaskModal
 					isOpen={showTaskModal}
@@ -2983,88 +2572,6 @@ export const DeviceDetailPage: React.FC = () => {
 					</PartsForm>
 				</GenericModal>
 
-				{partFormData && (
-					<GenericModal
-						isOpen={showPartModal}
-						onClose={() => {
-							setShowPartModal(false);
-							resetPartForm();
-							setEditingPartIndex(null);
-						}}
-						onSubmit={async () => {
-							if (!device || !partFormData.name.trim()) return;
-							if (editingPartIndex !== null) {
-								await handleUpdatePart();
-							} else {
-								await handleAddPart();
-							}
-							setShowPartModal(false);
-						}}
-						title={editingPartIndex !== null ? 'Edit Part' : 'Add Part'}
-						showActions={true}
-						primaryButtonLabel={editingPartIndex !== null ? 'Update Part' : 'Add Part'}
-						primaryButtonDisabled={!partFormData.name.trim()}
-						secondaryButtonLabel='Cancel'
-					>
-						<PartsForm>
-							<FormRow>
-								<FormField>
-									<FormLabel>Part Name</FormLabel>
-									<FormInput
-										type='text'
-										placeholder='Part Name'
-										value={partFormData.name}
-										onChange={(e) =>
-											setPartFormData({ ...partFormData, name: e.target.value })
-										}
-									/>
-								</FormField>
-								<FormField>
-									<FormLabel>Category</FormLabel>
-									<FormSelect
-										value={partFormData.category}
-										onChange={(e) =>
-											setPartFormData({ ...partFormData, category: e.target.value })
-										}>
-										{DEVICE_SERVICE_ITEM_CATEGORY_OPTIONS.map((option) => (
-											<option key={option.value} value={option.value}>
-												{option.label}
-											</option>
-										))}
-									</FormSelect>
-								</FormField>
-							</FormRow>
-							<DynamicFieldsGrid>
-								{activePartFields.map((field) => (
-									<FormField key={String(field.key)}>
-										<FormLabel>{field.label}</FormLabel>
-										<FormInput
-											type={field.type || 'text'}
-											placeholder={field.placeholder}
-											value={String(partFormData[field.key] || '')}
-											onChange={(e) =>
-												setPartFormData({
-													...partFormData,
-													[field.key]: e.target.value,
-												})
-											}
-										/>
-									</FormField>
-								))}
-							</DynamicFieldsGrid>
-							<FormField>
-								<FormLabel>Additional Notes</FormLabel>
-								<FormTextarea
-									placeholder='Any relevant details for this part, such as installation tips or preferred vendor.'
-									value={partFormData.notes || ''}
-									onChange={(e) =>
-										setPartFormData({ ...partFormData, notes: e.target.value })
-									}
-								/>
-							</FormField>
-						</PartsForm>
-					</GenericModal>
-				)}
 
 				{device && property && (
 					<DeviceModal
@@ -3109,14 +2616,7 @@ export const DeviceDetailPage: React.FC = () => {
 				onClose={() => setIsDeviceScanOpen(false)}
 				onDetected={handleDeviceBarcodeDetected}
 			/>
-			<BarcodeScannerModal
-				isOpen={isPartScanOpen}
-				title='Part Capture Assistant'
-				defaultMethod='barcode'
-				captureIntent='part'
-				onClose={() => setIsPartScanOpen(false)}
-				onDetected={handlePartBarcodeDetected}
-			/>
+
 		</DetailPageLayout>
 	);
 };

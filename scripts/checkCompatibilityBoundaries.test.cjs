@@ -50,6 +50,30 @@ test('rejects new direct legacy maintenance collection reads', () => {
 	assert.equal(failures.length, 1);
 });
 
+test('rejects new embedded Supply writes while allowing compatibility reads', () => {
+	assert.equal(
+		scanCompatibilityBoundaries(
+			'const legacyItems = device.serviceItems || [];',
+			'src/pages/example.tsx',
+		).length,
+		0,
+	);
+	assert.equal(
+		scanCompatibilityBoundaries(
+			'const updates = { serviceItems: nextItems };',
+			'src/pages/example.tsx',
+		).length,
+		1,
+	);
+	assert.equal(
+		scanCompatibilityBoundaries(
+			"emitChange('serviceItems', nextItems);",
+			'src/pages/example.tsx',
+		).length,
+		1,
+	);
+});
+
 test('primary data slices resolve account and property scope through the shared context', () => {
 	for (const relativePath of [
 		'src/Redux/API/propertySlice.tsx',

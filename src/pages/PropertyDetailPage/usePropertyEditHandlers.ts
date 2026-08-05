@@ -13,7 +13,6 @@ export const usePropertyEditHandlers = (): PropertyEditHandlers => {
 		brand: '',
 		model: '',
 		serialNumber: '',
-		serviceItems: [],
 		installationDate: '',
 		decommissionDate: '',
 		status: 'Active',

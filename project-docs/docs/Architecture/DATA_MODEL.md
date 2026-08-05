@@ -181,6 +181,12 @@ Core collections include:
 
 Additional collections may exist for operational, billing, invitation, and compatibility purposes.
 
+`accountDeletionJobs/{userId}` is a server-only operational recovery record for
+self-service deletion. It stores only deletion state, account and Property IDs,
+and aggregate operation counts needed to resume a partially completed cleanup.
+It is removed after managed Firestore and Storage verification and Firebase Auth
+deletion succeed.
+
 ---
 
 # Account Model
@@ -447,8 +453,10 @@ display ordering without making ordering part of ownership. `isArchived`
 allows a future linked Space to remain available after removal from ordinary
 views.
 
-Residential Property creation may create reviewed generated Spaces for each
-Bedroom, full Bathroom, and Half Bathroom. Setup may create or reuse Kitchen,
+Residential Property creation and later profile edits may create reviewed,
+repeat-safe generated Spaces for each Bedroom, full Bathroom, and Half
+Bathroom. Every save checks current active and archived Spaces before creating
+missing records. Setup may create or reuse Kitchen,
 Bathroom, Laundry Room, Garage, and Exterior Spaces before connecting accepted
 Equipment and Tasks. Generation is idempotent: `generationKey` is checked
 first, followed by an active normalized name-and-type match. Archived matches
@@ -689,6 +697,13 @@ Optional fields may include:
 * photoUrl
 
 Device records should contain descriptive information about the asset itself.
+
+Older Equipment records may contain embedded `serviceItems`. These entries are
+read-only compatibility data. Current Equipment forms do not carry or write
+the field; new and edited Supply knowledge belongs in `propertySupplies` and
+connects to Equipment through canonical `uses` relationships. Compatibility
+readers remain until report-only inventory and migration evidence demonstrate
+parity.
 
 `type` remains the homeowner-facing display label stored on the device record.
 

@@ -101,7 +101,11 @@ location values remain stored during a conservative exact-match migration
 period rather than being discarded or guessed.
 
 New residential Properties preview numbered Bedroom, Bathroom, and Half
-Bathroom Spaces before saving. The Setup Assistant previews whether it will
+Bathroom Spaces before saving. Later Property Profile edits reconcile those
+same generated Spaces whenever bedroom or bathroom counts increase. Creation
+and edit flows fetch current active and archived Spaces first, reuse stable or
+matching records, and surface archived conflicts instead of duplicating them.
+The Setup Assistant previews whether it will
 create or reuse applicable Kitchen, Bathroom, Laundry Room, Garage, and
 Exterior Spaces before connecting accepted Equipment and Tasks. Reopening setup
 reuses the stable generated Space or an active matching manual Space instead of
@@ -146,6 +150,9 @@ Current capabilities:
 The assistant is intended to reduce onboarding effort while keeping setup optional and flexible.
 
 Initial onboarding is intended for account owners setting up their own account.
+Its first-Property dialog includes only Basics and Property Profile. Access and
+Sharing and the separate Review step remain outside onboarding, while bedroom
+and bathroom counts are captured early enough to create the initial Spaces.
 Linked family members and invited team members enter an existing account context
 and should not be forced through the onboarding flow.
 

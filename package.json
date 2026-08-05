@@ -149,6 +149,7 @@
 		"migrate:equipment-supplies": "node scripts/migrateEquipmentServiceItemsToSupplies.cjs",
 		"migrate:equipment-supplies:apply": "node scripts/migrateEquipmentServiceItemsToSupplies.cjs --apply",
 		"test:equipment-supply-migration": "node --test scripts/propertySupplyMigrationCore.test.cjs",
+		"inventory:compatibility": "node scripts/inventoryCompatibilityBoundaries.cjs",
 		"migrate:document-relationships": "node scripts/migratePropertyDocumentRelationships.cjs",
 		"migrate:document-relationships:apply": "node scripts/migratePropertyDocumentRelationships.cjs --apply",
 		"test:document-relationship-migration": "node --test scripts/propertyDocumentRelationshipMigrationCore.test.cjs",

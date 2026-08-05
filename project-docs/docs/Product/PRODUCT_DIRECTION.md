@@ -579,8 +579,11 @@ The Setup Assistant should not become a required onboarding checklist.
 
 Initial onboarding should introduce one outcome and one primary action. For a
 new account, the blocking flow is limited to a concise welcome and a
-first-property confirmation. Property creation remains responsible for its own
-fields, and the user chooses whether to continue into Setup Assistant afterward.
+first-property confirmation. The first-Property dialog includes only Basics
+and Property Profile so name, address, classification, bedroom count, and
+bathroom count can establish a useful record without introducing Access and
+Sharing or a separate Review step. The user chooses whether to continue into
+Setup Assistant afterward.
 
 Users with an existing property should not be sent through property-creation
 education again. Advanced feature education belongs in contextual empty states,

@@ -96,6 +96,8 @@ type SetupCompletionSummary = {
 	createdApplianceCount: number;
 	taskCount: number;
 	createdTaskCount: number;
+	spaceCount: number;
+	createdSpaceCount: number;
 };
 
 type SuggestedTaskCreateResult = {
@@ -1135,6 +1137,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				createdApplianceCount,
 				taskCount: linkedTaskIdSet.size,
 				createdTaskCount,
+				spaceCount: ensuredSpaces.created.length + ensuredSpaces.reused.length,
+				createdSpaceCount: ensuredSpaces.created.length,
 			});
 			setIsSaveComplete(true);
 		} catch (error) {
@@ -1612,12 +1616,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 										<strong>{completionSummary?.taskCount || 0}</strong>
 										<span>suggested tasks linked</span>
 									</ReviewStat>
+									<ReviewStat>
+										<strong>{completionSummary?.spaceCount || 0}</strong>
+										<span>Spaces organized</span>
+									</ReviewStat>
 								</ReviewStats>
 								<ReviewMeta>
 									{completionSummary?.createdApplianceCount || 0} new equipment record
 									{(completionSummary?.createdApplianceCount || 0) === 1 ? '' : 's'} and{' '}
 									{completionSummary?.createdTaskCount || 0} new task
-									{(completionSummary?.createdTaskCount || 0) === 1 ? '' : 's'} created.
+									{(completionSummary?.createdTaskCount || 0) === 1 ? '' : 's'}, plus{' '}
+									{completionSummary?.createdSpaceCount || 0} new Space
+									{(completionSummary?.createdSpaceCount || 0) === 1 ? '' : 's'} created.
 								</ReviewMeta>
 								{completionSummary?.applianceLabels?.length ? (
 									<ReviewList>
