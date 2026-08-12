@@ -227,6 +227,36 @@ const getReleasePrepVersionFromSubject = (subject) => {
 	return match ? match[1] : '';
 };
 
+const resolveReleasePrepContext = ({
+	packageVersion,
+	targetReleasePrepVersion,
+	ancestorReleasePrepVersion,
+	overallBump,
+	postPrepBump,
+	forcedBump,
+}) => {
+	const ancestorMatchesPackage = Boolean(
+		ancestorReleasePrepVersion &&
+			compareVersions(ancestorReleasePrepVersion, packageVersion) === 0,
+	);
+	const effectiveTargetReleasePrepVersion =
+		targetReleasePrepVersion ||
+		(ancestorMatchesPackage && postPrepBump === 'none'
+			? ancestorReleasePrepVersion
+			: '');
+	const selectedBump =
+		forcedBump ||
+		(ancestorMatchesPackage && postPrepBump !== 'none'
+			? postPrepBump
+			: overallBump) ||
+		'patch';
+
+	return {
+		effectiveTargetReleasePrepVersion,
+		selectedBump,
+	};
+};
+
 const getMergedReleaseVersionFromSubject = (subject) => {
 	const match = String(subject || '')
 		.trim()
@@ -351,6 +381,26 @@ const getCommitRows = (fromRef, toRef) => {
 			};
 		})
 		.filter((commit) => !isReleaseCommit(commit.subject));
+};
+
+const getLatestMatchingReleasePrep = (fromRef, toRef, packageVersion) => {
+	const range = fromRef ? `${fromRef}..${toRef}` : toRef;
+	const output = tryRun('git', [
+		'log',
+		range,
+		'--first-parent',
+		'--pretty=format:%H%x1f%s',
+	]);
+
+	for (const row of output.split(/\r?\n/).filter(Boolean)) {
+		const [sha, subject] = row.split('\x1f');
+		const version = getReleasePrepVersionFromSubject(subject);
+		if (version && compareVersions(version, packageVersion) === 0) {
+			return { sha, version };
+		}
+	}
+
+	return null;
 };
 
 const getCommitFilesByRange = (range) => {
@@ -1017,10 +1067,31 @@ const main = () => {
 
 	const { entries, warnings } = buildEntries(commits);
 	const inferredBump = inferOverallBump(entries);
-	const selectedBump = options.bump || inferredBump || 'patch';
 	const previousVersion = rangeStartVersion;
 	const targetSubject = tryRun('git', ['log', '-1', '--format=%s', targetRef]);
 	const targetReleasePrepVersion = getReleasePrepVersionFromSubject(targetSubject);
+	const matchingReleasePrep = getLatestMatchingReleasePrep(
+		rangeStartRef,
+		targetRef,
+		packageVersion,
+	);
+	const postPrepEntries = matchingReleasePrep
+		? buildEntries(getCommitRows(matchingReleasePrep.sha, targetRef)).entries
+		: [];
+	const postPrepBump = matchingReleasePrep
+		? inferOverallBump(postPrepEntries)
+		: 'none';
+	const {
+		effectiveTargetReleasePrepVersion,
+		selectedBump,
+	} = resolveReleasePrepContext({
+		packageVersion,
+		targetReleasePrepVersion,
+		ancestorReleasePrepVersion: matchingReleasePrep?.version || '',
+		overallBump: inferredBump,
+		postPrepBump,
+		forcedBump: options.bump,
+	});
 	const {
 		expectedVersionFromPackageVersion,
 		expectedVersionFromPreviousTag,
@@ -1033,7 +1104,7 @@ const main = () => {
 		previousVersion,
 		selectedBump,
 		hasEntries: entries.length > 0,
-		targetReleasePrepVersion,
+		targetReleasePrepVersion: effectiveTargetReleasePrepVersion,
 	});
 	const version =
 		options.version || selectedAutomaticVersion;
@@ -1071,7 +1142,7 @@ const main = () => {
 		expectedVersionFromPreviousTag,
 		expectedVersionFromPackageVersion,
 		shouldBumpPreparedPackageVersion,
-		targetReleasePrepVersion: targetReleasePrepVersion || null,
+		targetReleasePrepVersion: effectiveTargetReleasePrepVersion || null,
 		targetIsMatchingReleasePrep,
 		bump: selectedBump,
 		inferredBump,
@@ -1138,6 +1209,7 @@ module.exports = {
 	inferBump,
 	inferCustomerCategory,
 	parseConventionalTitle,
+	resolveReleasePrepContext,
 	selectMergedReleaseBoundary,
 	selectAutomaticReleaseVersion,
 };

@@ -8,6 +8,7 @@ const {
 	getReleasePrepVersionFromSubject,
 	inferBump,
 	inferCustomerCategory,
+	resolveReleasePrepContext,
 	selectMergedReleaseBoundary,
 	selectAutomaticReleaseVersion,
 } = require('./generateReleaseNotes.cjs');
@@ -89,6 +90,40 @@ test('bumps from the prepared version after another product change lands', () =>
 	assert.equal(result.selectedAutomaticVersion, '2.8.3');
 	assert.equal(result.targetIsMatchingReleasePrep, false);
 	assert.equal(result.shouldBumpPreparedPackageVersion, true);
+});
+
+test('keeps a prepared version after internal release stabilization', () => {
+	assert.deepEqual(
+		resolveReleasePrepContext({
+			packageVersion: '2.14.0',
+			targetReleasePrepVersion: '',
+			ancestorReleasePrepVersion: '2.14.0',
+			overallBump: 'minor',
+			postPrepBump: 'none',
+			forcedBump: '',
+		}),
+		{
+			effectiveTargetReleasePrepVersion: '2.14.0',
+			selectedBump: 'minor',
+		},
+	);
+});
+
+test('uses only the later product impact after a prepared version', () => {
+	assert.deepEqual(
+		resolveReleasePrepContext({
+			packageVersion: '2.14.0',
+			targetReleasePrepVersion: '',
+			ancestorReleasePrepVersion: '2.14.0',
+			overallBump: 'minor',
+			postPrepBump: 'patch',
+			forcedBump: '',
+		}),
+		{
+			effectiveTargetReleasePrepVersion: '',
+			selectedBump: 'patch',
+		},
+	);
 });
 
 test('does not lock the package version to a mismatched release subject', () => {

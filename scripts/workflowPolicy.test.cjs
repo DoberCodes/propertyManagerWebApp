@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const {
 	validateActionReferences,
@@ -7,6 +9,22 @@ const {
 
 test('GitHub Actions workflows satisfy the repository policy', () => {
 	assert.deepEqual(validateWorkflowPolicy(), []);
+});
+
+test('release pull requests compile outside the production deployment environment', () => {
+	const workflow = fs.readFileSync(
+		path.resolve(__dirname, '..', '.github', 'workflows', 'build-check.yml'),
+		'utf8',
+	);
+
+	assert.match(
+		workflow,
+		/github\.head_ref == 'release\/next' &&\s*'release-validation'/,
+	);
+	assert.match(
+		workflow,
+		/github\.event_name == 'workflow_dispatch' &&\s*github\.ref_name == 'release\/next' &&\s*'production'/,
+	);
 });
 
 test('rejects mutable or undocumented external Action references', () => {

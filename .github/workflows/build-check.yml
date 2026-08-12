@@ -152,7 +152,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ github.event_name == 'pull_request' && github.base_ref == 'beta' && 'development' || 'production' }}
+    environment: >-
+      ${{
+        github.event_name == 'pull_request' &&
+        github.base_ref == 'main' &&
+        github.head_ref == 'release/next' &&
+        'release-validation' ||
+        github.event_name == 'workflow_dispatch' &&
+        github.ref_name == 'release/next' &&
+        'production' ||
+        'development'
+      }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

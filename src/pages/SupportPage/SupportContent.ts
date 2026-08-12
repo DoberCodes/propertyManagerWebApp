@@ -53,23 +53,51 @@ export const bugReportChecklist = [
 
 export const recentMaintleyUpdates = [
 	{
-		version: '2.12.0', date: 'July 26, 2026', type: 'Feature', title: 'Complimentary access codes',
-		description: 'Eligible access codes can now be reviewed and activated during registration or later from Billing & Subscription. Maintley shows the access level, duration, and what happens afterward before activation.',
+		version: '2.14.0',
+		date: 'August 12, 2026',
+		type: 'Feature',
+		title: 'A more connected property record',
+		description:
+			'Organize Spaces such as bedrooms, garages, lawns, and utility areas; keep filters, paint, parts, and other Supplies with the property; and connect Equipment, Tasks, Documents, Spaces, and Supplies without creating duplicate records. Property setup can also prepare common Spaces from the home profile and accepted equipment details.',
 	},
 	{
-		version: '2.11.0', date: 'July 25, 2026', type: 'Feature', title: 'Homeowner+ after your first property',
-		description: 'Eligible new Free accounts now receive 30 days of Homeowner+ after creating their first property. No payment method is required, and continuing with a paid plan is optional.',
+		version: '2.12.0',
+		date: 'July 26, 2026',
+		type: 'Feature',
+		title: 'Complimentary access codes',
+		description:
+			'Eligible access codes can now be reviewed and activated during registration or later from Billing & Subscription. Maintley shows the access level, duration, and what happens afterward before activation.',
 	},
 	{
-		version: '2.10.0', date: 'July 25, 2026', type: 'Billing update', title: 'Clearer upgrades from complimentary access',
-		description: 'When you choose a paid plan while using complimentary access, checkout now explains whether billing begins immediately or after your complimentary period. A paid subscription is created only when you intentionally continue through Stripe Checkout.',
+		version: '2.11.0',
+		date: 'July 25, 2026',
+		type: 'Feature',
+		title: 'Homeowner+ after your first property',
+		description:
+			'Eligible new Free accounts now receive 30 days of Homeowner+ after creating their first property. No payment method is required, and continuing with a paid plan is optional.',
 	},
 	{
-		version: '2.9.0', date: 'July 25, 2026', type: 'Reliability update', title: 'Granted access stays with you',
-		description: 'Features supplied through a Maintley access grant now remain available as you move between pages and return to Today.',
+		version: '2.10.0',
+		date: 'July 25, 2026',
+		type: 'Billing update',
+		title: 'Clearer upgrades from complimentary access',
+		description:
+			'When you choose a paid plan while using complimentary access, checkout now explains whether billing begins immediately or after your complimentary period. A paid subscription is created only when you intentionally continue through Stripe Checkout.',
 	},
 	{
-		version: '2.8.3', date: 'July 23, 2026', type: 'Experience update', title: 'A smoother path through checkout',
-		description: 'Registration, checkout, and onboarding now happen in a clearer order. Interrupted checkout can be resumed, while customers who decide not to continue can enter Maintley on the Free plan.',
+		version: '2.9.0',
+		date: 'July 25, 2026',
+		type: 'Reliability update',
+		title: 'Granted access stays with you',
+		description:
+			'Features supplied through a Maintley access grant now remain available as you move between pages and return to Today.',
+	},
+	{
+		version: '2.8.3',
+		date: 'July 23, 2026',
+		type: 'Experience update',
+		title: 'A smoother path through checkout',
+		description:
+			'Registration, checkout, and onboarding now happen in a clearer order. Interrupted checkout can be resumed, while customers who decide not to continue can enter Maintley on the Free plan.',
 	},
 ];
