@@ -303,6 +303,17 @@ publishable Stripe configuration also live there as `PROD_REACT_APP_*`
 variables. Retired plan identifiers must be removed rather than retained as
 fallback configuration.
 
+The GitHub `release-validation` environment mirrors only the declared
+`PROD_REACT_APP_*` browser variables from `.env.prod`. It allows the
+`release/next` pull request to compile the production frontend without granting
+access to the protected `production` environment, deployment identity,
+Functions configuration, or secrets. Synchronize it with:
+
+```bash
+yarn github-env:sync --environment release-validation
+yarn github-env:sync --environment release-validation --apply
+```
+
 ## GitHub Actions rollout variables
 
 Rollout flags and non-sensitive rollout dates belong in:

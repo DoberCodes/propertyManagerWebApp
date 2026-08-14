@@ -1362,6 +1362,7 @@ yarn env:validate
 yarn env:functions:sanitize
 yarn github-env:sync --environment development
 yarn github-env:sync --environment production
+yarn github-env:sync --environment release-validation
 ```
 
 `.env.example` is the only committed variable manifest. The ignored root `.env`
@@ -1376,6 +1377,11 @@ bootstrapper also audits project-specific non-secret Functions configuration. Th
 GitHub sync command uploads only declared non-secret variables and is dry-run by
 default. Firebase secret values remain in the target project's Secret Manager
 and are never copied into GitHub variables or generated dotenv files.
+
+`release-validation` reads `.env.prod` but uploads only declared browser
+variables. It intentionally excludes Functions configuration and secrets so a
+release pull request can validate the production frontend without crossing the
+production deployment boundary.
 
 `yarn env:functions:sanitize` removes declared Firebase Secret Manager
 assignments from ignored `functions/.env*` files without displaying their

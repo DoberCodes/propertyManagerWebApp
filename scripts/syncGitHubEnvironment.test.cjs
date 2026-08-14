@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
 	buildDesiredVariables,
 	buildPlan,
+	environmentConfigs,
 	findFirebaseSecrets,
 	parseArgs,
 	parseDotenv,
@@ -85,6 +86,17 @@ test('maps browser and non-secret Functions variables with an environment prefix
 		DEV_STRIPE_HOMEOWNER_PLUS_MONTHLY_PRICE_ID: 'price_test',
 	});
 	assert.deepEqual(findFirebaseSecrets(functionValues, manifest), ['STRIPE_SECRET_KEY']);
+});
+
+test('release validation reuses production browser values without Functions configuration', () => {
+	assert.deepEqual(environmentConfigs['release-validation'], {
+		githubEnvironment: 'release-validation',
+		destinationPrefix: 'PROD_',
+		defaultReactFile: '.env.prod',
+		defaultFunctionsFile: '',
+		firebaseProjectId: 'mypropertymanager-cda42',
+		stripePublishablePrefix: 'pk_live_',
+	});
 });
 
 test('rejects cross-environment Firebase and Stripe values', () => {
