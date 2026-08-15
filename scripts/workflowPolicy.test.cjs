@@ -11,7 +11,7 @@ test('GitHub Actions workflows satisfy the repository policy', () => {
 	assert.deepEqual(validateWorkflowPolicy(), []);
 });
 
-test('release pull requests compile outside the production deployment environment', () => {
+test('Main validation selects build environments without crossing deployment boundaries', () => {
 	const workflow = fs.readFileSync(
 		path.resolve(__dirname, '..', '.github', 'workflows', 'build-check.yml'),
 		'utf8',
@@ -19,11 +19,15 @@ test('release pull requests compile outside the production deployment environmen
 
 	assert.match(
 		workflow,
-		/github\.head_ref == 'release\/next' &&\s*'release-validation'/,
+		/github\.event_name == 'pull_request' &&\s*github\.base_ref == 'main' &&\s*'release-validation'/,
 	);
 	assert.match(
 		workflow,
-		/github\.event_name == 'workflow_dispatch' &&\s*github\.ref_name == 'release\/next' &&\s*'production'/,
+		/github\.event_name == 'push' &&\s*github\.ref_name == 'main' &&\s*'production'/,
+	);
+	assert.match(
+		workflow,
+		/github\.event_name == 'workflow_dispatch' &&\s*\(github\.ref_name == 'main' \|\| github\.ref_name == 'release\/next'\) &&\s*'production'/,
 	);
 });
 

@@ -304,10 +304,12 @@ variables. Retired plan identifiers must be removed rather than retained as
 fallback configuration.
 
 The GitHub `release-validation` environment mirrors only the declared
-`PROD_REACT_APP_*` browser variables from `.env.prod`. It allows the
-`release/next` pull request to compile the production frontend without granting
-access to the protected `production` environment, deployment identity,
-Functions configuration, or secrets. Synchronize it with:
+`PROD_REACT_APP_*` browser variables from `.env.prod`. It allows pull requests
+targeting Main to compile the production frontend without granting access to
+the protected `production` environment, deployment identity, Functions
+configuration, or secrets. Main push builds use `production` so the released
+commit reports the required production `build` status before Beta alignment.
+Synchronize the browser-only validation environment with:
 
 ```bash
 yarn github-env:sync --environment release-validation

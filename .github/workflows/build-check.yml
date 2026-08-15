@@ -156,10 +156,12 @@ jobs:
       ${{
         github.event_name == 'pull_request' &&
         github.base_ref == 'main' &&
-        github.head_ref == 'release/next' &&
         'release-validation' ||
+        github.event_name == 'push' &&
+        github.ref_name == 'main' &&
+        'production' ||
         github.event_name == 'workflow_dispatch' &&
-        github.ref_name == 'release/next' &&
+        (github.ref_name == 'main' || github.ref_name == 'release/next') &&
         'production' ||
         'development'
       }}

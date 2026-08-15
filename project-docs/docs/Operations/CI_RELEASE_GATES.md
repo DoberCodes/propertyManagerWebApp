@@ -53,12 +53,13 @@ The release candidate continues to receive full Build Check coverage. It is not
 assumed safe merely because its visible diff contains version files: the branch
 promotes the entire accumulated Beta release.
 
-The pull-request build uses the `release-validation` GitHub environment. That
-environment contains only the browser-safe `PROD_REACT_APP_*` variables needed
-to compile the production frontend. It does not contain deployment identity,
-backend configuration, or secrets. A manually dispatched release-candidate
-build may use the protected `production` environment, while actual production
-deployment remains restricted to the validated release merge on Main.
+Pull requests targeting Main use the `release-validation` GitHub environment.
+That environment contains only the browser-safe `PROD_REACT_APP_*` variables
+needed to compile the production frontend. It does not contain deployment
+identity, backend configuration, or secrets. Main push builds and manually
+dispatched Main or release-candidate builds use the protected `production`
+environment. Actual production deployment remains restricted to the validated
+release merge on Main.
 
 Internal `ci`, `docs`, `chore`, `test`, `build`, or `refactor` stabilization
 commits may follow a matching release-preparation commit without advancing the
