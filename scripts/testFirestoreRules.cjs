@@ -105,6 +105,11 @@ const createPropertySupply = (overrides = {}) => ({
 	type: 'filter',
 	manufacturer: 'Example Filters',
 	modelOrSku: 'EF-16251',
+	barcodeValue: '012345678905',
+	partNumber: 'EF-16251',
+	size: '16 x 25 x 1',
+	mervRating: '11',
+	replacementInterval: 'Every 3 months',
 	notes: 'MERV 11',
 	isArchived: false,
 	source: 'manual',
@@ -1173,6 +1178,47 @@ async function run() {
 				}),
 			),
 		);
+		await assertSucceeds(
+			ownerDb.doc('propertySpaces/property-1__bedroom_1').set(
+				createPropertySpace({
+					name: 'Bedroom 1',
+					type: 'interior',
+					generationKey: 'bedroom:1',
+					source: 'property_profile',
+				}),
+			),
+		);
+		await assertSucceeds(
+			ownerDb.doc('propertySpaces/property-1__setup_kitchen').set(
+				createPropertySpace({
+					name: 'Kitchen',
+					generationKey: 'setup:kitchen',
+					source: 'setup_assistant',
+				}),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-invalid-generation').set(
+				createPropertySpace({ generationKey: '', source: 'property_profile' }),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-generated-without-key').set(
+				createPropertySpace({ source: 'setup_assistant' }),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/space-manual-with-key').set(
+				createPropertySpace({ generationKey: 'setup:kitchen', source: 'manual' }),
+			),
+		);
+		await assertFails(
+			ownerDb.doc('propertySpaces/property-1__bedroom_1').update({
+				generationKey: 'bedroom:2',
+				updatedBy: ownerUid,
+				updatedAt: '2026-07-01T12:30:00.000Z',
+			}),
+		);
 		await assertFails(
 			maintenanceLeadDb.doc('propertySpaces/space-lead-created').set(
 				createPropertySpace({
@@ -1269,6 +1315,11 @@ async function run() {
 				.doc('propertySupplies/supply-invalid-type')
 				.set(createPropertySupply({ type: 'inventory' })),
 		);
+		await assertFails(
+			ownerDb.doc('propertySupplies/supply-invalid-barcode').set(
+				createPropertySupply({ barcodeValue: 'x'.repeat(513) }),
+			),
+		);
 		await assertSucceeds(
 			ownerDb.doc('propertySupplies/supply-owned').update({
 				modelOrSku: 'EF-16251-NEW',
@@ -1355,6 +1406,14 @@ async function run() {
 			),
 		);
 		await assertSucceeds(
+			propertyManagerDb.doc('propertyDocuments/property-document-manager').set(
+				createPropertyDocument({
+					id: 'property-document-manager',
+					name: 'Manager upload',
+				}),
+			),
+		);
+		await assertSucceeds(
 			legacyOwnerDb
 				.doc('propertyDocuments/property-document-legacy-created')
 				.set(
@@ -1384,16 +1443,39 @@ async function run() {
 					}),
 				),
 		);
+		await assertFails(
+			ownerDb.doc('propertyDocuments/property-document-account-mismatch').set(
+				createPropertyDocument({
+					id: 'property-document-account-mismatch',
+					accountId: outsiderUid,
+					name: 'Cross-account upload attempt',
+				}),
+			),
+		);
 		await assertSucceeds(
 			ownerDb.doc('propertyDocuments/property-document-owned').update({
 				acquisitionStatus: 'reviewed',
 				updatedAt: '2026-07-01T13:00:00.000Z',
 			}),
 		);
+		await assertSucceeds(
+			propertyManagerDb
+				.doc('propertyDocuments/property-document-manager')
+				.update({
+					name: 'Manager-renamed upload',
+					updatedAt: '2026-07-01T13:10:00.000Z',
+				}),
+		);
 		await assertFails(
 			ownerDb.doc('propertyDocuments/property-document-owned').update({
 				accountId: outsiderUid,
 				updatedAt: '2026-07-01T13:30:00.000Z',
+			}),
+		);
+		await assertFails(
+			ownerDb.doc('propertyDocuments/property-document-owned').update({
+				propertyId: 'another-property',
+				updatedAt: '2026-07-01T13:35:00.000Z',
 			}),
 		);
 		await assertFails(
@@ -1403,6 +1485,11 @@ async function run() {
 		);
 		await assertSucceeds(
 			ownerDb.doc('propertyDocuments/property-document-created').delete(),
+		);
+		await assertSucceeds(
+			propertyManagerDb
+				.doc('propertyDocuments/property-document-manager')
+				.delete(),
 		);
 
 		await assertSucceeds(

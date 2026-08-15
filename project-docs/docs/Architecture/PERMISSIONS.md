@@ -363,6 +363,24 @@ Maintenance History Access
 
 Property assignment should reduce visibility before restricting actions whenever possible.
 
+Client data slices resolve account and property assignment through:
+
+```text
+src/Redux/API/accountContext.ts
+```
+
+`resolveAccountAccessContext` is the shared normalization boundary for account
+IDs, the effective account, team-member scope, assigned property IDs, and role
+capabilities. Property, Task, Equipment, Contractor, Unit, and Maintenance
+queries use this context instead of independently resolving team membership.
+Firestore and Storage Rules remain authoritative; the client context prevents
+inconsistent visibility and unnecessary unauthorized queries.
+
+Legacy account-link fallbacks remain inside the shared resolver until migration
+inventory and parity validation show they can be removed safely. New data
+slices must not call the lower-level accessible-account helper directly or
+recreate team-member lookup logic.
+
 ---
 
 # UI Roles
@@ -692,6 +710,31 @@ Supply for account managers. The callable validates the Property, Supply, and
 every selected endpoint against the same account and property and rejects new
 links to archived Supplies or Spaces.
 
+Trusted Document relationship writes support Document `documents` Equipment,
+Space, Task, or Supply for account managers. The callable validates the
+first-class or compatible embedded Document and every selected endpoint against
+the same account and Property. Existing archived Space or Supply connections
+may be preserved during editing, but new connections to archived records are
+rejected. Direct client writes remain denied.
+
+---
+
+## propertyDocuments
+
+Read:
+
+* Account readers through an account- and property-scoped query
+
+Create, update, delete:
+
+* Account managers
+
+Rules validate that the referenced Property belongs to the same account and
+keep `accountId` and `propertyId` immutable after creation. Property Manager and
+Assistant Manager roles use the same Property Knowledge capability exposed by
+the Document UI. Relationship records remain function-owned even when the user
+may edit Document metadata.
+
 ---
 
 ## propertySupplies
@@ -712,6 +755,11 @@ Rules validate the Supply field contract, immutable ownership and creation
 fields, and the referenced Property account. The removal callable deletes an
 unreferenced Supply and archives a referenced Supply. Direct client deletion is
 denied.
+
+Supply access is not a premium-plan boundary. Every active plan may use the
+Property Supplies page and barcode capture. Account role capabilities determine
+whether the signed-in user may change records or connections; account readers
+retain visibility.
 
 ---
 
@@ -1091,6 +1139,25 @@ Typical protected workflows include:
 * Subscription management
 
 These workflows should never rely solely on client-side authorization.
+
+After the trusted account-deletion workflow succeeds, the client treats the
+account as deleted even if its final Firebase sign-out request fails. Maintley
+clears account-scoped client state, ends the local authenticated session, and
+resolves authentication loading before routing away. Web users return to the
+public landing page with a deletion confirmation. Native users continue through
+the existing root-route welcome and sign-in experience.
+
+The callable builds a deletion manifest before mutation, commits Firestore
+writes in batches below the platform limit, and deletes documented user-,
+account-, and Property-scoped Storage prefixes. It verifies that every managed
+Firestore target and Storage prefix is clear before deleting the Firebase Auth
+user. A verification failure preserves the Auth record and reports failure for
+support follow-up; partial Firestore or Storage cleanup is never presented as a
+completed deletion.
+
+The resumable manifest context is stored in server-only
+`accountDeletionJobs/{userId}`. Clients cannot read or write deletion jobs, and
+the job is removed only after the Auth user is deleted successfully.
 
 ---
 

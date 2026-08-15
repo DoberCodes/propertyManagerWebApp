@@ -1,6 +1,6 @@
 # ADR 0030: Homeowner+ Trial Experience
 
-Status: Accepted
+Status: Implemented
 
 Date: 2026-07-23
 
@@ -150,6 +150,14 @@ rules where applicable. Hiding a control in the interface is not sufficient.
 Expiration should be derived from an authoritative end timestamp. A scheduled
 job may record lifecycle state or send messages, but access must not depend on a
 job running at exactly the expiration moment.
+
+## Implementation Tracking
+
+- [x] Add Homeowner+ trial eligibility and enrollment behavior.
+- [x] Preserve Free-plan continuity before, during, and after the trial.
+- [x] Show trial state and conversion choices in the homeowner experience.
+- [x] Enforce trial behavior through centralized entitlements.
+- [x] Add validation and active product documentation.
 
 ## Consequences
 

@@ -231,6 +231,58 @@ describe('accountContext', () => {
 	});
 
 	describe('resolveAccountAccessContext', () => {
+		it('keeps account owners unscoped with full management capabilities', async () => {
+			mockGetDoc.mockImplementation((_ref: any) =>
+				Promise.resolve(
+					_ref.collectionName === 'users'
+						? userSnapshot({
+								accountId: 'owner-account',
+								isAccountOwner: true,
+						  })
+						: userSnapshot({}, false),
+				),
+			);
+			mockGetDocs.mockResolvedValue(querySnapshot([]));
+
+			await expect(resolveAccountAccessContext()).resolves.toMatchObject({
+				accountIds: ['owner-account'],
+				activeAccountId: 'owner-account',
+				isScopedTeamMember: false,
+				allowedPropertyIds: [],
+				canManageTasks: true,
+				canManageProperties: true,
+				canManageDocuments: true,
+				canManageMaintenance: true,
+				canManageTeam: true,
+			});
+		});
+
+		it('keeps ordinary family account members unscoped without inventing management capabilities', async () => {
+			mockGetDoc.mockImplementation((_ref: any) =>
+				Promise.resolve(
+					_ref.collectionName === 'users'
+						? userSnapshot({
+								accountId: 'family-account',
+								isAccountOwner: false,
+								isTeamMemberAccount: false,
+						  })
+						: userSnapshot({}, false),
+				),
+			);
+			mockGetDocs.mockResolvedValue(querySnapshot([]));
+
+			await expect(resolveAccountAccessContext()).resolves.toMatchObject({
+				accountIds: ['family-account'],
+				isScopedTeamMember: false,
+				allowedPropertyIds: [],
+				canManageTasks: false,
+				canManageProperties: false,
+				canManageDocuments: false,
+				canManageMaintenance: false,
+				canManageTeam: false,
+			});
+		});
+
 		it('normalizes scoped team member property access and capabilities', async () => {
 			mockGetDoc.mockImplementation((_ref: any) => {
 				if (_ref.collectionName === 'users') {
@@ -310,6 +362,21 @@ describe('accountContext', () => {
 					(record) => record.propertyId,
 				),
 			).toBe(records);
+		});
+
+		it('returns no records when a scoped team member has no assignments', () => {
+			const records = [{ id: 'task-1', propertyId: 'property-1' }];
+
+			expect(
+				filterRecordsByAccessProperties(
+					records,
+					{
+						isScopedTeamMember: true,
+						allowedPropertyIds: [],
+					},
+					(record) => record.propertyId,
+				),
+			).toEqual([]);
 		});
 	});
 

@@ -111,8 +111,9 @@ yarn deploy
 yarn deploy:gh-pages
 ```
 
-Both commands intentionally fail. They are retained as visible migration guards
-so a familiar deployment command cannot publish to GitHub Pages accidentally.
+Both commands intentionally fail. They are retained as visible retirement
+guards so a familiar deployment command cannot publish to GitHub Pages
+accidentally. The `gh-pages` package is no longer installed.
 
 ## Firebase Hosting validation
 
@@ -156,8 +157,13 @@ yarn migrate:property-memberships:apply
 yarn migrate:task-locations-to-spaces -- --confirm-project=PROJECT_ID
 yarn migrate:task-locations-to-spaces:apply -- --confirm-project=PROJECT_ID
 
-yarn migrate:maintenance-events
-yarn migrate:maintenance-events:apply
+yarn migrate:equipment-supplies -- --confirm-project=PROJECT_ID
+yarn migrate:equipment-supplies:apply -- --confirm-project=PROJECT_ID
+
+yarn migrate:document-relationships -- --confirm-project=PROJECT_ID
+yarn migrate:document-relationships:apply -- --confirm-project=PROJECT_ID
+
+yarn audit:maintenance-history -- --confirm-project=PROJECT_ID
 
 yarn migrate:equipment-terminology
 yarn migrate:equipment-terminology:apply
@@ -183,6 +189,21 @@ for a unique, exact normalized match to an active Space within the same account
 and Property. It preserves the original Task field and skips ambiguous,
 unmatched, archived, and cross-boundary candidates. Add
 `--account-id=ACCOUNT_ID` to limit review or apply scope.
+
+The Equipment Supply migration is also dry-run first. It promotes embedded
+`device.serviceItems` into canonical `propertySupplies`, deduplicates identical
+specifications within a Property, and creates deterministic Equipment `uses`
+links. It never removes the legacy arrays. Add `--account-id=ACCOUNT_ID` to
+limit review or apply scope, and rerun the dry-run after applying to confirm
+that no additional Supplies or links remain.
+
+The Property Document relationship migration promotes embedded documents that
+do not yet have first-class records and creates deterministic Document
+`documents` relationships for valid Equipment, Space, Task, and Supply
+references. Missing, cross-property, and legacy part references that do not
+resolve to canonical Supplies are reported and preserved rather than guessed or
+deleted. Add `--account-id=ACCOUNT_ID` to limit review or apply scope, and rerun
+the dry-run after applying to confirm that no additional records or links remain.
 
 `migrate:tenant-data` is dry-run by default and logs counts and retired field
 names only. The apply command is intentionally limited to environments where
@@ -240,6 +261,10 @@ breaking-feature entry. Internal prefixes are omitted from customer notes by
 default. `scripts/releaseClassification.cjs` shares this mapping with the
 protected PR-summary workflow so title normalization, summaries, notes, and
 version selection cannot classify the same PR differently.
+
+Major versions require an explicit breaking marker such as `feat!:`, a breaking
+release label, a `BREAKING CHANGE:` footer, or a dedicated breaking-change
+heading. PR-template guidance that merely explains those markers is ignored.
 
 When `package.json` is already ahead of the latest `v*` tag, the generator treats
 that package version as the prepared release version instead of bumping again.
@@ -332,6 +357,37 @@ reports which ADRs would be eligible for tracker creation.
 * testFirebaseRules.cjs
 * testStorageRules.cjs
 * inventoryMaintenanceHistory.cjs
+* inventoryCompatibilityBoundaries.cjs
+* checkCompatibilityBoundaries.cjs
+
+### Compatibility boundary validation
+
+`checkCompatibilityBoundaries.cjs` is a read-only frontend build gate. It
+prevents new data slices and screens from bypassing the shared account-access,
+Property Memory, or Maintenance History compatibility boundaries. It also
+rejects new writes to embedded Equipment `serviceItems`.
+
+```bash
+yarn check:compatibility-boundaries
+```
+
+Its Node tests are included in `yarn test:scripts:ci`.
+
+### Compatibility inventory
+
+`inventoryCompatibilityBoundaries.cjs` provides one aggregate, report-only
+view of legacy Documents, Maintenance History, user/account links, and embedded
+Equipment Supplies. It has no apply mode, requires the intended Firebase
+project to match the service account, omits record contents, and writes JSON
+only beneath `tmp/`.
+
+```bash
+yarn inventory:compatibility \
+  --confirm-project=mypropertymanager-cda42 \
+  --report=tmp/compatibility-inventory.json
+```
+
+Use `--account-id=<account-id>` when reviewing one account boundary.
 
 ### Maintenance History migration inventory
 
@@ -450,7 +506,7 @@ Before running migrations, cleanup scripts, or destructive operations:
 * `e2e:workflows:chrome` and `e2e:full-safe` use the demo account and are intended for manual workflow validation.
 * GitHub Actions runs `cleanup:test-data:full` after manual E2E workflow suites and requires `E2E_FIREBASE_SERVICE_ACCOUNT_JSON`.
 * E2E scripts are intended to be cross-platform.
-* `deploy` and `deploy:gh-pages` intentionally fail during the migration.
+* `deploy` and `deploy:gh-pages` intentionally fail as retirement guards.
 * No supported repository command publishes to GitHub Pages.
 * build:signed is the local signed Android artifact helper.
 * stripe:webhook:auto in functions/package.json is currently Unix-only.

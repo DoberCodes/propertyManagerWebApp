@@ -1,6 +1,6 @@
 # ADR 0024: Maintenance Event Migration Completion
 
-Status: Accepted
+Status: Accepted - phased implementation
 
 Date: 2026-07-06
 
@@ -56,6 +56,25 @@ Phase 3:
 * Remove direct UI dependence on legacy maintenance history.
 * Reduce or remove legacy Firestore query paths after migration confidence is
   high.
+
+## Implementation Tracking
+
+* [x] Add the shared compatibility adapter for canonical and legacy history.
+* [x] Move high-traffic property, equipment, reporting, dashboard, profile, and
+  Intelligence consumers behind the shared adapter boundary.
+* [x] Route new maintenance-history writes to `maintenanceEvents`.
+* [x] Promote legacy-only collection records through a trusted Function before
+  a user correction is applied.
+* [x] Add report-only inventory tooling with duplicate, unresolved-property,
+  and embedded-history classification.
+* [x] Remove the obsolete unreviewed backfill command and apply mode.
+* [x] Add a build-time boundary check that prevents new direct legacy collection
+  readers outside the shared maintenance-history query adapters.
+* [ ] Review a production inventory and approve a controlled backfill design.
+* [ ] Backfill eligible legacy records with provenance, parity reporting,
+  rollback evidence, and deduplication tests.
+* [ ] Remove compatibility queries only after post-backfill validation proves
+  that canonical events are complete.
 
 ## Consequences
 

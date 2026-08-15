@@ -1,6 +1,6 @@
 # ADR 0034: Personal Assistant Read API
 
-Status: Accepted
+Status: Implemented
 
 Date: 2026-07-29
 
@@ -399,6 +399,14 @@ Future write access will require idempotency keys, explicit attribution,
 confirmation boundaries, conflict handling, auditability, and narrowly scoped
 write permissions. This read-only credential must never gain write authority
 through a configuration toggle.
+
+## Implementation Tracking
+
+- [x] Add the versioned read-only personal assistant API.
+- [x] Add Maintley Owner-only credential issuance, revocation, and Settings UI.
+- [x] Enforce scopes, Property allowlists, rate limits, and minimized audits.
+- [x] Publish OpenAPI and handoff documentation for the private first consumer.
+- [x] Add authorization, credential, pagination, and response-contract tests.
 
 ## Consequences
 

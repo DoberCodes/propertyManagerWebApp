@@ -1,6 +1,6 @@
 # ADR 0033: Property Type and Classification Taxonomy
 
-Status: Accepted
+Status: Implemented
 
 Date: 2026-07-29
 
@@ -249,6 +249,14 @@ Legacy unit and suite readers may remain only where existing compatibility
 requires them. Any future need for location detail should use the established
 property and equipment-location models rather than creating another ownership
 hierarchy without a separate architectural decision.
+
+## Implementation Tracking
+
+- [x] Add canonical Property type and classification contracts.
+- [x] Default homeowner-created Properties to Residential.
+- [x] Gate Multi-unit, Commercial, and rental capabilities to eligible plans.
+- [x] Preserve existing Property visibility across downgrade boundaries.
+- [x] Add repeat-safe migration tooling, compatibility tests, and documentation.
 
 ## Consequences
 

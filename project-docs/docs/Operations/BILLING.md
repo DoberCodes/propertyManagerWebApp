@@ -263,12 +263,12 @@ Expected flow:
 1. User selects plan.
 2. Maintley creates the Firebase account with the Free plan as its entitlement
    and records the selected paid plan as pending checkout intent.
-3. The browser opens the protected `/#/checkout/start` route outside the main
+3. The browser opens the protected `/checkout/start` route outside the main
    application layout.
 4. That route requests a Stripe Checkout session and redirects the browser to
    the returned Stripe URL.
 5. Stripe processes payment and returns the authenticated user to
-   `/#/checkout/complete`.
+   `/checkout/complete`.
 6. Maintley verifies that the Checkout session belongs to the signed-in user.
 7. Firestore user and family-account subscription records are synchronized.
 8. Maintley reloads the authoritative user profile and then opens the dashboard.
@@ -283,7 +283,7 @@ removal in release `2.10.0`.
 Checkout launch has a 30-second request timeout. A timeout or launch failure
 must replace the loading screen with actions to retry secure checkout or
 continue using the Free plan. Authenticated users with pending checkout intent
-are routed back through `/#/checkout/start`, allowing interrupted registrations
+are routed back through `/checkout/start`, allowing interrupted registrations
 and later logins to recover without entering onboarding or the dashboard first.
 
 Paid registration returns after the authenticated user profile, accepted legal

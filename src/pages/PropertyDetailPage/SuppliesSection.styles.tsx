@@ -76,3 +76,19 @@ export const SupplyConnectionSummary = styled.div`
 		font-weight: 700;
 	}
 `;
+
+export const SupplyHeaderActions = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.5rem;
+
+	@media (max-width: 640px) {
+		width: 100%;
+		justify-content: stretch;
+
+		button {
+			flex: 1;
+		}
+	}
+`;

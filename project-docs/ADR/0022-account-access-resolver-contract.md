@@ -1,6 +1,6 @@
 # ADR 0022: Account Access Resolver Contract
 
-Status: Accepted
+Status: Accepted - phased implementation
 
 Date: 2026-07-06
 
@@ -65,6 +65,32 @@ The first implementation should:
 
 Server-side work should continue consolidating function authorization around
 `functions/accountAuthz.ts`.
+
+## Implementation Tracking
+
+* [x] Add a shared client account-access context and resolver.
+* [x] Add property-scope filtering and accessible-account helpers.
+* [x] Move high-risk task and equipment consumers behind the shared resolver.
+* [x] Add a shared server account-authorization helper.
+* [x] Test scoped team-member access and maintenance-related capabilities.
+* [ ] Normalize `membershipRoles` in the shared context, or explicitly revise
+  the contract if the single effective-role model remains preferred.
+* [x] Finish property-scope consolidation for remaining property, maintenance,
+  contractor, document, and user consumers.
+* [x] Add a build-time boundary check that prevents new data slices from
+  bypassing the shared account context or duplicating team-member resolution.
+* [ ] Remove legacy account-link fallbacks only after migration inventory and
+  parity validation prove they are no longer required.
+
+Firestore and Storage Rules remain authoritative throughout this phased client
+and Function consolidation.
+
+The client consolidation preserves tenant-specific assignment handling and
+legacy account-link fallbacks. `propertySlice`, `taskSlice`, `deviceSlice`,
+`maintenanceSlice`, `contractorSlice`, and account-wide history reads now cross
+the shared account context before applying property scope. UI-only role helpers
+may remain for presentation filtering, but data slices must not recreate the
+account resolver.
 
 ## Consequences
 

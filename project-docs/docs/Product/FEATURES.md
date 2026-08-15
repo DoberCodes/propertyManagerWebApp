@@ -66,7 +66,7 @@ Current capabilities:
 * Add and manage Spaces such as interior areas, utility locations, exterior
   surfaces, grounds, and amenities from Property Details.
 * Save Supplies such as filters, paint, parts, and property-care products from
-  Property Details.
+  the first-class Property Supplies page.
 
 Homeowner plans keep property setup focused on personal and family homes. They
 may choose a residential classification but cannot create Multi-unit or
@@ -100,12 +100,37 @@ visible; account managers can review and restore archived Spaces. Existing Task
 location values remain stored during a conservative exact-match migration
 period rather than being discarded or guessed.
 
+New residential Properties preview numbered Bedroom, Bathroom, and Half
+Bathroom Spaces before saving. Later Property Profile edits reconcile those
+same generated Spaces whenever bedroom or bathroom counts increase. Creation
+and edit flows fetch current active and archived Spaces first, reuse stable or
+matching records, and surface archived conflicts instead of duplicating them.
+The Setup Assistant previews whether it will
+create or reuse applicable Kitchen, Bathroom, Laundry Room, Garage, and
+Exterior Spaces before connecting accepted Equipment and Tasks. Reopening setup
+reuses the stable generated Space or an active matching manual Space instead of
+creating duplicates. Archived matches require review.
+
 Supplies preserve the product details a property uses without introducing
-inventory management. Account managers may record a Supply name, type,
-manufacturer, model or SKU, and notes, then connect it to multiple Equipment
-records, Spaces, and Tasks. Connected views are derived from canonical
-relationships rather than copied onto each record. Referenced Supplies are
+inventory management. Account managers may record product identifiers,
+specifications, replacement details, and notes, or use reviewed barcode capture
+to prefill them. Supplies are available on every active plan and may connect to
+multiple Equipment records, Spaces, and Tasks. Equipment pages show their
+derived connected Supplies rather than owning copies. Referenced Supplies are
 archived when removed and may be restored later.
+
+Equipment create and edit reviews can connect existing Property Supplies or
+stage new Supplies, including reviewed barcode input. New records are saved as
+Property Supplies only after Equipment succeeds, and removing a connection does
+not remove the shared Supply.
+
+Property Documents may connect to multiple Equipment records, Spaces, Tasks,
+and Supplies without being copied into those features. Account managers edit
+these connections from the Property Documents experience. Equipment, Space,
+Task, and Supply views show the derived connected Documents while legacy
+Document assignments remain visible during migration. If a Document upload or
+metadata edit succeeds but its connection update fails, Maintley keeps the
+Document available and tells the user to reopen it and retry the connections.
 
 ---
 
@@ -125,6 +150,9 @@ Current capabilities:
 The assistant is intended to reduce onboarding effort while keeping setup optional and flexible.
 
 Initial onboarding is intended for account owners setting up their own account.
+Its first-Property dialog includes only Basics and Property Profile. Access and
+Sharing and the separate Review step remain outside onboarding, while bedroom
+and bathroom counts are captured early enough to create the initial Spaces.
 Linked family members and invited team members enter an existing account context
 and should not be forced through the onboarding flow.
 
@@ -262,6 +290,8 @@ Current capabilities:
 * Service records.
 * Invoices.
 * General supporting files.
+* Property-owned Documents connected to Equipment, Spaces, Tasks, and Supplies.
+* Contextual Document views derived from accepted relationships.
 
 Photos and documents are treated as distinct user concepts even when stored using the same backend storage services.
 

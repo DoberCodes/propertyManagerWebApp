@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { RootState, AppDispatch } from 'Redux/store';
-import { beginAuthTransition, setCurrentUser } from 'Redux/Slices/userSlice';
+import { setCurrentUser } from 'Redux/Slices/userSlice';
 import {
 	useGetAllMaintenanceHistoryForUserQuery,
 	useUpdateUserMutation,
@@ -12,6 +12,7 @@ import { useGetAllDevicesQuery } from 'Redux/API/deviceSlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
 import { useGetTeamMembersQuery } from 'Redux/API/teamSlice';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
+import { getEmbeddedPropertyDocuments } from '../../propertyKnowledge/propertyMemoryRecordService';
 import { FileUploader } from 'Components/Library/FileUploader';
 import { uploadUserProfileImage } from 'utils/userProfileImageUpload';
 import {
@@ -115,15 +116,17 @@ import {
 	updatePassword,
 	reauthenticateWithCredential,
 	EmailAuthProvider,
-	signOut,
 } from 'firebase/auth';
 import { auth } from 'config/firebase';
 import { callFirebaseFunction } from 'config/firebaseFunctions';
 import { getCustomerBillingPortalUrl } from 'utils/authLinks';
+import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
+import { finalizeDeletedAccountSession } from '../../services/accountDeletionSession';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
 	const navigate = useNavigate();
+	const feedback = useAppFeedback();
 	const deleteConfirmationInputId = 'delete-account-confirmation-input';
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const [updateUser] = useUpdateUserMutation();
@@ -292,7 +295,7 @@ export const UserProfile: React.FC = () => {
 			icon: faHouse,
 		},
 		{
-			label: 'Systems',
+			label: 'Equipment',
 			value: areSystemsLoading ? '—' : summarySystems.length,
 			icon: faGear,
 		},
@@ -711,14 +714,12 @@ export const UserProfile: React.FC = () => {
 		!isTeamMemberAccount && ownedPropertiesCount > 0 && activeTeamMembersCount > 0;
 	const maintenanceRecordCount = maintenanceHistory.length;
 	const documentsCount = summaryProperties.reduce((total: number, property: any) => {
-		const propertyDocuments = Array.isArray(property.documents)
-			? property.documents.length
-			: 0;
+		const propertyDocuments = getEmbeddedPropertyDocuments(property).length;
 		return total + propertyDocuments;
 	}, 0);
 	const deleteImpactItems = [
 		{ label: 'properties', value: summaryProperties.length },
-		{ label: 'systems', value: summarySystems.length },
+		{ label: 'equipment records', value: summarySystems.length },
 		{ label: 'maintenance records', value: maintenanceRecordCount },
 		{ label: 'uploaded documents', value: documentsCount },
 	].filter((item) => item.value > 0);
@@ -851,9 +852,12 @@ export const UserProfile: React.FC = () => {
 				'deleteUserAccount',
 				{ userId: currentUser.id },
 			);
-			dispatch(beginAuthTransition());
-			await signOut(auth);
-			navigate('/login', { replace: true });
+			await finalizeDeletedAccountSession({
+				userId: currentUser.id,
+				dispatch,
+				navigate,
+				notify: feedback.notify,
+			});
 		} catch (deleteError: any) {
 			console.error('Delete account error:', deleteError);
 			if (deleteError.code === 'functions/permission-denied') {

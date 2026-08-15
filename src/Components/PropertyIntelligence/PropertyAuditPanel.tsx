@@ -21,9 +21,14 @@ import {
 	PropertyAuditCategory,
 } from '../../intelligence/consumers/propertyAudit';
 import { Device, Property } from '../../types/Property.types';
+import { PropertyDocument } from '../../types/Property.types';
+import { PropertyKnowledgeLink } from '../../types/PropertyKnowledgeLink.types';
+import { PropertySpace } from '../../types/Space.types';
+import { PropertySupply } from '../../types/Supply.types';
 import { Task } from '../../types/Task.types';
 import {
 	maintleyFindingToPropertyScanRecommendation,
+	getPropertyScanRelationshipEvidenceLabels,
 	PropertyScanActionType,
 	PropertyScanRecommendation,
 } from '../../utils/propertyIntelligenceScan';
@@ -41,6 +46,10 @@ interface PropertyAuditPanelProps {
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
+	documents?: PropertyDocument[];
+	spaces?: PropertySpace[];
+	supplies?: PropertySupply[];
+	propertyKnowledgeLinks?: PropertyKnowledgeLink[];
 	canRunAudit: boolean;
 	resolvedRecommendationIds?: string[];
 	subscription?: SubscriptionData | null;
@@ -115,6 +124,10 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	systems,
 	tasks,
 	maintenanceHistory,
+	documents = [],
+	spaces = [],
+	supplies = [],
+	propertyKnowledgeLinks = [],
 	canRunAudit,
 	resolvedRecommendationIds = [],
 	subscription,
@@ -276,6 +289,10 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 				systems,
 				tasks,
 				maintenanceHistory,
+				documents,
+				spaces,
+				supplies,
+				propertyKnowledgeLinks,
 				createdAt,
 			},
 			{
@@ -358,7 +375,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					</AuditTitleRow>
 					<AuditText>
 						A broader review of saved {reviewLanguage.recordPlural}, maintenance coverage,
-						and equipment details, organized by {isHomeowner ? 'equipment' : 'system'} so you can improve the
+						and equipment details, organized by equipment so you can improve the
 						{' '}{reviewLanguage.subjectNoun} memory over time.
 						{isFreePlan
 							? ` A lightweight record check remains available. ${reviewLanguage.label} is the deeper ${intelligenceUpgradePlan} layer.`
@@ -444,8 +461,8 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 									<li>
 										Reviewing {systems.length}{' '}
 										{systems.length === 1
-											? isHomeowner ? 'equipment record' : 'system'
-											: isHomeowner ? 'equipment records' : 'systems'}
+											? 'equipment record'
+											: 'equipment records'}
 									</li>
 									<li>Organizing opportunities by record</li>
 									<li>Building the review summary</li>
@@ -555,13 +572,24 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 																		</AssetFindingGroupHeader>
 																		<FindingList>
 																			{group.findings.map((finding) => {
-																				const recommendation =
-																					maintleyFindingToPropertyScanRecommendation(finding);
+																const recommendation =
+																	maintleyFindingToPropertyScanRecommendation(finding);
+																const relationshipEvidence =
+																	getPropertyScanRelationshipEvidenceLabels(
+																		finding.metadata,
+																	).slice(0, 5);
 																				return (
 																					<FindingRow key={finding.id}>
 																						<FindingText>
 																							<strong>{finding.title}</strong>
-																							<span>{finding.whyItMatters}</span>
+																			<span>{finding.whyItMatters}</span>
+																			{relationshipEvidence.length > 0 ? (
+																				<FindingEvidenceList>
+																					{relationshipEvidence.map((label) => (
+																						<li key={label}>{label}</li>
+																					))}
+																				</FindingEvidenceList>
+																			) : null}
 																						</FindingText>
 																						<FindingAction
 																							type='button'
@@ -599,7 +627,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 						<PromptRow>
 							<PromptText>
 								Run a {reviewLanguage.label} when you want a broader look at saved
-								records, grouped by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance coverage.
+								records, grouped by equipment, documentation, and maintenance coverage.
 							</PromptText>
 						</PromptRow>
 					)}
@@ -613,7 +641,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 				<ReviewInfoBody>
 					<ReviewInfoLead>
 						{reviewLanguage.label} looks across the records saved for this {reviewLanguage.subjectNoun} and
-						groups opportunities by {isHomeowner ? 'equipment' : 'system'}, documentation, and maintenance
+						groups opportunities by equipment, documentation, and maintenance
 						coverage.
 						{isFreePlan
 							? ` A lightweight record check remains available. This deeper review unlocks with ${intelligenceUpgradePlan}.`
@@ -636,7 +664,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 					<ReviewInfoItem $tone='assets'>
 						<strong>Asset Reviews</strong>
 						<span>
-							Organizes opportunities by {isHomeowner ? 'equipment' : 'system'} so you can improve
+							Organizes opportunities by equipment so you can improve
 							one record at a time instead of sorting through a long flat list.
 						</span>
 					</ReviewInfoItem>
@@ -1284,6 +1312,15 @@ const FindingText = styled.div`
 	strong {
 		color: #172033;
 		font-size: 14px;
+	}
+`;
+
+const FindingEvidenceList = styled.ul`
+	margin: 2px 0 0;
+	padding-left: 18px;
+
+	li + li {
+		margin-top: 2px;
 	}
 `;
 

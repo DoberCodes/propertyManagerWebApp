@@ -15,10 +15,15 @@ import {
 	useSavePropertyScanSnapshotMutation,
 } from '../../Redux/API/propertyIntelligenceSlice';
 import { Device, Property } from '../../types/Property.types';
+import { PropertyDocument } from '../../types/Property.types';
+import { PropertyKnowledgeLink } from '../../types/PropertyKnowledgeLink.types';
+import { PropertySpace } from '../../types/Space.types';
+import { PropertySupply } from '../../types/Supply.types';
 import { Task } from '../../types/Task.types';
 import {
 	getQuickPropertyScanPremiumPreview,
 	getQuickPropertyScanRecommendations,
+	getPropertyScanRelationshipEvidenceLabels,
 	PropertyScanActionType,
 	PropertyScanCategory,
 	PropertyScanRecommendation,
@@ -43,6 +48,10 @@ interface PropertyScanPanelProps {
 	systems: Device[];
 	tasks: Task[];
 	maintenanceHistory: any[];
+	documents?: PropertyDocument[];
+	spaces?: PropertySpace[];
+	supplies?: PropertySupply[];
+	propertyKnowledgeLinks?: PropertyKnowledgeLink[];
 	canRunScan: boolean;
 	showSetupPrompt?: boolean;
 	resolvedRecommendationIds?: string[];
@@ -114,8 +123,8 @@ const getAssetDisplayName = (asset?: Device): string =>
 			.join(' ')
 			.trim() ||
 		getDeviceAssetType(asset) ||
-		'System record'
-		: 'System record';
+		'Equipment record'
+		: 'Equipment record';
 
 const getRecommendationDialogTitle = (
 	recommendation: PropertyScanRecommendation,
@@ -144,7 +153,7 @@ const getRecommendationPrimaryLabel = (
 		return 'Review Tasks';
 	}
 	if (recommendation.relatedSystemIds?.length) {
-		return 'Review Systems';
+		return 'Review Equipment';
 	}
 	return (
 		recommendation.resolution?.actionLabel ||
@@ -195,9 +204,8 @@ const getRecommendationImpact = (
 
 const getRecommendationEvidence = (
 	recommendation: PropertyScanRecommendation,
-	isHomeowner = false,
 ): string => {
-	const equipmentNoun = isHomeowner ? 'equipment records' : 'systems';
+	const equipmentNoun = 'equipment records';
 	switch (recommendation.ruleId) {
 		case 'overdue-tasks-exist':
 			return 'Maintley found recorded maintenance tasks with due dates that have passed.';
@@ -214,7 +222,7 @@ const getRecommendationEvidence = (
 		case 'systems-missing-important-identification':
 			return `Maintley found ${equipmentNoun} without recorded make or model details.`;
 		case 'knowledge-pack-record-details-missing':
-			return `Maintley compared saved ${isHomeowner ? 'equipment' : 'system'} details against Maintley knowledge packs and found useful maintenance details that have not been recorded yet.`;
+			return 'Maintley compared saved equipment details against Maintley knowledge packs and found useful maintenance details that have not been recorded yet.';
 		case 'major-systems-missing-install-dates':
 			return `Maintley found ${equipmentNoun} without recorded install dates.`;
 		default:
@@ -222,7 +230,7 @@ const getRecommendationEvidence = (
 				return 'Maintley found related task records connected to this recommendation.';
 			}
 			if (recommendation.relatedSystemIds?.length) {
-				return `Maintley found related ${isHomeowner ? 'equipment' : 'system'} records connected to this recommendation.`;
+				return 'Maintley found related equipment records connected to this recommendation.';
 			}
 			return '';
 	}
@@ -307,6 +315,10 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	systems,
 	tasks,
 	maintenanceHistory,
+	documents = [],
+	spaces = [],
+	supplies = [],
+	propertyKnowledgeLinks = [],
 	canRunScan,
 	showSetupPrompt = false,
 	resolvedRecommendationIds = [],
@@ -323,7 +335,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		subjectNoun: isHomeowner ? 'home' : 'property',
 		historyLabel: isHomeowner ? 'Home History' : 'Property History',
 		locationNoun: isHomeowner ? 'home' : 'property',
-		systemLabelPlural: isHomeowner ? 'equipment records' : 'systems',
+		systemLabelPlural: 'equipment records',
 		memoryLabel: isHomeowner ? 'Home Memory' : 'Property Memory',
 	};
 	const [dismissedIds, setDismissedIds] = useState<string[]>([]);
@@ -476,7 +488,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 
 		const progressMessages = [
 			`Reviewing this ${scanLanguage.recordNoun}...`,
-			`Reviewing ${systems.length} ${systems.length === 1 ? 'system' : 'systems'}`,
+			`Reviewing ${systems.length} ${systems.length === 1 ? 'equipment record' : 'equipment records'}`,
 			'Checking maintenance coverage',
 			'Finding what is worth attention',
 		];
@@ -492,6 +504,10 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			systems,
 			tasks,
 			maintenanceHistory,
+			documents,
+			spaces,
+			supplies,
+			propertyKnowledgeLinks,
 			dismissedRecommendationIds: dismissedIds,
 			createdAt,
 		});
@@ -622,7 +638,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	const detailAffectedCount = detailRelatedSystems.length || detailRelatedTasks.length;
 	const detailAffectedLabel = detailRelatedTasks.length
 		? `${detailRelatedTasks.length} ${detailRelatedTasks.length === 1 ? 'task' : 'tasks'} affected`
-		: `${detailRelatedSystems.length} ${detailRelatedSystems.length === 1 ? 'system' : 'systems'
+		: `${detailRelatedSystems.length} ${detailRelatedSystems.length === 1 ? 'equipment record' : 'equipment records'
 		} affected`;
 
 	return (
@@ -814,19 +830,25 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 											? `${relatedTasks.length} ${relatedTasks.length === 1 ? 'task' : 'tasks'} affected`
 											: `${relatedSystems.length} ${
 												relatedSystems.length === 1
-													? isHomeowner
-														? 'equipment record'
-														: 'system'
-													: isHomeowner
-														? 'equipment records'
-														: 'systems'
+													? 'equipment record'
+													: 'equipment records'
 											} affected`;
-										const evidenceText = getRecommendationEvidence(recommendation, isHomeowner);
+										const evidenceText = getRecommendationEvidence(recommendation);
 										const sourceLabel =
 											getRecommendationSourceLabel(recommendation, isHomeowner);
-										const evidenceItems = relatedTasks.length
+										const affectedEvidenceItems = relatedTasks.length
 											? relatedTasks.map((task) => task.title)
 											: relatedSystems.map((item) => getAssetDisplayName(item));
+										const relationshipEvidenceItems =
+											getPropertyScanRelationshipEvidenceLabels(
+												recommendation.metadata,
+											);
+										const evidenceItems = Array.from(
+											new Set([
+												...affectedEvidenceItems,
+												...relationshipEvidenceItems,
+											]),
+										);
 										const visibleEvidenceItems = evidenceItems.slice(0, 5);
 										const hiddenEvidenceItemCount =
 											evidenceItems.length - visibleEvidenceItems.length;
@@ -965,7 +987,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						<ScanLoadingList>
 							<li>
 								Reviewing {systems.length}{' '}
-								{systems.length === 1 ? 'system' : 'systems'}
+								{systems.length === 1 ? 'equipment record' : 'equipment records'}
 							</li>
 							<li>Checking maintenance coverage</li>
 							<li>Finding what is worth attention</li>

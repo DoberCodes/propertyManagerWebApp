@@ -39,6 +39,7 @@ const admin = __importStar(require("firebase-admin"));
 const params_1 = require("firebase-functions/params");
 const emailService_1 = require("./emailService");
 const emailBrand_1 = require("./emailBrand");
+const emailLinks_1 = require("./emailLinks");
 const RESEND_API_KEY = (0, params_1.defineSecret)(process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY');
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -90,8 +91,8 @@ exports.sendWelcomeSignupEmail = functions
         });
         return null;
     }
-    const appUrl = String(process.env.APP_URL || 'https://maintleyapp.com').trim();
-    const quickStartUrl = `${appUrl.replace(/\/$/, '')}/#/dashboard`;
+    const appUrl = (0, emailLinks_1.getCanonicalAppOrigin)();
+    const quickStartUrl = (0, emailLinks_1.buildAppRouteUrl)('/dashboard', appUrl);
     const resend = (0, emailService_1.getResendClient)(RESEND_API_KEY.value());
     if (!resend) {
         throw new Error('Resend client is not configured');

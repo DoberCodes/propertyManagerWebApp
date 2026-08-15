@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { apiSlice } from '../Redux/API/apiSlice';
 import { useUpdatePropertyMutation } from '../Redux/API/propertySlice';
+import { useSetDocumentLinksMutation } from '../Redux/API/propertyKnowledgeLinkSlice';
 import type { AppDispatch, RootState } from '../Redux/store/store';
 import { useAppFeedback } from '../Components/Library/AppFeedback/AppFeedbackProvider';
 import type {
@@ -12,12 +13,21 @@ import type {
 } from '../types/Property.types';
 import type { PropertyKnowledgeSuggestion } from '../types/PropertyKnowledge.types';
 import { canUsePropertyKnowledgeAcquisition } from '../utils/subscriptionUtils';
+import { trackAnalyticsEvent } from '../analytics/analytics';
 import {
 	preparePropertyMemoryDocumentUploads,
 	startPropertyDocumentKnowledgeProcessing,
 	type PropertyMemoryDocumentUploadContext,
 } from './propertyDocumentUploads';
 import type { ProcessPropertyDocumentAcquisitionResponse } from './propertyKnowledgeProcessing';
+import {
+	getEmbeddedPropertyDocuments,
+	getEmbeddedPropertyKnowledgeSuggestions,
+} from './propertyMemoryRecordService';
+import {
+	getDocumentConnectionFailureMessage,
+	saveDocumentConnections,
+} from './documentConnectionReliability';
 
 type PropertyDocumentUploadBatch = {
 	files: File[];
@@ -48,14 +58,12 @@ type UploadPropertyDocumentsResult = {
 };
 
 const getExistingDocuments = (property: any): PropertyDocument[] =>
-	Array.isArray(property?.documents) ? property.documents : [];
+	getEmbeddedPropertyDocuments(property);
 
 const getExistingKnowledgeSuggestions = (
 	property: any,
 ): PropertyKnowledgeSuggestion[] =>
-	Array.isArray(property?.knowledgeSuggestions)
-		? property.knowledgeSuggestions
-		: [];
+	getEmbeddedPropertyKnowledgeSuggestions(property);
 
 const getKnowledgeSuggestionCount = (
 	suggestion?: PropertyKnowledgeSuggestion,
@@ -102,6 +110,7 @@ export const usePropertyDocumentUploadWorkflow = () => {
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const feedback = useAppFeedback();
 	const [updateProperty] = useUpdatePropertyMutation();
+	const [setDocumentLinks] = useSetDocumentLinksMutation();
 	const canUseDocumentReview = canUsePropertyKnowledgeAcquisition(
 		currentUser?.subscription,
 	);
@@ -140,6 +149,10 @@ export const usePropertyDocumentUploadWorkflow = () => {
 			const savedDocuments: PropertyDocument[] = [];
 			const knowledgeSuggestions: PropertyKnowledgeSuggestion[] = [];
 			const processableDocuments: PropertyDocument[] = [];
+			const documentConnectionRequests: Array<{
+				documentId: string;
+				context: PropertyMemoryDocumentUploadContext;
+			}> = [];
 
 			for (const batch of uploadBatches) {
 				const result = await preparePropertyMemoryDocumentUploads({
@@ -153,6 +166,14 @@ export const usePropertyDocumentUploadWorkflow = () => {
 					enableKnowledgeAcquisition: canUseDocumentReview,
 				});
 				savedDocuments.push(...result.documents);
+				if (batch.uploadContext) {
+					result.documents.forEach((document) => {
+						documentConnectionRequests.push({
+							documentId: document.id,
+							context: batch.uploadContext as PropertyMemoryDocumentUploadContext,
+						});
+					});
+				}
 				knowledgeSuggestions.push(...result.knowledgeSuggestions);
 				processableDocuments.push(...result.processableDocuments);
 			}
@@ -167,6 +188,53 @@ export const usePropertyDocumentUploadWorkflow = () => {
 					],
 				},
 			}).unwrap();
+
+			const connectionSaveResult = await saveDocumentConnections(
+				documentConnectionRequests.map(({ documentId, context }) => {
+					const equipmentIds = context.assetIds || [];
+					const spaceIds = context.spaceIds || [];
+					const taskIds = context.taskIds || [];
+					const supplyIds = context.supplyIds || [];
+					return {
+						propertyId: resolvedPropertyId,
+						documentId,
+						equipmentIds,
+						spaceIds,
+						taskIds,
+						supplyIds,
+					};
+				}),
+				(request) => setDocumentLinks(request).unwrap(),
+			);
+			const connectionFailureMessage = getDocumentConnectionFailureMessage(
+				connectionSaveResult.failedDocumentIds.length,
+			);
+
+			const uploadedCategories = Array.from(
+				new Set(uploadBatches.map((batch) => batch.category)),
+			);
+			const connectionContexts = documentConnectionRequests.map(
+				({ context }) => context,
+			);
+			void trackAnalyticsEvent('document_uploaded', {
+				action_source: 'user',
+				document_count: savedDocuments.length,
+				document_category:
+					uploadedCategories.length === 1 ? uploadedCategories[0] : 'mixed',
+				has_equipment_connection: connectionContexts.some(
+					(context) => (context.assetIds?.length || 0) > 0,
+				),
+				has_space_connection: connectionContexts.some(
+					(context) => (context.spaceIds?.length || 0) > 0,
+				),
+				has_task_connection: connectionContexts.some(
+					(context) => (context.taskIds?.length || 0) > 0,
+				),
+				has_supply_connection: connectionContexts.some(
+					(context) => (context.supplyIds?.length || 0) > 0,
+				),
+				review_enabled: canUseDocumentReview,
+			});
 
 			startPropertyDocumentKnowledgeProcessing({
 				propertyId: resolvedPropertyId,
@@ -186,7 +254,12 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				0,
 			);
 
-			if (notify) {
+			if (connectionFailureMessage) {
+				console.warn(connectionFailureMessage, {
+					failedDocumentIds: connectionSaveResult.failedDocumentIds,
+				});
+				feedback.notify(connectionFailureMessage, 'error');
+			} else if (notify) {
 				feedback.notify(
 					getUploadFeedbackMessage({
 						totalSuggestedDetails,
@@ -204,7 +277,13 @@ export const usePropertyDocumentUploadWorkflow = () => {
 				canUseDocumentReview,
 			};
 		},
-		[canUseDocumentReview, dispatch, feedback, updateProperty],
+		[
+			canUseDocumentReview,
+			dispatch,
+			feedback,
+			setDocumentLinks,
+			updateProperty,
+		],
 	);
 
 	return {

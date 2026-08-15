@@ -227,6 +227,36 @@ const getReleasePrepVersionFromSubject = (subject) => {
 	return match ? match[1] : '';
 };
 
+const resolveReleasePrepContext = ({
+	packageVersion,
+	targetReleasePrepVersion,
+	ancestorReleasePrepVersion,
+	overallBump,
+	postPrepBump,
+	forcedBump,
+}) => {
+	const ancestorMatchesPackage = Boolean(
+		ancestorReleasePrepVersion &&
+			compareVersions(ancestorReleasePrepVersion, packageVersion) === 0,
+	);
+	const effectiveTargetReleasePrepVersion =
+		targetReleasePrepVersion ||
+		(ancestorMatchesPackage && postPrepBump === 'none'
+			? ancestorReleasePrepVersion
+			: '');
+	const selectedBump =
+		forcedBump ||
+		(ancestorMatchesPackage && postPrepBump !== 'none'
+			? postPrepBump
+			: overallBump) ||
+		'patch';
+
+	return {
+		effectiveTargetReleasePrepVersion,
+		selectedBump,
+	};
+};
+
 const getMergedReleaseVersionFromSubject = (subject) => {
 	const match = String(subject || '')
 		.trim()
@@ -351,6 +381,26 @@ const getCommitRows = (fromRef, toRef) => {
 			};
 		})
 		.filter((commit) => !isReleaseCommit(commit.subject));
+};
+
+const getLatestMatchingReleasePrep = (fromRef, toRef, packageVersion) => {
+	const range = fromRef ? `${fromRef}..${toRef}` : toRef;
+	const output = tryRun('git', [
+		'log',
+		range,
+		'--first-parent',
+		'--pretty=format:%H%x1f%s',
+	]);
+
+	for (const row of output.split(/\r?\n/).filter(Boolean)) {
+		const [sha, subject] = row.split('\x1f');
+		const version = getReleasePrepVersionFromSubject(subject);
+		if (version && compareVersions(version, packageVersion) === 0) {
+			return { sha, version };
+		}
+	}
+
+	return null;
 };
 
 const getCommitFilesByRange = (range) => {
@@ -816,9 +866,14 @@ const inferCustomerCategory = ({ title, labels, files, body, engineeringCategory
 	return 'improvements';
 };
 
+const hasBreakingDeclaration = ({ title, labels, body }) =>
+	/^[a-z]+(?:\(.+?\))?!:/i.test(String(title || '').trim()) ||
+	labels.some((label) => label === 'breaking' || label === 'breaking-change') ||
+	/^\s*(?:BREAKING(?:[ -]CHANGE)?|breaking)\s*:/im.test(String(body || '')) ||
+	/^\s{0,3}#{1,6}\s+breaking changes?\s*$/im.test(String(body || ''));
+
 const categorize = ({ title, labels, files, body }) => {
 	const text = `${title}\n${body || ''}`.toLowerCase();
-	const labelText = labels.join(' ');
 	const fileText = files.join('\n').toLowerCase();
 	const releaseClassification = resolveReleaseClassification({ title, body });
 
@@ -826,11 +881,7 @@ const categorize = ({ title, labels, files, body }) => {
 	if (releaseClassification?.type === 'feat') return 'highlights';
 	if (releaseClassification?.type === 'fix') return 'fixes';
 
-	if (
-		/breaking change|breaking:/i.test(text) ||
-		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
-		/\bbreaking\b/.test(labelText)
-	) {
+	if (hasBreakingDeclaration({ title, labels, body })) {
 		return 'breaking';
 	}
 
@@ -891,11 +942,7 @@ const inferBump = ({ title, labels, body }) => {
 	if (labels.some((label) => label === 'release:patch' || label === 'release-patch')) {
 		return 'patch';
 	}
-	if (
-		/breaking change|breaking:/.test(text) ||
-		/^[a-z]+(?:\(.+?\))?!:/i.test(title) ||
-		labels.some((label) => label === 'breaking' || label === 'breaking-change')
-	) {
+	if (hasBreakingDeclaration({ title, labels, body })) {
 		return 'major';
 	}
 	const releaseClassification = resolveReleaseClassification({ title, body });
@@ -1020,10 +1067,31 @@ const main = () => {
 
 	const { entries, warnings } = buildEntries(commits);
 	const inferredBump = inferOverallBump(entries);
-	const selectedBump = options.bump || inferredBump || 'patch';
 	const previousVersion = rangeStartVersion;
 	const targetSubject = tryRun('git', ['log', '-1', '--format=%s', targetRef]);
 	const targetReleasePrepVersion = getReleasePrepVersionFromSubject(targetSubject);
+	const matchingReleasePrep = getLatestMatchingReleasePrep(
+		rangeStartRef,
+		targetRef,
+		packageVersion,
+	);
+	const postPrepEntries = matchingReleasePrep
+		? buildEntries(getCommitRows(matchingReleasePrep.sha, targetRef)).entries
+		: [];
+	const postPrepBump = matchingReleasePrep
+		? inferOverallBump(postPrepEntries)
+		: 'none';
+	const {
+		effectiveTargetReleasePrepVersion,
+		selectedBump,
+	} = resolveReleasePrepContext({
+		packageVersion,
+		targetReleasePrepVersion,
+		ancestorReleasePrepVersion: matchingReleasePrep?.version || '',
+		overallBump: inferredBump,
+		postPrepBump,
+		forcedBump: options.bump,
+	});
 	const {
 		expectedVersionFromPackageVersion,
 		expectedVersionFromPreviousTag,
@@ -1036,7 +1104,7 @@ const main = () => {
 		previousVersion,
 		selectedBump,
 		hasEntries: entries.length > 0,
-		targetReleasePrepVersion,
+		targetReleasePrepVersion: effectiveTargetReleasePrepVersion,
 	});
 	const version =
 		options.version || selectedAutomaticVersion;
@@ -1074,7 +1142,7 @@ const main = () => {
 		expectedVersionFromPreviousTag,
 		expectedVersionFromPackageVersion,
 		shouldBumpPreparedPackageVersion,
-		targetReleasePrepVersion: targetReleasePrepVersion || null,
+		targetReleasePrepVersion: effectiveTargetReleasePrepVersion || null,
 		targetIsMatchingReleasePrep,
 		bump: selectedBump,
 		inferredBump,
@@ -1141,6 +1209,7 @@ module.exports = {
 	inferBump,
 	inferCustomerCategory,
 	parseConventionalTitle,
+	resolveReleasePrepContext,
 	selectMergedReleaseBoundary,
 	selectAutomaticReleaseVersion,
 };

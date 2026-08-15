@@ -98,6 +98,11 @@ import { User } from '../../Redux/Slices/userSlice';
 import { getFamilyMembers } from '../../services/authService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import {
+	buildPropertyProfileSpaceTemplates,
+	hasValidBathroomCount,
+	hasValidBedroomCount,
+} from '../../propertyKnowledge/propertySpaceGeneration';
 export interface PropertyFormData {
 	photo?: string;
 	name: string;
@@ -207,7 +212,13 @@ const ONBOARDING_HOME_STEPS: PropertyDialogStep[] = [
 		key: 'group',
 		title: 'Home Basics',
 		navTitle: 'Basics',
-		hint: 'Name, address, and type',
+		hint: 'Name and address',
+	},
+	{
+		key: 'details',
+		title: 'Home Profile',
+		navTitle: 'Profile',
+		hint: 'Style, bedrooms, and bathrooms',
 	},
 ];
 
@@ -604,13 +615,18 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			return requiredPropertyBasicsComplete;
 		}
 		if (stepKey === 'details') {
-			return true;
+			return (
+				hasValidBedroomCount(formData.bedrooms ?? 0) &&
+				hasValidBathroomCount(formData.bathrooms ?? 0)
+			);
 		}
 		return true;
 	}, [
 		steps,
 		stepIndex,
 		requiredPropertyBasicsComplete,
+		formData.bathrooms,
+		formData.bedrooms,
 	]);
 
 	const handleNext = () => {
@@ -642,6 +658,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			return;
 		}
 		if (!formData.propertyClassification) {
+			const detailsStepIndex = steps.findIndex((step) => step.key === 'details');
+			setStepIndex(detailsStepIndex >= 0 ? detailsStepIndex : 0);
+			return;
+		}
+		if (
+			!hasValidBedroomCount(formData.bedrooms ?? 0) ||
+			!hasValidBathroomCount(formData.bathrooms ?? 0)
+		) {
 			const detailsStepIndex = steps.findIndex((step) => step.key === 'details');
 			setStepIndex(detailsStepIndex >= 0 ? detailsStepIndex : 0);
 			return;
@@ -812,40 +836,10 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 							</FormField>
 						</FormRow>
 						{isOnboardingHomeCreateFlow && (
-							<FormField>
-								<Label>{recordTitleLabel} Type</Label>
-								<SelectField
-									value={formData.propertyType}
-									disabled
-									onChange={(e) =>
-										handleInputChange(
-											'propertyType',
-											e.target.value as PropertyFormData['propertyType'],
-										)
-									}>
-									<option value='residential'>Residential</option>
-								</SelectField>
-							</FormField>
-						)}
-						{isOnboardingHomeCreateFlow && (
-							<FormField>
-								<Label>Home style</Label>
-								<SelectField
-									value={formData.propertyClassification || ''}
-									onChange={(e) =>
-										handleInputChange('propertyClassification', e.target.value as PropertyClassification)
-									}>
-									{getPropertyClassificationOptions('residential').map((option) => (
-										<option key={option.value} value={option.value}>{option.label}</option>
-									))}
-								</SelectField>
-							</FormField>
-						)}
-						{isOnboardingHomeCreateFlow && (
 							<OnboardingNextStepBanner>
 								<FontAwesomeIcon icon={faInfoCircle} />
 								<span>
-									<strong>Next:</strong> after saving, Maintley will confirm your {recordLowerLabel} and let you choose whether to continue setup now.
+									<strong>Next:</strong> add the home profile Maintley will use to organize Bedrooms and Bathrooms as Spaces.
 								</span>
 							</OnboardingNextStepBanner>
 						)}
@@ -1011,8 +1005,9 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 						{isResidentialProperty(formData.propertyType) && (
 							<FormRow>
 								<FormField>
-									<Label>Bedrooms</Label>
+									<Label htmlFor='property-bedroom-count'>Bedrooms</Label>
 									<Input
+										id='property-bedroom-count'
 										type='number'
 										value={formData.bedrooms ?? ''}
 										onChange={(e) =>
@@ -1022,10 +1017,16 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 											)
 										}
 									/>
+									{!hasValidBedroomCount(formData.bedrooms ?? 0) && (
+										<ValidationMessage>
+											Use a whole bedroom count of zero or more.
+										</ValidationMessage>
+									)}
 								</FormField>
 								<FormField>
-									<Label>Bathrooms</Label>
+									<Label htmlFor='property-bathroom-count'>Bathrooms</Label>
 									<Input
+										id='property-bathroom-count'
 										type='number'
 										step='0.5'
 										value={formData.bathrooms ?? ''}
@@ -1036,6 +1037,11 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 											)
 										}
 									/>
+									{!hasValidBathroomCount(formData.bathrooms ?? 0) && (
+										<ValidationMessage>
+											Use a whole or half bathroom count, such as 2 or 2.5.
+										</ValidationMessage>
+									)}
 								</FormField>
 							</FormRow>
 						)}
@@ -1184,6 +1190,14 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 			],
 			['Owner', formData.owner || 'Not set'],
 			['Bedrooms / Bathrooms', `${formData.bedrooms ?? 0} / ${formData.bathrooms ?? 0}`],
+			...(!initialData || isDuplicate
+				? [[
+						'Spaces Maintley will create',
+						buildPropertyProfileSpaceTemplates(formData)
+							.map((space) => space.name)
+							.join(', ') || 'None',
+					] as [string, React.ReactNode]]
+				: []),
 			...(!forceSingleFamily
 				? [[`Rental ${recordTitleLabel}`, formData.isRental ? 'Yes' : 'No'] as [string, React.ReactNode]]
 				: []),

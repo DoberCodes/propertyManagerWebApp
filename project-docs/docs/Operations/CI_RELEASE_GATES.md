@@ -37,6 +37,13 @@ separate visible checks during the first migration stage. The Beta ruleset
 should continue requiring its existing checks until `Beta PR Gate` has reported
 successfully and consistently.
 
+GitHub Actions Dependabot PRs use a credential-free E2E policy because GitHub
+withholds normal Actions secrets from Dependabot events. The same required
+`e2e` context validates workflow policy and the updated Actions while build,
+Functions, preview, and readiness checks provide execution coverage. The
+exception is limited to `dependabot/github_actions/*`; all other internal PRs
+retain authenticated Playwright smoke coverage.
+
 ## Release Gate
 
 `Release Gate` is the stable validation status for the bot-owned
@@ -45,6 +52,18 @@ successfully and consistently.
 The release candidate continues to receive full Build Check coverage. It is not
 assumed safe merely because its visible diff contains version files: the branch
 promotes the entire accumulated Beta release.
+
+The pull-request build uses the `release-validation` GitHub environment. That
+environment contains only the browser-safe `PROD_REACT_APP_*` variables needed
+to compile the production frontend. It does not contain deployment identity,
+backend configuration, or secrets. A manually dispatched release-candidate
+build may use the protected `production` environment, while actual production
+deployment remains restricted to the validated release merge on Main.
+
+Internal `ci`, `docs`, `chore`, `test`, `build`, or `refactor` stabilization
+commits may follow a matching release-preparation commit without advancing the
+prepared version. A later `fix`, `perf`, `feat`, or breaking change still
+advances from that prepared version according to only the later product impact.
 
 After a successful canary period, Main branch protection should require
 `Release Gate` instead of individual Build Check job names. Release notes and
@@ -72,6 +91,11 @@ selects a major release. Internal-only `refactor`, `docs`, `chore`, `ci`,
 `build`, and `test` changes have no product-version impact unless an explicit
 release-impact label overrides the inference. They remain visible in engineering
 notes without creating an otherwise empty customer release.
+
+Breaking impact is recognized only from an explicit signal: a `!` Conventional
+Commit marker, a breaking release label, a `BREAKING CHANGE:` footer, or a
+dedicated breaking-change heading. Explanatory PR-template prose must not alter
+the inferred version.
 
 ## Test manifests
 
@@ -118,6 +142,16 @@ Production release finalization begins only after Firebase deploy succeeds and
 the default production Hosting origin serves the Maintley app shell on its
 public BrowserRouter routes. Tags and GitHub Releases therefore represent a
 verified deployed commit rather than only a successful upload command.
+Before the released Main commit is fast-forwarded into Beta, the deployment
+workflow also reports the required `Beta backend readiness` check on that exact
+commit. The finalizer depends on the successful readiness job rather than using
+a branch-protection bypass.
+
+Published customer notes come from the versioned preview approved in the
+release PR. Finalization verifies the preview heading, records that source in
+release metadata, and reconciles an existing GitHub Release during an
+idempotent recovery run. It does not infer a new version from the release merge
+commit.
 
 Production identity verification is intentionally separate from deployment.
 `.github/workflows/verify-production-deployment-identity.yml` may read project

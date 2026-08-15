@@ -37,338 +37,384 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteUserAccount = void 0;
-const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
-const stripe_1 = __importDefault(require("stripe"));
+const functions = __importStar(require("firebase-functions/v1"));
 const params_1 = require("firebase-functions/params");
-if (!admin.apps.length) {
+const stripe_1 = __importDefault(require("stripe"));
+const accountDeletionCore_1 = require("./accountDeletionCore");
+if (!admin.apps.length)
     admin.initializeApp();
-}
 const db = admin.firestore();
 const auth = admin.auth();
+const storage = admin.storage();
 const STRIPE_SECRET_KEY = (0, params_1.defineSecret)('STRIPE_SECRET_KEY');
-const getStripeClient = () => new stripe_1.default(STRIPE_SECRET_KEY.value(), {
-    apiVersion: '2023-10-16',
-});
 const PAID_SUBSCRIPTION_PLANS = new Set([
     'homeowner_plus',
     'property',
     'portfolio',
 ]);
-/**
- * Delete User Account
- * POST /api/delete-user-account
- * Body: { userId }
- *
- * This function deletes all user-related data from Firestore.
- * Only the original owner of properties can delete everything.
- * Co-owners/shared users only lose access but properties remain.
- */
+const getStripeClient = () => new stripe_1.default(STRIPE_SECRET_KEY.value(), { apiVersion: '2023-10-16' });
+const normalizeId = (value) => String(value || '').trim();
+const addDelete = (manifest, ref, label) => {
+    manifest.operations.set(ref.path, { kind: 'delete', ref, label });
+};
+const addUpdate = (manifest, ref, data, label, removedUserFields) => {
+    const existing = manifest.operations.get(ref.path);
+    if (existing?.kind === 'delete')
+        return;
+    if (existing?.kind === 'update') {
+        const merged = (0, accountDeletionCore_1.mergeAccessRemovalUpdates)({
+            data: existing.data,
+            removedUserFields: existing.removedUserFields,
+        }, { data, removedUserFields });
+        manifest.operations.set(ref.path, {
+            ...existing,
+            data: merged.data,
+            removedUserFields: merged.removedUserFields,
+        });
+        return;
+    }
+    manifest.operations.set(ref.path, {
+        kind: 'update',
+        ref,
+        data,
+        label,
+        removedUserFields,
+    });
+};
+const queryDocs = async (collectionName, field, operator, value) => {
+    const snapshot = await db
+        .collection(collectionName)
+        .where(field, operator, value)
+        .get();
+    return snapshot.docs;
+};
+const addQueryDeletes = async (manifest, collectionName, field, operator, value, label = collectionName) => {
+    const docs = await queryDocs(collectionName, field, operator, value);
+    docs.forEach((document) => addDelete(manifest, document.ref, label));
+    return docs;
+};
+const resolveOwnedProperties = async (userId, userData) => {
+    const properties = new Map();
+    for (const document of await queryDocs('properties', 'userId', '==', userId)) {
+        properties.set(document.id, document);
+    }
+    const accountIds = [userData.accountId, userData.familyAccountId]
+        .map(normalizeId)
+        .filter(Boolean);
+    const isAccountOwner = userData.isAccountOwner === true;
+    if (isAccountOwner) {
+        for (const accountId of accountIds) {
+            for (const document of await queryDocs('properties', 'accountId', '==', accountId)) {
+                properties.set(document.id, document);
+            }
+        }
+    }
+    return Array.from(properties.values());
+};
+const addOwnedPropertyData = async (manifest, property) => {
+    const propertyId = property.id;
+    const propertyData = property.data() || {};
+    const accountId = normalizeId(propertyData.accountId || propertyData.userId);
+    manifest.propertyIds.push(propertyId);
+    if (accountId)
+        manifest.accountIds.push(accountId);
+    const propertyCollections = [
+        'tasks',
+        'suites',
+        'units',
+        'contractors',
+        'maintenanceEvents',
+        'maintenanceHistory',
+        'propertyShares',
+        'userInvitations',
+        'tenantInvitationCodes',
+        'tenantProfiles',
+        'favorites',
+        'maintenanceRequests',
+        'propertyDocuments',
+        'propertyKnowledgeSuggestions',
+        'propertySpaces',
+        'propertySupplies',
+        'propertyKnowledgeLinks',
+        'propertyGroupMemberships',
+    ];
+    for (const collectionName of propertyCollections) {
+        const documents = await addQueryDeletes(manifest, collectionName, 'propertyId', '==', propertyId);
+        if (collectionName === 'tasks') {
+            for (const documentChunk of (0, accountDeletionCore_1.chunkItems)(documents, 10)) {
+                await addQueryDeletes(manifest, 'taskReminderEmailDeliveries', 'taskId', 'in', documentChunk.map((document) => document.id));
+            }
+        }
+        if (collectionName === 'maintenanceEvents') {
+            for (const documentChunk of (0, accountDeletionCore_1.chunkItems)(documents, 10)) {
+                await addQueryDeletes(manifest, 'maintenanceEventRevisions', 'maintenanceEventId', 'in', documentChunk.map((document) => document.id));
+            }
+        }
+    }
+    await addQueryDeletes(manifest, 'devices', 'location.propertyId', '==', propertyId);
+    await addQueryDeletes(manifest, 'notifications', 'data.propertyId', '==', propertyId);
+    addDelete(manifest, property.ref, 'properties');
+};
+const addAccessRemoval = async (manifest, userId) => {
+    for (const field of ['coOwners', 'administrators', 'viewers']) {
+        const documents = await queryDocs('properties', field, 'array-contains', userId);
+        for (const document of documents) {
+            const current = document.data() || {};
+            addUpdate(manifest, document.ref, { [field]: (0, accountDeletionCore_1.removeIdFromArray)(current[field], userId) }, 'properties', [field]);
+        }
+    }
+    await addQueryDeletes(manifest, 'propertyShares', 'sharedWithUserId', '==', userId);
+};
+const buildDeletionManifest = async ({ userId, userData, email, recovery, }) => {
+    const manifest = {
+        operations: new Map(),
+        storagePrefixes: [],
+        propertyIds: [...(recovery?.propertyIds || [])].map(normalizeId).filter(Boolean),
+        accountIds: [
+            userData.accountId,
+            userData.familyAccountId,
+            ...(recovery?.accountIds || []),
+        ]
+            .map(normalizeId)
+            .filter(Boolean),
+        wasOwner: recovery?.wasOwner === true,
+    };
+    const ownedPropertyMap = new Map((await resolveOwnedProperties(userId, userData)).map((property) => [
+        property.id,
+        property,
+    ]));
+    for (const propertyId of recovery?.propertyIds || []) {
+        const property = await db.collection('properties').doc(propertyId).get();
+        if (property.exists) {
+            ownedPropertyMap.set(property.id, property);
+        }
+    }
+    const ownedProperties = Array.from(ownedPropertyMap.values());
+    manifest.wasOwner = manifest.wasOwner || ownedProperties.length > 0;
+    for (const property of ownedProperties) {
+        await addOwnedPropertyData(manifest, property);
+    }
+    // A user can own one Property while retaining shared access to another.
+    // Remove those references for every deletion; owned Property deletes take
+    // precedence over these updates in the manifest.
+    await addAccessRemoval(manifest, userId);
+    for (const collectionName of [
+        'propertyGroups',
+        'teamGroups',
+        'teamMembers',
+        'notifications',
+        'contractors',
+        'maintenanceHistory',
+        'favorites',
+        'tasks',
+        'userPreferences',
+        'activityLogs',
+        'recentlyViewed',
+        'deviceSubscriptions',
+        'accountMemberships',
+        'storageUploadReservations',
+    ]) {
+        await addQueryDeletes(manifest, collectionName, 'userId', '==', userId);
+    }
+    if (email) {
+        await addQueryDeletes(manifest, 'userInvitations', 'toEmail', '==', email);
+    }
+    addDelete(manifest, db.collection('users').doc(userId), 'users');
+    manifest.propertyIds = Array.from(new Set(manifest.propertyIds)).sort();
+    manifest.accountIds = Array.from(new Set(manifest.accountIds)).sort();
+    manifest.storagePrefixes = (0, accountDeletionCore_1.buildAccountDeletionStoragePrefixes)({
+        userId,
+        accountIds: manifest.wasOwner ? manifest.accountIds : [],
+        propertyIds: manifest.propertyIds,
+    });
+    return manifest;
+};
+const executeFirestoreManifest = async (manifest) => {
+    const operations = Array.from(manifest.operations.values());
+    const counts = {};
+    for (const operationChunk of (0, accountDeletionCore_1.chunkItems)(operations)) {
+        const batch = db.batch();
+        for (const operation of operationChunk) {
+            if (operation.kind === 'delete')
+                batch.delete(operation.ref);
+            else
+                batch.update(operation.ref, operation.data);
+            counts[operation.label] = (counts[operation.label] || 0) + 1;
+        }
+        await batch.commit();
+    }
+    return counts;
+};
+const deleteStoragePrefixes = async (prefixes) => {
+    const bucket = storage.bucket();
+    for (const prefix of prefixes) {
+        await bucket.deleteFiles({ prefix, force: true });
+    }
+};
+const verifyDeletion = async (manifest, userId) => {
+    const unresolved = [];
+    for (const operationChunk of (0, accountDeletionCore_1.chunkItems)(Array.from(manifest.operations.values()), 300)) {
+        const snapshots = await db.getAll(...operationChunk.map((item) => item.ref));
+        snapshots.forEach((snapshot, index) => {
+            const operation = operationChunk[index];
+            if (operation.kind === 'delete' && snapshot.exists) {
+                unresolved.push(`${operation.label}:document_remaining`);
+                return;
+            }
+            if (operation.kind === 'update' && snapshot.exists) {
+                const data = snapshot.data() || {};
+                for (const field of operation.removedUserFields) {
+                    if (Array.isArray(data[field]) && data[field].includes(userId)) {
+                        unresolved.push(`${operation.label}:${field}_still_references_user`);
+                    }
+                }
+            }
+        });
+    }
+    const bucket = storage.bucket();
+    for (const prefix of manifest.storagePrefixes) {
+        const [remaining] = await bucket.getFiles({ prefix, maxResults: 1 });
+        if (remaining.length > 0)
+            unresolved.push(`storage:${prefix}`);
+    }
+    return Array.from(new Set(unresolved)).sort();
+};
+const enforceSubscriptionDeletionPolicy = async (userData) => {
+    const subscription = userData.subscription;
+    if (!subscription)
+        return;
+    const normalizedPlan = normalizeId(subscription.plan).toLowerCase();
+    const hasPaidPlan = PAID_SUBSCRIPTION_PLANS.has(normalizedPlan);
+    const now = Math.floor(Date.now() / 1000);
+    const isInTrial = Boolean(subscription.trialEndsAt && subscription.trialEndsAt > now);
+    if (hasPaidPlan &&
+        ((subscription.status === 'active' && !isInTrial) ||
+            subscription.status === 'past_due')) {
+        throw new functions.https.HttpsError('failed-precondition', 'You cannot delete your account while you have an active subscription. Please cancel your subscription first.');
+    }
+    if ((subscription.status === 'trial' || isInTrial) &&
+        subscription.stripeSubscriptionId) {
+        try {
+            await getStripeClient().subscriptions.cancel(subscription.stripeSubscriptionId);
+        }
+        catch (error) {
+            functions.logger.warn('Trial cancellation failed during account deletion', {
+                userId: userData.id,
+                error,
+            });
+        }
+    }
+};
 exports.deleteUserAccount = functions
-    .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
+    .runWith({ secrets: ['STRIPE_SECRET_KEY'], timeoutSeconds: 540, memory: '1GB' })
     .https.onCall(async (data, context) => {
-    // Verify user is authenticated
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
     }
-    const { userId } = data;
+    const userId = normalizeId(data?.userId);
     if (!userId) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing userId parameter');
     }
-    // Ensure user can only delete their own account
     if (context.auth.uid !== userId) {
         throw new functions.https.HttpsError('permission-denied', 'You can only delete your own account');
     }
-    // Check if user has an active Stripe subscription
-    const userDoc = await db.collection('users').doc(userId).get();
-    const userData = userDoc.data();
-    if (userData?.subscription) {
-        const subscription = userData.subscription;
-        const normalizedPlan = String(subscription.plan || '')
-            .trim()
-            .toLowerCase();
-        const hasPaidPlan = PAID_SUBSCRIPTION_PLANS.has(normalizedPlan);
-        console.log('User subscription data:', subscription);
-        const now = Math.floor(Date.now() / 1000);
-        console.log('Current timestamp:', now);
-        console.log('Subscription status:', subscription.status);
-        console.log('Trial ends at:', subscription.trialEndsAt);
-        // Check if subscription is in trial period
-        const isInTrial = subscription.trialEndsAt && subscription.trialEndsAt > now;
-        console.log('Is in trial period:', isInTrial);
-        // Block deletion for active or past_due subscriptions that are NOT in trial
-        if (hasPaidPlan &&
-            ((subscription.status === 'active' && !isInTrial) ||
-                subscription.status === 'past_due')) {
-            console.log('Blocking deletion: subscription is active/past_due and not in trial');
-            throw new functions.https.HttpsError('failed-precondition', 'You cannot delete your account while you have an active subscription. Please cancel your subscription first.');
-        }
-        console.log('Allowing deletion: subscription is either in trial or not active/past_due');
-        // If user has a trial subscription, cancel it immediately
-        if (subscription.status === 'trial' || isInTrial) {
-            console.log('Attempting to cancel trial subscription');
-            if (subscription.stripeSubscriptionId) {
-                try {
-                    console.log(`Cancelling trial subscription: ${subscription.stripeSubscriptionId}`);
-                    await getStripeClient().subscriptions.cancel(subscription.stripeSubscriptionId);
-                    console.log('Trial subscription cancelled successfully');
-                }
-                catch (cancelError) {
-                    console.error('Error cancelling trial subscription:', cancelError);
-                    // Continue with account deletion even if cancellation fails
-                }
-            }
-            else {
-                console.log('No stripeSubscriptionId found for trial subscription');
-            }
-        }
-        else {
-            console.log('Not cancelling subscription: not in trial status');
-        }
-    }
-    else {
-        console.log('No subscription data found for user');
-    }
-    const batch = db.batch();
-    let isOwner = false;
+    const deletionJobRef = db.collection('accountDeletionJobs').doc(userId);
     try {
-        console.log(`Starting account deletion for user: ${userId}`);
-        // Check if user is an original owner of any properties
-        const propertiesSnapshot = await db
-            .collection('properties')
-            .where('userId', '==', userId)
-            .get();
-        isOwner = !propertiesSnapshot.empty;
-        if (isOwner) {
-            console.log('User is an original owner - deleting all owned data');
-            // Delete owned property groups
-            const propertyGroupsSnapshot = await db
-                .collection('propertyGroups')
-                .where('userId', '==', userId)
-                .get();
-            propertyGroupsSnapshot.forEach((doc) => {
-                console.log(`Deleting property group: ${doc.id}`);
-                batch.delete(doc.ref);
+        const userDocument = await db.collection('users').doc(userId).get();
+        const userData = { id: userId, ...(userDocument.data() || {}) };
+        await enforceSubscriptionDeletionPolicy(userData);
+        const existingJob = await deletionJobRef.get();
+        const recovery = existingJob.exists
+            ? existingJob.data()
+            : undefined;
+        const manifest = await buildDeletionManifest({
+            userId,
+            userData,
+            email: normalizeId(context.auth.token.email),
+            recovery,
+        });
+        await deletionJobRef.set({
+            userId,
+            status: 'prepared',
+            wasOwner: manifest.wasOwner,
+            propertyIds: manifest.propertyIds,
+            accountIds: manifest.accountIds,
+            firestoreOperationCount: manifest.operations.size,
+            storagePrefixCount: manifest.storagePrefixes.length,
+            createdAt: recovery
+                ? existingJob.data()?.createdAt || admin.firestore.FieldValue.serverTimestamp()
+                : admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        const deleted = await executeFirestoreManifest(manifest);
+        await deletionJobRef.set({
+            status: 'firestore_complete',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        await deleteStoragePrefixes(manifest.storagePrefixes);
+        await deletionJobRef.set({
+            status: 'storage_complete',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        const unresolved = await verifyDeletion(manifest, userId);
+        if (unresolved.length > 0) {
+            functions.logger.error('Account deletion verification failed', {
+                userId,
+                unresolved,
             });
-            // Delete owned properties and all related data
-            for (const propertyDoc of propertiesSnapshot.docs) {
-                const propertyId = propertyDoc.id;
-                console.log(`Deleting property: ${propertyId}`);
-                // Delete property document
-                batch.delete(propertyDoc.ref);
-                // Delete related tasks
-                const tasksSnapshot = await db
-                    .collection('tasks')
-                    .where('propertyId', '==', propertyId)
-                    .get();
-                tasksSnapshot.forEach((doc) => {
-                    console.log(`Deleting task: ${doc.id}`);
-                    batch.delete(doc.ref);
-                });
-                // Delete related suites
-                const suitesSnapshot = await db
-                    .collection('suites')
-                    .where('propertyId', '==', propertyId)
-                    .get();
-                suitesSnapshot.forEach((doc) => {
-                    console.log(`Deleting suite: ${doc.id}`);
-                    batch.delete(doc.ref);
-                });
-                // Delete related units
-                const unitsSnapshot = await db
-                    .collection('units')
-                    .where('propertyId', '==', propertyId)
-                    .get();
-                unitsSnapshot.forEach((doc) => {
-                    console.log(`Deleting unit: ${doc.id}`);
-                    batch.delete(doc.ref);
-                });
-                // Delete related devices
-                const devicesSnapshot = await db
-                    .collection('devices')
-                    .where('location.propertyId', '==', propertyId)
-                    .get();
-                devicesSnapshot.forEach((doc) => {
-                    console.log(`Deleting device: ${doc.id}`);
-                    batch.delete(doc.ref);
-                });
-                for (const collectionName of [
-                    'propertySpaces',
-                    'propertySupplies',
-                    'propertyKnowledgeLinks',
-                ]) {
-                    const connectedKnowledgeSnapshot = await db
-                        .collection(collectionName)
-                        .where('propertyId', '==', propertyId)
-                        .get();
-                    connectedKnowledgeSnapshot.forEach((doc) => {
-                        console.log(`Deleting ${collectionName} record: ${doc.id}`);
-                        batch.delete(doc.ref);
-                    });
-                }
-                // Delete property shares
-                const sharesSnapshot = await db
-                    .collection('propertyShares')
-                    .where('propertyId', '==', propertyId)
-                    .get();
-                sharesSnapshot.forEach((doc) => {
-                    console.log(`Deleting property share: ${doc.id}`);
-                    batch.delete(doc.ref);
-                });
-                // Delete user invitations for this property
-                const invitationsSnapshot = await db
-                    .collection('userInvitations')
-                    .where('propertyId', '==', propertyId)
-                    .get();
-                invitationsSnapshot.forEach((doc) => {
-                    console.log(`Deleting invitation: ${doc.id}`);
-                    batch.delete(doc.ref);
-                });
-            }
-            // Delete owned team groups
-            const teamGroupsSnapshot = await db
-                .collection('teamGroups')
-                .where('userId', '==', userId)
-                .get();
-            teamGroupsSnapshot.forEach((doc) => {
-                console.log(`Deleting team group: ${doc.id}`);
-                batch.delete(doc.ref);
-            });
-            // Delete owned team members
-            const teamMembersSnapshot = await db
-                .collection('teamMembers')
-                .where('userId', '==', userId)
-                .get();
-            teamMembersSnapshot.forEach((doc) => {
-                console.log(`Deleting team member: ${doc.id}`);
-                batch.delete(doc.ref);
-            });
+            throw new Error('Account deletion left managed records unresolved.');
         }
-        else {
-            console.log('User is not an original owner - removing access only');
-            // Remove user from co-owners lists
-            const coOwnerPropertiesSnapshot = await db
-                .collection('properties')
-                .where('coOwners', 'array-contains', userId)
-                .get();
-            coOwnerPropertiesSnapshot.forEach((doc) => {
-                const property = doc.data();
-                const updatedCoOwners = property.coOwners?.filter((id) => id !== userId) || [];
-                console.log(`Removing ${userId} from co-owners of property: ${doc.id}`);
-                batch.update(doc.ref, { coOwners: updatedCoOwners });
-            });
-            // Remove user from administrators lists
-            const adminPropertiesSnapshot = await db
-                .collection('properties')
-                .where('administrators', 'array-contains', userId)
-                .get();
-            adminPropertiesSnapshot.forEach((doc) => {
-                const property = doc.data();
-                const updatedAdmins = property.administrators?.filter((id) => id !== userId) ||
-                    [];
-                console.log(`Removing ${userId} from administrators of property: ${doc.id}`);
-                batch.update(doc.ref, { administrators: updatedAdmins });
-            });
-            // Remove user from viewers lists
-            const viewerPropertiesSnapshot = await db
-                .collection('properties')
-                .where('viewers', 'array-contains', userId)
-                .get();
-            viewerPropertiesSnapshot.forEach((doc) => {
-                const property = doc.data();
-                const updatedViewers = property.viewers?.filter((id) => id !== userId) || [];
-                console.log(`Removing ${userId} from viewers of property: ${doc.id}`);
-                batch.update(doc.ref, { viewers: updatedViewers });
-            });
-            // Delete property shares where user is the shared user
-            const userSharesSnapshot = await db
-                .collection('propertyShares')
-                .where('sharedWithUserId', '==', userId)
-                .get();
-            userSharesSnapshot.forEach((doc) => {
-                console.log(`Deleting property share: ${doc.id}`);
-                batch.delete(doc.ref);
-            });
-            // Delete user invitations where user is the recipient
-            const userInvitationsSnapshot = await db
-                .collection('userInvitations')
-                .where('toEmail', '==', context.auth.token.email)
-                .get();
-            userInvitationsSnapshot.forEach((doc) => {
-                console.log(`Deleting invitation: ${doc.id}`);
-                batch.delete(doc.ref);
-            });
-        }
-        // Delete user profile data (always delete these)
-        const userProfileSnapshot = await db
-            .collection('users')
-            .doc(userId)
-            .get();
-        if (userProfileSnapshot.exists) {
-            console.log(`Deleting user profile: ${userId}`);
-            batch.delete(userProfileSnapshot.ref);
-        }
-        // Delete user's notifications (always delete these)
-        const notificationsSnapshot = await db
-            .collection('notifications')
-            .where('userId', '==', userId)
-            .get();
-        notificationsSnapshot.forEach((doc) => {
-            console.log(`Deleting notification: ${doc.id}`);
-            batch.delete(doc.ref);
-        });
-        // Delete user's contractors (always delete these)
-        const contractorsSnapshot = await db
-            .collection('contractors')
-            .where('userId', '==', userId)
-            .get();
-        contractorsSnapshot.forEach((doc) => {
-            console.log(`Deleting contractor: ${doc.id}`);
-            batch.delete(doc.ref);
-        });
-        // Delete user's maintenance history (always delete these)
-        const maintenanceHistorySnapshot = await db
-            .collection('maintenanceHistory')
-            .where('userId', '==', userId)
-            .get();
-        maintenanceHistorySnapshot.forEach((doc) => {
-            console.log(`Deleting maintenance history: ${doc.id}`);
-            batch.delete(doc.ref);
-        });
-        // Delete user's favorites (always delete these)
-        const favoritesSnapshot = await db
-            .collection('favorites')
-            .where('userId', '==', userId)
-            .get();
-        favoritesSnapshot.forEach((doc) => {
-            console.log(`Deleting favorite: ${doc.id}`);
-            batch.delete(doc.ref);
-        });
-        // Delete user's tasks (if not already deleted as part of property deletion)
-        const userTasksSnapshot = await db
-            .collection('tasks')
-            .where('userId', '==', userId)
-            .get();
-        userTasksSnapshot.forEach((doc) => {
-            console.log(`Deleting user task: ${doc.id}`);
-            batch.delete(doc.ref);
-        });
-        // Commit all Firestore changes
-        await batch.commit();
-        console.log('Firestore data deletion completed');
-        // Delete the user from Firebase Auth
         await auth.deleteUser(userId);
-        console.log('Firebase Auth user deleted');
+        try {
+            await deletionJobRef.delete();
+        }
+        catch (jobCleanupError) {
+            // Authentication deletion is the terminal privacy boundary. A stale,
+            // server-only operational record must not turn a completed deletion
+            // into a client-visible failure that the deleted user cannot retry.
+            functions.logger.error('Completed account deletion job cleanup failed', {
+                userId,
+                jobCleanupError,
+            });
+        }
+        functions.logger.info('Account deletion completed and verified', {
+            userId,
+            wasOwner: manifest.wasOwner,
+            propertyCount: manifest.propertyIds.length,
+            firestoreOperations: manifest.operations.size,
+            storagePrefixCount: manifest.storagePrefixes.length,
+            deleted,
+        });
         return {
             success: true,
-            message: isOwner
+            message: manifest.wasOwner
                 ? 'Account and all associated data deleted successfully'
                 : 'Account access removed successfully. Properties owned by others remain intact.',
-            wasOwner: isOwner,
+            wasOwner: manifest.wasOwner,
+            verification: {
+                firestoreOperations: manifest.operations.size,
+                storagePrefixes: manifest.storagePrefixes.length,
+                unresolved: 0,
+            },
         };
     }
     catch (error) {
-        console.error('Error deleting user account:', error);
+        if (error instanceof functions.https.HttpsError)
+            throw error;
+        try {
+            await deletionJobRef.set({
+                status: 'failed',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+        catch (jobError) {
+            functions.logger.error('Account deletion job status update failed', {
+                userId,
+                jobError,
+            });
+        }
+        functions.logger.error('Account deletion failed', { userId, error });
         throw new functions.https.HttpsError('internal', 'Failed to delete account. Please contact support.');
     }
 });

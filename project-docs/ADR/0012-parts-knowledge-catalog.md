@@ -1,8 +1,24 @@
-# ADR: Part Knowledge Catalog for Property Knowledge Acquisition
+# ADR 0012: Part Knowledge Catalog for Property Knowledge Acquisition
 
-## Status
+Status: Accepted - phased implementation
 
-Accepted - initial implementation
+Amended: 2026-08-02 - storage ownership aligned with ADR 0036
+
+ADR 0036 makes accepted parts and supplies independent Property-owned Supply
+records connected to Equipment through relationships. References below to
+adding an accepted item "under" Equipment describe the historical review
+experience, not the current storage boundary.
+
+## Implementation Tracking
+
+* [x] Define the typed part and supply extraction taxonomy.
+* [x] Add the initial HVAC Part Knowledge Catalog and conservative matching.
+* [x] Present matched parts and supplies as reviewable Property Knowledge
+  suggestions with source provenance.
+* [x] Store accepted parts and supplies as Property-owned Supply records through
+  ADR 0036 rather than beneath Equipment.
+* [ ] Expand catalog coverage only as document evidence and deterministic tests
+  justify additional property-care domains.
 
 ## Context
 

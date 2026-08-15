@@ -1,8 +1,6 @@
-# ADR: Property Knowledge Acquisition
+# ADR 0011: Property Knowledge Acquisition
 
-## Status
-
-Accepted - initial implementation
+Status: Accepted - initial implementation
 
 ---
 

@@ -27,7 +27,12 @@ import {
 import {
 	useGetPropertyKnowledgeLinksQuery,
 	useSetEquipmentSpaceLinksMutation,
+	useSetSupplyLinksMutation,
 } from 'Redux/API/propertyKnowledgeLinkSlice';
+import {
+	useCreatePropertySupplyMutation,
+	useGetPropertySuppliesQuery,
+} from 'Redux/API/supplySlice';
 import { useGetTasksQuery } from 'Redux/API/taskSlice';
 import { useGetUnitsQuery } from 'Redux/API/propertySlice';
 import {
@@ -39,7 +44,6 @@ import { DeviceModal } from '../../../Components/Library/Modal';
 import {
 	Device,
 	Property,
-	DeviceServiceItem,
 	PropertyDocumentCategory,
 } from '../../../types/Property.types';
 import { usePropertyDocumentUploadWorkflow } from '../../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
@@ -91,7 +95,12 @@ import { expectsEquipmentIdentityDetails } from '../../../intelligence/assetReco
 import { formatDisplayDate, getDisplayDateTime, parseDisplayDate } from '../../../utils/dateDisplay';
 import { getMaintenanceEventDate } from '../../../utils/maintenanceEventUtils';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../../../maintenanceHistory/maintenanceHistoryAdapter';
-import { getEquipmentSpaceIds } from '../../../types/PropertyKnowledgeLink.types';
+import {
+	getEquipmentSpaceIds,
+	getEndpointSupplyIds,
+} from '../../../types/PropertyKnowledgeLink.types';
+import type { PendingEquipmentSupplyDraft } from '../../../Components/EquipmentSuppliesReview/EquipmentSuppliesReview';
+import { buildEquipmentSupplyLinkUpdates } from '../../../propertyKnowledge/equipmentSupplyConnections';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -107,7 +116,6 @@ interface DeviceFormData {
 	brand: string;
 	model: string;
 	serialNumber?: string;
-	serviceItems?: DeviceServiceItem[];
 	installationDate: string;
 	decommissionDate?: string;
 	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
@@ -152,6 +160,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const [removedExistingFileUrls, setRemovedExistingFileUrls] = useState<
 		string[]
 	>([]);
+	const [selectedSupplyIds, setSelectedSupplyIds] = useState<string[]>([]);
+	const [pendingSupplies, setPendingSupplies] = useState<
+		PendingEquipmentSupplyDraft[]
+	>([]);
 	// delete confirmation dialog state
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [deleteDialogMessage, setDeleteDialogMessage] = useState('');
@@ -168,7 +180,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		brand: '',
 		model: '',
 		serialNumber: '',
-		serviceItems: [],
 		installationDate: '',
 		decommissionDate: '',
 		status: 'Active',
@@ -191,6 +202,16 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			{ accountId: propertyAccountId, propertyId: property.id },
 			{ skip: !propertyAccountId || !property.id },
 		);
+	const { data: propertySupplies = [] } = useGetPropertySuppliesQuery(
+		{
+			accountId: propertyAccountId,
+			propertyId: property.id,
+			includeArchived: true,
+		},
+		{ skip: !propertyAccountId || !property.id },
+	);
+	const [createPropertySupply] = useCreatePropertySupplyMutation();
+	const [setSupplyLinks] = useSetSupplyLinksMutation();
 	const [loadAllDevices, { data: allDevices = [] }] =
 		useLazyGetAllDevicesQuery();
 	const { data: units = [] } = useGetUnitsQuery(property.id);
@@ -756,7 +777,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			brand: '',
 			model: '',
 			serialNumber: '',
-			serviceItems: [],
 			installationDate: '',
 			decommissionDate: '',
 			status: 'Active',
@@ -770,6 +790,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		setPendingPropertyDocumentFiles([]);
 		setPendingPropertyDocumentCategory('other');
 		setRemovedExistingFileUrls([]);
+		setSelectedSupplyIds([]);
+		setPendingSupplies([]);
 		setEditingDevice(null);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = '';
@@ -851,7 +873,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			brand: device.brand || '',
 			model: device.model || '',
 			serialNumber: device.serialNumber || '',
-			serviceItems: device.serviceItems || [],
 			installationDate: getDeviceInstallDate(device),
 			decommissionDate: device.decommissionDate || '',
 			status: getResolvedDeviceStatus(device),
@@ -863,6 +884,14 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			),
 		});
 		setRemovedExistingFileUrls([]);
+		setSelectedSupplyIds(
+			getEndpointSupplyIds(
+				propertyKnowledgeLinks,
+				'equipment',
+				String(device.id),
+			),
+		);
+		setPendingSupplies([]);
 		setEditingDevice(device);
 		setShowDeviceModal(true);
 	};
@@ -987,6 +1016,46 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				}
 			}
 
+			const desiredSupplyIds = new Set(selectedSupplyIds);
+			for (const pendingSupply of pendingSupplies) {
+				const { clientId, ...supplyDraft } = pendingSupply;
+				if (!propertyAccountId) {
+					throw new Error('This property is missing its account connection.');
+				}
+				const createdSupply = await createPropertySupply({
+					...supplyDraft,
+					accountId: propertyAccountId,
+					propertyId: property.id,
+					analyticsSource: 'user',
+					analyticsEntryPoint: 'equipment_review',
+				}).unwrap();
+				desiredSupplyIds.add(createdSupply.id);
+				setPendingSupplies((current) =>
+					current.filter((item) => item.clientId !== clientId),
+				);
+				setSelectedSupplyIds((current) =>
+					Array.from(new Set([...current, createdSupply.id])),
+				);
+			}
+
+			const originalSupplyIds = getEndpointSupplyIds(
+				propertyKnowledgeLinks,
+				'equipment',
+				savedDeviceId,
+			);
+			const supplyLinkUpdates = buildEquipmentSupplyLinkUpdates({
+				links: propertyKnowledgeLinks,
+				equipmentId: savedDeviceId,
+				originalSupplyIds,
+				desiredSupplyIds: Array.from(desiredSupplyIds),
+			});
+			for (const update of supplyLinkUpdates) {
+				await setSupplyLinks({
+					propertyId: property.id,
+					...update,
+				}).unwrap();
+			}
+
 			const propertyDocumentUploads = [
 				...pendingUploadFiles.map((file) => ({
 					file,
@@ -1018,6 +1087,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			handleCloseModal();
 		} catch (error) {
 			console.error('Error saving equipment:', error);
+			feedback.notify(
+				'Maintley could not finish the Equipment review. Anything already saved remains available, and you can retry without recreating reviewed Supplies.',
+			);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -1373,14 +1445,16 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 					onFormChange={(e) =>
 						handleFormChange(e.currentTarget.name, e.currentTarget.value)
 					}
-					onServiceItemsChange={(items) =>
-						handleFormChange('serviceItems', items)
-					}
 					selectedSpaceIds={deviceFormData.spaceIds}
 					onSelectedSpaceIdsChange={(spaceIds) =>
 						handleFormChange('spaceIds', spaceIds)
 					}
 					canManageSpaces={canManageSpaces}
+					propertySupplies={propertySupplies}
+					selectedSupplyIds={selectedSupplyIds}
+					onSelectedSupplyIdsChange={setSelectedSupplyIds}
+					pendingSupplies={pendingSupplies}
+					onPendingSuppliesChange={setPendingSupplies}
 					property={property}
 					deviceId={editingDevice?.id}
 					units={units}

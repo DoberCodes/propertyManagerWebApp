@@ -12,10 +12,17 @@ import {
 	FormLabel,
 	FormSelect,
 	GenericModal,
+	MultiSelect,
 } from 'Components/Library';
 import { FileUploader } from 'Components/Library/FileUploader';
 import { useUpdatePropertyMutation } from 'Redux/API/propertySlice';
 import { apiSlice } from 'Redux/API/apiSlice';
+import {
+	useGetPropertyKnowledgeLinksQuery,
+	useSetDocumentLinksMutation,
+} from 'Redux/API/propertyKnowledgeLinkSlice';
+import { useGetPropertySpacesQuery } from 'Redux/API/spaceSlice';
+import { useGetPropertySuppliesQuery } from 'Redux/API/supplySlice';
 import type { AppDispatch, RootState } from 'Redux/store/store';
 import {
 	Device,
@@ -30,6 +37,7 @@ import {
 	mergeKnowledgeSuggestion,
 } from 'propertyKnowledge/propertyKnowledgeAcquisition';
 import { usePropertyDocumentUploadWorkflow } from 'propertyKnowledge/usePropertyDocumentUploadWorkflow';
+import { getDocumentEditFailureMessage } from 'propertyKnowledge/documentConnectionReliability';
 import {
 	deletePropertyDocumentFromCollection,
 	updatePropertyDocumentInCollection,
@@ -44,6 +52,8 @@ import {
 } from 'propertyKnowledge/propertyKnowledgeProcessing';
 import { RoleCapabilities } from 'utils/permissions';
 import { hasMaintleyAdminAccess } from 'utils/maintleyRole';
+import { getPropertyDocumentConnections } from 'utils/propertyDocumentRelationships';
+import { getPropertySupplyTypeLabel } from 'utils/propertySupplies';
 import {
 	deletePropertyDocumentFile,
 } from 'utils/propertyDocumentUpload';
@@ -67,7 +77,22 @@ type PropertyFileRecord = {
 	source: 'property' | 'appliance' | 'maintenance';
 	sourceLabel: string;
 	assignmentLabel?: string;
+	connectionCount?: number;
 	date?: string;
+};
+
+type DocumentConnections = {
+	equipmentIds: string[];
+	spaceIds: string[];
+	taskIds: string[];
+	supplyIds: string[];
+};
+
+const EMPTY_DOCUMENT_CONNECTIONS: DocumentConnections = {
+	equipmentIds: [],
+	spaceIds: [],
+	taskIds: [],
+	supplyIds: [],
 };
 
 interface DocumentsTabProps {
@@ -250,6 +275,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	const [editName, setEditName] = useState('');
 	const [editCategory, setEditCategory] =
 		useState<PropertyDocumentCategory>('manual');
+	const [editConnections, setEditConnections] =
+		useState<DocumentConnections>(EMPTY_DOCUMENT_CONNECTIONS);
 	const [isSaving, setIsSaving] = useState(false);
 	const lastOpenUploadTokenRef = useRef(0);
 	const canManageDocuments =
@@ -263,6 +290,21 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		documents: propertyDocuments,
 		knowledgeSuggestions: propertyKnowledgeSuggestions,
 	} = usePropertyMemoryRecords(property);
+	const accountId = String(property?.accountId || property?.userId || '').trim();
+	const { data: propertySpaces = [] } = useGetPropertySpacesQuery(
+		{ accountId, propertyId: property?.id, includeArchived: true },
+		{ skip: !accountId || !property?.id },
+	);
+	const { data: propertySupplies = [] } = useGetPropertySuppliesQuery(
+		{ accountId, propertyId: property?.id, includeArchived: true },
+		{ skip: !accountId || !property?.id },
+	);
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId, propertyId: property?.id },
+			{ skip: !accountId || !property?.id },
+		);
+	const [setDocumentLinks] = useSetDocumentLinksMutation();
 
 	const deviceById = useMemo(() => {
 		const map = new Map<string, any>();
@@ -281,21 +323,27 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 	}, [propertyTasks]);
 
 	const getAssignmentLabel = useCallback((document: PropertyDocument) => {
-		const assetId = document.assignedDeviceId || document.links?.assetIds?.[0];
+		const connections = getPropertyDocumentConnections(
+			document,
+			propertyKnowledgeLinks,
+		);
+		const assetId = connections.equipmentIds[0];
 		if (assetId) {
 			const device = deviceById.get(String(assetId));
 			return `Equipment: ${
 				device?.type || device?.name || 'Unknown equipment'
 			}`;
 		}
-		const taskId = document.assignedTaskId || document.links?.taskIds?.[0];
+		const taskId = connections.taskIds[0];
 		if (taskId) {
 			const task = taskById.get(String(taskId));
 			const status = getTaskAssignmentStatus(task, document.assignedTaskStatus);
 			return `Task: ${task?.title || 'Unknown task'} (${status})`;
 		}
+		if (connections.spaceIds.length > 0) return 'Connected to a Space';
+		if (connections.supplyIds.length > 0) return 'Connected to a Supply';
 		return 'Property document';
-	}, [deviceById, taskById]);
+	}, [deviceById, propertyKnowledgeLinks, taskById]);
 
 	useEffect(() => {
 		if (
@@ -313,20 +361,30 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
 	const propertyFileDocuments = useMemo<PropertyFileRecord[]>(
 		() =>
-			propertyDocuments.map((document) => ({
-				id: document.id,
-				name: document.fileName || document.name,
-				url: document.fileUrl || document.url,
-				size: document.size,
-				type: document.type,
-				category: document.category,
-				storagePath: document.storagePath,
-				source: 'property',
-				sourceLabel: getCategoryLabel(document.category),
-				assignmentLabel: getAssignmentLabel(document),
-				date: document.uploadedAt,
-			})),
-		[propertyDocuments, getAssignmentLabel],
+			propertyDocuments.map((document) => {
+				const connections = getPropertyDocumentConnections(
+					document,
+					propertyKnowledgeLinks,
+				);
+				return {
+					id: document.id,
+					name: document.fileName || document.name,
+					url: document.fileUrl || document.url,
+					size: document.size,
+					type: document.type,
+					category: document.category,
+					storagePath: document.storagePath,
+					source: 'property' as const,
+					sourceLabel: getCategoryLabel(document.category),
+					assignmentLabel: getAssignmentLabel(document),
+					connectionCount: Object.values(connections).reduce(
+						(total, ids) => total + ids.length,
+						0,
+					),
+					date: document.uploadedAt,
+				};
+			}),
+		[propertyDocuments, getAssignmentLabel, propertyKnowledgeLinks],
 	);
 
 	const applianceDocuments = useMemo<PropertyFileRecord[]>(() => {
@@ -598,6 +656,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		setEditingDocument(document);
 		setEditName(document.name);
 		setEditCategory(document.category || 'other');
+		setEditConnections(
+			getPropertyDocumentConnections(document, propertyKnowledgeLinks),
+		);
 		setIsEditOpen(true);
 	};
 
@@ -606,6 +667,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		setEditingDocument(null);
 		setEditName('');
 		setEditCategory('manual');
+		setEditConnections(EMPTY_DOCUMENT_CONNECTIONS);
 	};
 
 	const handleSaveEdit = async () => {
@@ -617,12 +679,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 		}
 
 		setIsSaving(true);
+		let documentDetailsSaved = false;
 		try {
-			await updatePropertyDocumentInCollection(property, editingDocument.id, {
-				name: trimmedName,
-				fileName: trimmedName,
-				category: editCategory,
-			});
 			await updateProperty({
 				id: property.id,
 				updates: {
@@ -638,11 +696,25 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 					),
 				},
 			}).unwrap();
+			await updatePropertyDocumentInCollection(property, editingDocument.id, {
+				name: trimmedName,
+				fileName: trimmedName,
+				category: editCategory,
+			});
+			documentDetailsSaved = true;
+			await setDocumentLinks({
+				propertyId: property.id,
+				documentId: editingDocument.id,
+				...editConnections,
+			}).unwrap();
 			feedback.notify('Document updated.');
 			closeEditModal();
 		} catch (error) {
 			console.error('Error updating property document:', error);
-			feedback.notify('Could not update document. Please try again.');
+			feedback.notify(
+				getDocumentEditFailureMessage(documentDetailsSaved),
+				'error',
+			);
 		} finally {
 			setIsSaving(false);
 		}
@@ -779,7 +851,13 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									{isPropertyDocument ? 'Type' : 'Source'}: {file.sourceLabel}
 								</DocumentMeta>
 								{isPropertyDocument && file.assignmentLabel && (
-									<DocumentMeta>Assigned to: {file.assignmentLabel}</DocumentMeta>
+									<DocumentMeta>Context: {file.assignmentLabel}</DocumentMeta>
+								)}
+								{isPropertyDocument && Boolean(file.connectionCount) && (
+									<DocumentMeta>
+										{file.connectionCount} connected record
+										{file.connectionCount === 1 ? '' : 's'}
+									</DocumentMeta>
 								)}
 								<DocumentMeta>{formatDate(file.date)}</DocumentMeta>
 								{isPropertyDocument &&
@@ -972,7 +1050,81 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						<option value='other'>Other document</option>
 					</FormSelect>
 				</FormGroup>
-		</GenericModal>
+				<p>
+					Connect this document to the property records it explains. Existing
+					connections remain visible wherever those records are shown.
+				</p>
+				<FormGroup>
+					<FormLabel>Equipment (optional)</FormLabel>
+					<MultiSelect
+						options={propertyDevices.map((device) => ({
+							value: String(device.id),
+							label: [device.type || device.name || 'Equipment', device.brand, device.model]
+								.filter(Boolean)
+								.join(' · '),
+						}))}
+						value={editConnections.equipmentIds}
+						onChange={(equipmentIds) =>
+							setEditConnections((current) => ({ ...current, equipmentIds }))
+						}
+						placeholder='Select equipment'
+					/>
+				</FormGroup>
+				<FormGroup>
+					<FormLabel>Spaces (optional)</FormLabel>
+					<MultiSelect
+						options={propertySpaces
+							.filter(
+								(space) =>
+									!space.isArchived || editConnections.spaceIds.includes(space.id),
+							)
+							.map((space) => ({
+								value: space.id,
+								label: `${space.name}${space.isArchived ? ' (Archived)' : ''}`,
+							}))}
+						value={editConnections.spaceIds}
+						onChange={(spaceIds) =>
+							setEditConnections((current) => ({ ...current, spaceIds }))
+						}
+						placeholder='Select Spaces'
+					/>
+				</FormGroup>
+				<FormGroup>
+					<FormLabel>Tasks (optional)</FormLabel>
+					<MultiSelect
+						options={propertyTasks.map((task) => ({
+							value: String(task.id),
+							label: task.title || 'Task',
+						}))}
+						value={editConnections.taskIds}
+						onChange={(taskIds) =>
+							setEditConnections((current) => ({ ...current, taskIds }))
+						}
+						placeholder='Select tasks'
+					/>
+				</FormGroup>
+				<FormGroup>
+					<FormLabel>Supplies (optional)</FormLabel>
+					<MultiSelect
+						options={propertySupplies
+							.filter(
+								(supply) =>
+									!supply.isArchived || editConnections.supplyIds.includes(supply.id),
+							)
+							.map((supply) => ({
+								value: supply.id,
+								label: `${supply.name} · ${getPropertySupplyTypeLabel(supply.type)}${
+									supply.isArchived ? ' (Archived)' : ''
+								}`,
+							}))}
+						value={editConnections.supplyIds}
+						onChange={(supplyIds) =>
+							setEditConnections((current) => ({ ...current, supplyIds }))
+						}
+						placeholder='Select Supplies'
+					/>
+				</FormGroup>
+			</GenericModal>
 
 		</SectionContainer>
 	);

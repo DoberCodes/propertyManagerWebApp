@@ -1,6 +1,6 @@
 # ADR 0020: Maintley Resolution Engine
 
-Status: Accepted
+Status: Accepted - initial implementation
 
 Date: 2026-07-03
 
@@ -131,6 +131,24 @@ Maintenance-history recommendations should prepare a maintenance event draft
 with the property and affected asset linked through `deviceIds`. The record
 name, date, and description should remain user-entered because Maintley should
 not assume what work was actually performed.
+
+## Implementation Tracking
+
+* [x] Define the typed Resolution Plan contract.
+* [x] Generate plans for equipment details, recurring tasks, and maintenance
+  history.
+* [x] Preserve resolution metadata in Quick Scan and Property Audit findings.
+* [x] Keep overdue-task findings routed to review rather than creating new work.
+* [ ] Add a guided completion review that explains the plan and available
+  completion paths before navigation.
+* [ ] Add useful upload, scan, Knowledge review, contractor, and task-review
+  resolution implementations.
+* [ ] Support inline completion for simple equipment fields.
+
+The current UI uses the plan's action label but still routes through the
+existing recommendation action. It does not yet expose the complete plan,
+missing fields, or secondary completion options. That behavior is preserved
+until the guided completion experience is implemented.
 
 ## Consequences
 

@@ -1,6 +1,8 @@
 import {
 	getEquipmentSpaceIds,
 	getEndpointSupplyIds,
+	getDocumentEndpointIds,
+	getEndpointDocumentIds,
 	getSupplyEndpointIds,
 	getTaskSpaceIds,
 	PropertyKnowledgeLink,
@@ -71,6 +73,34 @@ describe('Property Knowledge Link selectors', () => {
 		]);
 		expect(getEndpointSupplyIds(links, 'equipment', 'equipment-1')).toEqual([
 			'supply-1',
+		]);
+	});
+
+	it('derives both sides of Document relationships from canonical links', () => {
+		const links = [
+			makeLink({
+				id: 'document-link-1',
+				fromType: 'document',
+				fromId: 'document-1',
+				relationshipType: 'documents',
+				toType: 'equipment',
+				toId: 'equipment-1',
+			}),
+			makeLink({
+				id: 'document-link-2',
+				fromType: 'document',
+				fromId: 'document-1',
+				relationshipType: 'documents',
+				toType: 'space',
+				toId: 'space-1',
+			}),
+		];
+
+		expect(getDocumentEndpointIds(links, 'document-1', 'equipment')).toEqual([
+			'equipment-1',
+		]);
+		expect(getEndpointDocumentIds(links, 'space', 'space-1')).toEqual([
+			'document-1',
 		]);
 	});
 });

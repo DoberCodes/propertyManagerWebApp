@@ -1,6 +1,6 @@
 # ADR 0031: Homeowner+ Trial Lifecycle and Communication
 
-Status: Accepted
+Status: Implemented
 
 Date: 2026-07-23
 
@@ -258,6 +258,14 @@ properties, but a newly recorded tenant does not receive an invitation, login,
 portal, or direct maintenance-request access. Maintley must not describe
 existing properties, files, records, active team relationships, or continuing
 minimal tenant relationships as deleted, lost, or transferred.
+
+## Implementation Tracking
+
+- [x] Record lifecycle state and delivery attempts server-side.
+- [x] Add activation, reminder, conversion, and expiration communication rules.
+- [x] Respect grants, paid conversion, suppression, and manual resend behavior.
+- [x] Expose lifecycle delivery context in the Maintley admin experience.
+- [x] Add delivery, billing, and authorization tests and operating documentation.
 
 ## Consequences
 

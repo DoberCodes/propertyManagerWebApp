@@ -29,11 +29,17 @@ Amended: 2026-07-31 - opt-in shared Beta backend previews for trusted pull reque
 - [x] Add guarded, non-forced Beta alignment logic after production releases.
 - [x] Allow guarded direct Beta reference updates and verify a successful post-release fast-forward.
 - [x] Add an explicit, single-owner pull-request backend preview lifecycle for Maintley Beta.
-- [ ] Complete custom-domain DNS, TLS, and Firebase Hosting cutover.
-- [ ] Deploy clean-route URL generation for Functions, authentication, billing, invitations, and notifications.
+- [x] Complete custom-domain DNS, TLS, and Firebase Hosting cutover.
+- [x] Deploy clean-route URL generation for Functions, authentication, billing, invitations, and notifications.
 - [ ] Validate authentication, Stripe returns, email links, deep links, PWA behavior, and rollback on the production custom domain.
 - [ ] Complete Android clean-route validation and remove the transitional `HashRouter` build profile.
 - [ ] Retire GitHub Pages after the observation period and complete the repository privacy decision.
+
+The production custom domain now resolves to Firebase Hosting with TLS. Backend
+link producers use canonical clean routes independent of the transitional
+Android router profile. The remaining migration gates are production workflow
+validation, native clean-route validation, and removal of the retired Pages
+guard after the observation period.
 
 ## Context
 

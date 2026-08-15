@@ -28,10 +28,10 @@ jobs:
 
     steps:
       - name: Checkout pull request
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Use Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: 'yarn'
@@ -93,7 +93,7 @@ jobs:
           yarn check:asset-budgets
 
       - name: Upload preview build
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: firebase-preview-${{ github.event.pull_request.number }}
           path: build
@@ -116,7 +116,7 @@ jobs:
 
     steps:
       - name: Checkout trusted Hosting configuration
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Feature PRs use the protected beta branch configuration. The protected
           # main branch is trusted only while synchronizing release foundations
@@ -124,7 +124,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref == 'main' && github.event.pull_request.head.sha || github.event.pull_request.base.sha }}
 
       - name: Use Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
@@ -172,7 +172,7 @@ jobs:
           echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
 
       - name: Add preview URL to pull request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PREVIEW_URL: ${{ steps.deploy.outputs.preview_url }}
         with:
@@ -215,36 +215,12 @@ jobs:
 
     steps:
       - name: Checkout pull request
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Use Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: '22'
-          cache: 'yarn'
-          cache-dependency-path: functions/yarn.lock
-
-      - name: Install Firebase tooling
-        run: yarn --cwd functions install --frozen-lockfile
-
-      - name: Authenticate to Maintley Beta
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+      - name: Verify Maintley Beta backend readiness
+        uses: ./.github/actions/verify-beta-backend-readiness
         with:
           project_id: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
           workload_identity_provider: ${{ vars.DEV_GOOGLE_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.DEV_GOOGLE_SERVICE_ACCOUNT }}
-
-      - name: Verify required Functions configuration and secrets
-        env:
-          FIREBASE_PROJECT_ID: ${{ vars.DEV_FIREBASE_PROJECT_ID }}
-          MAINTLEY_GITHUB_VARIABLES_JSON: ${{ toJSON(vars) }}
-        run: |
-          if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
-            echo "Refusing to validate backend readiness outside Maintley Beta."
-            exit 1
-          fi
-
-          node scripts/bootstrapEnvironment.cjs \
-            --environment development \
-            --strict \
-            --check-secrets
+          github_variables_json: ${{ toJSON(vars) }}

@@ -12,6 +12,8 @@ export type PropertySpaceType = (typeof PROPERTY_SPACE_TYPES)[number];
 
 export type PropertySpaceSource =
 	| 'manual'
+	| 'property_profile'
+	| 'setup_assistant'
 	| 'document_review'
 	| 'intelligence_review'
 	| 'migration';
@@ -24,6 +26,7 @@ export interface PropertySpace {
 	type: PropertySpaceType;
 	notes?: string;
 	sortOrder?: number;
+	generationKey?: string;
 	isArchived: boolean;
 	source: PropertySpaceSource;
 	createdBy: string;

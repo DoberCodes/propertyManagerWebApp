@@ -19,7 +19,15 @@ import { FloatingFilterPanel } from '../../Components/Library';
 import { DeviceModal } from '../../Components/Library/Modal';
 import { RootState } from '../../Redux/store/store';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
-import { useSetEquipmentSpaceLinksMutation } from '../../Redux/API/propertyKnowledgeLinkSlice';
+import {
+	useGetPropertyKnowledgeLinksQuery,
+	useSetEquipmentSpaceLinksMutation,
+	useSetSupplyLinksMutation,
+} from '../../Redux/API/propertyKnowledgeLinkSlice';
+import {
+	useCreatePropertySupplyMutation,
+	useGetPropertySuppliesQuery,
+} from '../../Redux/API/supplySlice';
 import {
 	getMaintenanceEventDate,
 	getMaintenanceEventTitle,
@@ -28,7 +36,6 @@ import {
 import { mergeMaintenanceHistoryWithDeviceSources } from '../../maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	Device,
-	DeviceServiceItem,
 	Property,
 	PropertyDocumentCategory,
 } from '../../types/Property.types';
@@ -40,6 +47,8 @@ import {
 } from '../../utils/subscriptionUtils';
 import { getRoleCapabilities } from '../../utils/permissions';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
+import type { PendingEquipmentSupplyDraft } from '../../Components/EquipmentSuppliesReview/EquipmentSuppliesReview';
+import { buildEquipmentSupplyLinkUpdates } from '../../propertyKnowledge/equipmentSupplyConnections';
 import {
 	AppPage as StandardAppPage,
 	AppPageHeader as StandardAppPageHeader,
@@ -359,7 +368,6 @@ type DeviceFormData = {
 	partNumber?: string;
 	filterSize?: string;
 	specNotes?: string;
-	serviceItems?: DeviceServiceItem[];
 	installationDate: string;
 	decommissionDate?: string;
 	status: 'Active' | 'Maintenance' | 'Broken' | 'Decommissioned';
@@ -419,6 +427,10 @@ export const DevicesHubPage: React.FC = () => {
 		useState<File[]>([]);
 	const [pendingPropertyDocumentCategory, setPendingPropertyDocumentCategory] =
 		useState<PropertyDocumentCategory>('other');
+	const [selectedSupplyIds, setSelectedSupplyIds] = useState<string[]>([]);
+	const [pendingSupplies, setPendingSupplies] = useState<
+		PendingEquipmentSupplyDraft[]
+	>([]);
 	const [deviceFormData, setDeviceFormData] = useState<DeviceFormData>({
 		type: '',
 		brand: '',
@@ -427,7 +439,6 @@ export const DevicesHubPage: React.FC = () => {
 		partNumber: '',
 		filterSize: '',
 		specNotes: '',
-		serviceItems: [],
 		installationDate: '',
 		decommissionDate: '',
 		status: 'Active',
@@ -517,6 +528,34 @@ export const DevicesHubPage: React.FC = () => {
 		);
 		return (selected || properties[0] || null) as Property | null;
 	}, [properties, deviceFormData.location?.propertyId]);
+	const selectedCreatePropertyAccountId = String(
+		selectedCreateProperty?.accountId || selectedCreateProperty?.userId || '',
+	).trim();
+	const { data: selectedPropertySupplies = [] } = useGetPropertySuppliesQuery(
+		{
+			accountId: selectedCreatePropertyAccountId,
+			propertyId: String(selectedCreateProperty?.id || ''),
+			includeArchived: true,
+		},
+		{
+			skip:
+				!selectedCreatePropertyAccountId || !String(selectedCreateProperty?.id || ''),
+		},
+	);
+	const { data: selectedPropertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{
+				accountId: selectedCreatePropertyAccountId,
+				propertyId: String(selectedCreateProperty?.id || ''),
+			},
+			{
+				skip:
+					!selectedCreatePropertyAccountId ||
+					!String(selectedCreateProperty?.id || ''),
+			},
+		);
+	const [createPropertySupply] = useCreatePropertySupplyMutation();
+	const [setSupplyLinks] = useSetSupplyLinksMutation();
 
 	const handleCreateDeviceFormChange = (field: string, value: string) => {
 		if (field.startsWith('location.')) {
@@ -529,6 +568,10 @@ export const DevicesHubPage: React.FC = () => {
 					[locationField]: value,
 				},
 			}));
+			if (locationField === 'propertyId') {
+				setSelectedSupplyIds([]);
+				setPendingSupplies([]);
+			}
 			return;
 		}
 
@@ -563,6 +606,8 @@ export const DevicesHubPage: React.FC = () => {
 
 	const handleCloseCreateDeviceModal = () => {
 		setShowDeviceModal(false);
+		setSelectedSupplyIds([]);
+		setPendingSupplies([]);
 	};
 
 	const handleSubmitCreateDevice = async (event: React.FormEvent) => {
@@ -616,6 +661,47 @@ export const DevicesHubPage: React.FC = () => {
 					feedback.notify(
 						'Equipment was saved, but Maintley could not update its Spaces.',
 					);
+				}
+			}
+
+			if (
+				(selectedSupplyIds.length > 0 || pendingSupplies.length > 0) &&
+				!selectedCreatePropertyAccountId
+			) {
+				throw new Error('This property is missing its account connection.');
+			}
+			const desiredSupplyIds = new Set(selectedSupplyIds);
+			for (const pendingSupply of pendingSupplies) {
+				const { clientId, ...supplyDraft } = pendingSupply;
+				const createdSupply = await createPropertySupply({
+					...supplyDraft,
+					accountId: selectedCreatePropertyAccountId,
+					propertyId: String(targetProperty.id),
+					source: 'manual',
+					analyticsSource: 'user',
+					analyticsEntryPoint: 'equipment_review',
+				}).unwrap();
+				desiredSupplyIds.add(createdSupply.id);
+				setPendingSupplies((current) =>
+					current.filter((item) => item.clientId !== clientId),
+				);
+				setSelectedSupplyIds((current) =>
+					Array.from(new Set([...current, createdSupply.id])),
+				);
+			}
+
+			if (savedDevice?.id) {
+				const supplyLinkUpdates = buildEquipmentSupplyLinkUpdates({
+					links: selectedPropertyKnowledgeLinks,
+					equipmentId: String(savedDevice.id),
+					originalSupplyIds: [],
+					desiredSupplyIds: Array.from(desiredSupplyIds),
+				});
+				for (const update of supplyLinkUpdates) {
+					await setSupplyLinks({
+						propertyId: String(targetProperty.id),
+						...update,
+					}).unwrap();
 				}
 			}
 
@@ -717,7 +803,6 @@ export const DevicesHubPage: React.FC = () => {
 			partNumber: '',
 			filterSize: '',
 			specNotes: '',
-			serviceItems: [],
 			installationDate: '',
 			decommissionDate: '',
 			status: 'Active',
@@ -730,6 +815,8 @@ export const DevicesHubPage: React.FC = () => {
 		setPendingUploadFiles([]);
 		setPendingPropertyDocumentFiles([]);
 		setPendingPropertyDocumentCategory('other');
+		setSelectedSupplyIds([]);
+		setPendingSupplies([]);
 		setShowDeviceModal(true);
 
 		params.delete('action');
@@ -1016,14 +1103,16 @@ export const DevicesHubPage: React.FC = () => {
 								event.currentTarget.value,
 							)
 						}
-						onServiceItemsChange={(items) =>
-							setDeviceFormData((prev) => ({ ...prev, serviceItems: items }))
-						}
 						selectedSpaceIds={deviceFormData.spaceIds}
 						onSelectedSpaceIdsChange={(spaceIds) =>
 							setDeviceFormData((prev) => ({ ...prev, spaceIds }))
 						}
 						canManageSpaces={canManageSpaces}
+						propertySupplies={selectedPropertySupplies}
+						selectedSupplyIds={selectedSupplyIds}
+						onSelectedSupplyIdsChange={setSelectedSupplyIds}
+						pendingSupplies={pendingSupplies}
+						onPendingSuppliesChange={setPendingSupplies}
 						pendingPropertyDocumentFiles={pendingPropertyDocumentFiles}
 						onPendingPropertyDocumentFilesChange={setPendingPropertyDocumentFiles}
 						pendingPropertyDocumentCategory={pendingPropertyDocumentCategory}
@@ -1370,14 +1459,16 @@ export const DevicesHubPage: React.FC = () => {
 							event.currentTarget.value,
 						)
 					}
-					onServiceItemsChange={(items) =>
-						setDeviceFormData((prev) => ({ ...prev, serviceItems: items }))
-					}
 					selectedSpaceIds={deviceFormData.spaceIds}
 					onSelectedSpaceIdsChange={(spaceIds) =>
 						setDeviceFormData((prev) => ({ ...prev, spaceIds }))
 					}
 					canManageSpaces={canManageSpaces}
+					propertySupplies={selectedPropertySupplies}
+					selectedSupplyIds={selectedSupplyIds}
+					onSelectedSupplyIdsChange={setSelectedSupplyIds}
+					pendingSupplies={pendingSupplies}
+					onPendingSuppliesChange={setPendingSupplies}
 					pendingPropertyDocumentFiles={pendingPropertyDocumentFiles}
 					onPendingPropertyDocumentFilesChange={setPendingPropertyDocumentFiles}
 					pendingPropertyDocumentCategory={pendingPropertyDocumentCategory}

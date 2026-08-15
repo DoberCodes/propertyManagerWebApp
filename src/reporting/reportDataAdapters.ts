@@ -1,6 +1,7 @@
 import { calculateCostTotal } from '../utils/financialUtils';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../maintenanceHistory/maintenanceHistoryAdapter';
 import { isResidentialProperty } from '../utils/propertyTaxonomy';
+import { getEmbeddedPropertyDocuments } from '../propertyKnowledge/propertyMemoryRecordService';
 
 export type ReportType =
 	| 'tasks'
@@ -796,7 +797,7 @@ export const buildDocumentInventoryRows = ({
 	const rows: any[] = [];
 
 	properties.forEach((property: any) => {
-		(property.documents || []).forEach((document: any) => {
+		getEmbeddedPropertyDocuments(property).forEach((document: any) => {
 			rows.push({
 				id: document.id,
 				propertyId: String(document.propertyId || property.id || '').trim(),
@@ -946,7 +947,7 @@ export const buildWarrantyExpirationRows = ({
 	});
 
 	properties.forEach((property: any) => {
-		(property.documents || [])
+		getEmbeddedPropertyDocuments(property)
 			.filter(isWarrantyDocument)
 			.forEach((document: any) => {
 				rows.push({

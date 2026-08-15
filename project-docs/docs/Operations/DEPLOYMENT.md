@@ -90,17 +90,13 @@ The production build is written to:
 build/
 ```
 
-The root `package.json` retains `deploy` and `deploy:gh-pages` as guard
-commands during the Firebase Hosting migration. Both commands intentionally
-exit with an error before publishing anything.
+The root `package.json` retains `deploy` and `deploy:gh-pages` as retirement
+guards. Both commands intentionally exit with an error before publishing
+anything.
 
-No repository-supported command may update the `gh-pages` branch during the
-migration freeze. The last verified GitHub Pages build remains online as the
-current site and future rollback target until Firebase cutover is complete.
-
-The production Firebase default Hosting site receives release builds before
-the custom-domain cutover. DNS continues to serve the frozen GitHub Pages build
-until the routing, authentication, billing-return, PWA, and Android gates pass.
+No repository-supported command may update the `gh-pages` branch. Production
+web traffic is served by Firebase Hosting on `maintleyapp.com`; Firebase Hosting
+release versions, not a new Pages publication, are the web rollback boundary.
 
 Release identity is verified from GitHub pull-request metadata rather than from
 one merge-subject format. The merge must belong to a merged `Release vX.Y.Z`
@@ -121,22 +117,19 @@ Production Hosting must not be deployed through the generic manual backend
 target input. The release merge, synchronized version files, production build,
 and production environment approval form its deployment boundary.
 
-Until DNS cutover, `maintleyapp.com` remains on the frozen GitHub Pages build;
-the Firebase default production hostname is the candidate validation surface.
-
-Function-generated links and callbacks remain on their currently deployed hash
-URL behavior during this Hosting-only stage. Do not treat Stripe, lifecycle
-email, invitation, or Function-generated support-link returns as migrated until
-the coordinated Functions and DNS phase updates and deploys those producers.
-Client-generated and static-site links use clean routes in the Hosting build.
+The production custom domain and Firebase default hostname serve the same
+BrowserRouter artifact. Function-generated links and callbacks use canonical
+clean routes for Stripe returns, lifecycle messages, reminders, and support
+links. The packaged Android profile remains the only temporary HashRouter
+consumer.
 
 ---
 
-# GitHub Pages Migration Freeze
+# GitHub Pages Retirement Guard
 
-GitHub Pages continues to serve the last verified production build, but
-publishing is frozen for the duration of the Firebase Hosting and BrowserRouter
-migration.
+GitHub Pages is no longer Maintley's production host. Publishing remains
+disabled so historical repository commands cannot accidentally restore the
+retired hosting path.
 
 The former automatic workflow has been removed:
 
@@ -146,9 +139,8 @@ The former automatic workflow has been removed:
 
 The `deploy` and `deploy:gh-pages` package commands invoke
 `scripts/assertGitHubPagesFrozen.cjs` and exit unsuccessfully. Do not bypass the
-guard or update the `gh-pages` branch manually. Rollback during the migration
-means restoring DNS or hosting to the existing verified Pages build, not
-publishing a new Pages build.
+guard or update the `gh-pages` branch manually. Web rollback uses Firebase
+Hosting release history and the documented production deployment process.
 
 PWA files live in `public/` and are copied to the root of `build/` during
 `npm run build`:
@@ -310,6 +302,17 @@ from the GitHub `production` environment. Browser Firebase configuration and
 publishable Stripe configuration also live there as `PROD_REACT_APP_*`
 variables. Retired plan identifiers must be removed rather than retained as
 fallback configuration.
+
+The GitHub `release-validation` environment mirrors only the declared
+`PROD_REACT_APP_*` browser variables from `.env.prod`. It allows the
+`release/next` pull request to compile the production frontend without granting
+access to the protected `production` environment, deployment identity,
+Functions configuration, or secrets. Synchronize it with:
+
+```bash
+yarn github-env:sync --environment release-validation
+yarn github-env:sync --environment release-validation --apply
+```
 
 ## GitHub Actions rollout variables
 
@@ -551,13 +554,21 @@ would also reject the finalizer's direct reference fast-forward. Feature work
 still targets Beta through pull requests as the normal operating policy so it
 receives preview, review, and required-check coverage. Direct Beta updates are
 reserved for the guarded alignment workflow. Required checks remain enabled;
-force updates and branch deletion remain blocked.
+force updates and branch deletion remain blocked. Before release finalization
+updates Beta, the Main deployment workflow reports `Beta backend readiness` on
+the exact released commit using the GitHub `development` environment and the
+Maintley Beta read-only configuration check. Finalization depends on that job,
+so the incoming Main commit satisfies Beta's required readiness context without
+granting the workflow token a branch-protection bypass.
 
 `.github/workflows/align-beta-with-main.yml` provides an explicit Main-only
 alignment command for exceptional operational fixes that landed directly in
 Main. It applies the same ancestry checks and is not a substitute for the normal
-feature promotion path. GitHub's workflow token performs the reference update,
-so the alignment does not trigger a second Beta deployment or release-prep run.
+feature promotion path. It establishes `Beta backend readiness` on the current
+Main commit before GitHub's workflow token performs the reference update, so
+the update satisfies the same required check as normal release alignment. A
+workflow-token reference update does not trigger a second Beta deployment or
+release-prep run.
 
 An authenticated release-PR merge into `main` always deploys `hosting:prod`. Functions,
 Firestore rules, and Storage rules retain source-based target detection and are
@@ -571,6 +582,13 @@ check uses the default Firebase `web.app` hostname derived from the verified
 production project ID, so it validates the new deployment even while
 custom-domain DNS still points at a previous host. A failed route check blocks
 tag and GitHub Release creation.
+
+The release PR's marked `Customer release notes preview` is the approved source
+for the published GitHub Release body. Finalization validates that its heading
+matches the prepared package version, preserves separately generated engineering
+metadata, and creates or reconciles the GitHub Release only after deployment.
+This prevents the merge commit from being reclassified as a new patch release
+and keeps recovery reruns idempotent after the tag already exists.
 
 If a valid release merge passes its build but Hosting fails before deployment,
 the same workflow supports an explicit recovery dispatch. Set
@@ -1102,6 +1120,10 @@ same signal. If no classification is available, the workflow fails with an
 actionable message instead of guessing from file paths. Explicit
 `release:major`, `release:minor`, `release:patch`, and `release:none` labels may
 override version impact for exceptional cases.
+
+The release generator treats only explicit breaking markers as major-version
+signals. Instructions or ordinary prose that mention the words "breaking
+change" do not override a declared `fix:`, `perf:`, or `feat:` classification.
 
 The generator produces two release note layers:
 

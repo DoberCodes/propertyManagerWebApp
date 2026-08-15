@@ -198,7 +198,7 @@ export const MultiSelectPlaceholder = styled.span`
 	font-size: 14px;
 `;
 
-export const MultiSelectDropdown = styled.div<{ isOpen: boolean }>`
+export const MultiSelectDropdown = styled.div<{ $isOpen: boolean }>`
 	position: absolute;
 	top: 100%;
 	left: 0;
@@ -210,7 +210,7 @@ export const MultiSelectDropdown = styled.div<{ isOpen: boolean }>`
 	max-height: 200px;
 	overflow-y: auto;
 	z-index: 1000;
-	display: ${(props) => (props.isOpen ? 'block' : 'none')};
+	display: ${(props) => (props.$isOpen ? 'block' : 'none')};
 `;
 
 export const MultiSelectOption = styled.div<{ $isSelected: boolean }>`
@@ -299,7 +299,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
 				)}
 			</MultiSelectInput>
 
-			<MultiSelectDropdown isOpen={isOpen}>
+			<MultiSelectDropdown $isOpen={isOpen}>
 				{options.map((option) => (
 					<MultiSelectOption
 						key={option.value}

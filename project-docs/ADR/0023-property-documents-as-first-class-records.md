@@ -1,6 +1,6 @@
 # ADR 0023: Property Documents as First-Class Records
 
-Status: Accepted
+Status: Accepted - phased implementation
 
 Date: 2026-07-06
 
@@ -66,14 +66,45 @@ Phase 2:
   records.
 * Write new records to collections.
 
+Phase 2 is implemented. Current document surfaces read through the shared
+collection-first adapter, while embedded Property records remain compatibility
+mirrors for older clients and triggers.
+
 Phase 3:
 
 * Backfill embedded property documents and suggestions.
 * Add summary fields to properties where useful.
 * Retire direct UI dependence on embedded arrays.
 
+The Document relationship portion of Phase 3 is implemented through ADR 0036.
+Equipment, Space, Task, and Supply connections use canonical
+`propertyKnowledgeLinks` records. Legacy embedded link arrays and singular
+assignment fields remain as compatibility mirrors. A dry-run-first,
+repeat-safe migration promotes missing first-class Document records, creates
+deterministic accepted links, and reports ambiguous or missing endpoints
+without deleting legacy data.
+
 Cloud Functions should eventually own multi-record document workflows that need
 atomic state transitions.
+
+## Implementation Tracking
+
+* [x] Add the shared property-owned document adapter and compatibility reads.
+* [x] Add first-class `propertyDocuments` and
+  `propertyKnowledgeSuggestions` collections.
+* [x] Write new document acquisition records through the collection-first path.
+* [x] Add rules, Functions, deletion handling, and API consumers for first-class
+  records.
+* [x] Implement first-class Document relationships through ADR 0036.
+* [x] Provide a dry-run-first, repeat-safe relationship migration.
+* [x] Route active direct embedded-document and suggestion reads through the
+  shared property-memory adapter and enforce that boundary during builds.
+* [ ] Inventory and backfill remaining embedded documents, suggestions, and
+  provenance records.
+* [ ] Add property summary fields only where a measured query need justifies
+  them.
+* [ ] Retire direct embedded-array dependencies and compatibility mirrors after
+  backfill parity is validated.
 
 ## Consequences
 

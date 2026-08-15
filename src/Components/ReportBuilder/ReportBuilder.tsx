@@ -1263,6 +1263,7 @@ export const ReportBuilder: React.FC = () => {
 
 		if (exportSimpleCsvReport(reportType, previewData, visibleSelectedColumns)) {
 			void trackAnalyticsEvent('report_downloaded', {
+				action_source: 'user',
 				report_type: reportType,
 				row_count: previewData.length,
 				column_count: visibleSelectedColumns.length,
@@ -1321,6 +1322,7 @@ export const ReportBuilder: React.FC = () => {
 				break;
 		}
 		void trackAnalyticsEvent('report_downloaded', {
+			action_source: 'user',
 			report_type: reportType,
 			row_count: previewData.length,
 			column_count: visibleSelectedColumns.length,

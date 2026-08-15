@@ -5,6 +5,47 @@ import { store } from '../../Redux/store/store';
 import { PropertyDialog } from './PropertyDialog';
 
 describe('PropertyDialog', () => {
+	test('reviews the Spaces generated from bedroom and bathroom counts', async () => {
+		const user = userEvent.setup();
+
+		render(
+			<Provider store={store}>
+				<PropertyDialog
+					isOpen
+					onClose={jest.fn()}
+					onSave={jest.fn()}
+					groups={[]}
+				/>
+			</Provider>,
+		);
+
+		await user.type(
+			screen.getByPlaceholderText('Enter property name'),
+			'Reviewed Home',
+		);
+		await user.type(
+			screen.getByPlaceholderText('Enter address'),
+			'100 Review Lane',
+		);
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+
+		const bedroomInput = screen.getByLabelText('Bedrooms');
+		const bathroomInput = screen.getByLabelText('Bathrooms');
+		await user.clear(bedroomInput);
+		await user.type(bedroomInput, '2');
+		await user.clear(bathroomInput);
+		await user.type(bathroomInput, '1.5');
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+
+		expect(screen.getByText('Spaces Maintley will create')).toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'Bedroom 1, Bedroom 2, Bathroom 1, Half Bathroom 1',
+			),
+		).toBeInTheDocument();
+	});
+
 	test('toggling Is Rental updates formData and onSave receives isRental', async () => {
 		const user = userEvent.setup();
 		const onSave = jest.fn();
@@ -49,7 +90,7 @@ describe('PropertyDialog', () => {
 		expect(savedArg).not.toHaveProperty('hasSuites');
 	});
 
-	test('shortens onboarding home creation to basics only', async () => {
+	test('keeps onboarding home creation to Basics and Profile', async () => {
 		const user = userEvent.setup();
 		const onSave = jest.fn().mockResolvedValue(undefined);
 		const onClose = jest.fn();
@@ -68,16 +109,25 @@ describe('PropertyDialog', () => {
 		);
 
 		expect(screen.getByText('Home Basics')).toBeInTheDocument();
-		expect(screen.getByText('Home Type')).toBeInTheDocument();
 		expect(
-			screen.getByText(/Maintley will confirm your home and let you choose/i),
+			screen.getByText(/organize Bedrooms and Bathrooms as Spaces/i),
 		).toBeInTheDocument();
-		expect(screen.queryByRole('button', { name: /^next$/i })).not.toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /^next$/i })).toBeInTheDocument();
 		expect(screen.queryByText('Access & Sharing')).not.toBeInTheDocument();
-		expect(screen.queryByText('Rental Settings')).not.toBeInTheDocument();
 
 		await user.type(screen.getByPlaceholderText('Enter home name'), 'Willow House');
 		await user.type(screen.getByPlaceholderText('Enter address'), '123 Willow Lane');
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
+
+		expect(screen.getByText('Home Details')).toBeInTheDocument();
+		expect(screen.getByText('Home Type')).toBeInTheDocument();
+		expect(screen.queryByText('Rental Settings')).not.toBeInTheDocument();
+		const bedroomInput = screen.getByLabelText('Bedrooms');
+		const bathroomInput = screen.getByLabelText('Bathrooms');
+		await user.clear(bedroomInput);
+		await user.type(bedroomInput, '3');
+		await user.clear(bathroomInput);
+		await user.type(bathroomInput, '2.5');
 		await user.click(screen.getByRole('button', { name: /save home/i }));
 
 		await waitFor(() => expect(onSave).toHaveBeenCalled());
@@ -85,6 +135,8 @@ describe('PropertyDialog', () => {
 		expect(savedArg.propertyType).toBe('residential');
 		expect(savedArg.propertyClassification).toBe('single_family');
 		expect(savedArg.isRental).toBe(false);
+		expect(savedArg.bedrooms).toBe(3);
+		expect(savedArg.bathrooms).toBe(2.5);
 		expect(savedArg.openSetupAfterCreate).toBe(false);
 	});
 
@@ -155,6 +207,7 @@ describe('PropertyDialog', () => {
 
 		await user.type(screen.getByPlaceholderText('Enter home name'), 'Willow House');
 		await user.type(screen.getByPlaceholderText('Enter address'), '123 Willow Lane');
+		await user.click(screen.getByRole('button', { name: /^next$/i }));
 		void user.click(screen.getByRole('button', { name: /save home/i }));
 
 		expect(await screen.findByText('Activating Homeowner+...')).toBeInTheDocument();

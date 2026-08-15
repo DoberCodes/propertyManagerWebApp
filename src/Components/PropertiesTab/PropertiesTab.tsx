@@ -53,6 +53,10 @@ import {
 	useCreateDeviceMutation,
 	useGetAllDevicesQuery,
 } from '../../Redux/API/deviceSlice';
+import {
+	useCreatePropertySpaceMutation,
+	useLazyGetPropertySpacesQuery,
+} from '../../Redux/API/spaceSlice';
 import { useUpdateUserMutation } from '../../Redux/API/userSlice';
 import { useCreateNotificationMutation } from '../../Redux/API/notificationSlice';
 import {
@@ -86,6 +90,11 @@ import { USER_ROLES } from '../../constants/roles';
 import { COLORS } from '../../constants/colors';
 import { finalizeFirstPropertyTrial } from '../../services/entitlementGrantService';
 import { isHomeownerPlusTrialEnabled } from '../../entitlements/planAvailability';
+import { getEmbeddedPropertyDocuments } from '../../propertyKnowledge/propertyMemoryRecordService';
+import {
+	buildPropertyProfileSpaceTemplates,
+	ensureGeneratedPropertySpaces,
+} from '../../propertyKnowledge/propertySpaceGeneration';
 import {
 	Wrapper,
 	TopActions,
@@ -298,6 +307,8 @@ export const Properties = () => {
 	const [createNotification] = useCreateNotificationMutation();
 	const [createTask] = useCreateTaskMutation();
 	const [createDevice] = useCreateDeviceMutation();
+	const [createPropertySpace] = useCreatePropertySpaceMutation();
+	const [getPropertySpaces] = useLazyGetPropertySpacesQuery();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allDevices = [] } = useGetAllDevicesQuery();
 
@@ -511,9 +522,7 @@ export const Properties = () => {
 				propertyAggregates.taskByProperty.get(propertyId)?.documents || 0;
 			const deviceDocuments =
 				propertyAggregates.deviceByProperty.get(propertyId)?.documents || 0;
-			const propertyDocuments = Array.isArray(property.documents)
-				? property.documents.length
-				: 0;
+			const propertyDocuments = getEmbeddedPropertyDocuments(property).length;
 			const propertyPhotoDocument = property.image ? 1 : 0;
 			return (
 				count +
@@ -572,6 +581,13 @@ export const Properties = () => {
 		any | null
 	>(null);
 	const [propertyToDuplicate, setPropertyToDuplicate] = useState<any | null>(null);
+	const selectedPropertyAccountId = String(
+		selectedPropertyForEdit?.accountId ||
+			selectedPropertyForEdit?.userId ||
+			currentUser?.accountId ||
+			currentUser?.id ||
+			'',
+	).trim();
 	const [copyTasksOnDuplicate, setCopyTasksOnDuplicate] = useState(false);
 	const [copyAppliancesOnDuplicate, setCopyAppliancesOnDuplicate] = useState(true);
 	const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -2102,6 +2118,7 @@ export const Properties = () => {
 
 			const clonedDevice = stripUndefinedValues({
 				...deviceFields,
+				analyticsSource: 'import',
 				userId: currentUser!.id,
 				location: {
 					propertyId: newProperty.id,
@@ -2177,6 +2194,7 @@ export const Properties = () => {
 
 			const clonedTask = stripUndefinedValues({
 				...taskFields,
+				analyticsSource: 'import',
 				userId: currentUser!.id,
 				propertyId: newProperty.id,
 				property: newProperty.title,
@@ -2250,6 +2268,39 @@ export const Properties = () => {
 					id: selectedPropertyForEdit.id,
 					updates: sanitizedUpdates,
 				}).unwrap();
+
+				const generatedSpaceTemplates =
+					buildPropertyProfileSpaceTemplates(formData);
+				if (generatedSpaceTemplates.length > 0) {
+					try {
+						const existingSpaces = await getPropertySpaces({
+							accountId: selectedPropertyAccountId,
+							propertyId: String(selectedPropertyForEdit.id),
+							includeArchived: true,
+						}).unwrap();
+						const spaceResult = await ensureGeneratedPropertySpaces({
+							accountId: selectedPropertyAccountId,
+							propertyId: String(selectedPropertyForEdit.id),
+							templates: generatedSpaceTemplates,
+							existingSpaces,
+							source: 'property_profile',
+							createSpace: (input) => createPropertySpace(input).unwrap(),
+						});
+						if (spaceResult.archivedConflicts.length > 0) {
+							feedback.notify(
+								'Property details were saved. Restore or rename the matching archived Spaces before Maintley can add every Bedroom and Bathroom.',
+							);
+						}
+					} catch (spaceError) {
+						console.error(
+							'Property updated but profile Spaces were not all reconciled:',
+							spaceError,
+						);
+						feedback.notify(
+							'Property details were saved, but Maintley could not add every Bedroom and Bathroom Space. Please try saving again.',
+						);
+					}
+				}
 
 				try {
 					await applyDashboardVisibilityPreference(
@@ -2352,6 +2403,31 @@ export const Properties = () => {
 
 				if ('data' in result) {
 					let firstPropertyTrialActivationFailed = false;
+					const generatedSpaceTemplates =
+						buildPropertyProfileSpaceTemplates(formData);
+					if (generatedSpaceTemplates.length > 0) {
+						reportProgress?.({
+							title: 'Creating reviewed Spaces...',
+							text: 'Maintley is adding the Bedrooms and Bathrooms shown in your review.',
+						});
+						try {
+							await ensureGeneratedPropertySpaces({
+								accountId: String(
+									result.data.accountId || result.data.userId || currentUser!.id,
+								),
+								propertyId: String(result.data.id),
+								templates: generatedSpaceTemplates,
+								existingSpaces: [],
+								source: 'property_profile',
+								createSpace: (input) => createPropertySpace(input).unwrap(),
+							});
+						} catch (spaceError) {
+							console.error('Property created but reviewed Spaces were not all created:', spaceError);
+							feedback.notify(
+								'Your property was saved, but Maintley could not add every reviewed Space. The Setup Assistant can safely retry without creating duplicates.',
+							);
+						}
+					}
 					if (shouldFinalizeFirstPropertyTrial) {
 						reportProgress?.({
 							title: 'Activating Homeowner+...',

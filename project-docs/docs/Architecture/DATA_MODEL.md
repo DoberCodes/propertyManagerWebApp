@@ -181,6 +181,12 @@ Core collections include:
 
 Additional collections may exist for operational, billing, invitation, and compatibility purposes.
 
+`accountDeletionJobs/{userId}` is a server-only operational recovery record for
+self-service deletion. It stores only deletion state, account and Property IDs,
+and aggregate operation counts needed to resume a partially completed cleanup.
+It is removed after managed Firestore and Storage verification and Firebase Auth
+deletion succeed.
+
 ---
 
 # Account Model
@@ -427,6 +433,7 @@ Optional fields:
 
 * notes
 * sortOrder
+* generationKey, stable key for a reviewed generated Space
 
 Supported `type` values:
 
@@ -445,6 +452,16 @@ Garage, Mechanical Room, Roof, Lawn, and Pool. `sortOrder` provides stable
 display ordering without making ordering part of ownership. `isArchived`
 allows a future linked Space to remain available after removal from ordinary
 views.
+
+Residential Property creation and later profile edits may create reviewed,
+repeat-safe generated Spaces for each Bedroom, full Bathroom, and Half
+Bathroom. Every save checks current active and archived Spaces before creating
+missing records. Setup may create or reuse Kitchen,
+Bathroom, Laundry Room, Garage, and Exterior Spaces before connecting accepted
+Equipment and Tasks. Generation is idempotent: `generationKey` is checked
+first, followed by an active normalized name-and-type match. Archived matches
+require review and are neither restored nor duplicated automatically. Utility
+Systems and Safety records do not infer Spaces.
 
 Spaces are stored in the top-level `propertySpaces` collection. Firestore rules
 validate that the referenced Property exists and carries the same `accountId`.
@@ -483,6 +500,15 @@ Optional fields:
 
 * manufacturer
 * modelOrSku
+* barcodeValue
+* partNumber
+* size
+* details
+* material
+* voltage
+* mervRating
+* compatibility
+* replacementInterval
 * notes
 
 Supported `type` values:
@@ -502,6 +528,10 @@ other
 Supplies are stored in the top-level `propertySupplies` collection. Firestore
 rules validate that the referenced Property belongs to the same account.
 Account readers may view Supplies; account managers may create and edit them.
+The first-class Property Supplies page is available on every active plan and
+includes reviewed barcode capture. A scan first checks the Property for an
+existing barcode, part number, or SKU before prefilling a new record. Barcode
+capture does not silently create property knowledge.
 Removal uses a trusted callable: unreferenced Supplies are deleted, while
 referenced Supplies are archived so their accepted context remains available.
 Archived Supplies may be restored by account managers.
@@ -509,6 +539,16 @@ Archived Supplies may be restored by account managers.
 Equipment, Spaces, and Tasks connect to Supplies through canonical `uses`
 relationships. These many-to-many connections are stored only in
 `propertyKnowledgeLinks`; inverse lists shown on a Supply are derived.
+Equipment pages show this derived connected set and do not write embedded
+Supply records. Legacy `device.serviceItems` arrays are temporary read-only
+compatibility fields. A dry-run-first migration creates canonical Supplies and
+deterministic Equipment `uses` links while preserving the embedded source data
+until validation is complete.
+
+Equipment create and edit experiences may stage reviewed Supply drafts and
+existing Supply connections. The Equipment record is saved first; new Supplies
+then become Property-owned records and canonical relationships are applied
+without replacing the Supply's other accepted endpoint relationships.
 
 ## propertyKnowledgeLinks
 
@@ -518,15 +558,16 @@ The first supported relationships are:
 * Equipment `located_in` Space
 * Task `occurs_in` Space
 * Equipment, Space, or Task `uses` Supply
+* Document `documents` Equipment, Space, Task, or Supply
 
 Required fields:
 
 * accountId
 * propertyId
-* fromType (`equipment`, `space`, or `task`, constrained by the relationship)
+* fromType (`equipment`, `space`, `task`, or `document`, constrained by the relationship)
 * fromId
-* relationshipType (`located_in`, `occurs_in`, or `uses`)
-* toType (`space` or `supply`, constrained by the relationship)
+* relationshipType (`located_in`, `occurs_in`, `uses`, or `documents`)
+* toType (`equipment`, `space`, `task`, or `supply`, constrained by the relationship)
 * toId
 * source (`manual` or `migration` for an explicitly reviewed backfill)
 * createdAt
@@ -549,6 +590,23 @@ account and Property. It does not clear the legacy field, infer partial matches,
 or choose between duplicate names. A new recurring Task inherits accepted Space
 links from the Task that generated it. Deleting a Task removes its outgoing
 relationship records.
+
+Document links are many-to-many and always originate from a first-class
+Property Document. Account managers replace the accepted Equipment, Space,
+Task, and Supply connections through a trusted callable that validates every
+endpoint against the same account and Property. Contextual screens derive their
+Document lists from these records. A compatibility adapter also recognizes
+legacy Document arrays and singular assignment fields until backfill is
+complete. Deleting a Document removes its canonical links; deleting an
+Equipment or Task removes links to that endpoint. Referenced Spaces and Supplies
+are archived rather than deleted.
+
+Maintley Intelligence may resolve these canonical links as bounded supporting
+evidence for an existing finding. Quick Scan and Property Review can explain an
+affected Equipment record or Task using its accepted Space, Supply, or Document
+connections. This derived evidence is stored only with the Intelligence
+snapshot metadata; it does not duplicate relationship authority, generate a
+finding on its own, change priority, or accept a proposed relationship.
 
 ## Property Groups
 
@@ -639,6 +697,13 @@ Optional fields may include:
 * photoUrl
 
 Device records should contain descriptive information about the asset itself.
+
+Older Equipment records may contain embedded `serviceItems`. These entries are
+read-only compatibility data. Current Equipment forms do not carry or write
+the field; new and edited Supply knowledge belongs in `propertySupplies` and
+connects to Equipment through canonical `uses` relationships. Compatibility
+readers remain until report-only inventory and migration evidence demonstrate
+parity.
 
 `type` remains the homeowner-facing display label stored on the device record.
 
@@ -1513,6 +1578,13 @@ mirrors while older surfaces and triggers finish moving to the collection-backed
 model. New workflows should read collection-backed records and merge embedded
 records only as a fallback.
 
+Active UI code must cross the shared property-memory adapter before reading an
+embedded document or knowledge-suggestion mirror. This keeps the compatibility
+fallback explicit and allows collection-backed records to replace it without
+another screen-specific migration. Aggregate compatibility metrics that still
+use embedded records also call the adapter rather than reading the arrays
+directly.
+
 Typical property document fields:
 
 * id
@@ -1562,14 +1634,21 @@ other intermediate output are derived processing artifacts only.
 
 * assetIds
 * taskIds
+* spaceIds
+* supplyIds
 * maintenanceEventIds, reserved for future maintenance-event migration
 * contractorIds, reserved for future contractor document links
 * warrantyIds, reserved for future warranty document links
-* partIds, reserved for future part document links
+* partIds, legacy part or Supply compatibility reference
 
-Property, equipment, task, and task-completion document screens upload documents into the property document record. Upload context should not automatically create permanent ownership. Links to assets, tasks, Maintenance Events, contractors, warranties, parts, or costs should be created by reviewed Property Knowledge suggestions or explicit user actions.
+Property, equipment, task, and task-completion document screens upload documents into the property document record. Explicit contextual uploads and user-reviewed changes may create canonical `documents` relationships to Equipment, Spaces, Tasks, or Supplies. Upload context never changes Document ownership, and inferred connections still require review.
 
-Maintenance-event, contractor, warranty, and part links are supported by the model but should be migrated in a later phase.
+The `links` arrays and legacy singular assignment fields are compatibility
+mirrors rather than relationship authority. A dry-run-first migration creates
+missing first-class Document records and deterministic canonical relationships,
+reports missing or cross-property endpoints, and never removes embedded records
+or legacy arrays. Maintenance-event, contractor, warranty, and unresolved part
+links should be migrated in a later phase.
 
 Legacy document fields such as `name`, `url`, `category`, `assignedDeviceId`, and `assignedTaskId` may remain during migration.
 
@@ -1629,7 +1708,10 @@ Accepted contractor suggestions should become contractor records for the propert
 
 Accepted invoice, financial, service, part, and supply suggestions should become Maintenance Event history when they describe completed work or a received invoice. Incomplete part mentions may be retained in history notes so useful property context is not lost simply because a full model number is unavailable.
 
-Accepted part and supply suggestions that are linked to specific equipment may become `serviceItems` on the related device record. This preserves parts and supplies inside the existing equipment source record rather than creating a parallel parts collection in this phase.
+Accepted part and supply suggestions that are linked to specific Equipment
+become Property Supply records with canonical `uses` relationships after user
+review. Legacy `serviceItems` remain read-only compatibility data and are not a
+target for new accepted suggestions.
 
 The Part Knowledge Catalog is a taxonomy used by Property Knowledge Acquisition. It should define conservative matches and target fields, but it should not update records directly or generate recommendations.
 

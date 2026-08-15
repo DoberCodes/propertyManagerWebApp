@@ -14,7 +14,8 @@ import { apiSlice, docToData } from './apiSlice';
 import { Favorite, UserInvitation } from '../../types/User.types';
 import { User } from '../Slices/userSlice';
 import {
-	resolveAccessibleAccountIds,
+	filterRecordsByAccessProperties,
+	resolveAccountAccessContext,
 } from './accountContext';
 import { shouldCreateNotification } from '../../utils/notificationPreferences';
 import {
@@ -226,7 +227,8 @@ const userSlice = apiSlice.injectEndpoints({
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const accessContext = await resolveAccountAccessContext();
+					const accessibleAccountIds = accessContext.accountIds;
 
 					// Get all property groups for accessible accounts to find owned properties
 					const groupIds: string[] = [];
@@ -414,13 +416,19 @@ const userSlice = apiSlice.injectEndpoints({
 						}
 					}
 
-					return {
-						data: mergeMaintenanceHistorySources([
+					const maintenanceHistory = mergeMaintenanceHistorySources([
 							...sourceRecords,
 							...Array.from(ownedProperties.values()).flatMap(
 								propertyEmbeddedHistorySources,
 							),
-						]),
+						]);
+
+					return {
+						data: filterRecordsByAccessProperties(
+							maintenanceHistory,
+							accessContext,
+							(record) => record.propertyId,
+						),
 					};
 				} catch (error: any) {
 					if (isFirestorePermissionDeniedError(error)) {

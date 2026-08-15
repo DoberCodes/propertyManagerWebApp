@@ -71,7 +71,7 @@ mirrors for older surfaces and triggers. New acquisition and review surfaces
 should read collection-backed records and merge embedded records only as a
 fallback.
 
-Property documents are the canonical source documents for acquisition. Uploads started from equipment, task, or task-completion screens should still create property document records. When a user explicitly uploads from a task or equipment workflow, Maintley may preserve that upload context as a supporting-document link so the file remains visible from that workflow. Upload context may help the UI, but acquisition should not automatically create additional permanent links to an asset, task, contractor, warranty, part, or Maintenance Event.
+Property documents are the canonical source documents for acquisition. Uploads started from equipment, task, or task-completion screens should still create property document records. When a user explicitly uploads from a Task or Equipment workflow, Maintley preserves that explicit context as a canonical supporting-document relationship so the file remains visible from that workflow. The relationship does not change Property ownership. Acquisition must not silently create additional inferred links to Equipment, Tasks, Spaces, Supplies, contractors, warranties, or Maintenance Events.
 
 Additional links should come from reviewed Property Memory changes. If acquisition finds that a document appears to describe an existing asset, task, contractor, part, warranty, cost, or Maintenance Event, the review experience should propose that connection and let the user confirm it.
 
@@ -214,6 +214,11 @@ proposed changes and part suggestions may also be skipped during review. Skipped
 items should be retained with the suggestion when practical, but they should not
 update Property Memory.
 
+When an accepted suggestion creates or selects Equipment, Tasks, or Supplies,
+the source Document receives the corresponding canonical `documents`
+relationships. Existing accepted connections are preserved. This synchronization
+happens only after review; proposed relationships do not become authoritative.
+
 Rejected suggestions are retained as rejected records.
 
 Applied suggestions are traceable to the source document.
@@ -257,7 +262,11 @@ task creates or updates Maintenance History. A completion attachment should
 still be stored as a property document first, then reused on the completed task
 or resulting Maintenance Event so the file remains part of Property Memory.
 
-When accepted part suggestions are linked to a specific equipment or system, the apply step may add them to that system's Parts & Supplies list. These records should retain source context and should not be created without user review.
+When accepted part suggestions are linked to specific Equipment, the apply step
+creates or reuses a Property-owned Supply and adds the canonical Equipment
+`uses` relationship. It does not write an embedded Equipment parts list.
+Accepted Supplies retain source-document context and are never created without
+user review.
 
 ---
 

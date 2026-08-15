@@ -1,10 +1,8 @@
-0010 ADR: Maintley Intelligence History
+# ADR 0010: Maintley Intelligence History
 
-Status
+Status: Implemented
 
-Implemented
-
-Context
+## Context
 
 Maintley Intelligence currently produces recommendations based on a property's recorded information.
 
@@ -20,7 +18,7 @@ What did Maintley understand about the property at this point in time?
 
 These represent different concepts and should remain separate.
 
-Decision
+## Decision
 
 Maintley Intelligence will include its own history.
 
@@ -46,7 +44,7 @@ Each scan is stored as an immutable snapshot representing what Maintley Intellig
 
 Historical scans should not change as property data changes.
 
-Rationale
+## Rationale
 
 Separating Intelligence History from Maintenance History allows users to understand both:
 
@@ -60,7 +58,7 @@ Portfolio Scan
 Recommendation comparison
 Progress tracking
 Intelligence reporting
-Consequences
+## Consequences
 
 Benefits:
 

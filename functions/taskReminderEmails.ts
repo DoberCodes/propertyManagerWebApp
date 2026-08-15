@@ -8,6 +8,7 @@ import {
 } from './emailService';
 import { getTaskDisplayStatus } from './taskDisplayStatus';
 import { hasAccountCapability } from './subscriptionEntitlements';
+import { buildAppRouteUrl } from './emailLinks';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -209,9 +210,9 @@ const getTaskReminderHtml = ({
 	appUrl: string;
 }): string => {
 	const displayStatus = getTaskDisplayStatus(task);
-	const taskUrl = task.propertyId
-		? `${appUrl.replace(/\/$/, '')}/properties/${encodeURIComponent(task.propertyId)}`
-		: appUrl;
+	const taskUrl = task.id
+		? buildAppRouteUrl(`/tasks/${encodeURIComponent(task.id)}`, appUrl)
+		: buildAppRouteUrl('/tasks', appUrl);
 
 	return `
 		<div style="margin:0; padding:0; background:#FAFAF8; font-family:Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1F2937;">

@@ -1,11 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
 	formatCustomerReleaseNotes,
 	getReleasePrepVersionFromSubject,
 	inferBump,
 	inferCustomerCategory,
+	resolveReleasePrepContext,
 	selectMergedReleaseBoundary,
 	selectAutomaticReleaseVersion,
 } = require('./generateReleaseNotes.cjs');
@@ -89,6 +92,40 @@ test('bumps from the prepared version after another product change lands', () =>
 	assert.equal(result.shouldBumpPreparedPackageVersion, true);
 });
 
+test('keeps a prepared version after internal release stabilization', () => {
+	assert.deepEqual(
+		resolveReleasePrepContext({
+			packageVersion: '2.14.0',
+			targetReleasePrepVersion: '',
+			ancestorReleasePrepVersion: '2.14.0',
+			overallBump: 'minor',
+			postPrepBump: 'none',
+			forcedBump: '',
+		}),
+		{
+			effectiveTargetReleasePrepVersion: '2.14.0',
+			selectedBump: 'minor',
+		},
+	);
+});
+
+test('uses only the later product impact after a prepared version', () => {
+	assert.deepEqual(
+		resolveReleasePrepContext({
+			packageVersion: '2.14.0',
+			targetReleasePrepVersion: '',
+			ancestorReleasePrepVersion: '2.14.0',
+			overallBump: 'minor',
+			postPrepBump: 'patch',
+			forcedBump: '',
+		}),
+		{
+			effectiveTargetReleasePrepVersion: '',
+			selectedBump: 'patch',
+		},
+	);
+});
+
 test('does not lock the package version to a mismatched release subject', () => {
 	const result = selectAutomaticReleaseVersion({
 		packageVersion: '2.8.2',
@@ -127,6 +164,35 @@ test('classifies fixes as patch releases and customer-facing fixes', () => {
 			engineeringCategory: 'fixes',
 		}),
 		'fixes',
+	);
+});
+
+test('does not treat pull request template guidance as a breaking change', () => {
+	const template = fs
+		.readFileSync(path.join(__dirname, '..', '.github', 'pull_request_template.md'), 'utf8')
+		.replace(
+			'Release type: <!-- feat, feat!, fix, perf, refactor, docs, chore, ci, build, or test -->',
+			'Release type: fix',
+		);
+
+	assert.equal(
+		inferBump({
+			title: 'fix: complete property supplies workspace',
+			labels: [],
+			body: template,
+		}),
+		'patch',
+	);
+});
+
+test('keeps explicit breaking declarations as major releases', () => {
+	assert.equal(
+		inferBump({
+			title: 'Update the property model',
+			labels: [],
+			body: 'BREAKING CHANGE: Existing integrations must use the new endpoint.',
+		}),
+		'major',
 	);
 });
 

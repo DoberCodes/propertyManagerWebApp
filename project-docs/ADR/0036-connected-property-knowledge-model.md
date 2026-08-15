@@ -1,6 +1,6 @@
 # ADR 0036: Connected Property Knowledge Model
 
-Status: Accepted - phased implementation
+Status: Implemented
 
 Date: 2026-07-31
 
@@ -199,6 +199,16 @@ The implementation queries one indexed endpoint at a time and filters the
 constrained relationship type server-side, so this first phase does not require
 a composite index.
 
+Document relationships are also implemented through the canonical
+`documents` relationship. A Document is always the `from` endpoint and may
+document Equipment, a Space, a Task, or a Supply within the same Property.
+Account managers replace these accepted connections through a trusted callable;
+direct client writes to relationship records remain denied. The callable
+validates every endpoint and mirrors the accepted IDs into the first-class and
+embedded Document records for compatibility. Equipment, Task, Space, and Supply
+views derive their Document lists from canonical relationships while continuing
+to recognize legacy link arrays during migration.
+
 One Task may occur in several Spaces. Task creation and editing expose an
 optional multi-select. The singular free-text `location` field is deprecated
 and no longer appears in the current Task experience or receives new manual
@@ -247,6 +257,7 @@ name
 type
 notes (optional)
 sortOrder (optional)
+generationKey (optional for reviewed generated Spaces)
 isArchived
 source
 createdBy
@@ -269,6 +280,18 @@ in the first experience. `isArchived` is present from the first schema version
 so referenced Spaces can later be retained instead of deleted. Iconography may
 be added as presentation metadata in a future phase, but this implementation
 does not prematurely define an icon contract.
+
+Residential Property creation and later profile edits preview or reconcile
+numbered Bedroom, Bathroom, and Half Bathroom Spaces from the accepted counts.
+Each save reads current active and archived Spaces before creating anything so
+repeat saves remain safe and archived conflicts remain visible for review.
+The Property Setup Assistant previews applicable Kitchen, Bathroom, Laundry
+Room, Garage, and Exterior Space connections before saving. Utility Systems
+and Safety equipment do not create inferred Spaces. Generated Spaces carry a
+stable `generationKey`, allowing setup to reuse a renamed generated Space. An
+active normalized name-and-type match is also reused for manually created
+Spaces. Archived matches block automatic creation and require explicit review
+instead of being silently restored or duplicated.
 
 Existing task location text and equipment `unitId` or `suiteId` location fields
 are temporary compatibility fields. Task location text is hidden from current
@@ -311,6 +334,15 @@ name
 type
 manufacturer (optional)
 modelOrSku (optional)
+barcodeValue (optional)
+partNumber (optional)
+size (optional)
+details (optional)
+material (optional)
+voltage (optional)
+mervRating (optional)
+compatibility (optional)
+replacementInterval (optional)
 notes (optional)
 isArchived
 source
@@ -322,16 +354,29 @@ updatedAt
 
 Supported types are `filter`, `paint_and_finish`, `lawn_and_garden`,
 `pool_and_spa`, `electrical`, `plumbing`, `hardware`, `cleaning`, and `other`.
-The flexible name and optional manufacturer and model-or-SKU fields preserve
-the product specification a homeowner is likely to need again without turning
-the record into inventory.
+The flexible name, identifiers, product specifications, and replacement details
+preserve what a homeowner is likely to need again without turning the record
+into inventory. Barcode capture is a reviewed input path: Maintley searches the
+Property for an existing identifier before prefilling a new Supply, and never
+saves a scanned result automatically.
 
 Equipment, Spaces, and Tasks connect to a Supply through canonical `uses`
 relationships. One Supply may be used by several records, and the inverse view
 is derived rather than copied onto the Supply. Account managers manage Supply
-records and connections from Property Details. Referenced Supplies are archived
+records and connections from the first-class Property Supplies page. Supplies
+and barcode capture are available on every active plan; role permissions
+continue to control changes. Equipment pages derive and display their connected
+Supplies without owning or copying them. Referenced Supplies are archived
 instead of deleted and may later be restored. New relationships cannot be made
 to an archived Supply or archived Space.
+
+Equipment create and edit reviews may create a new Property Supply or connect
+an existing one. New Supply drafts are reviewed before the Equipment save,
+persist only after the Equipment record succeeds, and then receive a canonical
+`uses` relationship. Removing the Equipment connection does not remove the
+Supply or its other Equipment, Space, Task, or Document relationships. New
+Equipment workflows do not write embedded `serviceItems`; those fields remain
+read-only compatibility data.
 
 ## Documents
 
@@ -342,6 +387,17 @@ supplies.
 One document may relate to several records. For example, a service report may
 document the property visit, two equipment items, a completed Maintenance Event,
 and a recommended task without being duplicated into four separate owners.
+
+The first implemented Document relationship endpoints are Equipment, Space,
+Task, and Supply. Maintenance Event relationships remain reserved until the
+completion-history migration defines their authoritative endpoint. Existing
+maintenance-event, contractor, warranty, and legacy part references are
+preserved but are not promoted automatically by this phase.
+
+Document editing uses progressive multi-select controls for the supported
+endpoints. Contextual upload and accepted Property Memory changes may create an
+explicit canonical connection. Inferred connections still require review and
+are never accepted silently.
 
 ## Principles
 
@@ -442,7 +498,7 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Implement permission rules and trusted Equipment-to-Space relationship writes.
 - [x] Approve and implement the canonical Task-to-Space relationship contract.
 - [x] Preserve Task-to-Space relationships across recurring Task generation and deletion.
-- [ ] Add compatibility adapters and migration validation for existing locations and document links.
+- [x] Add compatibility adapters and migration validation for existing locations and document links.
 - [x] Add the first progressive Space management experience to Property Details.
 - [x] Add the first progressive Equipment-to-Space linking and correction experience.
 - [x] Add progressive Task-to-Space linking and Space task context.
@@ -450,8 +506,25 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Add archived-Space recovery and a trusted restore action.
 - [x] Add a dry-run-first exact-match legacy Task location migration utility.
 - [x] Add the first Supply management and Equipment, Space, and Task relationship experience.
-- [ ] Connect accepted relationships to explainable Maintley Intelligence consumers.
+- [x] Promote Supplies to a first-class Property page and move barcode capture to the canonical Supply workflow.
+- [x] Replace Equipment-owned Supply writes with derived connected-Supply views.
+- [x] Add a dry-run-first, repeat-safe migration for embedded Equipment service items.
+- [x] Add canonical Document-to-Equipment, Space, Task, and Supply relationships.
+- [x] Add progressive Document connection editing and derived contextual views.
+- [x] Add a dry-run-first, repeat-safe Document relationship migration with unresolved-reference reporting.
+- [x] Connect accepted relationships to explainable Maintley Intelligence consumers.
 - [x] Update current data-model documentation for the first Space phase.
+- [x] Add reviewed, repeat-safe Property and Setup Assistant Space generation.
+- [x] Reconcile generated Bedroom and Bathroom Spaces after Property Profile edits.
+- [x] Add reviewed canonical Supply creation and connection from Equipment workflows.
+- [x] Remove legacy embedded Supply editing paths and enforce read-only compatibility.
+
+Quick Scan and Property Review now consume accepted relationship records as
+read-only supporting evidence. Existing findings may identify connected Spaces,
+Supplies, or Documents in their explanation when those links involve an affected
+Equipment record or Task. Relationship evidence does not create findings,
+change priority, alter ranking, or accept inferred links. Only canonical links
+and currently available property-owned records are used.
 
 ## Deferred
 

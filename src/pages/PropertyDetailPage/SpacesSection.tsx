@@ -29,6 +29,8 @@ import {
 import { RoleCapabilities } from '../../utils/permissions';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
 import { getTaskTimingLabel } from '../../tasks/taskSchedule';
+import { usePropertyMemoryRecords } from '../../propertyKnowledge/usePropertyMemoryRecords';
+import { documentIsLinkedToEndpoint } from '../../utils/propertyDocumentRelationships';
 import {
 	getNextPropertySpaceSortOrder,
 	getPropertySpaceTypeLabel,
@@ -119,6 +121,7 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 		{ accountId, propertyId: property.id },
 		{ skip: !accountId || !property.id },
 	);
+	const { documents: propertyDocuments } = usePropertyMemoryRecords(property);
 	const [removeSpace, { isLoading: isRemoving }] =
 		useRemovePropertySpaceMutation();
 	const [restoreSpace, { isLoading: isRestoring }] =
@@ -182,10 +185,28 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 		});
 		return result;
 	}, [knowledgeLinks, propertyTasks]);
+	const documentsBySpaceId = useMemo(() => {
+		const result = new Map<string, typeof propertyDocuments>();
+		spaces.forEach((space) => {
+			const documents = propertyDocuments.filter((document) =>
+				documentIsLinkedToEndpoint(
+					document,
+					knowledgeLinks,
+					'space',
+					space.id,
+				),
+			);
+			if (documents.length > 0) result.set(space.id, documents);
+		});
+		return result;
+	}, [knowledgeLinks, propertyDocuments, spaces]);
 	const getSpaceReferenceCount = (spaceId: string) =>
 		knowledgeLinks.filter(
-			(link) => link.toType === 'space' && link.toId === spaceId,
-		).length;
+			(link) =>
+				link.toType === 'space' &&
+				link.toId === spaceId &&
+				link.fromType !== 'document',
+		).length + (documentsBySpaceId.get(spaceId)?.length || 0);
 
 	const openCreateForm = () => {
 		setActionError('');
@@ -291,6 +312,9 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 		: [];
 	const selectedTasks = selectedSpace
 		? tasksBySpaceId.get(selectedSpace.id) || []
+		: [];
+	const selectedDocuments = selectedSpace
+		? documentsBySpaceId.get(selectedSpace.id) || []
 		: [];
 
 	return (
@@ -602,6 +626,23 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 					<SpaceDetailEmpty>
 						No tasks are connected to this Space yet. Add or edit a task to
 						connect it here.
+					</SpaceDetailEmpty>
+				)}
+				<h4>Documents</h4>
+				{selectedDocuments.length > 0 ? (
+					<SpaceDetailList>
+						{selectedDocuments.map((document) => (
+							<SpaceDetailItem key={document.id}>
+								<div>
+									<strong>{document.fileName || document.name}</strong>
+									<span>{document.category || 'Document'}</span>
+								</div>
+							</SpaceDetailItem>
+						))}
+					</SpaceDetailList>
+				) : (
+					<SpaceDetailEmpty>
+						No documents are connected to this Space yet.
 					</SpaceDetailEmpty>
 				)}
 			</GenericModal>

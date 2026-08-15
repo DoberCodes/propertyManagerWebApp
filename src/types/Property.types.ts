@@ -66,6 +66,8 @@ export type PropertyDocumentAcquisitionStatus =
 export interface PropertyDocumentLinks {
 	assetIds?: string[];
 	taskIds?: string[];
+	spaceIds?: string[];
+	supplyIds?: string[];
 	maintenanceEventIds?: string[];
 	contractorIds?: string[];
 	warrantyIds?: string[];

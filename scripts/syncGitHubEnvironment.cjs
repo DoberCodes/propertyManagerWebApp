@@ -24,6 +24,14 @@ const environmentConfigs = {
 		firebaseProjectId: 'mypropertymanager-cda42',
 		stripePublishablePrefix: 'pk_live_',
 	},
+	'release-validation': {
+		githubEnvironment: 'release-validation',
+		destinationPrefix: 'PROD_',
+		defaultReactFile: '.env.prod',
+		defaultFunctionsFile: '',
+		firebaseProjectId: 'mypropertymanager-cda42',
+		stripePublishablePrefix: 'pk_live_',
+	},
 };
 
 function contractManifest(entries) {
@@ -241,7 +249,7 @@ function main() {
 		const reactFile = options.reactFile || environmentConfig.defaultReactFile;
 		const reactValues = readEnvFile(reactFile, 'React environment');
 		const functionsFile = options.functionsFile || environmentConfig.defaultFunctionsFile;
-		const functionValues = fs.existsSync(path.resolve(rootDir, functionsFile))
+		const functionValues = functionsFile && fs.existsSync(path.resolve(rootDir, functionsFile))
 			? readEnvFile(functionsFile, 'Functions environment')
 			: null;
 		const desired = buildDesiredVariables({ reactValues, functionValues, manifest, environmentConfig });

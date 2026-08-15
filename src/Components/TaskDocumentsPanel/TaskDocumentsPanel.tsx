@@ -2,9 +2,12 @@ import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { FileUploader } from 'Components/Library/FileUploader';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
-import { PropertyDocument, PropertyDocumentCategory } from 'types/Property.types';
+import { PropertyDocumentCategory } from 'types/Property.types';
 import { usePropertyDocumentUploadWorkflow } from 'propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import { useAppFeedback } from 'Components/Library/AppFeedback/AppFeedbackProvider';
+import { useGetPropertyKnowledgeLinksQuery } from 'Redux/API/propertyKnowledgeLinkSlice';
+import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
+import { documentIsLinkedToEndpoint } from 'utils/propertyDocumentRelationships';
 import { COLORS } from '../../constants/colors';
 
 type TaskDocumentsPanelProps = {
@@ -62,23 +65,30 @@ export const TaskDocumentsPanel: React.FC<TaskDocumentsPanelProps> = ({
 		allProperties.find(
 			(item: any) => String(item.id || '') === String(resolvedPropertyId),
 		);
-	const propertyDocuments = useMemo<PropertyDocument[]>(
-		() =>
-			Array.isArray(resolvedProperty?.documents) ? resolvedProperty.documents : [],
-		[resolvedProperty?.documents],
-	);
+	const { documents: propertyDocuments } =
+		usePropertyMemoryRecords(resolvedProperty);
+	const accountId = String(
+		resolvedProperty?.accountId || resolvedProperty?.userId || '',
+	).trim();
+	const { data: propertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId, propertyId: resolvedPropertyId },
+			{ skip: !accountId || !resolvedPropertyId },
+		);
 	const assignedDocuments = useMemo(
 		() =>
 			taskId
 				? propertyDocuments.filter(
 						(document) =>
-							String(document.assignedTaskId || '') === String(taskId) ||
-							(document.links?.taskIds || []).some(
-								(linkedTaskId) => String(linkedTaskId) === String(taskId),
+							documentIsLinkedToEndpoint(
+								document,
+								propertyKnowledgeLinks,
+								'task',
+								String(taskId),
 							),
 				  )
 				: [],
-		[propertyDocuments, taskId],
+		[propertyDocuments, propertyKnowledgeLinks, taskId],
 	);
 	const isPendingMode = Boolean(onPendingFilesChange && !taskId);
 	const displayedPendingFiles = pendingFiles || [];

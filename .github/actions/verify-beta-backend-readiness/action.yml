@@ -1,0 +1,53 @@
+name: Verify Maintley Beta backend readiness
+description: Validate Maintley Beta Functions configuration and secret metadata without reading secret values.
+
+inputs:
+  project_id:
+    description: Maintley Beta Firebase project id.
+    required: true
+  workload_identity_provider:
+    description: Google Workload Identity provider for the GitHub development environment.
+    required: true
+  service_account:
+    description: Google service account used for development readiness checks.
+    required: true
+  github_variables_json:
+    description: GitHub development environment variables serialized as JSON.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Use Node.js
+      uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      with:
+        node-version: '22'
+        cache: 'yarn'
+        cache-dependency-path: functions/yarn.lock
+
+    - name: Install Firebase tooling
+      shell: bash
+      run: yarn --cwd functions install --frozen-lockfile
+
+    - name: Authenticate to Maintley Beta
+      uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+      with:
+        project_id: ${{ inputs.project_id }}
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - name: Verify required Functions configuration and secrets
+      shell: bash
+      env:
+        FIREBASE_PROJECT_ID: ${{ inputs.project_id }}
+        MAINTLEY_GITHUB_VARIABLES_JSON: ${{ inputs.github_variables_json }}
+      run: |
+        if [[ "$FIREBASE_PROJECT_ID" != "maintleybeta" ]]; then
+          echo "Refusing to validate backend readiness outside Maintley Beta."
+          exit 1
+        fi
+
+        node scripts/bootstrapEnvironment.cjs \
+          --environment development \
+          --strict \
+          --check-secrets

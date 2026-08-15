@@ -69,7 +69,7 @@ function renderUpdates(updates) {
 
 function replaceUpdates(target, renderedUpdates, eol) {
 	const pattern =
-		/export const recentMaintleyUpdates = \[[\s\S]*?\];\r?\n\r?\ninterface ArticleSection/;
+		/export const recentMaintleyUpdates = \[[\s\S]*?\];\s*$/;
 
 	if (!pattern.test(target)) {
 		throw new Error('Could not find recentMaintleyUpdates in SupportContent.ts.');
@@ -77,7 +77,7 @@ function replaceUpdates(target, renderedUpdates, eol) {
 
 	return target.replace(
 		pattern,
-		`${renderedUpdates}${eol}${eol}interface ArticleSection`,
+		`${renderedUpdates}${eol}`,
 	);
 }
 
@@ -113,4 +113,8 @@ function main() {
 	);
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = {
+	replaceUpdates,
+};

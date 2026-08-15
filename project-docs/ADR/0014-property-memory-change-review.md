@@ -1,9 +1,8 @@
-ADR: Property Memory Change Review
-Status
+# ADR 0014: Property Memory Change Review
 
-Accepted - initial implementation
+Status: Accepted - initial implementation
 
-Context
+## Context
 
 Property Knowledge Acquisition identifies possible information from documents such as manuals, invoices, warranties, receipts, and inspection reports.
 
@@ -13,7 +12,7 @@ While technically accurate, field-by-field review exposes implementation details
 
 Maintley should present proposed changes using the same mental model users already understand throughout the application.
 
-Decision
+## Decision
 
 Knowledge Acquisition will present changes to Property Memory, not extracted fields.
 
@@ -21,7 +20,7 @@ Users review how existing property records will change before those changes are 
 
 Property Memory remains the only source of truth.
 
-Guiding Principles
+## Guiding Principles
 Review changes, not fields.
 
 The review experience should answer:
@@ -118,7 +117,7 @@ ABC Heating
 Invoice Total
 
 $7,325
-Consequences
+## Consequences
 
 Benefits
 
@@ -132,7 +131,7 @@ Tradeoffs
 
 Requires loading existing Property Memory during review.
 More complex UI than a simple extracted field list.
-Future Considerations
+## Future Considerations
 
 Future implementations may include:
 

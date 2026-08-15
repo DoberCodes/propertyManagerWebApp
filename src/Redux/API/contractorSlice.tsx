@@ -7,59 +7,15 @@ import {
 	doc,
 	updateDoc,
 	deleteDoc,
-	getDoc,
 } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
 import { Contractor } from '../../types/Contractor.types';
 import { apiSlice, docToData } from './apiSlice';
 import {
-	resolveAccessibleAccountIds,
+	filterRecordsByAccessProperties,
+	resolveAccountAccessContext,
 	resolveTargetUserId,
 } from './accountContext';
-
-const getSharedPropertyIdsForUser = async (
-	userId: string,
-	profileEmail?: string,
-	authEmail?: string | null,
-): Promise<string[]> => {
-	void userId;
-	void profileEmail;
-	void authEmail;
-	// Shared properties feature retired.
-	return [];
-
-	/*
-	const propertyIdSet = new Set<string>();
-
-	const sharesByUserQuery = query(
-		collection(db, 'propertyShares'),
-		where('sharedWithUserId', '==', userId),
-	);
-	const sharesByUserSnapshot = await getDocs(sharesByUserQuery);
-	sharesByUserSnapshot.docs.forEach((shareDoc) => {
-		const share = docToData(shareDoc) as PropertyShare;
-		if (share?.propertyId) {
-			propertyIdSet.add(share.propertyId);
-		}
-	});
-
-	for (const email of getShareRecipientEmailCandidates(profileEmail, authEmail)) {
-		const sharesByEmailQuery = query(
-			collection(db, 'propertyShares'),
-			where('sharedWithEmail', '==', email),
-		);
-		const sharesByEmailSnapshot = await getDocs(sharesByEmailQuery);
-		sharesByEmailSnapshot.docs.forEach((shareDoc) => {
-			const share = docToData(shareDoc) as PropertyShare;
-			if (share?.propertyId) {
-				propertyIdSet.add(share.propertyId);
-			}
-		});
-	}
-
-	return Array.from(propertyIdSet);
-	*/
-};
 
 const contractorSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -70,7 +26,14 @@ const contractorSlice = apiSlice.injectEndpoints({
 					if (!propertyId) {
 						return { data: [] };
 					}
-					const accessibleAccountIds = await resolveAccessibleAccountIds();
+					const accessContext = await resolveAccountAccessContext();
+					if (
+						accessContext.isScopedTeamMember &&
+						!accessContext.allowedPropertyIds.includes(propertyId)
+					) {
+						return { data: [] };
+					}
+					const accessibleAccountIds = accessContext.accountIds;
 					const contractors: Contractor[] = [];
 
 					for (const accountId of accessibleAccountIds) {
@@ -241,47 +204,27 @@ const contractorSlice = apiSlice.injectEndpoints({
 					if (!currentUser) {
 						return { error: 'User not authenticated' };
 					}
-					const userId = currentUser.uid;
+					const accessContext = await resolveAccountAccessContext();
 					const targetAccountId = await resolveTargetUserId();
 
-					const ownedPropertyIds: string[] = [];
-					try {
-						const propertiesQuery = query(
-							collection(db, 'properties'),
-							where('accountId', '==', targetAccountId),
-						);
-						const propertiesSnapshot = await getDocs(propertiesQuery);
-						ownedPropertyIds.push(
-							...propertiesSnapshot.docs.map((propertyDoc) => propertyDoc.id),
-						);
-					} catch (ownedPropertiesError) {
-						console.warn(
-							'Could not fetch account-linked properties for contractors:',
-							ownedPropertiesError,
-						);
+					let allPropertyIds = [...accessContext.allowedPropertyIds];
+					if (!accessContext.isScopedTeamMember) {
+						try {
+							const propertiesQuery = query(
+								collection(db, 'properties'),
+								where('accountId', '==', targetAccountId),
+							);
+							const propertiesSnapshot = await getDocs(propertiesQuery);
+							allPropertyIds = propertiesSnapshot.docs.map(
+								(propertyDoc) => propertyDoc.id,
+							);
+						} catch (ownedPropertiesError) {
+							console.warn(
+								'Could not fetch account-linked properties for contractors:',
+								ownedPropertiesError,
+							);
+						}
 					}
-
-					// Also get shared properties for this user
-					let sharedPropertyIds: string[] = [];
-					try {
-						// Get user's email first
-						const userDocRef = doc(db, 'users', userId);
-						const userDoc = await getDoc(userDocRef);
-						const userEmail = userDoc.data()?.email;
-						sharedPropertyIds = await getSharedPropertyIdsForUser(
-							userId,
-							userEmail,
-							currentUser.email,
-						);
-					} catch (shareError) {
-						// If getting shared properties fails, continue with owned properties only
-						console.warn('Could not fetch shared properties:', shareError);
-					}
-
-					// Combine and deduplicate property IDs
-					const allPropertyIds = Array.from(
-						new Set([...ownedPropertyIds, ...sharedPropertyIds]),
-					);
 
 					const accountContractorsQuery = query(
 						collection(db, 'contractors'),
@@ -328,7 +271,13 @@ const contractorSlice = apiSlice.injectEndpoints({
 						).values(),
 					) as Contractor[];
 
-					return { data: uniqueContractors };
+					return {
+						data: filterRecordsByAccessProperties(
+							uniqueContractors,
+							accessContext,
+							(contractor) => contractor.propertyId,
+						),
+					};
 				} catch (error: any) {
 					return { error: error.message };
 				}
