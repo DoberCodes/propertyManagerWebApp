@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useGetPropertiesQuery } from '../../Redux/API/propertySlice';
 import { OnboardingFlow } from './OnboardingFlow';
 
@@ -10,6 +10,7 @@ jest.mock('react-redux', () => ({
 }));
 
 jest.mock('react-router-dom', () => ({
+	useLocation: jest.fn(),
 	useNavigate: jest.fn(),
 }));
 
@@ -23,16 +24,20 @@ jest.mock('../../Redux/selectors/permissionSelectors', () => ({
 }));
 
 const mockedUseSelector = useSelector as unknown as jest.Mock;
+const mockedUseLocation = useLocation as jest.Mock;
 const mockedUseNavigate = useNavigate as jest.Mock;
 const mockedUseGetPropertiesQuery = useGetPropertiesQuery as jest.Mock;
 
 describe('OnboardingFlow', () => {
 	const navigate = jest.fn();
 	let properties: Array<Record<string, unknown>> = [];
+	let locationSearch = '';
 
 	beforeEach(() => {
 		jest.clearAllMocks();
 		properties = [];
+		locationSearch = '';
+		mockedUseLocation.mockImplementation(() => ({ search: locationSearch }));
 		mockedUseNavigate.mockReturnValue(navigate);
 		mockedUseSelector.mockImplementation((selector: (state: any) => unknown) =>
 			selector({
@@ -59,6 +64,13 @@ describe('OnboardingFlow', () => {
 		expect(screen.getByText('Stay ahead of home maintenance.')).toBeInTheDocument();
 		await user.click(screen.getByRole('button', { name: 'Add My Home' }));
 		expect(navigate).toHaveBeenCalledWith('/properties?openCreate=onboarding');
+
+		locationSearch = '?openCreate=onboarding';
+		view.rerender(<OnboardingFlow onComplete={onComplete} onSkip={jest.fn()} />);
+		expect(screen.queryByText(/Create your home when you are ready/i)).not.toBeInTheDocument();
+
+		locationSearch = '';
+		view.rerender(<OnboardingFlow onComplete={onComplete} onSkip={jest.fn()} />);
 		expect(screen.getByText(/Create your home when you are ready/i)).toBeInTheDocument();
 
 		properties = [{ id: 'property-1', slug: 'willow-house' }];
