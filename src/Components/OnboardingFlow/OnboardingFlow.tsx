@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 import { RootState } from '../../Redux/store/store';
@@ -147,6 +147,11 @@ const WaitingCard = styled.aside`
 	box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
 	color: ${COLORS.textSecondary};
 	font-size: 13px;
+	pointer-events: none;
+
+	button {
+		pointer-events: auto;
+	}
 
 	@media (max-width: 640px) {
 		left: 12px;
@@ -172,6 +177,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 	onSkip,
 }) => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const isHomeowner = useSelector(selectIsHomeowner);
 	const canAccessProperties = useSelector(selectCanAccessProperties);
@@ -226,6 +232,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
 	};
 
 	if (stage === 'waiting_for_property') {
+		if (new URLSearchParams(location.search).get('openCreate') === 'onboarding') {
+			return null;
+		}
+
 		return (
 			<WaitingCard aria-live='polite'>
 				<span>Create your {recordLabel} when you are ready. Maintley will confirm when it is saved.</span>

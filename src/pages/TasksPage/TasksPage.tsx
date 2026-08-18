@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RootState } from 'Redux/store/store';
 import { AppZeroState } from 'Components/Library/AppZeroState';
+import { LoadingState } from 'Components/LoadingState';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import {
 	selectIsTeamMemberAccount,
@@ -149,7 +150,14 @@ export const TasksPage = () => {
 	);
 
 	// Fetch tasks and properties from Firebase
-	const { data: allTasks = [] } = useGetTasksQuery();
+	const {
+		data: allTasks = [],
+		isLoading: areTasksLoading,
+		isFetching: areTasksFetching,
+		isSuccess: areTasksLoaded,
+		isError: didTasksFail,
+		refetch: refetchTasks,
+	} = useGetTasksQuery();
 	const { data: accountSpaces = [] } = useGetAccountSpacesQuery(
 		{ accountId, includeArchived: true },
 		{ skip: !accountId },
@@ -193,8 +201,14 @@ export const TasksPage = () => {
 	useEffect(() => {
 		updateOverdueTasks(allTasks).then(setProcessedTasks);
 	}, [allTasks]);
-	const { data: ownedProperties = [], isLoading: isLoadingProperties } =
-		useGetPropertiesQuery();
+	const {
+		data: ownedProperties = [],
+		isLoading: isLoadingProperties,
+		isFetching: isFetchingProperties,
+		isSuccess: arePropertiesLoaded,
+		isError: didPropertiesFail,
+		refetch: refetchProperties,
+	} = useGetPropertiesQuery();
 
 	// Use account/family accessible properties only.
 	const allProperties = useMemo(() => {
@@ -993,7 +1007,44 @@ export const TasksPage = () => {
 		);
 	};
 
-	if (!isLoadingProperties && ownedProperties.length === 0) {
+	if (
+		(ownedProperties.length === 0 &&
+			(isLoadingProperties || isFetchingProperties)) ||
+		(allTasks.length === 0 && (areTasksLoading || areTasksFetching))
+	) {
+		return (
+			<LoadingState
+				loadingKey='tasks-page'
+				title='Loading tasks'
+				message='Preparing your properties and maintenance tasks.'
+			/>
+		);
+	}
+
+	if (
+		(ownedProperties.length === 0 && didPropertiesFail) ||
+		(allTasks.length === 0 && didTasksFail)
+	) {
+		return (
+			<AppZeroState
+				kind='noTasks'
+				title='Tasks could not be loaded'
+				description='Maintley could not load your task records. Try again before creating anything new.'
+				actions={[
+					{
+						label: 'Try Again',
+						onClick: () => {
+							void refetchProperties();
+							void refetchTasks();
+						},
+					},
+				]}
+				fullPage
+			/>
+		);
+	}
+
+	if (arePropertiesLoaded && ownedProperties.length === 0) {
 		return (
 			<AppZeroState
 				kind={isUserTenant || isTeamMemberAccount ? 'noAssignedProperties' : 'noProperties'}
@@ -1008,6 +1059,7 @@ export const TasksPage = () => {
 	}
 
 	if (
+		areTasksLoaded &&
 		filteredTasks.length === 0 &&
 		activeFilterCount === 0 &&
 		!showTaskDialog

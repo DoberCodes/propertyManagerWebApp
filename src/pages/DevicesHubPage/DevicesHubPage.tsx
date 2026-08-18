@@ -42,7 +42,7 @@ import {
 import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import {
 	canAddDevice,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getSubscriptionPlanDetails,
 } from '../../utils/subscriptionUtils';
 import { getRoleCapabilities } from '../../utils/permissions';
@@ -390,9 +390,22 @@ export const DevicesHubPage: React.FC = () => {
 	const location = useLocation();
 	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const { data: devices = [], isLoading } = useGetAllDevicesQuery();
-	const { data: properties = [], isLoading: isLoadingProperties } =
-		useGetPropertiesQuery();
+	const {
+		data: devices = [],
+		isLoading,
+		isFetching,
+		isSuccess: areDevicesLoaded,
+		isError: didDevicesFail,
+		refetch: refetchDevices,
+	} = useGetAllDevicesQuery();
+	const {
+		data: properties = [],
+		isLoading: isLoadingProperties,
+		isFetching: isFetchingProperties,
+		isSuccess: arePropertiesLoaded,
+		isError: didPropertiesFail,
+		refetch: refetchProperties,
+	} = useGetPropertiesQuery();
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 	const resolvedMaintenanceHistory = useMemo(
@@ -494,9 +507,8 @@ export const DevicesHubPage: React.FC = () => {
 	);
 	const canManageAppliances = roleCapabilities.canManageAppliances;
 	const canManageSpaces = roleCapabilities.canManageProperties;
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
+	const effectivePlanId = getEffectiveAccessPlanId(
 		currentUser?.subscription,
-		'homeowner',
 	);
 	const isSinglePropertyPlan =
 		effectivePlanId === 'homeowner' || effectivePlanId === 'homeowner_plus';
@@ -1044,7 +1056,11 @@ export const DevicesHubPage: React.FC = () => {
 		: false;
 
 
-	if (isLoadingProperties || isLoading) {
+	if (
+		(properties.length === 0 &&
+			(isLoadingProperties || isFetchingProperties)) ||
+		(devices.length === 0 && (isLoading || isFetching))
+	) {
 		return (
 			<LoadingState
 				loadingKey='appliance-hub'
@@ -1061,7 +1077,30 @@ export const DevicesHubPage: React.FC = () => {
 		);
 	}
 
-	if (!isLoadingProperties && properties.length === 0) {
+	if (
+		(properties.length === 0 && didPropertiesFail) ||
+		(devices.length === 0 && didDevicesFail)
+	) {
+		return (
+			<AppZeroState
+				kind='noAppliances'
+				title='Equipment could not be loaded'
+				description='Maintley could not load your property and equipment records. Try again before adding anything new.'
+				actions={[
+					{
+						label: 'Try Again',
+						onClick: () => {
+							void refetchProperties();
+							void refetchDevices();
+						},
+					},
+				]}
+				fullPage
+			/>
+		);
+	}
+
+	if (arePropertiesLoaded && properties.length === 0) {
 		return (
 			<AppZeroState
 				kind='noProperties'
@@ -1077,7 +1116,7 @@ export const DevicesHubPage: React.FC = () => {
 		);
 	}
 
-	if (!isLoading && deviceRows.length === 0) {
+	if (areDevicesLoaded && deviceRows.length === 0) {
 		return (
 			<>
 				<AppZeroState

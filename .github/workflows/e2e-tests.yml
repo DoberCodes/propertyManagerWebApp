@@ -17,6 +17,7 @@ on:
         options:
           - smoke
           - smoke-all
+          - activation
           - workflows
           - full-safe
 
@@ -46,6 +47,7 @@ jobs:
       REACT_APP_STRIPE_PUBLIC_KEY: ''
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.E2E_FIREBASE_SERVICE_ACCOUNT_JSON }}
       E2E_FIREBASE_PROJECT_ID: ${{ secrets.E2E_REACT_APP_FIREBASE_PROJECT_ID }}
+      E2E_EXPECT_HOMEOWNER_PLUS_TRIAL: 'true'
 
     steps:
       - name: Checkout
@@ -73,7 +75,8 @@ jobs:
             REACT_APP_FIREBASE_PROJECT_ID \
             REACT_APP_FIREBASE_STORAGE_BUCKET \
             REACT_APP_FIREBASE_MESSAGING_SENDER_ID \
-            REACT_APP_FIREBASE_APP_ID
+            REACT_APP_FIREBASE_APP_ID \
+            FIREBASE_SERVICE_ACCOUNT_JSON
           do
             if [[ -z "${!name}" ]]; then
               echo "Missing required e2e environment value: $name"
@@ -82,7 +85,7 @@ jobs:
           done
 
           if [[ "$missing" -ne 0 ]]; then
-            echo "Add E2E_DEMO_EMAIL, E2E_DEMO_PASSWORD, and E2E_REACT_APP_FIREBASE_* GitHub Actions secrets."
+            echo "Add the E2E demo credentials, E2E_REACT_APP_FIREBASE_* values, and E2E_FIREBASE_SERVICE_ACCOUNT_JSON GitHub Actions secret."
             echo "E2E intentionally does not fall back to production Firebase config."
             exit 1
           fi
@@ -101,7 +104,11 @@ jobs:
           if [[ "$DEPENDABOT_ACTIONS_PR" == "true" ]]; then
             SUITE="actions"
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            SUITE="smoke"
+            if [[ "${{ github.event.pull_request.base.ref }}" == "beta" || "${{ github.event.pull_request.head.ref }}" == "release/next" ]]; then
+              SUITE="activation"
+            else
+              SUITE="smoke"
+            fi
           elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             SUITE="smoke-all"
           else
@@ -121,6 +128,10 @@ jobs:
               echo "command=yarn e2e:smoke:all" >> "$GITHUB_OUTPUT"
               echo "browsers=all" >> "$GITHUB_OUTPUT"
               ;;
+            activation)
+              echo "command=yarn e2e:smoke:chrome && yarn e2e:activation:chrome" >> "$GITHUB_OUTPUT"
+              echo "browsers=chromium" >> "$GITHUB_OUTPUT"
+              ;;
             workflows)
               echo "command=yarn e2e:workflows:chrome" >> "$GITHUB_OUTPUT"
               echo "browsers=chromium" >> "$GITHUB_OUTPUT"
@@ -136,6 +147,12 @@ jobs:
           esac
 
           echo "suite=$SUITE" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare isolated activation identity
+        if: steps.suite.outputs.suite == 'activation'
+        shell: bash
+        run: |
+          echo "E2E_ACTIVATION_EMAIL=test.user.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}@maintley-test.com" >> "$GITHUB_ENV"
 
       - name: Cache Playwright browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -157,15 +174,19 @@ jobs:
         run: ${{ steps.suite.outputs.command }}
 
       - name: Cleanup E2E Firebase test data
-        if: always() && github.event_name == 'workflow_dispatch' && (steps.suite.outputs.suite == 'workflows' || steps.suite.outputs.suite == 'full-safe')
+        if: always() && ((steps.suite.outputs.suite == 'activation') || (github.event_name == 'workflow_dispatch' && (steps.suite.outputs.suite == 'workflows' || steps.suite.outputs.suite == 'full-safe')))
         shell: bash
         run: |
           if [[ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]]; then
-            echo "Missing E2E_FIREBASE_SERVICE_ACCOUNT_JSON secret. Manual E2E suites require cleanup credentials."
+            echo "Missing E2E_FIREBASE_SERVICE_ACCOUNT_JSON secret. Mutating E2E suites require cleanup credentials."
             exit 1
           fi
 
-          yarn cleanup:test-data:full
+          if [[ "${{ steps.suite.outputs.suite }}" == "activation" ]]; then
+            E2E_TEST_EMAIL="$E2E_ACTIVATION_EMAIL" yarn cleanup:test-data
+          else
+            yarn cleanup:test-data:full
+          fi
 
       - name: Upload Playwright report
         if: failure()

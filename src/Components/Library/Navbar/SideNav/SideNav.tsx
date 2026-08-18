@@ -40,7 +40,7 @@ import {
 	faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import {
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
 import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
@@ -65,9 +65,8 @@ export const SideNav = () => {
 
 	const isActive = (path: string) => activeRoute === path;
 
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
+	const effectivePlanId = getEffectiveAccessPlanId(
 		currentUser?.subscription,
-		'homeowner',
 	);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 	const maxProperties = planDetails?.maxProperties ?? 1;

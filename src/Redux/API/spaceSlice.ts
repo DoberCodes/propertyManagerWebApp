@@ -3,7 +3,6 @@ import {
 	doc,
 	getDocs,
 	query,
-	runTransaction,
 	setDoc,
 	updateDoc,
 	where,
@@ -36,6 +35,23 @@ interface GetAccountSpacesArgs {
 	accountId: string;
 	includeArchived?: boolean;
 }
+
+const findGeneratedPropertySpace = async (
+	accountId: string,
+	propertyId: string,
+	generationKey: string,
+): Promise<PropertySpace | undefined> => {
+	const snapshot = await getDocs(
+		query(
+			collection(db, 'propertySpaces'),
+			where('accountId', '==', accountId),
+			where('propertyId', '==', propertyId),
+		),
+	);
+	return snapshot.docs
+		.map((spaceDoc) => docToData(spaceDoc) as PropertySpace)
+		.find((space) => space.generationKey === generationKey);
+};
 
 const spaceSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
@@ -121,18 +137,31 @@ const spaceSlice = apiSlice.injectEndpoints({
 					const spaceRef = generatedId
 						? doc(db, 'propertySpaces', generatedId)
 						: doc(collection(db, 'propertySpaces'));
-					const existingGeneratedSpace = generatedId
-						? await runTransaction(db, async (transaction) => {
-								const snapshot = await transaction.get(spaceRef);
-								if (snapshot.exists()) {
-									return docToData(snapshot) as PropertySpace;
-								}
-								transaction.set(spaceRef, spaceData);
-								return null;
-							})
-						: null;
+					const existingGeneratedSpace = generationKey
+						? await findGeneratedPropertySpace(
+								accountId,
+								propertyId,
+								generationKey,
+							)
+						: undefined;
 					if (!generatedId) {
 						await setDoc(spaceRef, spaceData);
+					} else if (!existingGeneratedSpace) {
+						try {
+							await setDoc(spaceRef, spaceData);
+						} catch (createError) {
+							// Another create can win between the property-scoped lookup and
+							// deterministic write. Reuse that record only when it is now visible.
+							const concurrentlyCreatedSpace = await findGeneratedPropertySpace(
+								accountId,
+								propertyId,
+								generationKey!,
+							);
+							if (concurrentlyCreatedSpace) {
+								return { data: concurrentlyCreatedSpace };
+							}
+							throw createError;
+						}
 					}
 					if (existingGeneratedSpace) {
 						return { data: existingGeneratedSpace };

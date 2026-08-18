@@ -41,7 +41,7 @@ import { ExpiredTrialBanner } from 'Components/ExpiredTrialBanner/ExpiredTrialBa
 import { ScheduledSubscriptionBanner } from 'Components/ScheduledSubscriptionBanner/ScheduledSubscriptionBanner';
 import {
 	canUseRecurringTasks,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getTrialDaysRemaining,
 	isTrialExpired,
 } from 'utils/subscriptionUtils';
@@ -913,10 +913,7 @@ export const DashboardTab = () => {
 
 	const effectivePlanId = useMemo(
 		() =>
-			getEffectiveSubscriptionPlanId(
-				currentUser?.subscription as any,
-				'homeowner',
-			),
+			getEffectiveAccessPlanId(currentUser?.subscription as any),
 		[currentUser?.subscription],
 	);
 

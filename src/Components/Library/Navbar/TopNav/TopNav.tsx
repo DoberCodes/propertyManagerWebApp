@@ -30,7 +30,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
 import { COLORS } from '../../../../constants/colors';
 import {
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
 import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
@@ -63,9 +63,8 @@ export const TopNav = () => {
 	const canViewPages = useSelector(selectCanViewAllPages);
 	const isTeamMemberAccount = useSelector(selectIsTeamMemberAccount);
 	const isHomeowner = useSelector(selectIsHomeowner);
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
+	const effectivePlanId = getEffectiveAccessPlanId(
 		currentUser?.subscription,
-		'homeowner',
 	);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 	const isSingleHomePlan = isHomeowner && (planDetails?.maxProperties ?? 1) <= 1;

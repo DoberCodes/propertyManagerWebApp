@@ -420,12 +420,12 @@ export const canAddProperty = (
 		return false;
 	}
 
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false; // No active subscription
 	}
 
 	const maxProperties = getMaxPropertiesForPlan(
-		getEffectiveSubscriptionPlanId(subscription),
+		getEffectiveAccessPlanId(subscription),
 	);
 	return currentPropertyCount < maxProperties;
 };
@@ -437,12 +437,12 @@ export const getRemainingPropertySlots = (
 	subscription: SubscriptionData,
 	currentPropertyCount: number,
 ): number => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return 0;
 	}
 
 	const maxProperties = getMaxPropertiesForPlan(
-		getEffectiveSubscriptionPlanId(subscription),
+		getEffectiveAccessPlanId(subscription),
 	);
 	return Math.max(0, maxProperties - currentPropertyCount);
 };
@@ -454,12 +454,12 @@ export const canAddDevice = (
 	subscription: SubscriptionData,
 	currentDeviceCount: number,
 ): boolean => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false;
 	}
 
 	const maxDevices = getMaxDevicesForPlan(
-		getEffectiveSubscriptionPlanId(subscription),
+		getEffectiveAccessPlanId(subscription),
 	);
 	return currentDeviceCount < maxDevices;
 };
@@ -471,12 +471,12 @@ export const getRemainingDeviceSlots = (
 	subscription: SubscriptionData,
 	currentDeviceCount: number,
 ): number => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return 0;
 	}
 
 	const maxDevices = getMaxDevicesForPlan(
-		getEffectiveSubscriptionPlanId(subscription),
+		getEffectiveAccessPlanId(subscription),
 	);
 	if (isUnlimitedDeviceLimit(maxDevices)) {
 		return Number.POSITIVE_INFINITY;

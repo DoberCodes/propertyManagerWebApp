@@ -108,6 +108,7 @@
 		"e2e": "node ./node_modules/@playwright/test/cli.js test",
 		"e2e:smoke:chrome": "node ./node_modules/@playwright/test/cli.js test e2e/auth.spec.ts e2e/support.spec.ts --project=chromium",
 		"e2e:smoke:all": "node ./node_modules/@playwright/test/cli.js test e2e/auth.spec.ts e2e/support.spec.ts --project=chromium --project=firefox --project=webkit --project=\"Mobile Chrome\" --project=\"Mobile Safari\"",
+		"e2e:activation:chrome": "node ./node_modules/@playwright/test/cli.js test e2e/first-value.spec.ts --project=activation",
 		"e2e:workflows:chrome": "node ./node_modules/@playwright/test/cli.js test e2e/auth.spec.ts e2e/property.spec.ts e2e/task.spec.ts e2e/account-rbac.spec.ts --project=chromium",
 		"e2e:full-safe": "node ./node_modules/@playwright/test/cli.js test e2e/auth.spec.ts e2e/property.spec.ts e2e/task.spec.ts e2e/journey.spec.ts e2e/account-rbac.spec.ts --project=chromium --project=firefox --project=webkit --project=\"Mobile Chrome\" --project=\"Mobile Safari\"",
 		"e2e:ui": "node ./node_modules/@playwright/test/cli.js test --ui",
