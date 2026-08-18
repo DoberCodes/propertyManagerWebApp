@@ -28,11 +28,19 @@ test('validates workflow policy without installing browsers for Actions updates'
 	assert.match(workflow, /Install Playwright browsers\s+if: steps\.suite\.outputs\.browsers != 'none'/);
 });
 
-test('retains authenticated Chromium smoke coverage for ordinary pull requests', () => {
+test('runs isolated activation coverage for Beta and release pull requests', () => {
 	assert.match(
 		workflow,
-		/elif \[\[ "\$\{\{ github\.event_name \}\}" == "pull_request" \]\]; then\s+SUITE="smoke"/,
+		/github\.event\.pull_request\.base\.ref \}\}" == "beta"[\s\S]*github\.event\.pull_request\.head\.ref \}\}" == "release\/next"[\s\S]*SUITE="activation"/,
 	);
 	assert.match(workflow, /E2E_DEMO_EMAIL: \$\{\{ secrets\.E2E_DEMO_EMAIL \}\}/);
-	assert.match(workflow, /command=yarn e2e:smoke:chrome/);
+	assert.match(
+		workflow,
+		/command=yarn e2e:smoke:chrome && yarn e2e:activation:chrome/,
+	);
+	assert.match(
+		workflow,
+		/E2E_TEST_EMAIL="\$E2E_ACTIVATION_EMAIL" yarn cleanup:test-data/,
+	);
+	assert.match(workflow, /if: always\(\)[^\n]*suite == 'activation'/);
 });

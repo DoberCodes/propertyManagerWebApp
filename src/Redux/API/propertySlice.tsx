@@ -27,7 +27,7 @@ import {
 } from './accountContext';
 import {
 	canPropertyGroups,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getMaxPropertiesForPlan,
 } from '../../utils/subscriptionUtils';
 import type { SubscriptionData } from '../../utils/subscriptionUtils';
@@ -911,14 +911,18 @@ const propertySlice = apiSlice.injectEndpoints({
 						);
 						const userData = userSnapshot.data() || {};
 						const subscription = userData.subscription || {};
-						const planId = getEffectiveSubscriptionPlanId(
-							subscription,
-							'homeowner',
-						);
-						const maxProperties = getMaxPropertiesForPlan(planId);
-
 						const accountSnapshot = await transaction.get(accountRef);
 						const accountData = accountSnapshot.data() || {};
+						const projection = accountData.effectiveEntitlementProjection || {};
+						const subscriptionWithGrants = {
+							...subscription,
+							entitlementAccountId: targetUserId,
+							entitlementGrants: Array.isArray(projection.activeGrants)
+								? projection.activeGrants
+								: [],
+						};
+						const planId = getEffectiveAccessPlanId(subscriptionWithGrants);
+						const maxProperties = getMaxPropertiesForPlan(planId);
 						const currentPropertyCount = Number(accountData.propertyCount || 0);
 						propertySequence = currentPropertyCount + 1;
 

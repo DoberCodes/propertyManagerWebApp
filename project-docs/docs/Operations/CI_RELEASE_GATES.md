@@ -1,6 +1,6 @@
 # CI and Release Gates
 
-Last reviewed: 2026-08-02
+Last reviewed: 2026-08-18
 
 ## Purpose
 
@@ -32,8 +32,9 @@ During its canary period it verifies the results of:
 * Frontend production compilation and asset budgets.
 * Functions compilation and the complete Functions test manifest.
 
-E2E, release-note preview, Hosting preview, and Beta backend readiness remain
-separate visible checks during the first migration stage. The Beta ruleset
+The isolated first-value E2E journey, release-note preview, Hosting preview, and
+Beta backend readiness remain separate visible checks during the first
+migration stage. The Beta ruleset
 should continue requiring its existing checks until `Beta PR Gate` has reported
 successfully and consistently.
 
@@ -44,6 +45,11 @@ Functions, preview, and readiness checks provide execution coverage. The
 exception is limited to `dependabot/github_actions/*`; all other internal PRs
 retain authenticated Playwright smoke coverage.
 
+Ordinary feature PRs into Beta run a unique-account activation journey rather
+than mutating the demo account. That journey covers registration, first-home
+creation, generated Spaces, and effective trial access, and performs mandatory
+email-scoped cleanup even when the browser test fails.
+
 ## Release Gate
 
 `Release Gate` is the stable validation status for the bot-owned
@@ -52,6 +58,9 @@ retain authenticated Playwright smoke coverage.
 The release candidate continues to receive full Build Check coverage. It is not
 assumed safe merely because its visible diff contains version files: the branch
 promotes the entire accumulated Beta release.
+
+The `release/next` PR also reruns the isolated activation journey against Beta
+before release approval. A cleanup failure fails the same E2E check.
 
 Pull requests targeting Main use the `release-validation` GitHub environment.
 That environment contains only the browser-safe `PROD_REACT_APP_*` variables

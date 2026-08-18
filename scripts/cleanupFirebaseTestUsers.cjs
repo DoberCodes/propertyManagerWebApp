@@ -26,6 +26,7 @@ const admin = require('firebase-admin');
 const args = new Set(process.argv.slice(2));
 const isDryRun = args.has('--dry-run');
 const includeDemoArtifacts = args.has('--include-demo-artifacts');
+const targetEmail = String(process.env.E2E_TEST_EMAIL || '').trim().toLowerCase();
 
 function loadServiceAccount() {
 	if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
@@ -103,6 +104,14 @@ const PROPERTY_RELATION_FIELDS = {
 	userInvitations: ['propertyId'],
 	tenantProfiles: ['propertyId'],
 	propertyGroupMemberships: ['propertyId', 'groupId'],
+	propertySpaces: ['propertyId'],
+	propertySupplies: ['propertyId'],
+	propertyKnowledgeLinks: ['propertyId'],
+	propertyDocuments: ['propertyId'],
+	propertyKnowledgeSuggestions: ['propertyId'],
+	maintenanceEvents: ['propertyId'],
+	maintenanceEventRevisions: ['propertyId'],
+	maintleyEvents: ['propertyId'],
 };
 
 const COLLECTIONS_TO_SCAN = [
@@ -113,10 +122,17 @@ const COLLECTIONS_TO_SCAN = [
 	'propertyGroups',
 	'propertyGroupMemberships',
 	'properties',
+	'propertySpaces',
+	'propertySupplies',
+	'propertyKnowledgeLinks',
+	'propertyDocuments',
+	'propertyKnowledgeSuggestions',
 	'propertyShares',
 	'userInvitations',
 	'tasks',
 	'maintenanceHistory',
+	'maintenanceEvents',
+	'maintenanceEventRevisions',
 	'teamGroups',
 	'teamMembers',
 	'devices',
@@ -124,10 +140,16 @@ const COLLECTIONS_TO_SCAN = [
 	'units',
 	'favorites',
 	'notifications',
+	'maintleyEvents',
 	'contractors',
 	'tenantInvitationCodes',
 	'tenantProfiles',
 	'teamMemberInvitationCodes',
+];
+
+const COLLECTION_GROUPS_TO_SCAN = [
+	'entitlementGrants',
+	'accessLifecycleDeliveries',
 ];
 
 function getByPath(obj, path) {
@@ -162,7 +184,11 @@ function anyArrayValueInSet(arr, valueSet) {
 
 function isTestEmail(value) {
 	const email = toStringSafe(value).toLowerCase();
-	return !!email && TEST_EMAIL_PATTERN.test(email);
+	return (
+		!!email &&
+		TEST_EMAIL_PATTERN.test(email) &&
+		(!targetEmail || email === targetEmail)
+	);
 }
 
 function shouldDeleteForOwnership(data, testUserIds, testAccountIds, testEmails) {
@@ -177,7 +203,7 @@ function shouldDeleteForOwnership(data, testUserIds, testAccountIds, testEmails)
 	for (const field of EMAIL_FIELDS) {
 		const value = toStringSafe(data[field]).toLowerCase();
 		if (!value) continue;
-		if (testEmails.has(value) || TEST_EMAIL_PATTERN.test(value)) {
+		if (testEmails.has(value) || isTestEmail(value)) {
 			return true;
 		}
 	}
@@ -419,6 +445,27 @@ async function cleanupFirestoreData(testUsers) {
 		}
 	}
 
+	for (const collectionGroupName of COLLECTION_GROUPS_TO_SCAN) {
+		const snapshot = await db.collectionGroup(collectionGroupName).get();
+		for (const docSnapshot of snapshot.docs) {
+			const data = docSnapshot.data() || {};
+			if (
+				shouldDeleteForOwnership(
+					data,
+					testUserIds,
+					testAccountIds,
+					testEmails,
+				)
+			) {
+				await batchManager.queueDelete(
+					docSnapshot.ref,
+					collectionGroupName,
+					'matched test-data ownership in nested account records',
+				);
+			}
+		}
+	}
+
 	await batchManager.commit();
 
 	return {
@@ -449,6 +496,7 @@ async function runCleanup() {
 	console.log(
 		`   Include demo artifacts: ${includeDemoArtifacts ? 'yes' : 'no'}`,
 	);
+	console.log(`   Target email: ${targetEmail || 'all matching test users'}`);
 
 	const testUsers = await getTestAuthUsers();
 	if (testUsers.length === 0 && !includeDemoArtifacts) {
@@ -463,6 +511,12 @@ async function runCleanup() {
 
 	const firestoreResult = await cleanupFirestoreData(testUsers);
 	const authUsersDeleted = await cleanupAuthUsers(testUsers);
+	const remainingTargetUsers = await getTestAuthUsers();
+	if (remainingTargetUsers.length > 0) {
+		throw new Error(
+			`Cleanup verification failed: ${remainingTargetUsers.length} matching Auth user(s) remain.`,
+		);
+	}
 
 	console.log('\n✅ Cleanup complete');
 	console.log(`   Firestore deletes: ${firestoreResult.stats.deletes}`);

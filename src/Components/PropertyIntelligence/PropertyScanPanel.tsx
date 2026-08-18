@@ -32,7 +32,7 @@ import {
 } from '../../utils/propertyIntelligenceScan';
 import {
 	canUsePropertyInsights,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
 import { RootState } from '../../Redux/store/store';
@@ -357,7 +357,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		skip: !canRunScan || !property.id,
 	});
 	const [savePropertyScanSnapshot] = useSavePropertyScanSnapshotMutation();
-	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	const currentPlanId = getEffectiveAccessPlanId(subscription);
 	const isFreePlan = !canUsePropertyInsights(subscription);
 	const intelligenceUpgradePlan = currentPlanId === 'property' ? 'Portfolio' : 'Homeowner+';
 	const intelligenceSourceCards = [

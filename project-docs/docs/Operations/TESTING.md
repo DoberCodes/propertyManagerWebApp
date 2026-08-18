@@ -526,6 +526,12 @@ PR smoke suite:
 yarn e2e:smoke:chrome
 ```
 
+Release-blocking first-value suite:
+
+```bash
+yarn e2e:activation:chrome
+```
+
 Scheduled cross-browser smoke suite:
 
 ```bash
@@ -537,6 +543,19 @@ navigation without submitting a new account, verifies demo login/logout, and
 checks the Support Center without submitting a ticket. It must not create
 Firebase accounts, Stripe customers, properties, tasks, support tickets, or
 checkout sessions.
+
+Feature pull requests into `beta` and the `release/next` pull request run the
+activation suite in an isolated Chromium project. The suite creates a unique
+Free owner account, completes the first-home profile with two bedrooms and one
+and a half bathrooms, verifies the four generated Spaces exactly once, and
+confirms that first-property Homeowner+ access is presented separately from
+Free billing.
+
+Each activation run uses an email derived from the GitHub run id. Its
+`always()` cleanup targets only that email, verifies Auth deletion, checks the
+configured Firebase project id, and removes account-owned property knowledge
+and nested entitlement records. The activation suite must not mutate the shared
+demo account.
 
 The same non-mutating smoke coverage runs nightly across Chromium, Firefox,
 WebKit, Mobile Chrome, and Mobile Safari. Mutation-oriented workflow tests must
@@ -601,7 +620,8 @@ GitHub Actions:
   script-test manifest, `yarn test:rules`, `yarn test:storage`, `yarn build`,
   `yarn check:asset-budgets`, Functions compilation, and the complete Functions
   test manifest.
-* PRs run `E2E Tests / smoke` against Chromium only.
+* PRs into `beta` and the `release/next` PR run the isolated activation suite
+  against Chromium. Other ordinary PRs retain the non-mutating smoke suite.
 * GitHub Actions Dependabot PRs cannot receive the normal Actions E2E secrets.
   Their required `e2e` context therefore runs the workflow-policy suite and
   exercises the updated checkout, setup, cache, build, preview, and artifact
@@ -616,11 +636,11 @@ GitHub Actions:
   [CI_RELEASE_GATES.md](CI_RELEASE_GATES.md).
 * A scheduled nightly run executes `smoke-all` across all configured browser
   families without creating application records.
-* Manual workflow dispatch can run `smoke`, `smoke-all`, `workflows`, or
-  `full-safe`.
+* Manual workflow dispatch can run `smoke`, `smoke-all`, `activation`,
+  `workflows`, or `full-safe`.
 * E2E requires dedicated `E2E_REACT_APP_FIREBASE_*` secrets and
   `E2E_DEMO_EMAIL` / `E2E_DEMO_PASSWORD`.
-* Manual `workflows` and `full-safe` runs require
+* Activation runs and manual `workflows` and `full-safe` runs require
   `E2E_FIREBASE_SERVICE_ACCOUNT_JSON` so the workflow can clean up test data
   after the run.
 * Cleanup uses the E2E Firebase project id as a guard and refuses to run if the

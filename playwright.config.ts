@@ -46,11 +46,20 @@ export default defineConfig({
 	/* Configure projects for major browsers */
 	projects: [
 		{
+			name: 'activation',
+			testMatch: /first-value\.spec\.ts/,
+			use: {
+				...devices['Desktop Chrome'],
+				storageState: { cookies: [], origins: [] },
+			},
+		},
+		{
 			name: 'setup',
 			testMatch: /auth\.setup\.ts/,
 		},
 		{
 			name: 'chromium',
+			testIgnore: /first-value\.spec\.ts/,
 			use: {
 				...devices['Desktop Chrome'],
 				storageState: DEMO_AUTH_STATE_PATH,
@@ -61,6 +70,7 @@ export default defineConfig({
 
 		{
 			name: 'firefox',
+			testIgnore: /first-value\.spec\.ts/,
 			use: {
 				...devices['Desktop Firefox'],
 				storageState: DEMO_AUTH_STATE_PATH,
@@ -71,6 +81,7 @@ export default defineConfig({
 
 		{
 			name: 'webkit',
+			testIgnore: /first-value\.spec\.ts/,
 			use: {
 				...devices['Desktop Safari'],
 				storageState: DEMO_AUTH_STATE_PATH,
@@ -82,6 +93,7 @@ export default defineConfig({
 		/* Test against mobile viewports. */
 		{
 			name: 'Mobile Chrome',
+			testIgnore: /first-value\.spec\.ts/,
 			use: {
 				...devices['Pixel 5'],
 				storageState: DEMO_AUTH_STATE_PATH,
@@ -91,6 +103,7 @@ export default defineConfig({
 		},
 		{
 			name: 'Mobile Safari',
+			testIgnore: /first-value\.spec\.ts/,
 			use: {
 				...devices['iPhone 12'],
 				storageState: DEMO_AUTH_STATE_PATH,

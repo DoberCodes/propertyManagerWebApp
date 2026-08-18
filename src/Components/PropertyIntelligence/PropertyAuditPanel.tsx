@@ -34,7 +34,7 @@ import {
 } from '../../utils/propertyIntelligenceScan';
 import {
 	canUsePropertyInsights,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	SubscriptionData,
 } from '../../utils/subscriptionUtils';
 import { RootState } from '../../Redux/store/store';
@@ -152,7 +152,7 @@ export const PropertyAuditPanel: React.FC<PropertyAuditPanelProps> = ({
 	const [expandedAssetIds, setExpandedAssetIds] = useState<Set<string>>(
 		() => new Set(),
 	);
-	const currentPlanId = getEffectiveSubscriptionPlanId(subscription, 'homeowner');
+	const currentPlanId = getEffectiveAccessPlanId(subscription);
 	const isFreePlan = !canUsePropertyInsights(subscription);
 	const intelligenceUpgradePlan = currentPlanId === 'property' ? 'Portfolio' : 'Homeowner+';
 	const {

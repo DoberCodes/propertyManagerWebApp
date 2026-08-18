@@ -682,6 +682,14 @@ same account, validate the Space field contract, keep `accountId`,
 referenced Property to exist within the same account. Spaces do not create a
 separate permission boundary.
 
+Generated Space creation discovers an existing `generationKey` through the
+same authorized account- and property-scoped query used by the Space reader,
+then writes the deterministic document id when no match exists. It does not
+read a missing deterministic document directly because a nonexistent resource
+has no account fields with which the rules can authorize that read. A
+concurrent-create retry reuses only a matching Space visible through the scoped
+query; Firestore read permissions are not broadened for idempotency.
+
 The removal callable deletes an unreferenced Space and archives a referenced
 Space. The restore callable reactivates an archived Space within the same
 account boundary. Direct client deletion is denied.

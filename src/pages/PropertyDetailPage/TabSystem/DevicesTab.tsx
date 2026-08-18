@@ -77,7 +77,7 @@ import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { FilterConfig, FilterValues } from '../../../Components/Library/FilterBar';
 import {
 	canAddDevice,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getRemainingDeviceSlots,
 	getSubscriptionPlanDetails,
 } from '../../../utils/subscriptionUtils';
@@ -826,7 +826,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 		if (!canAddDevice(currentUser.subscription, accountDeviceCount)) {
 			const planDetails = getSubscriptionPlanDetails(
-				getEffectiveSubscriptionPlanId(currentUser.subscription),
+				getEffectiveAccessPlanId(currentUser.subscription),
 			);
 			const maxDevices = planDetails?.maxDevices || 15;
 			if (isTeamMemberAccount) {
