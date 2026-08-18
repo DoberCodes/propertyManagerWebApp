@@ -24,22 +24,8 @@ test.describe('First owner value', () => {
 		const onboardingStartButton = page.getByRole('button', {
 			name: /^Add My Home$/i,
 		});
-		if (
-			await onboardingStartButton.isVisible({ timeout: 5000 }).catch(() => false)
-		) {
-			await onboardingStartButton.click();
-		} else {
-			const addHomeButton = page
-				.getByRole('button', { name: /^Add Home$/i })
-				.first();
-			if (await addHomeButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-				await addHomeButton.click();
-			} else {
-				await page.goto('/properties?openCreate=onboarding', {
-					waitUntil: 'domcontentloaded',
-				});
-			}
-		}
+		await expect(onboardingStartButton).toBeVisible({ timeout: 30000 });
+		await onboardingStartButton.click();
 
 		await expect(page.getByText('Home Basics', { exact: true })).toBeVisible();
 		await page.getByPlaceholder(/enter home name/i).fill(homeName);

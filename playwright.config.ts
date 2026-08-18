@@ -48,6 +48,7 @@ export default defineConfig({
 		{
 			name: 'activation',
 			testMatch: /first-value\.spec\.ts/,
+			retries: 0,
 			use: {
 				...devices['Desktop Chrome'],
 				storageState: { cookies: [], origins: [] },
