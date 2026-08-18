@@ -80,11 +80,20 @@ test.describe('First owner value', () => {
 		await page.getByRole('button', { name: /open profile menu/i }).click();
 		await page.getByRole('link', { name: /view profile/i }).click();
 		await expect(page).toHaveURL(/\/profile$/i);
-		await expect(page.getByText(/^plan:\s*free$/i)).toBeVisible({
-			timeout: 30000,
+		const trialEnabled =
+			process.env.REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true' &&
+			process.env.REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true';
+		const expectedAccessLabel = trialEnabled
+			? /^effective access:\s*homeowner\+$/i
+			: /^plan:\s*free$/i;
+		const expectedCapacityLabel = trialEnabled
+			? /4 property slots available/i
+			: /0 home slots available/i;
+		await expect(page.getByText(expectedAccessLabel)).toBeVisible({
+			timeout: trialEnabled ? 60000 : 30000,
 		});
 		await expect(
-			page.getByText(/0 home slots available/i).filter({ visible: true }),
+			page.getByText(expectedCapacityLabel).filter({ visible: true }),
 		).toBeVisible();
 	});
 });
