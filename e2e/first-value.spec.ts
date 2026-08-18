@@ -83,8 +83,9 @@ test.describe('First owner value', () => {
 		// Beta must wait for the asynchronous first-home grant. Local development
 		// may intentionally keep that rollout disabled and retain Free access.
 		const trialEnabled =
-			process.env.REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true' &&
-			process.env.REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true';
+			process.env.E2E_EXPECT_HOMEOWNER_PLUS_TRIAL === 'true' ||
+			(process.env.REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true' &&
+				process.env.REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true');
 		const expectedAccessLabel = trialEnabled
 			? /^effective access:\s*homeowner\+$/i
 			: /^plan:\s*free$/i;
