@@ -21,13 +21,24 @@ test.describe('First owner value', () => {
 		if (!(await isLoggedIn(page))) await login(page, email, password);
 		expect(await isLoggedIn(page)).toBeTruthy();
 
-		const addHomeButton = page.getByRole('button', { name: /^Add Home$/i }).first();
-		if (await addHomeButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-			await addHomeButton.click();
+		const onboardingStartButton = page.getByRole('button', {
+			name: /^Add My Home$/i,
+		});
+		if (
+			await onboardingStartButton.isVisible({ timeout: 5000 }).catch(() => false)
+		) {
+			await onboardingStartButton.click();
 		} else {
-			await page.goto('/properties?openCreate=onboarding', {
-				waitUntil: 'domcontentloaded',
-			});
+			const addHomeButton = page
+				.getByRole('button', { name: /^Add Home$/i })
+				.first();
+			if (await addHomeButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+				await addHomeButton.click();
+			} else {
+				await page.goto('/properties?openCreate=onboarding', {
+					waitUntil: 'domcontentloaded',
+				});
+			}
 		}
 
 		await expect(page.getByText('Home Basics', { exact: true })).toBeVisible();
