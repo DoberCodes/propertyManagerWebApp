@@ -44,15 +44,26 @@ test.describe('First owner value', () => {
 
 		await page.goto('/properties', { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page, 30000);
+		// Homeowner accounts with one property intentionally skip the collection
+		// view and open that property's record directly. Wait for either stable
+		// outcome instead of racing the redirect.
 		const propertyImage = page.locator(`img[alt="${homeName}"]`).first();
-		await expect(propertyImage).toBeVisible({ timeout: 30000 });
-		await propertyImage.click({ force: true });
+		const propertyHeading = page.getByRole('heading', {
+			name: homeName,
+			exact: true,
+		});
+		await expect(propertyHeading.or(propertyImage)).toBeVisible({ timeout: 30000 });
+		if (await propertyImage.isVisible()) {
+			await propertyImage.click({ force: true });
+		}
+		await expect(propertyHeading).toBeVisible({ timeout: 30000 });
 		await expect(page).toHaveURL(/\/property\//i);
 
-		const detailsTab = page.getByRole('button', { name: /^Details$/i }).first();
-		if (await detailsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await detailsTab.click();
+		const spacesRegion = page.getByRole('region', { name: /^Spaces$/i });
+		if (!(await spacesRegion.isVisible({ timeout: 3000 }).catch(() => false))) {
+			await page.getByRole('button', { name: /^Details$/i }).first().click();
 		}
+		await expect(spacesRegion).toBeVisible({ timeout: 30000 });
 
 		for (const spaceName of [
 			'Bedroom 1',
@@ -66,10 +77,14 @@ test.describe('First owner value', () => {
 		}
 		await expect(page.getByText('No active Spaces')).toHaveCount(0);
 
-		await page.goto('/profile', { waitUntil: 'domcontentloaded' });
-		await waitForPageLoaded(page, 30000);
-		await expect(page.getByText(/effective access:\s*homeowner\+/i)).toBeVisible({
+		await page.getByRole('button', { name: /open profile menu/i }).click();
+		await page.getByRole('link', { name: /view profile/i }).click();
+		await expect(page).toHaveURL(/\/profile$/i);
+		await expect(page.getByText(/^plan:\s*free$/i)).toBeVisible({
 			timeout: 30000,
 		});
+		await expect(
+			page.getByText(/0 home slots available/i).filter({ visible: true }),
+		).toBeVisible();
 	});
 });
