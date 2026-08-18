@@ -80,6 +80,8 @@ test.describe('First owner value', () => {
 		await page.getByRole('button', { name: /open profile menu/i }).click();
 		await page.getByRole('link', { name: /view profile/i }).click();
 		await expect(page).toHaveURL(/\/profile$/i);
+		// Beta must wait for the asynchronous first-home grant. Local development
+		// may intentionally keep that rollout disabled and retain Free access.
 		const trialEnabled =
 			process.env.REACT_APP_ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL === 'true' &&
 			process.env.REACT_APP_ENABLE_INTERNAL_ENTITLEMENT_GRANT_ISSUANCE === 'true';
