@@ -147,6 +147,11 @@ const WaitingCard = styled.aside`
 	box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
 	color: ${COLORS.textSecondary};
 	font-size: 13px;
+	pointer-events: none;
+
+	button {
+		pointer-events: auto;
+	}
 
 	@media (max-width: 640px) {
 		left: 12px;
