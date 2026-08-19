@@ -4,6 +4,7 @@ import {
 	removeFamilyMember,
 	getUserProfile,
 	signUpWithEmail,
+	checkEmailExists,
 } from './authService';
 import { USER_ROLES } from '../constants/roles';
 import { SUBSCRIPTION_STATUS } from '../constants/subscriptions';
@@ -466,5 +467,39 @@ describe('Family Account Functionality', () => {
 				}),
 			);
 		});
+	});
+});
+
+describe('registration email availability', () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it('uses Firebase Auth without querying the protected users collection', async () => {
+		const mockFetchSignInMethodsForEmail =
+			require('firebase/auth').fetchSignInMethodsForEmail;
+		const mockGetDocs = require('firebase/firestore').getDocs;
+		mockFetchSignInMethodsForEmail.mockResolvedValue(['password']);
+
+		await expect(checkEmailExists('owner@example.com')).resolves.toBe(true);
+		expect(mockGetDocs).not.toHaveBeenCalled();
+	});
+
+	it('leaves duplicate enforcement to account creation when the pre-check fails', async () => {
+		const mockFetchSignInMethodsForEmail =
+			require('firebase/auth').fetchSignInMethodsForEmail;
+		const consoleInfoSpy = jest
+			.spyOn(console, 'info')
+			.mockImplementation(() => {});
+		mockFetchSignInMethodsForEmail.mockRejectedValue(
+			new Error('lookup unavailable'),
+		);
+
+		await expect(checkEmailExists('owner@example.com')).resolves.toBe(false);
+		expect(consoleInfoSpy).toHaveBeenCalledWith(
+			'Email availability pre-check was unavailable.',
+			expect.any(Error),
+		);
+		consoleInfoSpy.mockRestore();
 	});
 });

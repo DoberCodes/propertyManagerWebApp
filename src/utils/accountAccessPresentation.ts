@@ -35,6 +35,7 @@ export const getAccountAccessPresentation = (
 	);
 	const accessPlanId = getEffectiveAccessPlanId(
 		subscription as SubscriptionData | null,
+		nowMs,
 	);
 	const billingPlan = getSubscriptionPlanDetails(billingPlanId);
 	const accessPlan = getSubscriptionPlanDetails(accessPlanId);

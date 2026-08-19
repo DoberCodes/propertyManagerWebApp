@@ -13,6 +13,18 @@ type FinalizeDeletedAccountSessionArgs = {
 	signOutCurrentUser?: () => Promise<void>;
 };
 
+let accountDeletionSessionActive = false;
+
+export const beginAccountDeletionSession = () => {
+	accountDeletionSessionActive = true;
+};
+
+export const endAccountDeletionSession = () => {
+	accountDeletionSessionActive = false;
+};
+
+export const isAccountDeletionSessionActive = () => accountDeletionSessionActive;
+
 export const finalizeDeletedAccountSession = async ({
 	userId,
 	dispatch,
@@ -20,6 +32,17 @@ export const finalizeDeletedAccountSession = async ({
 	notify,
 	signOutCurrentUser = () => signOut(auth),
 }: FinalizeDeletedAccountSessionArgs) => {
+	// Leave the protected route before clearing the authenticated Redux user.
+	// Otherwise ProtectedRoutes can win the render race and redirect the deleted
+	// account to /login before the intended public landing navigation is applied.
+	navigate('/', { replace: true });
+	clearAccountScopedClientState(dispatch, {
+		userId,
+		clearLocalStorage: true,
+	});
+	dispatch(logout());
+	notify('Your Maintley account has been deleted.', 'success');
+
 	try {
 		await signOutCurrentUser();
 	} catch (error) {
@@ -27,13 +50,7 @@ export const finalizeDeletedAccountSession = async ({
 		// sign-out failure must not leave the app waiting for an auth callback that
 		// may never arrive.
 		console.warn('Deleted account could not complete Firebase sign-out:', error);
+	} finally {
+		endAccountDeletionSession();
 	}
-
-	clearAccountScopedClientState(dispatch, {
-		userId,
-		clearLocalStorage: true,
-	});
-	dispatch(logout());
-	notify('Your Maintley account has been deleted.', 'success');
-	navigate('/', { replace: true });
 };

@@ -57,6 +57,7 @@ export const Sidebar = styled.div`
 
 export const Content = styled.div`
 	flex: 1;
+	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	height: 100%; /* Match height of Main */
@@ -71,6 +72,7 @@ export const Content = styled.div`
 	);
 
 	@media (max-width: 1024px) {
+		overflow-x: hidden;
 		padding: 15px;
 		padding-bottom: calc(var(--mobile-bottom-nav-offset, 0px) + 14px);
 	}

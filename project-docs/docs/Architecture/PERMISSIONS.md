@@ -52,6 +52,11 @@ Authentication answers:
 
 > Who is this user?
 
+Public registration may use Firebase Authentication's email-method lookup as
+a non-blocking availability hint. It must not query the protected `users`
+collection before authentication. Firebase Authentication account creation is
+the authoritative duplicate-email check.
+
 Authorization answers:
 
 > What may this user access?

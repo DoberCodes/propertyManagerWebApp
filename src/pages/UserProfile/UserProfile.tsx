@@ -121,7 +121,11 @@ import { auth } from 'config/firebase';
 import { callFirebaseFunction } from 'config/firebaseFunctions';
 import { getCustomerBillingPortalUrl } from 'utils/authLinks';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
-import { finalizeDeletedAccountSession } from '../../services/accountDeletionSession';
+import {
+	beginAccountDeletionSession,
+	endAccountDeletionSession,
+	finalizeDeletedAccountSession,
+} from '../../services/accountDeletionSession';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
@@ -846,6 +850,7 @@ export const UserProfile: React.FC = () => {
 
 		setDeleteAccountError('');
 		setIsDeletingAccount(true);
+		beginAccountDeletionSession();
 
 		try {
 			await callFirebaseFunction<{ userId: string }, unknown>(
@@ -859,6 +864,7 @@ export const UserProfile: React.FC = () => {
 				notify: feedback.notify,
 			});
 		} catch (deleteError: any) {
+			endAccountDeletionSession();
 			console.error('Delete account error:', deleteError);
 			if (deleteError.code === 'functions/permission-denied') {
 				setDeleteAccountError('You can only delete your own account.');
