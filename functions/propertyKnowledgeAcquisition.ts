@@ -1048,10 +1048,12 @@ const getPendingSuggestionForDocument = (
 
 const getSuggestionFieldCount = (suggestion?: Record<string, unknown>) => {
 	const fields = suggestion?.extractedFields;
+	const parts = suggestion?.suggestedParts;
 	const tasks = suggestion?.suggestedTasks;
 	const equipment = suggestion?.suggestedEquipment;
 	return (
 		(Array.isArray(fields) ? fields.length : 0) +
+		(Array.isArray(parts) ? parts.length : 0) +
 		(Array.isArray(tasks) ? tasks.length : 0) +
 		(Array.isArray(equipment) ? equipment.length : 0)
 	);
@@ -1282,6 +1284,7 @@ const processPdfDocumentAcquisition = async ({
 			: extractFieldsFromPdfText(extractedText);
 		const suggestionCandidateCount =
 			extractedFields.length +
+			(inspectionUnderstanding?.supplies.length || 0) +
 			(serviceReport?.suggestedTasks.length || 0) +
 			(serviceReport?.suggestedEquipment.length || 0);
 		const propertyConfirmation = buildPropertyConfirmationFromPdfText(
@@ -1382,6 +1385,9 @@ const processPdfDocumentAcquisition = async ({
 			documentType: classifyDocumentType(document),
 			extractionMethod: docxReport ? 'docx_text' : 'pdf_text',
 			extractedFields,
+			...(inspectionUnderstanding?.supplies.length
+				? { suggestedParts: inspectionUnderstanding.supplies }
+				: {}),
 			...(serviceReport?.suggestedTasks.length
 				? { suggestedTasks: serviceReport.suggestedTasks }
 				: {}),
@@ -1394,7 +1400,7 @@ const processPdfDocumentAcquisition = async ({
 			acquisitionDiagnostics: {
 				parserVersion: inspectionUnderstanding?.diagnostics.parserVersion || 'acquisition-v1',
 				interpreter: inspectionUnderstanding
-					? 'inspection-v2'
+					? 'inspection-v3'
 					: serviceReport
 						? 'structured-service-v1'
 						: 'generic-v1',
@@ -1405,6 +1411,7 @@ const processPdfDocumentAcquisition = async ({
 			},
 			confidence: [
 				...extractedFields.map((field) => field.confidence),
+				...(inspectionUnderstanding?.supplies || []).map((part) => part.confidence),
 				...(serviceReport?.suggestedTasks || []).map((task) => task.confidence),
 				...(serviceReport?.suggestedEquipment || []).map((equipment) => equipment.confidence),
 			].reduce((sum, score) => sum + score, 0) / suggestionCandidateCount,

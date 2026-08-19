@@ -199,6 +199,10 @@ describe('property knowledge acquisition', () => {
 				label: 'HVAC',
 				assetType: 'HVAC',
 				details: {
+					brand: 'Trane',
+					model: '4TWR5036H1000',
+					serialNumber: '18182AB3F',
+					installDate: '2018',
 					filterSize: '16x25x1',
 					specNotes: 'Reported heat pump',
 				},
@@ -229,6 +233,10 @@ describe('property knowledge acquisition', () => {
 		});
 
 		expect(result.systemUpdates).toHaveLength(1);
+		expect(result.systemUpdates[0].updates.brand).toBe('Trane');
+		expect(result.systemUpdates[0].updates.model).toBe('4TWR5036H1000');
+		expect(result.systemUpdates[0].updates.serialNumber).toBe('18182AB3F');
+		expect(result.systemUpdates[0].updates.installationDate).toBe('2018');
 		expect(result.systemUpdates[0].updates.filterSize).toBe('16x25x1');
 		expect(result.systemUpdates[0].updates.specNotes).toBeUndefined();
 		expect(
@@ -872,6 +880,7 @@ describe('property knowledge acquisition', () => {
 						name: 'Honeywell T6 Pro Smart Thermostat',
 						category: 'accessory',
 						relatedAssetTypes: ['hvac'],
+						relatedAssetVariant: 'Air Handler',
 						targetEntity: 'part',
 						sourceText: 'Honeywell T6 Pro Smart Thermostat',
 						confidence: 0.65,
@@ -914,7 +923,10 @@ describe('property knowledge acquisition', () => {
 		expect(result.systemUpdates).toHaveLength(0);
 		expect(result.supplySuggestions).toHaveLength(1);
 		expect(result.supplySuggestions[0]).toMatchObject({
+			partSuggestionId: 'part-thermostat-1',
 			equipmentId: 'system-1',
+			relatedAssetTypes: ['hvac'],
+			relatedAssetVariant: 'Air Handler',
 			draft: {
 			name: 'Honeywell T6 Pro Smart Thermostat',
 			type: 'other',

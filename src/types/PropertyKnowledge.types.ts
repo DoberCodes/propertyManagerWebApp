@@ -119,6 +119,7 @@ export interface ExtractedPartSuggestion {
 	name: string;
 	category: PartKnowledgeCategory;
 	relatedAssetTypes: string[];
+	relatedAssetVariant?: string;
 	targetEntity: 'part';
 	sourceText: string;
 	confidence?: number;
@@ -138,6 +139,7 @@ export interface PropertyKnowledgeTaskSuggestion {
 	scheduleMode?: 'scheduled' | 'asap' | 'unscheduled';
 	dueDate?: string;
 	relatedAssetType?: string;
+	relatedAssetVariant?: string;
 	matchedDeviceId?: string;
 	sourceText: string;
 	confidence?: number;
@@ -154,6 +156,11 @@ export interface PropertyKnowledgeEquipmentSuggestion {
 	assetType: string;
 	assetVariant?: string;
 	details?: {
+		brand?: string;
+		model?: string;
+		serialNumber?: string;
+		installDate?: string;
+		locationName?: string;
 		filterSize?: string;
 		specNotes?: string;
 	};
@@ -168,7 +175,7 @@ export interface PropertyKnowledgeEquipmentSuggestion {
 
 export interface PropertyKnowledgeAcquisitionDiagnostics {
 	parserVersion: string;
-	interpreter: 'inspection-v1' | 'inspection-v2' | 'structured-service-v1' | 'generic-v1';
+	interpreter: 'inspection-v1' | 'inspection-v2' | 'inspection-v3' | 'structured-service-v1' | 'generic-v1';
 	pageCount?: number;
 	extractedCharacterCount: number;
 	tableCount?: number;
@@ -176,6 +183,7 @@ export interface PropertyKnowledgeAcquisitionDiagnostics {
 	observationCount?: number;
 	recommendationCount?: number;
 	equipmentCount?: number;
+	supplyCount?: number;
 	specificationCount?: number;
 }
 

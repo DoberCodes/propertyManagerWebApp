@@ -70,6 +70,7 @@ Recommendation Photograph the garage crack and monitor annually.
 Landscape irrigation
 Observation Rain Bird ESP-TM2 controller responded in manual mode.
 Recommendation Adjust the Zone 4 spray head away from the west wall during the next irrigation service.
+Recommendation Regrade the left rear corner to direct surface water away from the foundation within 90 days.
 
 Interior and Space-Level Findings
 Attached Garage Door auto-reverse failed the obstruction test. Adjust and retest garage door safety reverse before regular use.
@@ -82,7 +83,8 @@ Recommendation Test smoke and CO alarms monthly.
 Recommendation Verify manufacture dates and replace detector batteries as needed.
 
 Heating, Cooling, and Plumbing
-Heat pump Trane XR15 installed 2018. Air handler filter 20x25x1.
+Heat pump Trane XR15 installed 2018.
+Air handler Trane TEM6; filter 20x25x1.
 Tankless water heater Rinnai RU199iN installed 2022.
 Recommendation Schedule professional HVAC service annually.
 Recommendation Replace the filter within 30 days and repeat every 90 days.
@@ -98,17 +100,26 @@ Pool pump Hayward TriStar VS 950. Pool filter Hayward SwimClear C4030.
 Recommendation Replace the Samsung HAF-QIN refrigerator water filter now and repeat every 6 months.
 Recommendation Clean the dishwasher filter screen monthly.
 Recommendation Clean pool filter cartridges when pressure rises 8-10 psi above baseline.
+Suggested reusable supplies
+20x25x1 HVAC filter (linked to the attic air handler); Samsung HAF-QIN refrigerator filter (linked to the kitchen refrigerator);
+Hayward C4030 replacement cartridge set (linked to the pool filter). These are supplies, not separate equipment.
 
 Documented Service History
-The July 2026 HVAC service is already complete.
+These actions were already completed and should be treated as maintenance history rather than future recommendations.
+The July 2026 HVAC service is complete; no refrigerant was added.
+The November 2025 tankless descaling is complete.
 
 Consolidated Maintenance Plan
 - Secure lifted rear-valley roof flashing
 - Clean gutters and confirm downspout flow twice yearly
 - Replace HVAC filter every 90 days
+- Professionally clean dryer vent within 30 days
 
 Limitations and Classification Notes
 No active water-heater leak was observed. This is not a repair recommendation.
+The main water shutoff is already labeled. No task is needed to label it.
+A statement that an item was not tested should not automatically create a task.
+Expected deduplication behavior tests whether repeated recommendations produce one candidate.
 `;
 
 test('understands a multi-system inspection before mapping it to Maintley records', () => {
@@ -179,7 +190,7 @@ test('does not invent a completed maintenance event without a report date', () =
 test('recognizes compound inspection headings and preserves broad system coverage', () => {
   const understanding = understandInspectionDocument(COMPOUND_SECTION_INSPECTION_TEXT);
   assert.ok(understanding);
-  assert.equal(understanding.diagnostics.parserVersion, 'inspection-v2');
+  assert.equal(understanding.diagnostics.parserVersion, 'inspection-v3');
   assert.equal(understanding.propertyAddress, '1842 Meadow Ridge Drive');
   assert.equal(understanding.visitDate, 'August 12, 2026');
   assert.equal(understanding.providerName, 'Morgan Lee, NC License HI-48210');
@@ -232,15 +243,61 @@ test('keeps compound-layout recommendations distinct and avoids a tank flush', (
     'Replace refrigerator water filter',
     'Clean dishwasher filter screen',
     'Clean pool filter cartridges',
+    'Professionally clean dryer vent',
+    'Improve drainage at the left rear corner',
+    'Photograph and monitor garage slab crack',
   ]) {
     assert.ok(taskTitles.has(expectedTitle), `missing ${expectedTitle}`);
   }
   assert.ok(!taskTitles.has('Flush water heater'));
+  assert.ok(!taskTitles.has('Label main water shutoff'));
+  assert.equal(understanding.recommendations.length, 17);
   assert.equal(
     understanding.recommendations.filter(
       (recommendation) => recommendation.title === 'Replace HVAC filter',
     ).length,
     1,
+  );
+
+  const refrigeratorFilter = understanding.recommendations.find(
+    (recommendation) => recommendation.title === 'Replace refrigerator water filter',
+  );
+  assert.match(refrigeratorFilter.description, /every 6 months/i);
+  assert.doesNotMatch(refrigeratorFilter.description, /90 days/i);
+});
+
+test('extracts row-specific equipment details and property-owned supplies', () => {
+  const understanding = understandInspectionDocument(COMPOUND_SECTION_INSPECTION_TEXT);
+  assert.ok(understanding);
+
+  const waterHeater = understanding.equipment.find(
+    (equipment) => equipment.assetType === 'Water Heater',
+  );
+  assert.equal(waterHeater.details.installDate, '2022');
+  assert.doesNotMatch(waterHeater.details.specNotes, /2018/);
+
+  const heatPump = understanding.equipment.find(
+    (equipment) => equipment.label === 'Heat Pump',
+  );
+  const airHandler = understanding.equipment.find(
+    (equipment) => equipment.label === 'Air Handler',
+  );
+  assert.equal(heatPump.details.model, 'XR15');
+  assert.equal(airHandler.details.model, 'TEM6');
+  assert.equal(airHandler.details.filterSize, '20x25x1');
+
+  assert.deepEqual(
+    understanding.supplies.map((supply) => supply.name).sort(),
+    [
+      '20x25x1 HVAC filter',
+      'Hayward C4030 replacement cartridge set',
+      'Samsung HAF-QIN refrigerator filter',
+    ].sort(),
+  );
+  assert.equal(
+    understanding.supplies.find((supply) => supply.name === '20x25x1 HVAC filter')
+      .relatedAssetVariant,
+    'Air Handler',
   );
 });
 

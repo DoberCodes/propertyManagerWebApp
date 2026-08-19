@@ -94,8 +94,11 @@ type ApplyKnowledgeSuggestionResult = {
 		tags?: string[];
 	};
 	supplySuggestions: Array<{
+		partSuggestionId: string;
 		draft: PropertySupplyDraft;
 		equipmentId?: string;
+		relatedAssetTypes?: string[];
+		relatedAssetVariant?: string;
 	}>;
 	taskSuggestions: PropertyKnowledgeTaskSuggestion[];
 	equipmentSuggestions: PropertyKnowledgeEquipmentSuggestion[];
@@ -1568,6 +1571,7 @@ const buildSupplySuggestionsFromAcceptedParts = ({
 			const category = part.userEditableCategory || part.category;
 			const manufacturer = inferManufacturerFromPartName(name);
 			return {
+				partSuggestionId: part.id,
 				draft: {
 					name,
 					type: getPropertySupplyTypeFromLegacyCategory(category),
@@ -1581,6 +1585,12 @@ const buildSupplySuggestionsFromAcceptedParts = ({
 				},
 				...(suggestion.relatedSystemId
 					? { equipmentId: suggestion.relatedSystemId }
+					: {}),
+				...(part.relatedAssetTypes.length
+					? { relatedAssetTypes: part.relatedAssetTypes }
+					: {}),
+				...(part.relatedAssetVariant
+					? { relatedAssetVariant: part.relatedAssetVariant }
 					: {}),
 			};
 		})
@@ -2007,13 +2017,52 @@ export const applyAcceptedKnowledgeSuggestion = ({
 					fieldKey: 'filterSize',
 				});
 			}
+			if (equipment.details.brand && !system.brand) {
+				currentUpdates.brand = equipment.details.brand;
+				provenance = appendProvenance(provenance, 'brand', {
+					...sourceProvenance,
+					fieldKey: 'brand',
+				});
+			}
+			if (equipment.details.model && !system.model) {
+				currentUpdates.model = equipment.details.model;
+				provenance = appendProvenance(provenance, 'model', {
+					...sourceProvenance,
+					fieldKey: 'model',
+				});
+			}
+			if (equipment.details.serialNumber && !system.serialNumber) {
+				currentUpdates.serialNumber = equipment.details.serialNumber;
+				provenance = appendProvenance(provenance, 'serialNumber', {
+					...sourceProvenance,
+					fieldKey: 'serialNumber',
+				});
+			}
+			if (
+				equipment.details.installDate &&
+				!system.installationDate &&
+				!system.installDate
+			) {
+				currentUpdates.installationDate = equipment.details.installDate;
+				provenance = appendProvenance(provenance, 'installationDate', {
+					...sourceProvenance,
+					fieldKey: 'installDate',
+				});
+			}
 			if (equipment.details.specNotes && !system.specNotes) {
 				currentUpdates.specNotes = equipment.details.specNotes;
 				provenance = appendProvenance(provenance, 'specNotes', {
 					...sourceProvenance,
 				});
 			}
-			if (currentUpdates.filterSize || currentUpdates.specNotes) {
+			if (
+				currentUpdates.filterSize ||
+				currentUpdates.specNotes ||
+				currentUpdates.brand ||
+				currentUpdates.model ||
+				currentUpdates.serialNumber ||
+				currentUpdates.installationDate
+			) {
 				currentUpdates.propertyKnowledgeProvenance = provenance;
 				systemUpdateMap.set(String(system.id), currentUpdates);
 			}

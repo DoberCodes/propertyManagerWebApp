@@ -83,11 +83,16 @@ same deterministic visit interpreter after format-specific extraction.
 Recognized text-based general home-inspection PDFs and DOCX files use a separate staged interpreter that
 first preserves report sections, observations, specifications, and explicit
 recommendations before mapping them to reviewable Equipment and Task candidates.
-The `inspection-v2` interpreter recognizes both simple headings such as
+The `inspection-v3` interpreter recognizes both simple headings such as
 **Electrical** and compound headings such as **Electrical and Life Safety** or
 **Heating, Cooling, and Plumbing**. A compound section may participate in more
 than one system category so controlled equipment and recommendations are not
 lost merely because a report groups related systems on one page.
+It reads equipment from narrow report rows so model, serial, installation year,
+filter size, and other specifications do not leak between adjacent assets. It
+also recognizes explicitly listed reusable supplies and proposes them as
+Property-owned Supplies linked to the reviewed Equipment rather than as
+additional Equipment records.
 Maintley does not perform AI
 extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
 this phase.
@@ -131,6 +136,19 @@ Inspection recommendation classification remains evidence-scoped. Refrigerator
 filter wording is resolved before general HVAC-filter wording, tankless
 descaling does not create a tank-flushing task, and negative instructions such
 as "do not create a task" are not converted into homeowner actions.
+Only explicit recommendations, action rows, and consolidated maintenance-plan
+rows become Task candidates. Conditions, completed-work notes, inaccessible
+items, classification guidance, and explanatory test text remain source
+evidence. Cadence is derived from the candidate's own recommendation so a
+nearby 90-day filter interval cannot overwrite a six-month refrigerator-filter
+interval.
+
+The current review schema can propose one completed Maintenance Event and one
+contractor from a document. When an inspection packet contains multiple dated
+service-history rows or multiple service providers, the inspection interpreter
+does not combine them into a single inaccurate record. Those rows remain in the
+source document until a future batch-history review schema can represent each
+record and provider independently.
 
 PDF acquisition runs after the canonical Property Document is saved. Maintley
 first uses the PDF's embedded text layer and page coordinates to preserve lines

@@ -1162,7 +1162,15 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					const matchingDevice = propertyDevices.find(
 						(device) =>
 							normalizeAssetType(device.assetType || device.type) ===
-							normalizeAssetType(task.relatedAssetType),
+								normalizeAssetType(task.relatedAssetType) &&
+							(!task.relatedAssetVariant ||
+								normalizeAssetVariant(
+									task.relatedAssetType,
+									device.assetVariant,
+								) === normalizeAssetVariant(
+									task.relatedAssetType,
+									task.relatedAssetVariant,
+								)),
 					);
 					const matchingOpenTask = allTasks.find((candidate: any) => {
 						const sameProperty = String(candidate.propertyId || candidate.property) === String(property.id);
@@ -1170,7 +1178,11 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						return sameProperty && active && normalizeLookupValue(candidate.title) === normalizeLookupValue(task.userEditableTitle || task.title);
 					});
 					const pendingEquipment = (selectedSuggestion.suggestedEquipment || []).find(
-						(equipment) => normalizeAssetType(equipment.assetType) === normalizeAssetType(task.relatedAssetType),
+						(equipment) =>
+							normalizeAssetType(equipment.assetType) === normalizeAssetType(task.relatedAssetType) &&
+							(!task.relatedAssetVariant ||
+								normalizeAssetVariant(equipment.assetType, equipment.assetVariant) ===
+									normalizeAssetVariant(task.relatedAssetType, task.relatedAssetVariant)),
 					);
 					return [
 						task.id,
@@ -2058,6 +2070,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			const linkedEquipmentIds = new Set<string>();
 			const linkedTaskIds = new Set<string>();
 			const linkedSupplyIds = new Set<string>();
+			const supplyIdsBySuggestion = new Map<string, string>();
 			await Promise.all(
 				result.systemUpdates.map((systemUpdate) =>
 					updateDevice({
@@ -2085,6 +2098,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					suppliesByName.set(lookupName, supply);
 				}
 				linkedSupplyIds.add(supply.id);
+				supplyIdsBySuggestion.set(supplySuggestion.partSuggestionId, supply.id);
 				const currentEquipmentIds = getSupplyEndpointIds(
 					propertyKnowledgeLinks,
 					supply.id,
@@ -2117,10 +2131,13 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			}
 
 			const equipmentIdsByType = new Map<string, string>();
+			const equipmentIdsByTypeAndVariant = new Map<string, string>();
 			const equipmentIdsBySuggestion = new Map<string, string>();
 			propertyDevices.forEach((device) => {
-				equipmentIdsByType.set(
-					normalizeAssetType(device.assetType || device.type),
+				const assetType = normalizeAssetType(device.assetType || device.type);
+				equipmentIdsByType.set(assetType, String(device.id));
+				equipmentIdsByTypeAndVariant.set(
+					`${assetType}:${normalizeAssetVariant(assetType, device.assetVariant)}`,
 					String(device.id),
 				);
 			});
@@ -2138,6 +2155,10 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					if (equipmentMatchId) {
 						linkedEquipmentIds.add(String(equipmentMatchId));
 						equipmentIdsByType.set(normalizeAssetType(equipment.assetType), String(equipmentMatchId));
+						equipmentIdsByTypeAndVariant.set(
+							`${normalizeAssetType(equipment.assetType)}:${normalizeAssetVariant(equipment.assetType, equipment.assetVariant)}`,
+							String(equipmentMatchId),
+						);
 						equipmentIdsBySuggestion.set(equipment.id, String(equipmentMatchId));
 						continue;
 					}
@@ -2153,11 +2174,17 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						),
 						assetCategory: definition?.category || 'other',
 						knowledgePack: definition?.knowledgePack || 'generic',
-						brand: '',
-						model: '',
-						serialNumber: '',
+						brand: equipment.details?.brand || '',
+						model: equipment.details?.model || '',
+						serialNumber: equipment.details?.serialNumber || '',
+						installationDate: equipment.details?.installDate || '',
 						filterSize: equipment.details?.filterSize || '',
-						specNotes: equipment.details?.specNotes || '',
+						specNotes: [
+							equipment.details?.specNotes,
+							equipment.details?.locationName
+								? `Reported location: ${equipment.details.locationName}`
+								: '',
+						].filter(Boolean).join('; '),
 						location: { propertyId: property.id },
 						status: 'Active',
 						notes: `Added from ${result.appliedSuggestion.sourceDocumentName || 'a reviewed service report'}.`,
@@ -2207,9 +2234,39 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 							normalizeAssetType(equipment.assetType),
 							String(created.id),
 						);
+						equipmentIdsByTypeAndVariant.set(
+							`${normalizeAssetType(equipment.assetType)}:${normalizeAssetVariant(equipment.assetType, equipment.assetVariant)}`,
+							String(created.id),
+						);
 						equipmentIdsBySuggestion.set(equipment.id, String(created.id));
 					}
 				}
+			}
+
+			for (const supplySuggestion of result.supplySuggestions) {
+				const supplyId = supplyIdsBySuggestion.get(supplySuggestion.partSuggestionId);
+				if (!supplyId || !supplySuggestion.relatedAssetTypes?.length) continue;
+				const currentEquipmentIds = getSupplyEndpointIds(
+					propertyKnowledgeLinks,
+					supplyId,
+					'equipment',
+				);
+				const equipmentIds = supplySuggestion.relatedAssetTypes
+					.map((assetType) =>
+						supplySuggestion.relatedAssetVariant
+							? equipmentIdsByTypeAndVariant.get(
+									`${normalizeAssetType(assetType)}:${normalizeAssetVariant(assetType, supplySuggestion.relatedAssetVariant)}`,
+								) || equipmentIdsByType.get(normalizeAssetType(assetType))
+							: equipmentIdsByType.get(normalizeAssetType(assetType)),
+					)
+					.filter((id): id is string => Boolean(id));
+				await setSupplyLinks({
+					propertyId: property.id,
+					supplyId,
+					equipmentIds: Array.from(new Set([...currentEquipmentIds, ...equipmentIds])),
+					spaceIds: getSupplyEndpointIds(propertyKnowledgeLinks, supplyId, 'space'),
+					taskIds: getSupplyEndpointIds(propertyKnowledgeLinks, supplyId, 'task'),
+				}).unwrap();
 			}
 
 			if (permissions?.canManageTasks ?? true) {
@@ -2231,7 +2288,11 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 							? equipmentIdsBySuggestion.get(taskValues.pendingEquipmentSuggestionId)
 							: undefined) ||
 						(task.relatedAssetType
-							? equipmentIdsByType.get(normalizeAssetType(task.relatedAssetType))
+							? (task.relatedAssetVariant
+								? equipmentIdsByTypeAndVariant.get(
+										`${normalizeAssetType(task.relatedAssetType)}:${normalizeAssetVariant(task.relatedAssetType, task.relatedAssetVariant)}`,
+									) || equipmentIdsByType.get(normalizeAssetType(task.relatedAssetType))
+								: equipmentIdsByType.get(normalizeAssetType(task.relatedAssetType)))
 							: undefined);
 					const createdTask = await createTask({
 						analyticsSource: 'ai_suggestion',
