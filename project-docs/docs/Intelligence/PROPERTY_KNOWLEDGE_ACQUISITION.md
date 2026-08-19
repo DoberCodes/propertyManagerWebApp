@@ -83,6 +83,11 @@ same deterministic visit interpreter after format-specific extraction.
 Recognized text-based general home-inspection PDFs and DOCX files use a separate staged interpreter that
 first preserves report sections, observations, specifications, and explicit
 recommendations before mapping them to reviewable Equipment and Task candidates.
+The `inspection-v2` interpreter recognizes both simple headings such as
+**Electrical** and compound headings such as **Electrical and Life Safety** or
+**Heating, Cooling, and Plumbing**. A compound section may participate in more
+than one system category so controlled equipment and recommendations are not
+lost merely because a report groups related systems on one page.
 Maintley does not perform AI
 extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
 this phase.
@@ -121,6 +126,11 @@ not infer that maintenance occurred.
 Inspection recommendations without a stated due date are created as **Not
 scheduled** when accepted. Repeated recommendations in system sections and a
 maintenance summary are deduplicated before review.
+
+Inspection recommendation classification remains evidence-scoped. Refrigerator
+filter wording is resolved before general HVAC-filter wording, tankless
+descaling does not create a tank-flushing task, and negative instructions such
+as "do not create a task" are not converted into homeowner actions.
 
 PDF acquisition runs after the canonical Property Document is saved. Maintley
 first uses the PDF's embedded text layer and page coordinates to preserve lines

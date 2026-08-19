@@ -2726,7 +2726,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 									{selectedSuggestion.propertyConfirmation?.status === 'needs_confirmation' && (
 										<PropertyConfirmationWarning>
 											<PropertyConfirmationTitle>
-												Maintley found information that may belong to another property.
+												The document address differs from the selected property.
 											</PropertyConfirmationTitle>
 											<PropertyConfirmationGrid>
 												<div>

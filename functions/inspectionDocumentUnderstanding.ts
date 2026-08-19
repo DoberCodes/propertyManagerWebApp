@@ -22,6 +22,7 @@ export type InspectionDocumentSection = {
 	id: string;
 	title: string;
 	kind: InspectionSectionKind;
+	kinds: InspectionSectionKind[];
 	lines: string[];
 	sourceText: string;
 };
@@ -46,7 +47,7 @@ export type InspectionDocumentUnderstanding = {
 	equipment: ServiceReportEquipmentCandidate[];
 	specifications: InspectionSpecification[];
 	diagnostics: {
-		parserVersion: 'inspection-v1';
+		parserVersion: 'inspection-v2';
 		sectionCount: number;
 		observationCount: number;
 		recommendationCount: number;
@@ -75,27 +76,48 @@ const normalizeLine = (value: string) =>
 
 const SECTION_RULES: Array<{
 	pattern: RegExp;
-	kind: InspectionSectionKind;
+	kinds: InspectionSectionKind[];
 }> = [
-	{ pattern: /^property address$/i, kind: 'property' },
-	{ pattern: /^general information$/i, kind: 'general' },
-	{ pattern: /^exterior$/i, kind: 'exterior' },
-	{ pattern: /^(foundation(?:\s*&\s*structure)?|structure)$/i, kind: 'structural' },
-	{ pattern: /^electrical$/i, kind: 'electrical' },
-	{ pattern: /^(hvac|heating(?:\s*&\s*cooling)?)$/i, kind: 'hvac' },
-	{ pattern: /^(plumbing|water heating)$/i, kind: 'plumbing' },
-	{ pattern: /^kitchen(?: appliances)?$/i, kind: 'kitchen' },
-	{ pattern: /^interior$/i, kind: 'interior' },
-	{ pattern: /^safety(?: recommendations)?$/i, kind: 'safety' },
-	{ pattern: /^(maintenance summary|recommendations?|recommended (?:actions|maintenance))$/i, kind: 'recommendations' },
+	{ pattern: /^property address$/i, kinds: ['property'] },
+	{ pattern: /^(general information|executive summary)$/i, kinds: ['general'] },
+	{ pattern: /^exterior$/i, kinds: ['exterior'] },
+	{
+		pattern: /^site,?\s+exterior,?\s+roof,?\s+(?:and|&)\s+structure$/i,
+		kinds: ['exterior', 'structural'],
+	},
+	{ pattern: /^(foundation(?:\s*&\s*structure)?|structure)$/i, kinds: ['structural'] },
+	{ pattern: /^electrical$/i, kinds: ['electrical'] },
+	{ pattern: /^electrical\s+(?:and|&)\s+life safety$/i, kinds: ['electrical', 'safety'] },
+	{ pattern: /^(hvac|heating(?:\s*&\s*cooling)?)$/i, kinds: ['hvac'] },
+	{
+		pattern: /^heating,?\s+cooling,?\s+(?:and|&)\s+plumbing$/i,
+		kinds: ['hvac', 'plumbing'],
+	},
+	{ pattern: /^(plumbing|water heating)$/i, kinds: ['plumbing'] },
+	{ pattern: /^kitchen(?: appliances)?$/i, kinds: ['kitchen'] },
+	{
+		pattern: /^appliances,?\s+pool equipment,?\s+(?:and|&)\s+supplies$/i,
+		kinds: ['kitchen'],
+	},
+	{ pattern: /^interior$/i, kinds: ['interior'] },
+	{ pattern: /^interior\s+(?:and|&)\s+space-level findings$/i, kinds: ['interior'] },
+	{ pattern: /^safety(?: recommendations)?$/i, kinds: ['safety'] },
+	{
+		pattern: /^(maintenance summary|consolidated maintenance plan|recommendations?|recommended (?:actions|maintenance))$/i,
+		kinds: ['recommendations'],
+	},
+	{
+		pattern: /^(documented service history|scanned field notes|limitations and classification notes)$/i,
+		kinds: ['general'],
+	},
 ];
 
-const getSectionKind = (line: string): InspectionSectionKind | undefined =>
-	SECTION_RULES.find((rule) => rule.pattern.test(line))?.kind;
+const getSectionKinds = (line: string): InspectionSectionKind[] =>
+	SECTION_RULES.find((rule) => rule.pattern.test(line))?.kinds || [];
 
 const isLikelyInspection = (rawText: string) => {
 	const lines = rawText.split(/\r?\n/).map(normalizeLine).filter(Boolean);
-	const sectionCount = lines.filter((line) => Boolean(getSectionKind(line))).length;
+	const sectionCount = lines.filter((line) => getSectionKinds(line).length > 0).length;
 	return (
 		/home inspection|residential inspection|inspection report/i.test(rawText) &&
 		sectionCount >= 2
@@ -109,12 +131,21 @@ const buildSections = (rawText: string): InspectionDocumentSection[] => {
 
 	for (const rawLine of lines) {
 		const line = normalizeLine(rawLine);
-		const kind = getSectionKind(line);
-		if (kind) {
+		const kinds = getSectionKinds(line);
+		if (kinds.length > 0) {
+			const isNestedHeading =
+				current &&
+				current.kinds.length > 1 &&
+				kinds.every((kind) => current?.kinds.includes(kind));
+			if (isNestedHeading && current) {
+				current.lines.push(line);
+				continue;
+			}
 			current = {
 				id: `section-${slug(line)}-${sections.length + 1}`,
 				title: line,
-				kind,
+				kind: kinds[0],
+				kinds,
 				lines: [],
 				sourceText: '',
 			};
@@ -166,9 +197,26 @@ const getLabeledValue = (sections: InspectionDocumentSection[], labels: string[]
 			for (const label of labels) {
 				const labelPattern = label.replace(/\s+/g, '\\s+');
 				const match = normalizeLine(line).match(
-					new RegExp(`^${labelPattern}\\s*:\\s*(.+)$`, 'i'),
+					new RegExp(`^${labelPattern}\\s*:?\\s+(.+)$`, 'i'),
 				);
 				if (match?.[1]) return match[1].trim();
+			}
+		}
+	}
+	return '';
+};
+
+const getRawLabeledValue = (rawText: string, labels: string[]) => {
+	const lines = rawText.split(/\r?\n/).map(normalizeLine).filter(Boolean);
+	for (let index = 0; index < lines.length; index += 1) {
+		for (const label of labels) {
+			const labelPattern = label.replace(/\s+/g, '\\s+');
+			const match = lines[index].match(
+				new RegExp(`^${labelPattern}\\s*:?\\s+(.+)$`, 'i'),
+			);
+			if (match?.[1]) return match[1].trim();
+			if (new RegExp(`^${labelPattern}$`, 'i').test(lines[index])) {
+				return lines[index + 1] || '';
 			}
 		}
 	}
@@ -195,7 +243,9 @@ const isActionableObservation = (sentence: string) =>
 
 const buildObservations = (sections: InspectionDocumentSection[]) =>
 	sections
-		.filter((section) => !['property', 'general', 'recommendations'].includes(section.kind))
+		.filter((section) =>
+			!section.kinds.some((kind) => ['property', 'general', 'recommendations'].includes(kind)),
+		)
 		.flatMap((section) =>
 			getSentences(section).map((sentence, index): ServiceReportObservation => ({
 				id: `observation-${slug(section.title)}-${index + 1}`,
@@ -272,6 +322,11 @@ const EQUIPMENT_RULES: EquipmentRule[] = [
 	{ assetType: 'Gutter System', pattern: /\bgutters?\b/i, sectionKinds: ['exterior'] },
 	{ assetType: 'Foundation', pattern: /\bfoundation|\bslab\b/i, sectionKinds: ['structural'] },
 	{ assetType: 'Refrigerator', pattern: /\brefrigerator|\bfridge\b/i, sectionKinds: ['kitchen'] },
+	{ assetType: 'Dishwasher', pattern: /\bdishwasher\b/i, sectionKinds: ['kitchen'] },
+	{ assetType: 'Range / Oven', pattern: /\b(?:gas )?range\b|\boven\b/i, sectionKinds: ['kitchen'] },
+	{ assetType: 'Pool', pattern: /\bpool (?:pump|filter|system|equipment)\b/i, sectionKinds: ['kitchen'] },
+	{ assetType: 'Garage Door', pattern: /\bgarage door (?:opener|operator)|\bauto-reverse\b/i, sectionKinds: ['interior', 'exterior'] },
+	{ assetType: 'Irrigation', pattern: /\birrigation\b|\bspray head\b/i, sectionKinds: ['exterior'] },
 ];
 
 const buildEquipment = (sections: InspectionDocumentSection[]) => {
@@ -279,7 +334,8 @@ const buildEquipment = (sections: InspectionDocumentSection[]) => {
 	for (const rule of EQUIPMENT_RULES) {
 		const section = sections.find((candidate) => {
 			const sourceText = `${candidate.title}\n${candidate.sourceText}`;
-			return rule.sectionKinds.includes(candidate.kind) && rule.pattern.test(sourceText);
+			return candidate.kinds.some((kind) => rule.sectionKinds.includes(kind)) &&
+				rule.pattern.test(sourceText);
 		});
 		if (!section) continue;
 		const sourceText = `${section.title}: ${joinWrappedLines(section.lines).join(' ')}`;
@@ -304,35 +360,75 @@ const getCadence = (sourceText: string) =>
 	sourceText.match(/every\s+\d+\s+days?|twice\s+(?:a\s+year|yearly)|annually|annual(?:ly)?|monthly|each month/i)?.[0] || '';
 
 const classifyRecommendation = (sourceText: string, contextText: string) => {
-	if (/professional service|service.*hvac|hvac.*service/i.test(sourceText)) {
+	const normalizedSource = normalizeLine(sourceText)
+		.replace(/^(?:recommendation|recommended action|action)\s*:?\s*/i, '')
+		.trim();
+	if (/^(?:do not|no task|none\b)/i.test(normalizedSource)) return undefined;
+	if (
+		/(?:replace|change)\b.*refrigerator.*(?:water )?filter|refrigerator.*(?:water )?filter.*(?:replace|change)\b|(?:replace|change)\b.*haf-qin/i.test(normalizedSource)
+	) {
+		return { title: 'Replace refrigerator water filter', relatedAssetType: 'Refrigerator' };
+	}
+	if (/professional service|service.*hvac|hvac.*service/i.test(normalizedSource)) {
 		return { title: 'Schedule annual HVAC service', relatedAssetType: 'HVAC' };
 	}
-	if (/(?:replace|change).*(?:hvac )?filter|(?:hvac )?filter.*(?:replace|change)/i.test(sourceText)) {
+	if (
+		/(?:replace|change).*(?:hvac |air )?filter|(?:hvac |air )?filter.*(?:replace|change)/i.test(normalizedSource) &&
+		!/refrigerator|dishwasher|pool/i.test(normalizedSource)
+	) {
 		return { title: 'Replace HVAC filter', relatedAssetType: 'HVAC' };
 	}
 	if (
-		/flush.*water heater|water heater.*flush/i.test(sourceText) ||
-		(/\bflush\b/i.test(sourceText) && /\b(?:plumbing|water heater)\b/i.test(contextText))
+		/flush.*water heater|water heater.*flush/i.test(normalizedSource) ||
+		(/\bflush\b/i.test(normalizedSource) && /\b(?:plumbing|water heater)\b/i.test(contextText))
 	) {
 		return { title: 'Flush water heater', relatedAssetType: 'Water Heater' };
 	}
-	if (/clean.*gutter|gutter.*clean/i.test(sourceText)) {
+	if (/descale.*(?:tankless )?water heater|water heater.*descale/i.test(normalizedSource)) {
+		return { title: 'Descale tankless water heater', relatedAssetType: 'Water Heater' };
+	}
+	if (/clean.*gutter|gutter.*clean/i.test(normalizedSource)) {
 		return { title: 'Clean gutters', relatedAssetType: 'Gutter System' };
 	}
-	if (/test.*(?:smoke|co\b|carbon monoxide)|(?:smoke|carbon monoxide).*test/i.test(sourceText)) {
+	if (/test.*(?:smoke|co\b|carbon monoxide)|(?:smoke|carbon monoxide).*test/i.test(normalizedSource)) {
 		return { title: 'Test smoke/CO detectors', relatedAssetType: 'Safety Device' };
 	}
-	if (/(?:replace|check|verify).*(?:detector|batter)|(?:detector|batter).*(?:replace|check|verify)/i.test(sourceText)) {
+	if (/(?:replace|check|verify).*(?:detector|alarm|batter|manufacture date)|(?:detector|alarm|batter).*(?:replace|check|verify)/i.test(normalizedSource)) {
 		return { title: 'Verify smoke/CO detectors and batteries', relatedAssetType: 'Safety Device' };
 	}
-	if (/label.*water shutoff|water shutoff.*label/i.test(sourceText)) {
+	if (/label.*water shutoff|water shutoff.*label/i.test(normalizedSource)) {
 		return { title: 'Label main water shutoff' };
 	}
-	if (!/recommend|replace|repair|flush|clean|test|verify|label|schedule|^service\b/i.test(sourceText)) {
+	if (/garage door.*(?:auto-reverse|safety reverse)|(?:auto-reverse|safety reverse).*garage door/i.test(normalizedSource)) {
+		return { title: 'Adjust and retest garage door safety reverse', relatedAssetType: 'Garage Door' };
+	}
+	if (/secure.*(?:roof )?flashing|flashing.*secure/i.test(normalizedSource)) {
+		return { title: 'Secure roof flashing', relatedAssetType: 'Roof' };
+	}
+	if (/double-tapped breaker/i.test(normalizedSource)) {
+		return { title: 'Evaluate and correct double-tapped breaker', relatedAssetType: 'Electrical Panel' };
+	}
+	if (/repair.*p-trap|p-trap.*repair/i.test(normalizedSource)) {
+		return { title: 'Repair powder-room sink P-trap leak' };
+	}
+	if (/clean.*dishwasher.*filter|dishwasher.*filter.*clean/i.test(normalizedSource)) {
+		return { title: 'Clean dishwasher filter screen', relatedAssetType: 'Dishwasher' };
+	}
+	if (/clean.*(?:pool )?(?:filter )?cartridge|cartridge.*clean/i.test(normalizedSource)) {
+		return { title: 'Clean pool filter cartridges', relatedAssetType: 'Pool' };
+	}
+	if (/adjust.*(?:irrigation|spray head)|spray head.*adjust/i.test(normalizedSource)) {
+		return { title: 'Adjust irrigation spray head', relatedAssetType: 'Irrigation' };
+	}
+	if (/regrade.*(?:corner|foundation)|direct.*water away from.*foundation/i.test(normalizedSource)) {
+		return { title: 'Improve drainage at the left rear corner' };
+	}
+	if (!/^recommendation\b/i.test(normalizeLine(sourceText)) &&
+		!/recommend|\breplace\b|\brepair\b|\bflush\b|\bclean\b|\btest\b|\bverify\b|\blabel\b|\bschedule\b|\bsecure\b|\bdescale\b|\badjust\b|\bregrade\b|\bmonitor\b/i.test(normalizedSource)) {
 		return undefined;
 	}
-	const action = normalizeLine(sourceText)
-		.replace(/^.*?recommend(?:ed)?\s+/i, '')
+	const action = normalizedSource
+		.replace(/^.*?recommend(?:ed|ation)?\s+/i, '')
 		.replace(/^next step\s*:\s*/i, '')
 		.replace(/[.]+$/, '')
 		.trim();
@@ -346,7 +442,7 @@ const buildRecommendations = (sections: InspectionDocumentSection[]) => {
 	for (const section of sections) {
 		const contextText = `${section.title} ${section.sourceText}`;
 		for (const sourceText of getSentences(section)) {
-			if (!/recommend|replace|repair|flush|clean|test|verify|label|schedule|^service\b/i.test(sourceText)) {
+			if (!/recommend|\breplace\b|\brepair\b|\bflush\b|\bclean\b|\btest\b|\bverify\b|\blabel\b|\bschedule\b|\bsecure\b|\bdescale\b|\badjust\b|\bregrade\b|\bmonitor\b|\bevaluate\b/i.test(sourceText)) {
 				continue;
 			}
 			const classified = classifyRecommendation(sourceText, contextText);
@@ -424,9 +520,15 @@ export const understandInspectionDocument = (
 	const recommendations = buildRecommendations(sections);
 	const equipment = buildEquipment(sections);
 	const specifications = buildSpecifications(equipment);
-	const visitDate = getLabeledValue(sections, ['Inspection Date', 'Visit Date', 'Date']);
-	const providerName = getLabeledValue(sections, ['Inspector', 'Inspector Name', 'Technician Name']);
-	const propertyAddress = getPropertyAddress(sections);
+	const visitDate =
+		getLabeledValue(sections, ['Inspection Date', 'Assessment Date', 'Visit Date', 'Date']) ||
+		getRawLabeledValue(rawText, ['Inspection Date', 'Assessment Date', 'Visit Date']);
+	const providerName =
+		getLabeledValue(sections, ['Inspector', 'Inspector Name', 'Technician Name']) ||
+		getRawLabeledValue(rawText, ['Inspector', 'Inspector Name', 'Technician Name']);
+	const propertyAddress =
+		getPropertyAddress(sections) ||
+		getRawLabeledValue(rawText, ['Property Address', 'Property']);
 
 	return {
 		documentKind: 'general_inspection',
@@ -440,7 +542,7 @@ export const understandInspectionDocument = (
 		equipment,
 		specifications,
 		diagnostics: {
-			parserVersion: 'inspection-v1',
+			parserVersion: 'inspection-v2',
 			sectionCount: sections.length,
 			observationCount: observations.length,
 			recommendationCount: recommendations.length,

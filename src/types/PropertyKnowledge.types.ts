@@ -168,7 +168,7 @@ export interface PropertyKnowledgeEquipmentSuggestion {
 
 export interface PropertyKnowledgeAcquisitionDiagnostics {
 	parserVersion: string;
-	interpreter: 'inspection-v1' | 'structured-service-v1' | 'generic-v1';
+	interpreter: 'inspection-v1' | 'inspection-v2' | 'structured-service-v1' | 'generic-v1';
 	pageCount?: number;
 	extractedCharacterCount: number;
 	tableCount?: number;

@@ -1394,7 +1394,7 @@ const processPdfDocumentAcquisition = async ({
 			acquisitionDiagnostics: {
 				parserVersion: inspectionUnderstanding?.diagnostics.parserVersion || 'acquisition-v1',
 				interpreter: inspectionUnderstanding
-					? 'inspection-v1'
+					? 'inspection-v2'
 					: serviceReport
 						? 'structured-service-v1'
 						: 'generic-v1',
