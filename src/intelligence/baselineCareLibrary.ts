@@ -6,6 +6,10 @@ import {
 	getDeviceAssetVariant,
 	getDeviceAssetType,
 } from '../utils/systemTypes';
+import {
+	TANKLESS_WATER_HEATER_VARIANTS,
+	TANK_WATER_HEATER_VARIANTS,
+} from '../maintenance/assetVariantApplicability';
 
 export const BASELINE_CARE_LIBRARY_VERSION = '2026.1';
 
@@ -17,8 +21,8 @@ export interface BaselineMaintenanceCadence {
 	intervalDays: number;
 	severity: 'low' | 'medium' | 'high';
 	priority: 'low' | 'medium' | 'high';
-	applicableVariants?: string[];
-	excludedVariants?: string[];
+	applicableVariants?: readonly string[];
+	excludedVariants?: readonly string[];
 	matchTerms: string[];
 	whyItMatters: string;
 	suggestedActionLabel: string;
@@ -140,7 +144,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 				intervalDays: 365,
 				severity: 'medium',
 				priority: 'medium',
-				applicableVariants: ['Tank Gas', 'Tank Electric', 'Heat Pump'],
+				applicableVariants: TANK_WATER_HEATER_VARIANTS,
 				matchTerms: ['flush', 'flushed', 'drain', 'sediment'],
 				whyItMatters:
 					'Recording flushes helps preserve a useful service timeline for sediment-related maintenance.',
@@ -152,7 +156,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 				intervalDays: 1095,
 				severity: 'medium',
 				priority: 'medium',
-				applicableVariants: ['Tank Gas', 'Tank Electric', 'Heat Pump'],
+				applicableVariants: TANK_WATER_HEATER_VARIANTS,
 				matchTerms: ['anode', 'anode rod'],
 				whyItMatters:
 					'Recording anode rod checks helps make longer-term water heater service history easier to understand.',
@@ -164,7 +168,7 @@ export const BASELINE_CARE_DEFINITIONS: BaselineCareDefinition[] = [
 				intervalDays: 365,
 				severity: 'medium',
 				priority: 'medium',
-				applicableVariants: ['Tankless Gas', 'Tankless Electric'],
+				applicableVariants: TANKLESS_WATER_HEATER_VARIANTS,
 				matchTerms: ['descale', 'descaling', 'scale', 'mineral'],
 				whyItMatters:
 					'Recording descaling or manufacturer-recommended tankless service helps keep water-heater maintenance history specific to the equipment type.',

@@ -459,9 +459,11 @@ Bathroom. Every save checks current active and archived Spaces before creating
 missing records. Setup may create or reuse Kitchen,
 Bathroom, Laundry Room, Garage, and Exterior Spaces before connecting accepted
 Equipment and Tasks. Generation is idempotent: `generationKey` is checked
-first, followed by an active normalized name-and-type match. Archived matches
-require review and are neither restored nor duplicated automatically. Utility
-Systems and Safety records do not infer Spaces.
+first, followed by a property-wide normalized name match. An explicit
+user-created Space keeps its selected type and is reused instead of generating
+a duplicate with the same name. Archived matches require review and are
+neither restored nor duplicated automatically. Utility Systems and Safety
+records do not infer Spaces.
 
 A user who explicitly adds a Space from inside Setup creates an ordinary
 `manual` Space without a `generationKey`. The Setup context may connect that

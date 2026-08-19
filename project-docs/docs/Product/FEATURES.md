@@ -111,6 +111,12 @@ Exterior Spaces before connecting accepted Equipment and Tasks. Reopening setup
 reuses the stable generated Space or an active matching manual Space instead of
 creating duplicates. Archived matches require review.
 
+Guidance-relevant Equipment subtypes refine Setup Assistant recurring-task
+suggestions. Tank water heaters keep tank-flush guidance, while tankless water
+heaters replace it with a descaling or manufacturer-service review. For mixed
+Equipment, each accepted Task connects only to its applicable Equipment and
+Spaces.
+
 Supplies preserve the product details a property uses without introducing
 inventory management. Account managers may record product identifiers,
 specifications, replacement details, and notes, or use reviewed barcode capture
