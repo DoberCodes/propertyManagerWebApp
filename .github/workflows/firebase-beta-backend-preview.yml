@@ -263,7 +263,7 @@ jobs:
         run: >-
           firebase deploy
           --project beta
-          --only functions,firestore:rules,firestore:indexes,storage
+          --only functions,firestore:rules,storage
           --non-interactive
           --force
 

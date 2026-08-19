@@ -785,6 +785,12 @@ request label with `beta-backend-active`. Exactly one PR may carry the active
 label, and all backend preview and stable Beta deployments share one concurrency
 lock.
 
+The shared pull-request preview does not redeploy Firestore indexes. Indexes are
+project-wide infrastructure rather than an isolated preview artifact and remain
+owned by the stable Beta deployment workflow. A PR that changes
+`firestore.indexes.json` may validate the contract in CI, but the index change
+becomes active only after the approved change merges into `beta`.
+
 While the label is active, later pushes redeploy automatically after required
 checks pass. An older queued request fails safely if a later push changes the PR
 head before it obtains the deployment lock. Localhost and every Hosting preview
