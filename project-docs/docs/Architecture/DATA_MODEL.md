@@ -463,6 +463,20 @@ first, followed by an active normalized name-and-type match. Archived matches
 require review and are neither restored nor duplicated automatically. Utility
 Systems and Safety records do not infer Spaces.
 
+Setup progress may retain an `instances` array for a Present item. Each draft
+instance has a stable setup ID, homeowner-readable name, optional Equipment
+`deviceId`, optional `assetVariant`, and optional accepted `spaceIds`. The
+legacy item-level `deviceId` remains as a compatibility pointer to the first
+instance. Instance preparation is not a competing Equipment model: after save,
+the `devices` record is authoritative and every Equipment `located_in` Space
+connection is stored in `propertyKnowledgeLinks`.
+
+Several physical assets of the same type are represented by several Equipment
+records. This is especially important for distributed safety devices. One
+Equipment record may connect to several Spaces only when it represents one
+physical system associated with those Spaces. Setup-generated Tasks may connect
+to the combined accepted Spaces and Equipment records for the reviewed item.
+
 Spaces are stored in the top-level `propertySpaces` collection. Firestore rules
 validate that the referenced Property exists and carries the same `accountId`.
 Account readers may view Spaces; account managers may create and edit them.

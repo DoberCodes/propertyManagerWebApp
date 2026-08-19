@@ -25,8 +25,18 @@ export type PropertySetupAssistantItemStatus =
 	| 'not_present'
 	| 'unknown';
 
+export interface PropertySetupAssistantEquipmentInstance {
+	id: string;
+	deviceId?: string;
+	name: string;
+	assetVariant?: string;
+	spaceIds?: string[];
+}
+
 export interface PropertySetupAssistantItemState {
 	status: PropertySetupAssistantItemStatus;
+	instances?: PropertySetupAssistantEquipmentInstance[];
+	/** Compatibility pointer for setup progress saved before repeatable instances. */
 	deviceId?: string;
 	taskIds?: string[];
 	selectedSuggestedTaskIds?: string[];
@@ -281,6 +291,7 @@ export interface Device {
 	id: string;
 	userId: string; // Owner of the device
 	type: string; // Homeowner-facing display type retained on the record
+	name?: string; // Optional user-facing label for distinguishing repeated equipment
 	assetType?: string; // Canonical internal type for maintainable assets (e.g. refrigerator, heat_pump)
 	assetVariant?: string; // Optional variant used to select more specific knowledge packs
 	assetCategory?: AssetCategory | string; // Portfolio grouping for rule orchestration and analytics

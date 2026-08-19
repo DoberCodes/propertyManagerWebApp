@@ -147,6 +147,29 @@ does not change the saved setup response or count as reviewed. `Present` and
 `Not Present` remain explicit user decisions. A completed area previews the
 records, recurring tasks, and Space relationships that will be created or
 reused before the user saves.
+
+## 2026-08 equipment-detail amendment
+
+Selecting `Present` progressively expands the item in place. It does not open
+a second modal. The expanded row may describe one or more physical Equipment
+records, an optional guidance-relevant subtype, and the accepted Spaces for
+each record. Existing Equipment is reused when identified; users may add
+another instance when a property has several of the same type.
+
+Distributed safety devices remain separate physical Equipment records. For
+example, smoke detectors in five Spaces are five records rather than one
+record linked to five Spaces. A single system may still connect to several
+Spaces when that accurately describes the physical asset. The Setup Assistant
+stores instance preparation within setup progress, while Equipment and
+canonical `propertyKnowledgeLinks` remain authoritative after saving.
+
+Users may create a missing Space from the expanded item. This is an explicit
+Space creation action, checks existing active and archived names first, and
+connects the accepted Space to the current Equipment instance. The final
+review names every Equipment record, subtype, Space connection, and generated
+Space before creation. Missing subtype or Space details remain optional and do
+not block setup.
+
 ## 2026-07 homeowner maintenance access update
 
 Recurring maintenance and setup-generated recurring tasks are part of the core

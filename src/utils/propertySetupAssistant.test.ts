@@ -2,8 +2,11 @@ import {
 	PROPERTY_SETUP_AREAS,
 	PROPERTY_SETUP_ESSENTIAL_AREAS,
 	getFirstIncompleteSetupAreaId,
+	getPropertySetupInstanceName,
 	getPropertySetupProgress,
+	getPropertySetupSubtypeOptions,
 	getUnreviewedDetectedSetupItemIds,
+	isDistributedPropertySetupItem,
 } from './propertySetupAssistant';
 
 describe('property setup assistant paths', () => {
@@ -82,5 +85,27 @@ describe('property setup assistant paths', () => {
 				PROPERTY_SETUP_ESSENTIAL_AREAS,
 			),
 		).toBe('laundry');
+	});
+
+	it('offers guidance-relevant subtypes without mixing safety-device types', () => {
+		expect(getPropertySetupSubtypeOptions('water-heater')).toEqual(
+			expect.arrayContaining(['Tank Gas', 'Tankless Electric', 'Heat Pump']),
+		);
+		expect(getPropertySetupSubtypeOptions('smoke-detectors')).toEqual([
+			'Smoke Detector',
+			'Combo Detector',
+		]);
+		expect(
+			getPropertySetupSubtypeOptions('smoke-detectors'),
+		).not.toContain('Carbon Monoxide Detector');
+	});
+
+	it('provides stable homeowner-readable names for repeated equipment', () => {
+		expect(getPropertySetupInstanceName('refrigerator', 0)).toBe('Refrigerator');
+		expect(getPropertySetupInstanceName('refrigerator', 1)).toBe(
+			'Refrigerator 2',
+		);
+		expect(isDistributedPropertySetupItem('smoke-detectors')).toBe(true);
+		expect(isDistributedPropertySetupItem('refrigerator')).toBe(false);
 	});
 });
