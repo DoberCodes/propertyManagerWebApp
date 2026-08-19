@@ -116,6 +116,12 @@ by default for new Equipment, including a Space added earlier in that step.
 Users may change the selection. Multiple matching Spaces remain unselected for
 explicit review.
 
+Before saving, the Setup Assistant presents a compact summary of Equipment,
+Spaces, and selected recurring tasks. Detailed records are available in
+collapsed sections, while the dialog keeps Back and Save setup visible as the
+details scroll. Archived-Space conflicts remain visible because they require
+review before saving. A separate Quick Setup Review confirms what was saved.
+
 Guidance-relevant Equipment subtypes refine Setup Assistant recurring-task
 suggestions. Tank water heaters keep tank-flush guidance, while tankless water
 heaters replace it with a descaling or manufacturer-service review. For mixed

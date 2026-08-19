@@ -99,6 +99,7 @@ import {
 	getTaskSpaceIds,
 } from '../../types/PropertyKnowledgeLink.types';
 import type { PropertySpace, PropertySpaceType } from '../../types/Space.types';
+import { SetupSaveReviewDialog } from './SetupSaveReviewDialog';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -1732,6 +1733,28 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			};
 		});
 	});
+	const setupTaskReview = (
+		Object.entries(draftItems) as Array<
+			[SuggestedSystemId, PropertySetupAssistantItemState]
+		>
+	).flatMap(([itemId, itemState]) => {
+		if (
+			itemState?.status !== 'present' ||
+			!canGenerateSuggestedPackageForItem(itemId)
+		) {
+			return [];
+		}
+		const selectedTaskIds = getSelectedSuggestedTaskIds(itemId, itemState);
+		const deviceIds = getInitialInstances(itemId, itemState)
+			.map((instance) => instance.deviceId)
+			.filter((deviceId): deviceId is string => Boolean(deviceId));
+		return getSuggestedTasksForSystems([itemId], selectedTaskIds).map((task) => ({
+			key: `${itemId}:${task.id}`,
+			title: task.title,
+			intervalLabel: task.intervalLabel,
+			isExisting: Boolean(findExistingSuggestedTask(task, deviceIds)),
+		}));
+	});
 
 	return (
 		<>
@@ -2404,69 +2427,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						</ConfirmPanel>
 					)}
 					{isSaveReviewOpen && (
-						<ConfirmPanel role='alertdialog' aria-modal='true'>
-							<ConfirmTitle>Review setup changes</ConfirmTitle>
-							<ConfirmText>
-								Confirm the equipment and Space connections Maintley will save.
-							</ConfirmText>
-							{setupEquipmentReview.length > 0 && (
-								<>
-									<ReviewSectionTitle>Equipment records</ReviewSectionTitle>
-									<ReviewList>
-										{setupEquipmentReview.map((entry) => (
-											<li key={entry.key}>
-												<strong>{entry.name}</strong>
-												{entry.assetVariant ? ` - ${entry.assetVariant}` : ''}
-												{' - '}
-												{entry.isExisting ? 'Reuse existing record' : 'Create new record'}
-												{entry.spaceNames.length > 0
-													? ` - ${entry.spaceNames.join(', ')}`
-													: ' - No Space selected'}
-											</li>
-										))}
-									</ReviewList>
-								</>
-							)}
-							{reviewedSetupSpacePlan.length > 0 && (
-								<>
-									<ReviewSectionTitle>Suggested Spaces</ReviewSectionTitle>
-									<ReviewList>
-										{reviewedSetupSpacePlan.map((entry) => (
-											<li key={entry.template.generationKey}>
-												<strong>{entry.space?.name || entry.template.name}</strong>
-												{' - '}
-												{entry.status === 'create'
-													? 'Create new Space'
-													: entry.status === 'reuse'
-														? 'Reuse existing Space'
-														: 'Archived match requires review'}
-											</li>
-										))}
-									</ReviewList>
-								</>
-							)}
-							<ConfirmText>
-								Suggested tasks will use the combined Spaces selected for their equipment.
-							</ConfirmText>
-							<ConfirmActions>
-								<SecondaryAction
-									type='button'
-									onClick={() => setIsSaveReviewOpen(false)}
-									disabled={isSavingAssistant}>
-									Back
-								</SecondaryAction>
-								<AssistantButton
-									type='button'
-									onClick={handleDone}
-									disabled={isSavingAssistant || hasArchivedSpaceConflict}>
-									{hasArchivedSpaceConflict
-										? 'Review Archived Spaces'
-										: isSavingAssistant
-											? 'Saving...'
-											: 'Save & Create'}
-								</AssistantButton>
-							</ConfirmActions>
-						</ConfirmPanel>
+						<SetupSaveReviewDialog
+							equipment={setupEquipmentReview}
+							spaces={reviewedSetupSpacePlan.map((entry) => ({
+								key: entry.template.generationKey,
+								name: entry.space?.name || entry.template.name,
+								status: entry.status,
+							}))}
+							tasks={setupTaskReview}
+							isSaving={isSavingAssistant}
+							onBack={() => setIsSaveReviewOpen(false)}
+							onSave={handleDone}
+						/>
 					)}
 					{isSavingAssistant && (
 						<LoadingState
@@ -3720,13 +3692,6 @@ const ReviewList = styled.ul`
 		line-height: 1.2;
 		padding: 6px 10px;
 	}
-`;
-
-const ReviewSectionTitle = styled.div`
-	margin-top: 10px;
-	font-size: 12px;
-	font-weight: 900;
-	color: ${COLORS.textPrimary};
 `;
 
 const ReviewActions = styled.div`
