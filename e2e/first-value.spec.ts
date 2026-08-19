@@ -16,6 +16,10 @@ test.describe('First owner value', () => {
 		const email = generateTestEmail();
 		const password = 'TestPassword123!';
 		const homeName = `Activation Home ${Date.now()}`;
+		const homeSlug = homeName
+			.toLowerCase()
+			.replace(/\s+/g, '-')
+			.replace(/[^\w-]/g, '');
 
 		await registerNewAccount(page, email, password);
 		if (!(await isLoggedIn(page))) await login(page, email, password);
@@ -29,7 +33,10 @@ test.describe('First owner value', () => {
 
 		await expect(page.getByText('Home Basics', { exact: true })).toBeVisible();
 		await page.getByPlaceholder(/enter home name/i).fill(homeName);
-		await page.getByPlaceholder('Enter address').fill('101 Activation Way, Columbus, OH 43004');
+		await page.getByLabel('Street address').fill('101 Activation Way');
+		await page.getByLabel('City').fill('Columbus');
+		await page.getByLabel('State').fill('OH');
+		await page.getByLabel('ZIP code').fill('43004');
 		await page.getByRole('button', { name: /^Next$/ }).click();
 
 		await expect(page.getByText('Home Details', { exact: true })).toBeVisible();
@@ -42,20 +49,12 @@ test.describe('First owner value', () => {
 		).toBeVisible({ timeout: 30000 });
 		await page.getByRole('button', { name: /go to today/i }).click();
 
-		await page.goto('/properties', { waitUntil: 'domcontentloaded' });
+		await page.goto(`/property/${homeSlug}`, { waitUntil: 'domcontentloaded' });
 		await waitForPageLoaded(page, 30000);
-		// Homeowner accounts with one property intentionally skip the collection
-		// view and open that property's record directly. Wait for either stable
-		// outcome instead of racing the redirect.
-		const propertyImage = page.locator(`img[alt="${homeName}"]`).first();
 		const propertyHeading = page.getByRole('heading', {
 			name: homeName,
 			exact: true,
 		});
-		await expect(propertyHeading.or(propertyImage)).toBeVisible({ timeout: 30000 });
-		if (await propertyImage.isVisible()) {
-			await propertyImage.click({ force: true });
-		}
 		await expect(propertyHeading).toBeVisible({ timeout: 30000 });
 		await expect(page).toHaveURL(/\/property\//i);
 
