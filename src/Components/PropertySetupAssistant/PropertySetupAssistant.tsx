@@ -1085,7 +1085,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					name,
 					type: quickAddSpaceType,
 					notes: '',
-					source: 'setup_assistant',
+					source: 'manual',
 				}).unwrap());
 			if (!matchingSpace) {
 				setQuickAddedSpaces((current) => [...current, space]);
@@ -1763,7 +1763,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 									</SetupPathGrid>
 								</SetupPathPanel>
 							) : (
-							<AreaPanel ref={areaPanelRef}>
+							<AreaPanel>
+								<AreaScrollContent
+									ref={areaPanelRef}
+									data-testid='setup-scroll-content'>
 								{wasDraftRestored && (
 									<RestoredDraftNotice role='status'>
 										Your unfinished setup changes were restored on this device.
@@ -2196,7 +2199,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 									})}
 								</ItemList>
 
-								<WizardNavigation>
+								</AreaScrollContent>
+								<WizardNavigation data-testid='setup-navigation'>
 									<FooterProgress>
 										{draftProgress.reviewed} of {draftProgress.total} reviewed
 									</FooterProgress>
@@ -2730,13 +2734,23 @@ const SetupPathAction = styled.span`
 const AreaPanel = styled.div`
 	display: flex;
 	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+`;
+
+const AreaScrollContent = styled.div`
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	gap: 16px;
 	padding: 18px;
-	overflow-y: auto;
 	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
 
 	@media (max-width: 640px) {
-		padding: 14px 14px max(24px, calc(18px + env(safe-area-inset-bottom)));
+		padding: 14px;
 		gap: 12px;
 	}
 `;
@@ -3312,18 +3326,21 @@ const EmptyTaskPreview = styled.div`
 
 const WizardNavigation = styled.div`
 	display: flex;
+	flex: 0 0 auto;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 10px;
-	padding-top: 14px;
-	margin-top: 4px;
+	padding: 14px 18px;
 	border-top: 1px solid ${COLORS.border};
+	background: ${COLORS.white};
+	box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+	z-index: 1;
 
 	@media (max-width: 640px) {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto auto;
 		align-items: center;
-		padding: 12px 14px max(12px, env(safe-area-inset-bottom));
+		padding: 10px 14px max(10px, env(safe-area-inset-bottom));
 		gap: 8px;
 	}
 

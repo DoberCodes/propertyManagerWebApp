@@ -1,5 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { PropertySetupAssistant } from './PropertySetupAssistant';
+
+const mockCreatePropertySpace = jest.fn();
 
 jest.mock('react-redux', () => ({
 	useDispatch: () => jest.fn(),
@@ -20,7 +22,7 @@ jest.mock('../../Redux/API/taskSlice', () => ({
 }));
 
 jest.mock('../../Redux/API/spaceSlice', () => ({
-	useCreatePropertySpaceMutation: () => [jest.fn()],
+	useCreatePropertySpaceMutation: () => [mockCreatePropertySpace],
 	useGetPropertySpacesQuery: () => ({
 		data: [
 			{
@@ -69,7 +71,27 @@ jest.mock('../../analytics/analytics', () => ({
 }));
 
 describe('PropertySetupAssistant equipment customization', () => {
-	it('expands Present equipment in place and supports repeated Space-specific records', () => {
+	beforeEach(() => {
+		mockCreatePropertySpace.mockReset();
+		mockCreatePropertySpace.mockReturnValue({
+			unwrap: () =>
+				Promise.resolve({
+					id: 'space-pantry',
+					accountId: 'owner-1',
+					propertyId: 'property-1',
+					name: 'Pantry',
+					type: 'interior',
+					isArchived: false,
+					source: 'manual',
+					createdBy: 'owner-1',
+					updatedBy: 'owner-1',
+					createdAt: '2026-08-19T12:00:00.000Z',
+					updatedAt: '2026-08-19T12:00:00.000Z',
+				}),
+		});
+	});
+
+	it('expands Present equipment in place and supports repeated Space-specific records', async () => {
 		render(
 			<PropertySetupAssistant
 				property={
@@ -98,6 +120,10 @@ describe('PropertySetupAssistant equipment customization', () => {
 		fireEvent.click(
 			screen.getByRole('button', { name: /Continue room by room/i }),
 		);
+		const scrollContent = screen.getByTestId('setup-scroll-content');
+		const navigation = screen.getByTestId('setup-navigation');
+		expect(scrollContent).not.toContainElement(navigation);
+		expect(scrollContent.parentElement).toContainElement(navigation);
 		fireEvent.click(screen.getAllByRole('button', { name: 'Present' })[0]);
 
 		expect(screen.getByText('Equipment details')).toBeInTheDocument();
@@ -110,6 +136,24 @@ describe('PropertySetupAssistant equipment customization', () => {
 		fireEvent.click(screen.getAllByLabelText('Garage')[1]);
 		expect(screen.getAllByLabelText('Garage')[1]).toBeChecked();
 		fireEvent.click(screen.getAllByRole('button', { name: '+ Quick add Space' })[1]);
-		expect(screen.getByPlaceholderText('Space name')).toBeInTheDocument();
+		fireEvent.change(screen.getByPlaceholderText('Space name'), {
+			target: { value: 'Pantry' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Add Space' }));
+
+		await waitFor(() => {
+			expect(mockCreatePropertySpace).toHaveBeenCalledWith({
+				accountId: 'owner-1',
+				propertyId: 'property-1',
+				name: 'Pantry',
+				type: 'interior',
+				notes: '',
+				source: 'manual',
+			});
+		});
+		expect(mockCreatePropertySpace.mock.calls[0][0]).not.toHaveProperty(
+			'generationKey',
+		);
+		expect(screen.getAllByLabelText('Pantry')[1]).toBeChecked();
 	});
 });

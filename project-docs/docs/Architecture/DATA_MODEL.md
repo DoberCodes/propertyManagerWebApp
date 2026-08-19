@@ -463,6 +463,11 @@ first, followed by an active normalized name-and-type match. Archived matches
 require review and are neither restored nor duplicated automatically. Utility
 Systems and Safety records do not infer Spaces.
 
+A user who explicitly adds a Space from inside Setup creates an ordinary
+`manual` Space without a `generationKey`. The Setup context may connect that
+record immediately, but it does not convert an explicit user record into a
+generated Space.
+
 Setup progress may retain an `instances` array for a Present item. Each draft
 instance has a stable setup ID, homeowner-readable name, optional Equipment
 `deviceId`, optional `assetVariant`, and optional accepted `spaceIds`. The
