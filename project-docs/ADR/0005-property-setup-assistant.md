@@ -170,6 +170,12 @@ review names every Equipment record, subtype, Space connection, and generated
 Space before creation. Missing subtype or Space details remain optional and do
 not block setup.
 
+When a setup area resolves to exactly one active matching Space, newly marked
+Present Equipment in that area begins with the Space selected. This includes a
+Space explicitly added earlier in the same setup step. The selection remains
+editable. Multiple active matches are treated as ambiguous and remain
+unselected so Setup does not guess between Spaces.
+
 Setup task suggestions respond to guidance-relevant Equipment subtypes. A
 tank-style water heater may suggest tank flushing, while a tankless water
 heater replaces that suggestion with a descaling or manufacturer-service

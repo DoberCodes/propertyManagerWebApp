@@ -111,6 +111,11 @@ Exterior Spaces before connecting accepted Equipment and Tasks. Reopening setup
 reuses the stable generated Space or an active matching manual Space instead of
 creating duplicates. Archived matches require review.
 
+Within a Setup Assistant area, one unambiguous active matching Space is selected
+by default for new Equipment, including a Space added earlier in that step.
+Users may change the selection. Multiple matching Spaces remain unselected for
+explicit review.
+
 Guidance-relevant Equipment subtypes refine Setup Assistant recurring-task
 suggestions. Tank water heaters keep tank-flush guidance, while tankless water
 heaters replace it with a descaling or manufacturer-service review. For mixed
