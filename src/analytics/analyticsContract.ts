@@ -28,6 +28,9 @@ export type AnalyticsEventName =
 	| 'maintenance_history_added'
 	| 'document_uploaded'
 	| 'property_setup_started'
+	| 'property_setup_path_selected'
+	| 'property_setup_path_completed'
+	| 'property_setup_path_exited'
 	| 'property_setup_stage_viewed'
 	| 'property_setup_completed'
 	| 'property_setup_proposal_viewed'
@@ -140,10 +143,31 @@ export const ANALYTICS_EVENT_PARAM_ALLOWLIST: Record<
 		'reviewed_count',
 		'total_count',
 	],
+	property_setup_path_selected: [
+		'setup_path',
+		'reviewed_count',
+		'total_count',
+	],
+	property_setup_path_completed: [
+		'setup_path',
+		'reviewed_count',
+		'total_count',
+		'created_equipment_count',
+		'created_task_count',
+		'linked_task_count',
+	],
+	property_setup_path_exited: [
+		'setup_path',
+		'reviewed_count',
+		'total_count',
+		'has_unsaved_changes',
+		'exit_reason',
+	],
 	property_setup_stage_viewed: [
 		'setup_stage',
 		'stage_index',
 		'stage_count',
+		'setup_path',
 	],
 	property_setup_completed: [
 		'created_equipment_count',

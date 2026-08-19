@@ -34,6 +34,7 @@ import {
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
 import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
+import { auth } from '../../../../config/firebase';
 
 export const TopNav = () => {
 	const navigate = useNavigate();
@@ -67,6 +68,8 @@ export const TopNav = () => {
 		currentUser?.subscription,
 	);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
+	const environmentLabel =
+		auth.app.options.projectId === 'maintleybeta' ? 'Beta' : null;
 	const isSingleHomePlan = isHomeowner && (planDetails?.maxProperties ?? 1) <= 1;
 	const propertyRouteLabel = isSingleHomePlan
 		? 'Home'
@@ -188,10 +191,8 @@ export const TopNav = () => {
 						{navLocation}
 					</MobileRouteLabel>
 					<Title>
-						<img src={TitleName} alt='Maintley' />{' '}
-						<span>
-							Beta
-						</span>
+						<img src={TitleName} alt='Maintley' />
+						{environmentLabel ? <span>{environmentLabel}</span> : null}
 					</Title>
 					<NavbarOverlay isDropdown={isProfileDropdownOpen} onClick={() => setIsProfileDropdownOpen(false)} />
 					<AvatarMenu activeRoute={activeRoute} isProfileDropdownOpen={isProfileDropdownOpen} setIsProfileDropdownOpen={setIsProfileDropdownOpen} setIsNotificationModalOpen={setIsNotificationModalOpen} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />

@@ -192,6 +192,7 @@ type HomeTimelineEntry = {
 };
 
 const HOME_ACTIVITY_LIST_LIMIT = 10;
+const TODAY_ACTION_LIMIT = 3;
 
 const MANAGER_DASHBOARD_ROLES = new Set<string>([
 	USER_ROLES.ADMIN,
@@ -1125,7 +1126,7 @@ export const DashboardTab = () => {
 			];
 		}
 		return [
-			`${evidence.supportedRecords} of ${evidence.applicableRecords} applicable records have linked service history.`,
+			`${evidence.historyLinkedRecords || 0} of ${evidence.applicableRecords} applicable equipment records have linked service history.`,
 			`${evidence.patternRecords || 0} equipment records have at least three comparable, dated service events for a recorded pattern.`,
 		];
 	};
@@ -1165,6 +1166,10 @@ export const DashboardTab = () => {
 	}, [filteredTasks, ACTIVE_TASK_STATUSES, PRIORITY_RANK, DASHBOARD_DUE_WINDOW_DAYS]);
 
 	const nextUrgentTask = urgentTasks[0] || null;
+	const todayUrgentTasks = useMemo(
+		() => urgentTasks.slice(0, TODAY_ACTION_LIMIT),
+		[urgentTasks],
+	);
 
 	const todayFocusLead = useMemo(() => {
 		if (taskStatusCounts.overdue > 0 && nextUrgentTask) {
@@ -1198,14 +1203,18 @@ export const DashboardTab = () => {
 
 	const overdueUrgentTasks = useMemo(
 		() =>
-			urgentTasks.filter((task) => new Date(task.dueDate).getTime() < Date.now()),
-		[urgentTasks],
+			todayUrgentTasks.filter(
+				(task) => new Date(task.dueDate).getTime() < Date.now(),
+			),
+		[todayUrgentTasks],
 	);
 
 	const dueSoonUrgentTasks = useMemo(
 		() =>
-			urgentTasks.filter((task) => new Date(task.dueDate).getTime() >= Date.now()),
-		[urgentTasks],
+			todayUrgentTasks.filter(
+				(task) => new Date(task.dueDate).getTime() >= Date.now(),
+			),
+		[todayUrgentTasks],
 	);
 
 	const formatUrgentDueLabel = (task: Task) => {
@@ -1652,11 +1661,7 @@ export const DashboardTab = () => {
 						)}
 						{urgentTasks.length > 0 && (
 							<button
-								onClick={() =>
-									document
-										.getElementById('urgent-task-queue')
-										?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-								}
+								onClick={() => navigate('/tasks')}
 								style={{
 									alignSelf: 'center',
 									marginLeft: 'auto',
@@ -1670,7 +1675,7 @@ export const DashboardTab = () => {
 									padding: 0,
 									whiteSpace: 'nowrap',
 								}}>
-								View all →
+								View all tasks →
 							</button>
 						)}
 					</TodayFocusButtons>
@@ -1691,7 +1696,7 @@ export const DashboardTab = () => {
 					</IntelligenceReadinessHeader>
 					<IntelligenceReadinessIntro>
 						<IntelligenceReadinessTitle>
-							Readiness for Guidance
+							Guidance readiness
 						</IntelligenceReadinessTitle>
 						<IntelligenceReadinessDescription>
 							{readinessScopeLabel}. See what Maintley can currently understand from the records saved in this view.
@@ -2055,13 +2060,13 @@ export const DashboardTab = () => {
 								</IntelligenceReadinessPropertyTitle>
 								<IntelligenceReadinessFractions>
 									<IntelligenceReadinessFraction>
-										Equipment {formatReadinessFraction(property, 'equipment_context')}
+									Recorded {formatReadinessFraction(property, 'equipment_context')}
 									</IntelligenceReadinessFraction>
 									<IntelligenceReadinessFraction>
-										Care {formatReadinessFraction(property, 'maintenance_coverage')}
+									Scheduled {formatReadinessFraction(property, 'maintenance_coverage')}
 									</IntelligenceReadinessFraction>
 									<IntelligenceReadinessFraction>
-										History {formatReadinessFraction(property, 'service_history')}
+									Informed {formatReadinessFraction(property, 'service_history')}
 									</IntelligenceReadinessFraction>
 								</IntelligenceReadinessFractions>
 								<IntelligenceReadinessPropertyAction
@@ -2092,21 +2097,21 @@ export const DashboardTab = () => {
 					</IntelligenceReadinessDialogLead>
 					<IntelligenceReadinessDialogSubhead>What the levels mean</IntelligenceReadinessDialogSubhead>
 					<IntelligenceReadinessDialogSection>
-						<strong>Starting</strong>
+						<strong>Recorded</strong>
 						<span>
-							Maintley has little or no usable context in this category yet.
+							Maintley recognizes the equipment type and can provide equipment-specific guidance.
 						</span>
 					</IntelligenceReadinessDialogSection>
 					<IntelligenceReadinessDialogSection>
-						<strong>Building context</strong>
+						<strong>Scheduled</strong>
 						<span>
-							Maintley can provide some guidance and shows which record would make that guidance more useful.
+							The equipment has a usable recurring task and due date, so Maintley can show upcoming care.
 						</span>
 					</IntelligenceReadinessDialogSection>
 					<IntelligenceReadinessDialogSection>
-						<strong>Ready</strong>
+						<strong>Informed</strong>
 						<span>
-							The current records support the type of guidance described for that category.
+							Comparable dated service events provide enough history for recorded-pattern guidance. This does not predict failure.
 						</span>
 					</IntelligenceReadinessDialogSection>
 					<IntelligenceReadinessDialogNote>

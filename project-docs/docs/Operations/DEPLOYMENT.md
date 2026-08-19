@@ -58,6 +58,14 @@ Compiled output:
 functions/lib/
 ```
 
+`functions/lib/` is generated and ignored. Firebase predeploy runs the
+TypeScript build before validating the upload package. Deployments do not rely
+on compiled JavaScript stored in Git.
+
+The source export contract is recorded in
+`functions/function-exports.json` and validated before deployment. Update that
+inventory only after reviewing the deployed-function and rollback impact.
+
 ## Firestore Rules
 
 Rules source:

@@ -583,6 +583,23 @@ export const LegalAgreementSection = styled.div`
 	border: 1px solid ${COLORS.border};
 	border-radius: 10px;
 	background: ${COLORS.bgLight};
+
+	details {
+		margin: 10px 0 0 32px;
+		font-size: 13px;
+		line-height: 1.5;
+		color: ${COLORS.textSecondary};
+	}
+
+	summary {
+		cursor: pointer;
+		font-weight: 600;
+		color: ${COLORS.textPrimary};
+	}
+
+	details > div {
+		margin-top: 8px;
+	}
 `;
 
 export const LegalAgreementLabel = styled.label`
@@ -600,7 +617,11 @@ export const LegalAgreementLabel = styled.label`
 	}
 `;
 
-export const LegalDocumentButton = styled.button`
+export const LegalDocumentButton = styled.button.attrs<{
+	'data-inline-action': string;
+}>({
+	'data-inline-action': 'true',
+})`
 	color: ${COLORS.primary};
 	text-decoration: none;
 	cursor: pointer;

@@ -2,8 +2,8 @@
 
 Date: 2026-07-30
 
-Status: Planned; implementation begins after the Firebase Hosting migration is
-merged and verified in Beta
+Status: In progress. Reproducible build and generated-artifact ownership phases
+implemented August 19, 2026; domain source movement remains pending.
 
 Related documentation:
 
@@ -34,6 +34,28 @@ The migration is intended to improve:
 
 The migration must not change product behavior, authorization, data, triggers,
 or deployed Firebase function identities.
+
+## Implementation progress
+
+Completed August 19, 2026:
+
+* Firebase predeploy rebuilds Functions from TypeScript source.
+* `functions/lib/` and `functions/coverage/` are ignored and no longer tracked.
+* Previously ignored operational sources under `functions/scripts/` are tracked.
+* `functions/function-exports.json` records the current 109-export baseline.
+* Build Check and Firebase predeploy fail when an export is added, removed, or
+  renamed without an explicit inventory update.
+
+The earlier planning baseline of 98 exports is historical. The application had
+109 exports when the executable inventory gate was established. No exports were
+added or removed by this cleanup.
+
+Still pending:
+
+* domain-oriented source movement;
+* test and operational-tool directory organization;
+* decomposition of large modules; and
+* post-move live inventory comparison in Beta.
 
 ## Sequencing requirement
 

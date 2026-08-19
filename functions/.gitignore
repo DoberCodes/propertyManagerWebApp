@@ -16,5 +16,5 @@ Desktop.ini
 
 # Build outputs
 dist/
-
-/scripts/*
+lib/
+coverage/

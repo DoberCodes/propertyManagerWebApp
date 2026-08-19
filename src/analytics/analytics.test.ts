@@ -57,6 +57,36 @@ describe('analytics helpers', () => {
 		});
 	});
 
+	it('keeps controlled setup path analytics without customer record details', () => {
+		expect(
+			sanitizeAnalyticsEventParams('property_setup_path_selected', {
+				setup_path: 'essentials',
+				reviewed_count: 0,
+				total_count: 9,
+				property_id: 'private-property-id',
+			}),
+		).toEqual({
+			app_area: 'maintley',
+			setup_path: 'essentials',
+			reviewed_count: 0,
+			total_count: 9,
+		});
+	});
+
+	it('keeps a controlled setup exit reason', () => {
+		expect(
+			sanitizeAnalyticsEventParams('property_setup_path_exited', {
+				setup_path: 'room_by_room',
+				exit_reason: 'user_closed',
+				property_name: 'Private home name',
+			}),
+		).toEqual({
+			app_area: 'maintley',
+			setup_path: 'room_by_room',
+			exit_reason: 'user_closed',
+		});
+	});
+
 	it('keeps direct identifiers and customer content out of the event contract', () => {
 		const allowedKeys = Object.values(ANALYTICS_EVENT_PARAM_ALLOWLIST).flat();
 		const forbiddenKeys = [

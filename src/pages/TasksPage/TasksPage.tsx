@@ -117,6 +117,19 @@ import { getTaskTimingLabel } from '../../tasks/taskSchedule';
 import { useGetAccountSpacesQuery } from '../../Redux/API/spaceSlice';
 import { useGetPropertyKnowledgeLinksQuery } from '../../Redux/API/propertyKnowledgeLinkSlice';
 import { getTaskSpaceIds } from '../../types/PropertyKnowledgeLink.types';
+import {
+	readCollapsedGroupPreference,
+	writeCollapsedGroupPreference,
+} from '../../utils/listViewPreferences';
+
+const DEFAULT_COLLAPSED_TASK_GROUPS: Record<TaskTimeBucketId, boolean> = {
+	overdue: false,
+	today: true,
+	'this-week': true,
+	upcoming: true,
+	asap: true,
+	unscheduled: true,
+};
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
@@ -271,16 +284,16 @@ export const TasksPage = () => {
 		taskTitle: string;
 		timeoutId: number;
 	} | null>(null);
+	const taskGroupPreferenceKey = `maintley:tasks:collapsed:${currentUser?.id || 'anonymous'}`;
 	const [collapsedTaskGroups, setCollapsedTaskGroups] = useState<
 		Record<TaskTimeBucketId, boolean>
-	>({
-		overdue: false,
-		today: false,
-		'this-week': false,
-		upcoming: false,
-		asap: false,
-		unscheduled: false,
-	});
+	>(() =>
+		readCollapsedGroupPreference(
+			typeof window === 'undefined' ? null : window.localStorage,
+			taskGroupPreferenceKey,
+			DEFAULT_COLLAPSED_TASK_GROUPS,
+		).value,
+	);
 	// track the property id for the task we're assigning so the modal can fetch contractors immediately
 	const [assigningTaskPropertyId, setAssigningTaskPropertyId] =
 		useState<string>('');
@@ -859,10 +872,18 @@ export const TasksPage = () => {
 	};
 
 	const toggleTaskGroup = (bucketId: TaskTimeBucketId) => {
-		setCollapsedTaskGroups((current) => ({
-			...current,
-			[bucketId]: !current[bucketId],
-		}));
+		setCollapsedTaskGroups((current) => {
+			const next = {
+				...current,
+				[bucketId]: !current[bucketId],
+			};
+			writeCollapsedGroupPreference(
+				typeof window === 'undefined' ? null : window.localStorage,
+				taskGroupPreferenceKey,
+				next,
+			);
+			return next;
+		});
 	};
 
 	const getTaskGroupTone = (

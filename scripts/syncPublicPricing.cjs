@@ -20,16 +20,29 @@ const formatLimit = (value, singular, plural = `${singular}s`, unlimited = false
 		? `Unlimited ${plural}`
 		: `${value} ${value === 1 ? singular : plural}`;
 
+const getPlanBullets = (plan) => {
+	const candidates = [
+		formatLimit(plan.maxProperties, 'property', 'properties'),
+		formatLimit(plan.maxDevices, 'equipment record', 'equipment records', true),
+		'No file-count limit',
+		`${plan.maxStorageGb} GB storage`,
+		...plan.highlights,
+	];
+	const seen = new Set();
+	return candidates.filter((candidate) => {
+		const normalized = candidate.trim().toLowerCase();
+		if (seen.has(normalized)) return false;
+		seen.add(normalized);
+		return true;
+	});
+};
+
 const planCards = plans.map((plan) => `					<article class="card" data-plan-id="${escapeHtml(plan.id)}" data-price-monthly="${plan.priceMonthly}" data-price-yearly="${plan.priceYearly}" data-max-properties="${plan.maxProperties}" data-max-devices="${plan.maxDevices}" data-max-files="${plan.maxFiles}" data-storage-gb="${plan.maxStorageGb}">
 						<h3>${escapeHtml(plan.name)}</h3>
 						<p><strong>$${plan.priceMonthly} / month</strong> &middot; $${plan.priceYearly} / year</p>
 						<p>${escapeHtml(plan.bestFor.replace(/^Best for:\s*/i, ''))}</p>
 						<ul class="check-list">
-							<li>${escapeHtml(formatLimit(plan.maxProperties, 'property', 'properties'))}</li>
-							<li>${escapeHtml(formatLimit(plan.maxDevices, 'equipment record', 'equipment records', true))}</li>
-							<li>No file-count limit</li>
-							<li>${plan.maxStorageGb} GB storage</li>
-${plan.highlights.map((highlight) => `\t\t\t\t\t\t\t<li>${escapeHtml(highlight)}</li>`).join('\n')}
+${getPlanBullets(plan).map((bullet) => `\t\t\t\t\t\t\t<li>${escapeHtml(bullet)}</li>`).join('\n')}
 						</ul>
 					</article>`).join('\n');
 

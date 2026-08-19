@@ -10,7 +10,7 @@ on:
       deploy_targets:
         description: Comma-separated Firebase deploy targets.
         required: false
-        default: functions,firestore:rules
+        default: functions,firestore:rules,firestore:indexes
       release_recovery_sha:
         description: Exact failed release-merge SHA to rebuild and recover to production Hosting.
         required: false
@@ -157,6 +157,11 @@ jobs:
             backend_targets+=("firestore:rules")
           fi
 
+          if echo "$CHANGED_FILES" | grep -Eq '^firestore\.indexes\.json$'; then
+            targets+=("firestore:indexes")
+            backend_targets+=("firestore:indexes")
+          fi
+
           if echo "$CHANGED_FILES" | grep -Eq '^storage\.rules$'; then
             targets+=("storage")
             backend_targets+=("storage")
@@ -165,8 +170,8 @@ jobs:
           ACTIVE_BACKEND_PREVIEWS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=all&labels=beta-backend-active&per_page=100" --jq 'length' | awk '{ total += $1 } END { print total + 0 }')"
           if [[ "$ACTIVE_BACKEND_PREVIEWS" -gt 0 ]]; then
             echo "An active pull-request backend preview exists; this stable Beta deployment will reclaim the complete backend."
-            targets=("hosting:beta" "functions" "firestore:rules" "storage")
-            backend_targets=("functions" "firestore:rules" "storage")
+            targets=("hosting:beta" "functions" "firestore:rules" "firestore:indexes" "storage")
+            backend_targets=("functions" "firestore:rules" "firestore:indexes" "storage")
           fi
 
           TARGETS="$(IFS=,; echo "${targets[*]}")"
@@ -558,6 +563,10 @@ jobs:
 
           if echo "$CHANGED_FILES" | grep -Eq '^firestore\.rules$'; then
             targets+=("firestore:rules")
+          fi
+
+          if echo "$CHANGED_FILES" | grep -Eq '^firestore\.indexes\.json$'; then
+            targets+=("firestore:indexes")
           fi
 
           if echo "$CHANGED_FILES" | grep -Eq '^storage\.rules$'; then

@@ -42,6 +42,7 @@ Before running any migration, cleanup, pruning, or apply script, verify it again
 - `adr:promote` writes final accepted ADRs into `project-docs/ADR/`.
 - `adr:author`, `adr:promote`, and `adr:promote:dry-run` are the canonical ADR workflow commands.
 - `validate:functions-package` verifies that local Functions dependencies are contained within the Firebase upload boundary.
+- `validate:functions-exports` verifies that `functions/index.ts` matches the reviewed Firebase export inventory before deployment.
 - `version:entitlements -- <version>` updates the bundled entitlement package and both Yarn lockfile entries together.
 - `sync:entitlement-locks` repairs both lockfile entries from the current bundled entitlement package version.
 - `check:entitlement-locks` verifies synchronization without modifying files and runs in GitHub deployment workflows.
@@ -867,11 +868,24 @@ yarn seed:demo-account -- --email homeowner-demo@example.com --plan homeowner_pl
 yarn seed:demo-account -- --email portfolio-demo@example.com --plan portfolio
 ```
 
+Performance-scale Portfolio fixtures are available in dry-run or apply mode:
+
+```bash
+yarn seed:demo-account -- --email perf@example.com --plan portfolio --property-count 100
+```
+
+`--property-count` accepts 1 through 100. Values above the active Portfolio plan
+limit exist only to exercise test and performance conditions; the script does
+not change account entitlements.
+
 Purpose:
 
 Populates an existing Firebase Auth user/account with rich demo records:
 properties, equipment, contractors, active tasks, notifications,
 Maintley Intelligence scan snapshots, and four years of Maintenance Events.
+The first Property is an exemplary connected record containing Spaces,
+property-owned Supplies, first-class Documents, and canonical Equipment, Task,
+Space, Supply, and Document relationships.
 
 Behavior:
 
@@ -880,6 +894,18 @@ Behavior:
 * Supports `--replace --apply` to remove and recreate prior records tagged by
   the same demo seed.
 * Uses account-scoped records and also preserves legacy `userId` compatibility.
+* Validates deterministic connected-property coverage before any write.
+
+Fixture-only validation does not require Firebase credentials:
+
+```bash
+yarn validate:demo-seed
+```
+
+The fixture validator covers Homeowner+ and Portfolio accounts with 1, 5, 15,
+and 100 properties. This verifies deterministic data construction and schema
+coverage. Render timing and Firestore read counts still require an applied Beta
+fixture and an authenticated browser test.
 
 Risk:
 

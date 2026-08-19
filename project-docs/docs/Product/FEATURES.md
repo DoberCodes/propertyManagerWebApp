@@ -140,12 +140,19 @@ The Property Setup Assistant helps users create initial property records more ef
 
 Current capabilities:
 
+* Choose a focused 10-minute essentials review, the full room-by-room review,
+  or an existing inspection/service report upload.
 * Review common rooms and property areas.
 * Identify systems and equipment present at a property.
 * Create equipment and system records.
 * Generate suggested maintenance tasks.
 * Support progressive setup over time.
 * Provide quick recommendations after setup completion.
+
+Matching Equipment records may be identified as helpful context, but they do
+not count as reviewed until the user explicitly confirms the item. Each
+reviewed area explains the Equipment, recurring-task suggestions, and Space
+connections that will be prepared before the user saves.
 
 The assistant is intended to reduce onboarding effort while keeping setup optional and flexible.
 

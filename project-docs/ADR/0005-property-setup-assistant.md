@@ -3,7 +3,7 @@
 Status: Implemented
 Date: 2026-06-12
 Accepted: 2026-06-12
-Amended: 2026-07-26
+Amended: 2026-08-19
 Decision Source: Manual
 
 ## Context
@@ -128,6 +128,25 @@ The first implementation adds:
 Future iterations can add richer Maintley Intelligence readiness integration,
 completed-state dismissal behavior, and more detailed room/property-record
 fields.
+
+## 2026-08 focused-entry amendment
+
+The property-level assistant begins with three optional paths:
+
+- `10-minute essentials`: a short review of common safety, utility, laundry,
+  and exterior items.
+- `Continue room by room`: the complete area-based review.
+- `Upload an existing report`: a handoff to the existing Property Knowledge
+  Acquisition document workflow.
+
+All paths preserve the same property-owned Equipment, Task, Space, Document,
+and relationship models. They do not create parallel setup records.
+
+Existing Equipment may be detected and explained to the user, but detection
+does not change the saved setup response or count as reviewed. `Present` and
+`Not Present` remain explicit user decisions. A completed area previews the
+records, recurring tasks, and Space relationships that will be created or
+reused before the user saves.
 ## 2026-07 homeowner maintenance access update
 
 Recurring maintenance and setup-generated recurring tasks are part of the core

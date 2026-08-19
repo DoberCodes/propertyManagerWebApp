@@ -804,8 +804,20 @@ export const RegistrationCard = () => {
 										handleViewDocument('terms-of-service', 'Terms of Service')
 									}>
 									Terms of Service
+								</LegalDocumentButton>{' '}
+								and{' '}
+								<LegalDocumentButton
+									type='button'
+									onClick={() => handleViewDocument('eula', 'EULA')}>
+									EULA
 								</LegalDocumentButton>
-								,{' '}
+								. I acknowledge the Privacy Policy and important maintenance and
+								subscription disclosures. *
+							</span>
+						</LegalAgreementLabel>
+						<details>
+							<summary>Review privacy and important disclosures</summary>
+							<div>
 								<LegalDocumentButton
 									type='button'
 									onClick={() =>
@@ -813,7 +825,7 @@ export const RegistrationCard = () => {
 									}>
 									Privacy Policy
 								</LegalDocumentButton>
-								, and{' '}
+								{' · '}
 								<LegalDocumentButton
 									type='button'
 									onClick={() =>
@@ -824,7 +836,7 @@ export const RegistrationCard = () => {
 									}>
 									Maintenance Disclaimer
 								</LegalDocumentButton>
-								,{' '}
+								{' · '}
 								<LegalDocumentButton
 									type='button'
 									onClick={() =>
@@ -835,15 +847,8 @@ export const RegistrationCard = () => {
 									}>
 									Subscription Terms
 								</LegalDocumentButton>
-								, and{' '}
-								<LegalDocumentButton
-									type='button'
-									onClick={() => handleViewDocument('eula', 'EULA')}>
-									EULA
-								</LegalDocumentButton>
-								*
-							</span>
-						</LegalAgreementLabel>
+							</div>
+						</details>
 					</LegalAgreementSection>
 					<Submit type='button' onClick={handleNext}>
 						Next
@@ -854,6 +859,11 @@ export const RegistrationCard = () => {
 			{/* Step 3: Plan Selection + Create Account */}
 			{step === 3 && !skipsPlanSelection && (
 				<>
+					<TrialNotice>
+						Start with Free. After you create your first home, eligible new
+						homeowners receive temporary Homeowner+ access automatically—no
+						payment method is required.
+					</TrialNotice>
 					<PaywallPage
 						subscription={{
 							status: 'trial',

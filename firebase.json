@@ -56,10 +56,15 @@
 	"functions": {
 		"source": "functions",
 		"runtime": "nodejs22",
-		"predeploy": ["node scripts/validateFunctionsDeployPackage.cjs"]
+		"predeploy": [
+			"yarn --cwd functions build",
+			"node scripts/validateFunctionsDeployPackage.cjs",
+			"node scripts/validateFunctionsExportInventory.cjs"
+		]
 	},
 	"firestore": {
-		"rules": "firestore.rules"
+		"rules": "firestore.rules",
+		"indexes": "firestore.indexes.json"
 	},
 	"storage": [
 		{

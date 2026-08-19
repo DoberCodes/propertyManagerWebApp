@@ -127,6 +127,21 @@ Avoid showing advanced controls by default.
 
 ---
 
+## Touch Targets
+
+Primary controls, icon buttons, inputs, selects, and elements with button
+semantics should provide at least a 44-by-44-pixel interactive target on mobile
+or coarse-pointer devices. A visual icon may remain smaller inside that target.
+Checkboxes and radio controls should provide at least a 24-pixel native control
+with additional label area that remains clickable.
+
+Maintley's global styles enforce the minimum control height as a safety net.
+Individual components remain responsible for adequate horizontal hit area,
+spacing between adjacent actions, visible focus, and testing the complete
+interaction on an Android device.
+
+---
+
 ## Compact Viewport Search and Filters
 
 On tablet and mobile viewports (1024px wide and below), list-page search,
