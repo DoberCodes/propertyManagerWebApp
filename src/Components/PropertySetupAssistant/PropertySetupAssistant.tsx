@@ -624,6 +624,31 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		return `${itemId}:${Date.now()}:${instanceSequenceRef.current}`;
 	};
 
+	const getDefaultSetupSpaceIds = (
+		itemId: SuggestedSystemId,
+	): string[] | undefined => {
+		const itemArea = PROPERTY_SETUP_AREAS.find((area) =>
+			area.itemIds.includes(itemId),
+		);
+		if (!itemArea) return undefined;
+		const areaTemplates = getSetupAreaSpaceTemplates(itemArea.id, property);
+		if (areaTemplates.length === 0) return undefined;
+		const matchingSpaces = availablePropertySpaces.filter(
+			(space) =>
+				!space.isArchived &&
+				areaTemplates.some(
+					(template) =>
+						space.generationKey === template.generationKey ||
+						normalize(space.name) === normalize(template.name),
+				),
+		);
+		const matchingIds = Array.from(
+			new Set(matchingSpaces.map((space) => space.id)),
+		);
+		if (matchingIds.length === 1) return matchingIds;
+		return matchingIds.length > 1 ? [] : undefined;
+	};
+
 	const getInitialInstances = (
 		itemId: SuggestedSystemId,
 		state?: PropertySetupAssistantItemState,
@@ -653,10 +678,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			}));
 		}
 
+		const defaultSpaceIds = getDefaultSetupSpaceIds(itemId);
 		return [
 			{
 				id: `draft:${itemId}:1`,
 				name: getPropertySetupInstanceName(itemId, 0),
+				...(defaultSpaceIds !== undefined
+					? { spaceIds: defaultSpaceIds }
+					: {}),
 				...(isDistributedPropertySetupItem(itemId)
 					? { assetVariant: getPropertySetupSubtypeOptions(itemId)[0] }
 					: {}),
@@ -1060,6 +1089,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setDraftItems((previous) => {
 			const currentState = previous[itemId] || { status: 'present' as const };
 			const instances = getInitialInstances(itemId, currentState);
+			const defaultSpaceIds = getDefaultSetupSpaceIds(itemId);
 			return {
 				...previous,
 				[itemId]: {
@@ -1070,6 +1100,9 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						{
 							id: createSetupInstanceId(itemId),
 							name: getPropertySetupInstanceName(itemId, instances.length),
+							...(defaultSpaceIds !== undefined
+								? { spaceIds: defaultSpaceIds }
+								: {}),
 							...(isDistributedPropertySetupItem(itemId)
 								? { assetVariant: getPropertySetupSubtypeOptions(itemId)[0] }
 								: {}),
