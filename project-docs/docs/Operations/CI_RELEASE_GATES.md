@@ -17,6 +17,21 @@ Multiple approved feature branches may merge into Beta before a release. The
 single `release/next` pull request is refreshed from the latest successfully
 deployed Beta commit and represents the complete pending release.
 
+Beta builds use a prerelease sequence that counts pull requests accumulated
+since the latest production release:
+
+```text
+v2.15.0-beta.1
+v2.15.0-beta.2
+v2.15.0-beta.3
+```
+
+The candidate release number continues to follow Conventional Commit impact.
+The Beta sequence increments once for each PR, not once for every push or
+workflow rerun. Updating an open PR therefore replaces its preview without
+changing its assigned Beta number. Release Prep removes the Beta suffix and
+writes the final version files only when preparing the production candidate.
+
 ## Beta PR Gate
 
 `Beta PR Gate` is the permanent aggregate status for a feature pull request

@@ -547,6 +547,22 @@ Repository changes move in one direction:
 feature branch -> beta -> release/next -> main
 ```
 
+### Beta version sequence
+
+Every feature PR targeting Beta receives a projected prerelease version such
+as `v2.15.0-beta.1`. The number after `beta` counts PRs accumulated since the
+latest production release. Additional commits to the same open PR rebuild its
+preview under the same version; the next PR becomes `.2`.
+
+The Firebase preview comment and Beta navigation footer display this label.
+The stable Beta deployment recalculates it from merged PRs, so the deployed
+application always identifies the newest accumulated candidate. Git commit
+details remain available in GitHub internally but are intentionally omitted
+from the homeowner-facing Beta label.
+
+Beta labels do not modify `package.json`, Android `versionName`, tags, or GitHub
+Releases. Those remain owned by Release Prep and production finalization.
+
 Do not open synchronization PRs from `main` back into `beta`. After a normal
 release is deployed, tagged, and published, the finalizer verifies that the
 released commit contains the current Beta tip and advances the `beta` reference

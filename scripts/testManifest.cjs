@@ -22,6 +22,7 @@ const rootScriptTests = [
 	'propertySupplyMigrationCore.test.cjs',
 	'propertyTaxonomyMigrationCore.test.cjs',
 	'releaseFinalizationPolicy.test.cjs',
+	'resolveBetaVersion.test.cjs',
 	'syncAdrImplementationTrackers.test.cjs',
 	'syncEntitlementPackageLocks.test.cjs',
 	'syncGitHubEnvironment.test.cjs',

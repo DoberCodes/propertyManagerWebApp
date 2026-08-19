@@ -6,7 +6,7 @@ import { AccountSnapshot } from "Components/AccountSnapshot"
 import { useNavigate } from "react-router-dom"
 import titleName from '../../../../Assets/TitleName.png';
 import { COLORS } from '../../../../constants/colors';
-import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
+import { CURRENT_BUILD_VERSION } from '../../../../config/appVersion';
 import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
 
 
@@ -160,7 +160,7 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                         <AccountSnapshot isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
                     )}
                 </div>
-                <MobileSidebarVersion>Maintley v{CURRENT_APP_VERSION}</MobileSidebarVersion>
+                <MobileSidebarVersion>Maintley {CURRENT_BUILD_VERSION}</MobileSidebarVersion>
             </MobileSidebar>
         </div>
     )
