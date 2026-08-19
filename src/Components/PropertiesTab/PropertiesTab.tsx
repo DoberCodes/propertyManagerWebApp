@@ -2631,6 +2631,7 @@ export const Properties = () => {
 			<>
 				<AppZeroState
 					kind={zeroStateKind}
+					context={isHomeowner ? 'homeowner' : 'property'}
 					actions={zeroStateActions}
 					fullPage
 				/>
