@@ -52,7 +52,9 @@ import {
 	SuggestedSystemId,
 	SuggestedTaskTemplate,
 	getSuggestedTaskDueDate,
+	getSuggestedTaskApplicableRecords,
 	getSuggestedTaskIdsForSystems,
+	getSuggestedTaskIdsForSystemVariants,
 	getSuggestedTasksForSystems,
 } from '../../utils/suggestedMaintenance';
 import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
@@ -125,6 +127,10 @@ type SetupCompletionSummary = {
 type SuggestedTaskCreateResult = {
 	taskIds: string[];
 	createdTaskIds: string[];
+	taskTargetsById: Record<
+		string,
+		{ deviceIds: string[]; spaceIds: string[] }
+	>;
 };
 
 const getSetupLoadingSteps = (isHomeownerMode: boolean) => [
@@ -173,9 +179,10 @@ const getDraftProposalCount = (
 ) =>
 	Object.entries(items).reduce((count, [itemId, itemState]) => {
 		if (itemState?.status !== 'present') return count;
-		const defaultTaskIds = getSuggestedTaskIdsForSystems([
-			itemId as SuggestedSystemId,
-		]);
+		const defaultTaskIds = getSuggestedTaskIdsForSystemVariants(
+			[itemId as SuggestedSystemId],
+			(itemState.instances || []).map((instance) => instance.assetVariant),
+		);
 		const selectedTaskIds = Array.isArray(itemState.selectedSuggestedTaskIds)
 			? itemState.selectedSuggestedTaskIds.filter((taskId) =>
 					defaultTaskIds.includes(taskId),
@@ -741,40 +748,83 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		}
 	};
 
+	const getSuggestedTaskTarget = (
+		suggestedTask: SuggestedTaskTemplate,
+		instances: PropertySetupAssistantEquipmentInstance[],
+	) => {
+		const applicableInstances = getSuggestedTaskApplicableRecords(
+			suggestedTask,
+			instances,
+		).filter(
+			(instance) => Boolean(instance.deviceId),
+		);
+		return {
+			deviceIds: Array.from(
+				new Set(
+					applicableInstances
+						.map((instance) => instance.deviceId)
+						.filter((deviceId): deviceId is string => Boolean(deviceId)),
+				),
+			),
+			spaceIds: Array.from(
+				new Set(
+					applicableInstances.flatMap((instance) => instance.spaceIds || []),
+				),
+			),
+		};
+	};
+
 	const ensureSuggestedTasksForItem = async (
 		itemId: SuggestedSystemId,
-		deviceIds: string[] = [],
+		equipmentInstances: PropertySetupAssistantEquipmentInstance[] = [],
 		selectedTaskIds = getSuggestedTaskIdsForSystems([itemId]),
 	): Promise<SuggestedTaskCreateResult> => {
 		const suggestedTasks = getSuggestedTasksForSystems([itemId], selectedTaskIds);
 		const existingTaskIds: string[] = [];
 		const proposals: PropertySetupTaskProposal[] = [];
+		const proposalTargets: Array<{
+			proposalId: string;
+			deviceIds: string[];
+			spaceIds: string[];
+		}> = [];
+		const taskTargetsById: SuggestedTaskCreateResult['taskTargetsById'] = {};
 		const systemOrderIndex = Math.max(
 			PROPERTY_SETUP_ITEM_ORDER.indexOf(itemId),
 			0,
 		);
 
 		for (const [taskIndex, suggestedTask] of suggestedTasks.entries()) {
+			const taskTarget = getSuggestedTaskTarget(
+				suggestedTask,
+				equipmentInstances,
+			);
+			if (equipmentInstances.length > 0 && taskTarget.deviceIds.length === 0) {
+				continue;
+			}
 			const existingTask = tasks.find((task) => {
 				const sameProperty =
 					String(task.propertyId || '') === String(property.id);
 				const sameTitle = normalize(task.title || '') === normalize(suggestedTask.title);
 				const linkedToDevice =
-					deviceIds.length === 0 ||
+					taskTarget.deviceIds.length === 0 ||
 					!Array.isArray(task.devices) ||
 					task.devices.length === 0 ||
-					deviceIds.some((deviceId) => task.devices?.includes(deviceId));
+					taskTarget.deviceIds.some((deviceId) =>
+						task.devices?.includes(deviceId),
+					);
 				return sameProperty && sameTitle && linkedToDevice;
 			});
 
 			if (existingTask?.id) {
 				existingTaskIds.push(existingTask.id);
+				taskTargetsById[existingTask.id] = taskTarget;
 				continue;
 			}
 
+			const proposalId = `${itemId}:${suggestedTask.id}`;
 			proposals.push(
 				stripUndefinedValues({
-					proposalId: `${itemId}:${suggestedTask.id}`,
+					proposalId,
 					title: suggestedTask.title,
 					dueDate: getSuggestedTaskDueDate(
 						suggestedTask,
@@ -795,16 +845,19 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					]
 						.filter(Boolean)
 						.join(' '),
-					...(deviceIds.length > 0 ? { deviceIds } : {}),
+					...(taskTarget.deviceIds.length > 0
+						? { deviceIds: taskTarget.deviceIds }
+						: {}),
 					recurrenceFrequency: suggestedTask.recurrenceFrequency,
 					recurrenceInterval: suggestedTask.recurrenceInterval,
 					recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
 				}) as PropertySetupTaskProposal,
 			);
+			proposalTargets.push({ proposalId, ...taskTarget });
 		}
 
 		if (proposals.length === 0) {
-			return { taskIds: existingTaskIds, createdTaskIds: [] };
+			return { taskIds: existingTaskIds, createdTaskIds: [], taskTargetsById };
 		}
 
 		if (!TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED) {
@@ -841,6 +894,15 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					).unwrap();
 					if (createdTask?.id) {
 						createdTaskIds.push(createdTask.id);
+						const target = proposalTargets.find(
+							(entry) => entry.proposalId === proposal.proposalId,
+						);
+						if (target) {
+							taskTargetsById[createdTask.id] = {
+								deviceIds: target.deviceIds,
+								spaceIds: target.spaceIds,
+							};
+						}
 					}
 				} catch (error) {
 					console.warn('Property setup assistant could not create task:', {
@@ -854,6 +916,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			return {
 				taskIds: [...existingTaskIds, ...createdTaskIds],
 				createdTaskIds,
+				taskTargetsById,
 			};
 		}
 
@@ -873,9 +936,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				replayed_task_count: result.replayedTaskIds.length,
 				recurring_access_applied: result.recurringAccessApplied,
 			});
+			result.taskIds.forEach((taskId, index) => {
+				const target = proposalTargets[index];
+				if (!target) return;
+				taskTargetsById[taskId] = {
+					deviceIds: target.deviceIds,
+					spaceIds: target.spaceIds,
+				};
+			});
 			return {
 				taskIds: Array.from(new Set([...existingTaskIds, ...result.taskIds])),
 				createdTaskIds: result.createdTaskIds,
+				taskTargetsById,
 			};
 		} catch (error) {
 			console.warn('Property setup assistant could not activate tasks:', {
@@ -1085,7 +1157,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					name,
 					type: quickAddSpaceType,
 					notes: '',
-					source: 'setup_assistant',
+					source: 'manual',
 				}).unwrap());
 			if (!matchingSpace) {
 				setQuickAddedSpaces((current) => [...current, space]);
@@ -1148,7 +1220,12 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		itemId: SuggestedSystemId,
 		state = draftItems[itemId],
 	) => {
-		const defaultTaskIds = getSuggestedTaskIdsForSystems([itemId]);
+		const defaultTaskIds = getSuggestedTaskIdsForSystemVariants(
+			[itemId],
+			getInitialInstances(itemId, state).map(
+				(instance) => instance.assetVariant,
+			),
+		);
 		if (!Array.isArray(state?.selectedSuggestedTaskIds)) {
 			return defaultTaskIds;
 		}
@@ -1347,8 +1424,6 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						: [];
 					const instances = getInitialInstances(itemId, itemState);
 					const savedInstances: PropertySetupAssistantEquipmentInstance[] = [];
-					const deviceIds: string[] = [];
-					const taskSpaceIds = new Set<string>();
 
 					for (const instance of instances) {
 						const hadExistingDevice = Boolean(
@@ -1358,7 +1433,6 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						const device = await ensureDeviceForInstance(itemId, instance);
 						if (!device?.id) continue;
 						const deviceId = String(device.id);
-						deviceIds.push(deviceId);
 						savedEquipmentIdSet.add(deviceId);
 						if (!hadExistingDevice) createdApplianceCount += 1;
 						applianceLabelSet.add(instance.name || item?.system.label || itemId);
@@ -1370,7 +1444,6 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 									: instance.spaceIds,
 							),
 						);
-						desiredSpaceIds.forEach((spaceId) => taskSpaceIds.add(spaceId));
 						await setEquipmentSpaceLinks({
 							propertyId: property.id,
 							equipmentId: deviceId,
@@ -1396,33 +1469,58 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						itemState.recreateSuggestedTaskIds || []
 					).filter((taskId) => selectedSuggestedTaskIds.includes(taskId));
 					let taskIds = liveCreatedTaskIds;
+					let taskTargetsById: SuggestedTaskCreateResult['taskTargetsById'] = {};
 
 					if (!wasAlreadyReviewed && liveCreatedTaskIds.length === 0) {
 						const taskResult = await ensureSuggestedTasksForItem(
 							itemId,
-							deviceIds,
+							savedInstances,
 							selectedSuggestedTaskIds,
 						);
 						taskIds = taskResult.taskIds;
+						taskTargetsById = taskResult.taskTargetsById;
 						createdTaskCount += taskResult.createdTaskIds.length;
 					} else if (recreateSuggestedTaskIds.length > 0) {
 						const recreatedTaskResult = await ensureSuggestedTasksForItem(
 							itemId,
-							deviceIds,
+							savedInstances,
 							recreateSuggestedTaskIds,
 						);
 						taskIds = Array.from(
 							new Set([...liveCreatedTaskIds, ...recreatedTaskResult.taskIds]),
-						);
+							);
+						taskTargetsById = recreatedTaskResult.taskTargetsById;
 						createdTaskCount += recreatedTaskResult.createdTaskIds.length;
 					}
+					const selectedSuggestedTasks = getSuggestedTasksForSystems(
+						[itemId],
+						selectedSuggestedTaskIds,
+					);
+					taskIds.forEach((taskId) => {
+						if (taskTargetsById[taskId]) return;
+						const existingTask = tasks.find((task) => task.id === taskId);
+						const suggestedTask = selectedSuggestedTasks.find(
+							(task) =>
+								normalize(task.title) === normalize(existingTask?.title || ''),
+						);
+						if (suggestedTask) {
+							taskTargetsById[taskId] = getSuggestedTaskTarget(
+								suggestedTask,
+								savedInstances,
+							);
+						}
+					});
 					taskIds.forEach((taskId) => linkedTaskIdSet.add(taskId));
 					await Promise.all(
 						taskIds.map(async (taskId) => {
 							const existingTask = tasks.find((task) => task.id === taskId);
-							if (!existingTask || deviceIds.length === 0) return;
+							const target = taskTargetsById[taskId];
+							if (!existingTask || !target?.deviceIds.length) return;
 							const nextDeviceIds = Array.from(
-								new Set([...(existingTask.devices || []), ...deviceIds]),
+								new Set([
+									...(existingTask.devices || []),
+									...target.deviceIds,
+								]),
 							);
 							if (nextDeviceIds.length === (existingTask.devices || []).length) {
 								return;
@@ -1434,18 +1532,20 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						}),
 					);
 					await Promise.all(
-						taskIds.map((taskId) =>
-							setTaskSpaceLinks({
+						taskIds.map((taskId) => {
+							const target = taskTargetsById[taskId];
+							if (!target) return Promise.resolve();
+							return setTaskSpaceLinks({
 								propertyId: property.id,
 								taskId,
 								spaceIds: Array.from(
 									new Set([
 										...getTaskSpaceIds(propertyKnowledgeLinks, taskId),
-										...taskSpaceIds,
+										...target.spaceIds,
 									]),
 								),
-							}).unwrap(),
-						),
+							}).unwrap();
+						}),
 					);
 
 					const nextItemState: PropertySetupAssistantItemState = {
@@ -1763,7 +1863,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 									</SetupPathGrid>
 								</SetupPathPanel>
 							) : (
-							<AreaPanel ref={areaPanelRef}>
+							<AreaPanel>
+								<AreaScrollContent
+									ref={areaPanelRef}
+									data-testid='setup-scroll-content'>
 								{wasDraftRestored && (
 									<RestoredDraftNotice role='status'>
 										Your unfinished setup changes were restored on this device.
@@ -1874,7 +1977,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 											);
 										const allSuggestedTasks = getSuggestedTasksForSystems(
 											[itemId],
-											getSuggestedTaskIdsForSystems([itemId]),
+											getSuggestedTaskIdsForSystemVariants(
+												[itemId],
+												instances.map((instance) => instance.assetVariant),
+											),
 										);
 										const canGenerateSuggestedPackage =
 											canGenerateSuggestedPackageForItem(itemId);
@@ -2129,14 +2235,27 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 																		state?.recreateSuggestedTaskIds?.includes(
 																			suggestedTask.id,
 																		) || false;
-																	const isMissingReviewedTask =
-																		wasAlreadyReviewed && !existingSuggestedTask;
+													const isMissingReviewedTask =
+														wasAlreadyReviewed && !existingSuggestedTask;
+													const applicableInstanceNames =
+														getSuggestedTaskApplicableRecords(
+															suggestedTask,
+															instances,
+														).map((instance) => instance.name);
 
-																	return (
-																		<TaskPreviewItem key={suggestedTask.id}>
-																			<TaskPreviewName>
-																				{suggestedTask.title}
-																			</TaskPreviewName>
+													return (
+														<TaskPreviewItem key={suggestedTask.id}>
+															<TaskPreviewNameGroup>
+																<TaskPreviewName>
+																	{suggestedTask.title}
+																</TaskPreviewName>
+																{instances.length > 1 &&
+																	suggestedTask.applicableVariants?.length && (
+																		<TaskApplicabilityText>
+																			For {applicableInstanceNames.join(', ')}
+																		</TaskApplicabilityText>
+																	)}
+															</TaskPreviewNameGroup>
 																			<TaskPreviewMeta>
 																				<TaskInterval>
 																					{suggestedTask.intervalLabel}
@@ -2196,7 +2315,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 									})}
 								</ItemList>
 
-								<WizardNavigation>
+								</AreaScrollContent>
+								<WizardNavigation data-testid='setup-navigation'>
 									<FooterProgress>
 										{draftProgress.reviewed} of {draftProgress.total} reviewed
 									</FooterProgress>
@@ -2730,13 +2850,23 @@ const SetupPathAction = styled.span`
 const AreaPanel = styled.div`
 	display: flex;
 	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+`;
+
+const AreaScrollContent = styled.div`
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	gap: 16px;
 	padding: 18px;
-	overflow-y: auto;
 	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
 
 	@media (max-width: 640px) {
-		padding: 14px 14px max(24px, calc(18px + env(safe-area-inset-bottom)));
+		padding: 14px;
 		gap: 12px;
 	}
 `;
@@ -3249,6 +3379,19 @@ const TaskPreviewName = styled.span`
 	min-width: 0;
 `;
 
+const TaskPreviewNameGroup = styled.div`
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 2px;
+`;
+
+const TaskApplicabilityText = styled.span`
+	font-size: 11px;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
+`;
+
 const TaskPreviewMeta = styled.div`
 	display: flex;
 	align-items: center;
@@ -3312,18 +3455,21 @@ const EmptyTaskPreview = styled.div`
 
 const WizardNavigation = styled.div`
 	display: flex;
+	flex: 0 0 auto;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 10px;
-	padding-top: 14px;
-	margin-top: 4px;
+	padding: 14px 18px;
 	border-top: 1px solid ${COLORS.border};
+	background: ${COLORS.white};
+	box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+	z-index: 1;
 
 	@media (max-width: 640px) {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto auto;
 		align-items: center;
-		padding: 12px 14px max(12px, env(safe-area-inset-bottom));
+		padding: 10px 14px max(10px, env(safe-area-inset-bottom));
 		gap: 8px;
 	}
 

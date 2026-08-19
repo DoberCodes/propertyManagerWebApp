@@ -170,6 +170,14 @@ review names every Equipment record, subtype, Space connection, and generated
 Space before creation. Missing subtype or Space details remain optional and do
 not block setup.
 
+Setup task suggestions respond to guidance-relevant Equipment subtypes. A
+tank-style water heater may suggest tank flushing, while a tankless water
+heater replaces that suggestion with a descaling or manufacturer-service
+review. When several Equipment records share one setup item, each generated
+Task connects only to the Equipment and Spaces for which that suggestion is
+applicable. Changing setup details never silently deletes an already saved
+Task.
+
 ## 2026-07 homeowner maintenance access update
 
 Recurring maintenance and setup-generated recurring tasks are part of the core

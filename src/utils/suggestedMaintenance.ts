@@ -1,4 +1,9 @@
 import { RecurrenceFrequency } from '../types/Task.types';
+import {
+	TANKLESS_WATER_HEATER_VARIANTS,
+	TANK_WATER_HEATER_VARIANTS,
+	isAssetVariantApplicable,
+} from '../maintenance/assetVariantApplicability';
 
 export type SuggestedSystemId =
 	| 'hvac'
@@ -40,6 +45,8 @@ export type SuggestedTaskTemplate = {
 	recurrenceCustomUnit?: 'days' | 'weeks' | 'months' | 'years';
 	priority?: 'Low' | 'Medium' | 'High' | 'Urgent';
 	notes?: string;
+	applicableVariants?: readonly string[];
+	showWhenVariantUnknown?: boolean;
 };
 
 export type SuggestedSystemTemplate = {
@@ -325,7 +332,19 @@ export const SUGGESTED_TASKS: SuggestedTaskTemplate[] = [
 		intervalLabel: 'Yearly',
 		recurrenceFrequency: 'yearly',
 		priority: 'Medium',
+		applicableVariants: TANK_WATER_HEATER_VARIANTS,
 		notes: 'This is a small safety-related check many owners prefer to keep visible rather than rely on memory.',
+	},
+	{
+		id: 'tankless-water-heater-descaling-review',
+		systemId: 'water-heater',
+		title: 'Review Tankless Water Heater Descaling',
+		intervalLabel: 'Yearly',
+		recurrenceFrequency: 'yearly',
+		priority: 'Medium',
+		applicableVariants: TANKLESS_WATER_HEATER_VARIANTS,
+		showWhenVariantUnknown: false,
+		notes: 'Review the manufacturer or service-provider guidance for descaling and record completed tankless water-heater service.',
 	},
 	{
 		id: 'water-heater-relief-valve',
@@ -733,6 +752,38 @@ export const getSuggestedTaskIdsForSystems = (
 	const selectedSystemIds = new Set(systemIds);
 	return SUGGESTED_TASKS.filter((task) =>
 		selectedSystemIds.has(task.systemId),
+	).map((task) => task.id);
+};
+
+export const isSuggestedTaskApplicableToVariant = (
+	task: SuggestedTaskTemplate,
+	assetVariant?: string,
+): boolean =>
+	isAssetVariantApplicable({
+		assetVariant,
+		applicableVariants: task.applicableVariants,
+		showWhenVariantUnknown: task.showWhenVariantUnknown,
+	});
+
+export const getSuggestedTaskApplicableRecords = <
+	T extends { assetVariant?: string },
+>(task: SuggestedTaskTemplate, records: T[]): T[] =>
+	records.filter((record) =>
+		isSuggestedTaskApplicableToVariant(task, record.assetVariant),
+	);
+
+export const getSuggestedTaskIdsForSystemVariants = (
+	systemIds: string[],
+	assetVariants: Array<string | undefined>,
+): string[] => {
+	const selectedSystemIds = new Set(systemIds);
+	const variants = assetVariants.length > 0 ? assetVariants : [undefined];
+	return SUGGESTED_TASKS.filter(
+		(task) =>
+			selectedSystemIds.has(task.systemId) &&
+			variants.some((variant) =>
+				isSuggestedTaskApplicableToVariant(task, variant),
+			),
 	).map((task) => task.id);
 };
 
