@@ -1975,6 +1975,50 @@ export const applyAcceptedKnowledgeSuggestion = ({
 		systemUpdateMap.set(acceptedSuggestion.relatedSystemId, currentUpdates);
 	});
 
+	(acceptedSuggestion.suggestedEquipment || [])
+		.filter(
+			(equipment) =>
+				equipment.reviewStatus !== 'rejected' && equipment.matchedDeviceId,
+		)
+		.forEach((equipment) => {
+			const system = systems.find(
+				(candidate) => String(candidate.id) === String(equipment.matchedDeviceId),
+			);
+			if (!system || !equipment.details) return;
+
+			const currentUpdates = systemUpdateMap.get(String(system.id)) || {};
+			let provenance =
+				currentUpdates.propertyKnowledgeProvenance ||
+				system.propertyKnowledgeProvenance;
+			const sourceProvenance: PropertyKnowledgeProvenance = {
+				sourceDocumentId: acceptedSuggestion.sourceDocumentId,
+				sourceDocumentType: acceptedSuggestion.documentType,
+				extractionMethod: acceptedSuggestion.extractionMethod,
+				acceptedByUser,
+				acceptedAt,
+				suggestionId: acceptedSuggestion.id,
+				sourceText: equipment.sourceText,
+			};
+
+			if (equipment.details.filterSize && !system.filterSize) {
+				currentUpdates.filterSize = equipment.details.filterSize;
+				provenance = appendProvenance(provenance, 'filterSize', {
+					...sourceProvenance,
+					fieldKey: 'filterSize',
+				});
+			}
+			if (equipment.details.specNotes && !system.specNotes) {
+				currentUpdates.specNotes = equipment.details.specNotes;
+				provenance = appendProvenance(provenance, 'specNotes', {
+					...sourceProvenance,
+				});
+			}
+			if (currentUpdates.filterSize || currentUpdates.specNotes) {
+				currentUpdates.propertyKnowledgeProvenance = provenance;
+				systemUpdateMap.set(String(system.id), currentUpdates);
+			}
+		});
+
 	const supplySuggestions = buildSupplySuggestionsFromAcceptedParts({
 		suggestion: acceptedSuggestion,
 		acceptedByUser,

@@ -15,6 +15,10 @@ import {
 	parseServiceReportLayout,
 } from './docxServiceReport';
 import { extractPdfDocument } from './pdfDocumentExtraction';
+import {
+	classifyInspectionDocument,
+	understandInspectionDocument,
+} from './inspectionDocumentUnderstanding';
 
 if (!admin.apps.length) {
 	admin.initializeApp();
@@ -739,7 +743,7 @@ const buildPropertyConfirmationFromPdfText = (
 };
 
 const CONTRACTOR_ENTITY_PATTERN =
-	/\b(LLC|Inc\.?|Ltd\.?|Co\.?|Company|Contractor)\b/i;
+	/\b(?:LLC|Inc\.?|Ltd\.?|Company|Contractor)\b|(?:^|[\s,&])Co\.(?=$|[\s,&])/i;
 
 const CONTRACTOR_TRADE_PATTERN =
 	/\b(HVAC|Heating|Cooling|Plumbing|Electric(?:al)?|Roofing|Landscap(?:e|ing)?|Pest|Appliance|Repair)\b/i;
@@ -925,7 +929,7 @@ const extractFieldsFromPdfText = (text: string) => {
 	createField(fields, 'serialNumber', findLabeledValue(lines, ['Serial Number', 'Serial No', 'Serial']), 'System information', 'high', 'Document clearly labels this serial number.');
 	createField(fields, 'installDate', findDate(lines, ['Installation Date', 'Install Date', 'Installed']), 'System information', 'high', 'Document clearly labels this installation date.');
 	createField(fields, 'warrantyLength', findWarrantyInformation(lines), 'Warranty information', 'high', 'Document clearly labels this warranty information.');
-	createField(fields, 'maintenanceEventDescription', findLabeledValue(lines, ['Description', 'Service Description', 'Equipment Type']) || assetType, 'Service description', 'medium', 'Matched from service description text.');
+	createField(fields, 'maintenanceEventDescription', findLabeledValue(lines, ['Description', 'Service Description', 'Equipment Type']), 'Service description', 'medium', 'Matched from service description text.');
 	createField(fields, 'servicePerformed', findLabeledValue(lines, ['Service Performed', 'Work Performed', 'Notes']), 'Service notes', 'medium', 'Matched from service notes text.');
 	createField(fields, 'totalCost', findMoney(lines, ['Invoice Total', 'Total Due', 'Total', 'Amount Due']), 'Invoice total', 'high', 'Document clearly labels this total.');
 	createField(fields, 'laborCost', findMoney(lines, ['Labor', 'Labor Cost']), 'Invoice line item', 'high', 'Document clearly labels this labor cost.');
@@ -1239,8 +1243,13 @@ const processPdfDocumentAcquisition = async ({
 			docxReport?.rawText ||
 			(pdfDocument?.hasUsableText ? pdfDocument.rawText : '') ||
 			extractTextFromPdfBuffer(documentBuffer);
+		const inspectionUnderstanding = understandInspectionDocument(extractedText);
+		const classifiedInspection = inspectionUnderstanding
+			? classifyInspectionDocument(inspectionUnderstanding)
+			: undefined;
 		const isServiceReport = /maintenance report|status checks|maintenance tasks/i.test(extractedText);
 		const serviceReport =
+			classifiedInspection?.report ||
 			docxReport ||
 			(pdfDocument?.hasUsableText && isServiceReport
 				? parseServiceReportLayout({
@@ -1251,26 +1260,37 @@ const processPdfDocumentAcquisition = async ({
 		const extractedFields = serviceReport
 			? (() => {
 					const fields: ExtractedField[] = [];
-					createField(fields, 'maintenanceEventDate', serviceReport.visitDate || '', 'Visit details', 'high', 'The report clearly labels the visit date.');
-					createField(fields, 'maintenanceEventDescription', serviceReport.title || 'Property maintenance visit', 'Report title', 'high', 'The report clearly identifies the maintenance visit.');
-					createField(fields, 'performedByName', serviceReport.technicianName || '', 'Visit details', 'high', 'The report clearly labels the technician who performed the visit.');
+					const createsMaintenanceEvent =
+						!inspectionUnderstanding ||
+						Boolean(serviceReport.visitDate && serviceReport.completedWork.length > 0);
+					if (createsMaintenanceEvent) {
+						createField(fields, 'maintenanceEventDate', serviceReport.visitDate || '', 'Visit details', 'high', 'The report clearly labels the visit date.');
+						createField(fields, 'maintenanceEventDescription', serviceReport.title || 'Property maintenance visit', 'Report title', 'high', 'The report clearly identifies the maintenance visit.');
+						createField(fields, 'performedByName', serviceReport.technicianName || '', 'Visit details', 'high', 'The report clearly labels the technician who performed the visit.');
+					}
 					const completedWork = serviceReport.completedWork.length
 						? `Completed work:\n${serviceReport.completedWork.map((item) => `- ${item}`).join('\n')}`
 						: '';
 					const observations = serviceReport.observations.length
 						? `Inspection observations:\n${serviceReport.observations.map((item) => `- ${item.area}: ${item.status}${item.notes ? ` - ${item.notes}` : ''}`).join('\n')}`
 						: '';
-					createField(fields, 'servicePerformed', [completedWork, observations].filter(Boolean).join('\n\n'), 'Maintenance tasks and status checks', 'high', 'The report records completed work and dated inspection observations.');
+					if (createsMaintenanceEvent) {
+						createField(fields, 'servicePerformed', [completedWork, observations].filter(Boolean).join('\n\n'), 'Maintenance tasks and status checks', 'high', 'The report records completed work and dated inspection observations.');
+					}
 					return fields;
 			  })()
 			: extractFieldsFromPdfText(extractedText);
+		const suggestionCandidateCount =
+			extractedFields.length +
+			(serviceReport?.suggestedTasks.length || 0) +
+			(serviceReport?.suggestedEquipment.length || 0);
 		const propertyConfirmation = buildPropertyConfirmationFromPdfText(
 			extractedText,
 			propertyData.address,
 		);
 		const completedAt = new Date().toISOString();
 
-		if (!extractedText || extractedFields.length === 0) {
+		if (!extractedText || suggestionCandidateCount === 0) {
 			const failureResult = await db.runTransaction(async (transaction) => {
 				const latestSnapshot = await transaction.get(propertyRef);
 				const latestData = latestSnapshot.data() || {};
@@ -1371,9 +1391,23 @@ const processPdfDocumentAcquisition = async ({
 			...(serviceReport?.observations.length
 				? { visitObservations: serviceReport.observations }
 				: {}),
-			confidence:
-				extractedFields.reduce((sum, field) => sum + field.confidence, 0) /
-				extractedFields.length,
+			acquisitionDiagnostics: {
+				parserVersion: inspectionUnderstanding?.diagnostics.parserVersion || 'acquisition-v1',
+				interpreter: inspectionUnderstanding
+					? 'inspection-v1'
+					: serviceReport
+						? 'structured-service-v1'
+						: 'generic-v1',
+				pageCount: pdfDocument?.pages.length,
+				extractedCharacterCount: extractedText.length,
+				tableCount: pdfDocument?.tables.length,
+				...(inspectionUnderstanding?.diagnostics || {}),
+			},
+			confidence: [
+				...extractedFields.map((field) => field.confidence),
+				...(serviceReport?.suggestedTasks || []).map((task) => task.confidence),
+				...(serviceReport?.suggestedEquipment || []).map((equipment) => equipment.confidence),
+			].reduce((sum, score) => sum + score, 0) / suggestionCandidateCount,
 			propertyConfirmation,
 			status: 'pending',
 			createdAt: completedAt,
@@ -1470,9 +1504,7 @@ const processPdfDocumentAcquisition = async ({
 				propertyData: latestData,
 				document: latestDocument,
 				suggestionCount:
-					extractedFields.length +
-					(serviceReport?.suggestedTasks.length || 0) +
-					(serviceReport?.suggestedEquipment.length || 0),
+					suggestionCandidateCount,
 				suggestionId: toString(suggestion.id),
 			};
 		});

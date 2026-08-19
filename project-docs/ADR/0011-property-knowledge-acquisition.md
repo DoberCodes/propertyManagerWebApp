@@ -92,6 +92,30 @@ Initial implementations should focus on extracting obvious structured informatio
 
 More advanced interpretation may be added later.
 
+### Source understanding precedes Maintley mapping.
+
+Narrative documents must not be forced directly into Property Memory entity
+shapes. Source-specific processors first build a structured intermediate model
+that preserves sections, observations, specifications, and explicit actions.
+Only then may the acquisition layer classify those facts as candidate
+Equipment, Tasks, Maintenance Events, or other reviewable records.
+
+```text
+Source extraction
+        ↓
+Document understanding
+        ↓
+Candidate classification and reconciliation
+        ↓
+User review
+        ↓
+Property Memory
+```
+
+The intermediate model is a processing artifact, not a second source of truth.
+The source Document remains authoritative, and only accepted suggestions become
+Property Memory.
+
 ---
 
 ### Every source contributes to Property Memory.
@@ -133,7 +157,7 @@ Future implementations may include:
 * Invoice understanding
 * Warranty extraction
 * Receipt parsing
-* Inspection report extraction
+* Additional inspection-report layouts and rendered-page OCR
 * Photo analysis
 * Manufacturer lookup
 * Barcode recognition

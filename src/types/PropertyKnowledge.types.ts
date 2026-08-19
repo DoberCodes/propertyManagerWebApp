@@ -153,6 +153,10 @@ export interface PropertyKnowledgeEquipmentSuggestion {
 	label: string;
 	assetType: string;
 	assetVariant?: string;
+	details?: {
+		filterSize?: string;
+		specNotes?: string;
+	};
 	matchedDeviceId?: string;
 	sourceText: string;
 	confidence?: number;
@@ -160,6 +164,19 @@ export interface PropertyKnowledgeEquipmentSuggestion {
 	confidenceReason?: string;
 	skipReason?: string;
 	reviewStatus?: PropertyKnowledgeReviewStatus;
+}
+
+export interface PropertyKnowledgeAcquisitionDiagnostics {
+	parserVersion: string;
+	interpreter: 'inspection-v1' | 'structured-service-v1' | 'generic-v1';
+	pageCount?: number;
+	extractedCharacterCount: number;
+	tableCount?: number;
+	sectionCount?: number;
+	observationCount?: number;
+	recommendationCount?: number;
+	equipmentCount?: number;
+	specificationCount?: number;
 }
 
 export interface PropertyKnowledgeVisitObservation {
@@ -200,6 +217,7 @@ export interface PropertyKnowledgeSuggestion {
 	suggestedTasks?: PropertyKnowledgeTaskSuggestion[];
 	suggestedEquipment?: PropertyKnowledgeEquipmentSuggestion[];
 	visitObservations?: PropertyKnowledgeVisitObservation[];
+	acquisitionDiagnostics?: PropertyKnowledgeAcquisitionDiagnostics;
 	confidence?: number;
 	status: PropertyKnowledgeSuggestionStatus;
 	createdAt: string;

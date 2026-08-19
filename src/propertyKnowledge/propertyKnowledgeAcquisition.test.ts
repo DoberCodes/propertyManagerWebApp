@@ -186,6 +186,56 @@ describe('property knowledge acquisition', () => {
 		expect(result.maintenanceHistorySuggestion).toBeUndefined();
 	});
 
+	it('fills blank details on matched equipment without overwriting existing memory', () => {
+		const suggestion = acceptKnowledgeSuggestion({
+			id: 'knowledge-inspection-1',
+			sourceDocumentId: 'inspection-1',
+			propertyId: 'property-1',
+			documentType: 'inspection_report' as const,
+			extractionMethod: 'pdf_text' as const,
+			extractedFields: [],
+			suggestedEquipment: [{
+				id: 'equipment-hvac',
+				label: 'HVAC',
+				assetType: 'HVAC',
+				details: {
+					filterSize: '16x25x1',
+					specNotes: 'Reported heat pump',
+				},
+				sourceText: 'HVAC: heat pump with 16x25x1 filter',
+			}],
+			status: 'pending' as const,
+			createdAt: '2026-08-19T12:00:00.000Z',
+		}, {
+			acceptedByUser: 'user-1',
+			equipmentValues: {
+				'equipment-hvac': {
+					accepted: true,
+					matchedDeviceId: 'system-hvac',
+				},
+			},
+		});
+		const result = applyAcceptedKnowledgeSuggestion({
+			suggestion,
+			property: baseProperty,
+			systems: [{
+				...baseSystem,
+				id: 'system-hvac',
+				type: 'HVAC',
+				specNotes: 'Existing notes',
+			}],
+			acceptedByUser: 'user-1',
+			acceptedAt: '2026-08-19T12:30:00.000Z',
+		});
+
+		expect(result.systemUpdates).toHaveLength(1);
+		expect(result.systemUpdates[0].updates.filterSize).toBe('16x25x1');
+		expect(result.systemUpdates[0].updates.specNotes).toBeUndefined();
+		expect(
+			result.systemUpdates[0].updates.propertyKnowledgeProvenance?.filterSize,
+		).toHaveLength(1);
+	});
+
 	it('keeps the reason when an equipment suggestion is intentionally skipped', () => {
 		const suggestion = {
 			id: 'knowledge-docx-skip',

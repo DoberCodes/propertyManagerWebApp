@@ -1644,6 +1644,10 @@ Typical property knowledge suggestion fields:
 * confidence
 * extractedFields
 * suggestedParts
+* suggestedTasks
+* suggestedEquipment
+* visitObservations
+* acquisitionDiagnostics
 * createdAt
 * updatedAt
 
@@ -1683,6 +1687,11 @@ links should be migrated in a later phase.
 Legacy document fields such as `name`, `url`, `category`, `assignedDeviceId`, and `assignedTaskId` may remain during migration.
 
 Knowledge suggestions are review records.
+
+`acquisitionDiagnostics` contains processing metadata only, including parser or
+interpreter version and source/candidate counts. It must not contain raw
+document text. Source-specific intermediate understanding models are ephemeral
+processing artifacts and are not a parallel Property Memory store.
 
 Typical fields:
 

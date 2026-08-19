@@ -1,6 +1,6 @@
 # Property Knowledge Acquisition
 
-Last reviewed: 2026-06
+Last reviewed: 2026-08
 
 Property Knowledge Acquisition is the layer that turns uploaded documents and other sources into reviewed structured property knowledge.
 
@@ -79,7 +79,11 @@ For eligible document categories, suggested details are generated from document 
 for uploaded image files, backend layout-aware extraction for supported
 text-based PDFs, and backend DOCX text and table extraction for structured
 maintenance service reports. Digital PDF and DOCX service reports share the
-same deterministic visit interpreter after format-specific extraction. Maintley does not perform AI
+same deterministic visit interpreter after format-specific extraction.
+Recognized text-based general home-inspection PDFs and DOCX files use a separate staged interpreter that
+first preserves report sections, observations, specifications, and explicit
+recommendations before mapping them to reviewable Equipment and Task candidates.
+Maintley does not perform AI
 extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
 this phase.
 
@@ -105,6 +109,19 @@ into equipment records. Only controlled maintainable asset types may be offered
 for matching or creation, and every proposed task or equipment record requires
 review.
 
+Recognized general inspection reports do not automatically become completed
+Maintenance Events. The staged inspection interpreter creates a source-neutral
+understanding of the report, then proposes only controlled maintainable assets
+and explicit homeowner actions. Reported specifications such as HVAC filter
+size or water-heater capacity remain attached to their equipment candidate.
+Reported observations remain visible as expandable review context. If the
+report does not clearly provide a visit date and performed work, Maintley does
+not infer that maintenance occurred.
+
+Inspection recommendations without a stated due date are created as **Not
+scheduled** when accepted. Repeated recommendations in system sections and a
+maintenance summary are deduplicated before review.
+
 PDF acquisition runs after the canonical Property Document is saved. Maintley
 first uses the PDF's embedded text layer and page coordinates to preserve lines
 and recognized tables. Service-report layouts are routed through the shared
@@ -112,6 +129,12 @@ visit interpreter; other readable PDFs continue through document-specific field
 extraction. The legacy byte-stream decoder remains a compatibility fallback when
 the layout extractor cannot open a file. Image-only PDFs still require the
 future rendered-page OCR fallback.
+
+Acquisition suggestions store privacy-safe processing diagnostics such as the
+interpreter version, page count, extracted character count, table count, and
+recognized section/candidate counts. Raw extracted document text is not stored
+in diagnostics. These checkpoints make it possible to distinguish source-text
+loss from classification or review-mapping failures.
 
 PDF uploads may move through `processing`, `pending_review`, or `failed`
 acquisition states. The PDF remains the source document; any extracted text or

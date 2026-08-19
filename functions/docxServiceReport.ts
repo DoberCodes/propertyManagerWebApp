@@ -5,6 +5,7 @@ export type ServiceReportTaskCandidate = {
 	title: string;
 	description: string;
 	priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+	scheduleMode?: 'scheduled' | 'asap' | 'unscheduled';
 	relatedAssetType?: string;
 	sourceText: string;
 	confidence: number;
@@ -17,6 +18,10 @@ export type ServiceReportEquipmentCandidate = {
 	label: string;
 	assetType: string;
 	assetVariant?: string;
+	details?: {
+		filterSize?: string;
+		specNotes?: string;
+	};
 	sourceText: string;
 	confidence: number;
 	confidenceLevel: 'high' | 'medium';

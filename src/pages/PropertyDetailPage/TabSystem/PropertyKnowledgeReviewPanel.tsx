@@ -1706,6 +1706,17 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					</KnowledgeConfidence>
 					<KnowledgeConfidenceMessage>{equipment.confidenceReason}</KnowledgeConfidenceMessage>
 				</KnowledgeConfidenceRow>
+				{(equipment.details?.filterSize || equipment.details?.specNotes) && (
+					<KnowledgeSourceText>
+						Extracted details:{' '}
+						{[
+							equipment.details.filterSize
+								? `Filter size ${equipment.details.filterSize}`
+								: '',
+							equipment.details.specNotes || '',
+						].filter(Boolean).join(' · ')}
+					</KnowledgeSourceText>
+				)}
 				<KnowledgeSourceText>Report evidence: {equipment.sourceText}</KnowledgeSourceText>
 			</ReviewCandidateCard>
 		);
@@ -2148,6 +2159,8 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 						brand: '',
 						model: '',
 						serialNumber: '',
+						filterSize: equipment.details?.filterSize || '',
+						specNotes: equipment.details?.specNotes || '',
 						location: { propertyId: property.id },
 						status: 'Active',
 						notes: `Added from ${result.appliedSuggestion.sourceDocumentName || 'a reviewed service report'}.`,
@@ -2162,6 +2175,33 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 								fieldKey: 'assetType',
 								sourceText: equipment.sourceText,
 							}],
+							...(equipment.details?.filterSize
+								? {
+									filterSize: [{
+										sourceDocumentId: result.appliedSuggestion.sourceDocumentId,
+										sourceDocumentType: result.appliedSuggestion.documentType,
+										extractionMethod: result.appliedSuggestion.extractionMethod,
+										acceptedByUser,
+										acceptedAt,
+										suggestionId: result.appliedSuggestion.id,
+										fieldKey: 'filterSize' as const,
+										sourceText: equipment.sourceText,
+									}],
+								}
+								: {}),
+							...(equipment.details?.specNotes
+								? {
+									specNotes: [{
+										sourceDocumentId: result.appliedSuggestion.sourceDocumentId,
+										sourceDocumentType: result.appliedSuggestion.documentType,
+										extractionMethod: result.appliedSuggestion.extractionMethod,
+										acceptedByUser,
+										acceptedAt,
+										suggestionId: result.appliedSuggestion.id,
+										sourceText: equipment.sourceText,
+									}],
+								}
+								: {}),
 						},
 					}).unwrap();
 					if (created?.id) {
@@ -2746,6 +2786,21 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 											</MemoryChangeCard>
 										))}
 									</MemoryChangeList>
+									{(selectedSuggestion.visitObservations || []).length > 0 && (
+										<ObservationDetails>
+											<summary>
+												Report observations ({selectedSuggestion.visitObservations?.length})
+											</summary>
+											<ObservationList>
+												{(selectedSuggestion.visitObservations || []).map((observation) => (
+													<li key={observation.id}>
+														<strong>{observation.area}</strong>
+														<span>{observation.notes || observation.status}</span>
+													</li>
+												))}
+											</ObservationList>
+										</ObservationDetails>
+									)}
 									{(selectedSuggestion.suggestedEquipment || []).length > 0 && (
 										<ReviewCandidateSection>
 											<KnowledgeSectionHeader>
@@ -2835,6 +2890,45 @@ const ReviewCandidateSection = styled.section`
 	border-radius: 10px;
 	background: ${COLORS.white};
 	padding: 14px;
+`;
+
+const ObservationDetails = styled.details`
+	margin-top: 14px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 10px;
+	background: ${COLORS.white};
+	padding: 12px 14px;
+
+	summary {
+		cursor: pointer;
+		font-weight: 700;
+		color: ${COLORS.textPrimary};
+	}
+`;
+
+const ObservationList = styled.ul`
+	display: grid;
+	gap: 8px;
+	margin: 12px 0 0;
+	padding: 0;
+	list-style: none;
+
+	li {
+		display: grid;
+		gap: 2px;
+		padding-top: 8px;
+		border-top: 1px solid ${COLORS.border};
+	}
+
+	strong {
+		font-size: 0.85rem;
+	}
+
+	span {
+		color: ${COLORS.textSecondary};
+		font-size: 0.85rem;
+		line-height: 1.4;
+	}
 `;
 
 const ReviewCandidateList = styled.div`
