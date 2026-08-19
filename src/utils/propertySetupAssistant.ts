@@ -4,6 +4,10 @@ import {
 	SuggestedSystemId,
 	SuggestedSystemTemplate,
 } from './suggestedMaintenance';
+import {
+	getAssetVariantOptions,
+	normalizeAssetType,
+} from './systemTypes';
 
 export type PropertySetupAreaId =
 	| 'kitchen'
@@ -150,6 +154,39 @@ export const getPropertySetupItem = (
 		system,
 	};
 };
+
+const SETUP_ITEM_SUBTYPE_OPTIONS: Partial<Record<SuggestedSystemId, string[]>> = {
+	'smoke-detectors': ['Smoke Detector', 'Combo Detector'],
+	'carbon-monoxide-detectors': [
+		'Carbon Monoxide Detector',
+		'Combo Detector',
+	],
+};
+
+export const getPropertySetupSubtypeOptions = (
+	id: SuggestedSystemId,
+): string[] => {
+	const explicitOptions = SETUP_ITEM_SUBTYPE_OPTIONS[id];
+	if (explicitOptions) return explicitOptions;
+	const item = getPropertySetupItem(id);
+	return item
+		? getAssetVariantOptions(normalizeAssetType(item.system.deviceType))
+		: [];
+};
+
+export const getPropertySetupInstanceName = (
+	id: SuggestedSystemId,
+	index: number,
+): string => {
+	const item = getPropertySetupItem(id);
+	const label = item?.label || 'Equipment';
+	return index === 0 ? label : `${label} ${index + 1}`;
+};
+
+export const isDistributedPropertySetupItem = (
+	id: SuggestedSystemId,
+): boolean =>
+	id === 'smoke-detectors' || id === 'carbon-monoxide-detectors';
 
 export const getUnreviewedDetectedSetupItemIds = (
 	items: NonNullable<PropertySetupAssistantState['items']> = {},

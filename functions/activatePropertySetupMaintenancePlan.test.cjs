@@ -83,6 +83,32 @@ test('validates proposal identity, dates, and recurrence before any write', () =
 	);
 });
 
+test('normalizes legacy and repeatable equipment links on setup tasks', () => {
+	const [proposal] = validatePropertySetupProposals([
+		{
+			proposalId: 'smoke:test',
+			title: 'Test smoke detectors',
+			dueDate: '2026-08-01',
+			deviceId: 'detector-1',
+			deviceIds: ['detector-1', 'detector-2'],
+		},
+	]);
+
+	assert.deepEqual(proposal.deviceIds, ['detector-1', 'detector-2']);
+	assert.throws(
+		() =>
+			validatePropertySetupProposals([
+				{
+					proposalId: 'too-many-devices',
+					title: 'Test devices',
+					dueDate: '2026-08-01',
+					deviceIds: Array.from({ length: 51 }, (_, index) => `device-${index}`),
+				},
+			]),
+		(error) => error?.code === 'invalid-argument',
+	);
+});
+
 test('authorization scope helpers reject cross-account properties and devices', () => {
 	assert.equal(propertyBelongsToAccount({ accountId: 'account-1' }, 'account-1'), true);
 	assert.equal(propertyBelongsToAccount({ accountId: 'account-2' }, 'account-1'), false);

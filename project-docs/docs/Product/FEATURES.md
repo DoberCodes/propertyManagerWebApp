@@ -154,6 +154,14 @@ not count as reviewed until the user explicitly confirms the item. Each
 reviewed area explains the Equipment, recurring-task suggestions, and Space
 connections that will be prepared before the user saves.
 
+Items marked Present expand in place for optional detail. Users can distinguish
+multiple physical records of the same type, choose a guidance-relevant subtype,
+connect each record to one or more existing Spaces, or quickly add a missing
+Space. Distributed records such as smoke detectors remain separate Equipment
+records so their location and maintenance history are not combined. The final
+review lists the exact Equipment and Space connections that will be created or
+reused.
+
 The assistant is intended to reduce onboarding effort while keeping setup optional and flexible.
 
 Initial onboarding is intended for account owners setting up their own account.
