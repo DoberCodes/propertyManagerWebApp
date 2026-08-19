@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import {
 	SectionContainer,
 	SectionHeader,
@@ -816,6 +816,22 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 						const isAcquisitionRetryable =
 							sourcePropertyDocument?.acquisitionStatus === 'failed' ||
 							isDocumentAcquisitionStale(sourcePropertyDocument);
+						const isAcquisitionProcessing =
+							sourcePropertyDocument?.acquisitionStatus === 'processing' &&
+							!isAcquisitionRetryable;
+						const hasCompletedEmptyReview =
+							sourcePropertyDocument?.acquisitionStatus === 'pending_review' &&
+							latestKnowledgeSuggestion?.status === 'pending' &&
+							suggestionCount === 0;
+						const documentStatusBadge = isAcquisitionProcessing
+							? { label: 'Checking', tone: 'processing' as const }
+							: isAcquisitionRetryable
+								? { label: 'Needs attention', tone: 'error' as const }
+								: latestKnowledgeSuggestion?.status === 'pending' && suggestionCount > 0
+									? { label: 'Needs review', tone: 'review' as const }
+									: hasCompletedEmptyReview || Boolean(reviewedKnowledgeStatus)
+										? { label: 'Checked', tone: 'complete' as const }
+										: null;
 						const documentScanAction = getPropertyDocumentScanAction({
 							document: sourcePropertyDocument,
 							hasSuggestion: Boolean(latestKnowledgeSuggestion),
@@ -836,13 +852,20 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									) : (
 										<DocumentName>{file.name}</DocumentName>
 									)}
-									<DocumentBadge>
-										{isPropertyDocument
-											? getCategoryLabel(file.category)
-											: file.source === 'appliance'
-												? 'Equipment'
-												: 'Maintenance'}
-									</DocumentBadge>
+									<DocumentBadgeGroup>
+										<DocumentBadge>
+											{isPropertyDocument
+												? getCategoryLabel(file.category)
+												: file.source === 'appliance'
+													? 'Equipment'
+													: 'Maintenance'}
+										</DocumentBadge>
+										{documentStatusBadge && (
+											<DocumentStatusBadge $tone={documentStatusBadge.tone}>
+												{documentStatusBadge.label}
+											</DocumentStatusBadge>
+										)}
+									</DocumentBadgeGroup>
 								</DocumentTitleRow>
 								<DocumentMeta>
 									{isPropertyDocument ? 'Type' : 'Source'}: {file.sourceLabel}
@@ -857,9 +880,22 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									</DocumentMeta>
 								)}
 								<DocumentMeta>{formatDate(file.date)}</DocumentMeta>
+								{isPropertyDocument && isAcquisitionProcessing && (
+									<DocumentKnowledgePrompt role='status' aria-live='polite'>
+										<DocumentProcessingRow>
+											<DocumentStatusSpinner aria-hidden='true' />
+											<DocumentProcessingCopy>
+												<strong>Maintley is checking this document.</strong>
+												<span>
+													You can leave this page. We will notify you when suggested details are ready.
+												</span>
+											</DocumentProcessingCopy>
+										</DocumentProcessingRow>
+									</DocumentKnowledgePrompt>
+								)}
 								{isPropertyDocument &&
 									acquisitionStatusText &&
-									latestKnowledgeSuggestion?.status !== 'pending' && (
+									!isAcquisitionProcessing && (
 										<DocumentKnowledgePrompt
 											$error={
 												sourcePropertyDocument?.acquisitionStatus === 'failed' ||
@@ -881,6 +917,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 									)}
 								{isPropertyDocument &&
 									canManageDocuments &&
+									!isAcquisitionProcessing &&
+									!isAcquisitionRetryable &&
 									latestKnowledgeSuggestion?.status === 'pending' &&
 									suggestionCount > 0 && (
 										<DocumentKnowledgePrompt>
@@ -905,6 +943,14 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 										</DocumentKnowledgePrompt>
 									)}
 								{isPropertyDocument &&
+									!isAcquisitionProcessing &&
+									!isAcquisitionRetryable &&
+									hasCompletedEmptyReview && (
+										<DocumentKnowledgeSummary>
+											Maintley checked this document and did not find suggested details. You can keep the file as-is or scan it again.
+										</DocumentKnowledgeSummary>
+									)}
+								{isPropertyDocument &&
 									latestKnowledgeSuggestion?.status !== 'pending' &&
 									reviewedKnowledgeStatus && (
 										<DocumentKnowledgeSummary>
@@ -924,7 +970,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 												Test scan (Maintley only)
 											</DocumentActionButton>
 										)}
-										{documentScanAction ? (
+										{documentScanAction && !isAcquisitionProcessing ? (
 											<DocumentActionButton
 												type='button'
 												onClick={() =>
@@ -1222,6 +1268,53 @@ const DocumentBadge = styled.span`
 	white-space: nowrap;
 `;
 
+const DocumentBadgeGroup = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+	flex-wrap: wrap;
+`;
+
+const documentStatusSpin = keyframes`
+	to {
+		transform: rotate(360deg);
+	}
+`;
+
+const DocumentStatusBadge = styled.span<{
+	$tone: 'processing' | 'review' | 'complete' | 'error';
+}>`
+	width: fit-content;
+	border: 1px solid
+		${({ $tone }) =>
+			$tone === 'error'
+				? COLORS.errorLight
+				: $tone === 'review'
+					? COLORS.warningLight
+					: COLORS.primaryLight};
+	border-radius: 999px;
+	background: ${({ $tone }) =>
+		$tone === 'error'
+			? COLORS.errorLight
+			: $tone === 'review'
+				? COLORS.warningLight
+				: $tone === 'complete'
+					? COLORS.successLight
+					: COLORS.primaryLight};
+	color: ${({ $tone }) =>
+		$tone === 'error'
+			? COLORS.errorDark
+			: $tone === 'review'
+				? COLORS.warningDark
+				: COLORS.primaryDark};
+	font-size: 11px;
+	font-weight: 800;
+	line-height: 1.2;
+	padding: 5px 8px;
+	white-space: nowrap;
+`;
+
 const DocumentMeta = styled.div`
 	color: ${COLORS.textSecondary};
 	font-size: 12px;
@@ -1237,6 +1330,42 @@ const DocumentKnowledgePrompt = styled.div<{ $error?: boolean }>`
 	font-weight: 700;
 	line-height: 1.45;
 	padding: 9px 10px;
+`;
+
+const DocumentProcessingRow = styled.div`
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+`;
+
+const DocumentStatusSpinner = styled.span`
+	width: 17px;
+	height: 17px;
+	flex: 0 0 17px;
+	border: 2px solid ${COLORS.primaryLight};
+	border-top-color: ${COLORS.primaryDark};
+	border-radius: 50%;
+	animation: ${documentStatusSpin} 0.85s linear infinite;
+	margin-top: 1px;
+
+	@media (prefers-reduced-motion: reduce) {
+		animation-duration: 1.8s;
+	}
+`;
+
+const DocumentProcessingCopy = styled.div`
+	display: grid;
+	gap: 2px;
+
+	strong {
+		color: ${COLORS.primaryDark};
+	}
+
+	span {
+		color: ${COLORS.textSecondary};
+		font-size: 12px;
+		font-weight: 600;
+	}
 `;
 
 const DocumentKnowledgeSummary = styled.div`

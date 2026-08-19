@@ -140,6 +140,15 @@ PDF uploads may move through `processing`, `pending_review`, or `failed`
 acquisition states. The PDF remains the source document; any extracted text or
 future rendered page images are derived processing artifacts only.
 
+While a supported document is in `processing`, its document card shows a
+persistent **Checking** badge and an indeterminate status message. The message
+explains that the user may leave the page and will be notified when suggested
+details are ready. Processing takes precedence over older pending suggestions
+so the active scan never appears idle. The status badge then moves to **Needs
+review**, **Checked**, or **Needs attention** as appropriate. Completed scans
+show either the reviewable suggestion count or an explicit
+no-suggested-details result. A completed empty result may be scanned again.
+
 PDF and DOCX processing are backend-triggered from the saved property document
 state. The frontend marks the supported document as `processing`; the backend
 worker detects that state and performs extraction in the background. This

@@ -32,7 +32,7 @@ export const documentSuggestionsArticle: HelpfulArticle = {
 			heading: 'Review suggestions step by step',
 			steps: [
 				'Upload the file from the most specific relevant record when possible: property, equipment, task, or maintenance record.',
-				'Wait for document processing to finish and open the review summary.',
+				'Watch the document card for the Checking status. You can leave the page while Maintley works; the card and your notifications will tell you when suggested details are ready.',
 				'Confirm the selected property before reviewing individual fields.',
 				'Compare suggested dates, totals, contractor details, model identifiers, parts, and work descriptions with the original file.',
 				'Review warnings, possible duplicates, and any information that could not be matched confidently.',

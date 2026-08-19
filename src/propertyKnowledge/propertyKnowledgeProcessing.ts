@@ -70,7 +70,7 @@ export const getPropertyDocumentScanAction = ({
 	if (
 		!isPropertyDocumentKnowledgeScanEligible(document) ||
 		isRetryable ||
-		suggestionStatus === 'pending'
+		(suggestionStatus === 'pending' && suggestionCount > 0)
 	) return null;
 	if (hasSuggestion && isProcessablePropertyDocument(document)) return 'rescan';
 	return !hasSuggestion || suggestionCount === 0 ? 'check' : null;
