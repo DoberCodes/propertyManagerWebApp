@@ -25,10 +25,14 @@ jobs:
     environment: development
     permissions:
       contents: read
+    outputs:
+      beta_version: ${{ steps.beta-version.outputs.version }}
 
     steps:
       - name: Checkout pull request
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -38,6 +42,35 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+
+      - name: Resolve projected Beta version
+        id: beta-version
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p tmp
+          GITHUB_EVENT_PATH='' node scripts/generateReleaseNotes.cjs \
+            --allow-empty \
+            --to "$BASE_SHA" \
+            --output tmp/beta-base.customer.md \
+            --engineering-output tmp/beta-base.engineering.md \
+            --metadata-output tmp/beta-base.json
+          node scripts/generateReleaseNotes.cjs \
+            --allow-empty \
+            --output tmp/beta-candidate.customer.md \
+            --engineering-output tmp/beta-candidate.engineering.md \
+            --metadata-output tmp/beta-candidate.json
+          node scripts/resolveBetaVersion.cjs \
+            --base-metadata tmp/beta-base.json \
+            --candidate-metadata tmp/beta-candidate.json \
+            --output tmp/beta-version.json
+          BETA_VERSION="$(node -p "require('./tmp/beta-version.json').label")"
+          echo "version=$BETA_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Projected Maintley $BETA_VERSION"
 
       - name: Validate environment contract
         run: yarn env:contract:validate
@@ -60,6 +93,7 @@ jobs:
       - name: Build Maintley Beta preview
         env:
           CI: true
+          REACT_APP_BUILD_VERSION: ${{ steps.beta-version.outputs.version }}
           REACT_APP_FIREBASE_API_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_API_KEY }}
           REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.DEV_REACT_APP_FIREBASE_AUTH_DOMAIN }}
           REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
@@ -174,11 +208,12 @@ jobs:
       - name: Add preview URL to pull request
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          BETA_VERSION: ${{ needs.build-preview.outputs.beta_version }}
           PREVIEW_URL: ${{ steps.deploy.outputs.preview_url }}
         with:
           script: |
             const marker = '<!-- maintley-firebase-preview -->';
-            const body = `${marker}\nMaintley Beta preview: ${process.env.PREVIEW_URL}\n\nThis preview expires seven days after its latest deployment.`;
+            const body = `${marker}\n**${process.env.BETA_VERSION}**\n\nMaintley Beta preview: ${process.env.PREVIEW_URL}\n\nThis version remains assigned to the PR when new commits are pushed. The preview expires seven days after its latest deployment.`;
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, {

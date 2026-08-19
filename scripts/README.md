@@ -91,6 +91,7 @@ yarn content:idea -- --count 5 --status ready
 yarn build:signed
 yarn release:notes
 yarn release:notes:preview
+yarn version:beta -- --candidate-metadata tmp/beta.json --output tmp/beta-version.json
 yarn release:notes --json --output RELEASE_NOTES.txt --engineering-output tmp/release-notes.engineering.md --metadata-output tmp/release-notes.json
 yarn adr:trackers:dry-run --json
 yarn version:init
