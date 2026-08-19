@@ -20,6 +20,7 @@ import {
 	type PropertyMemoryDocumentUploadContext,
 } from './propertyDocumentUploads';
 import type { ProcessPropertyDocumentAcquisitionResponse } from './propertyKnowledgeProcessing';
+import { getPropertyKnowledgeSuggestionCount } from './propertyKnowledgeSuggestionSummary';
 import {
 	getEmbeddedPropertyDocuments,
 	getEmbeddedPropertyKnowledgeSuggestions,
@@ -64,22 +65,6 @@ const getExistingKnowledgeSuggestions = (
 	property: any,
 ): PropertyKnowledgeSuggestion[] =>
 	getEmbeddedPropertyKnowledgeSuggestions(property);
-
-const getKnowledgeSuggestionCount = (
-	suggestion?: PropertyKnowledgeSuggestion,
-): number =>
-	(Array.isArray(suggestion?.extractedFields)
-		? suggestion.extractedFields.length
-		: 0) +
-	(Array.isArray(suggestion?.suggestedParts)
-		? suggestion.suggestedParts.length
-		: 0) +
-	(Array.isArray(suggestion?.suggestedTasks)
-		? suggestion.suggestedTasks.length
-		: 0) +
-	(Array.isArray(suggestion?.suggestedEquipment)
-		? suggestion.suggestedEquipment.length
-		: 0);
 
 const getUploadFeedbackMessage = ({
 	totalSuggestedDetails,
@@ -250,7 +235,8 @@ export const usePropertyDocumentUploadWorkflow = () => {
 			});
 
 			const totalSuggestedDetails = knowledgeSuggestions.reduce(
-				(total, suggestion) => total + getKnowledgeSuggestionCount(suggestion),
+				(total, suggestion) =>
+					total + getPropertyKnowledgeSuggestionCount(suggestion),
 				0,
 			);
 

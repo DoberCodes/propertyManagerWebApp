@@ -50,6 +50,9 @@ import {
 	isPropertyDocumentKnowledgeScanEligible,
 	processPropertyDocumentAcquisition,
 } from 'propertyKnowledge/propertyKnowledgeProcessing';
+import {
+	getPropertyKnowledgeSuggestionCount,
+} from 'propertyKnowledge/propertyKnowledgeSuggestionSummary';
 import { RoleCapabilities } from 'utils/permissions';
 import { hasMaintleyAdminAccess } from 'utils/maintleyRole';
 import { getPropertyDocumentConnections } from 'utils/propertyDocumentRelationships';
@@ -183,12 +186,6 @@ const getCategoryLabel = (category?: PropertyDocumentCategory) => {
 	if (category === 'warranty') return 'Warranty';
 	return 'Other document';
 };
-
-const getKnowledgeSuggestionCount = (
-	suggestion?: PropertyKnowledgeSuggestion,
-) =>
-	(suggestion?.extractedFields.length || 0) +
-	(suggestion?.suggestedParts?.length || 0);
 
 const getAddedKnowledgeCount = (
 	suggestion?: PropertyKnowledgeSuggestion,
@@ -796,7 +793,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 							isPropertyDocument && file.id
 								? getLatestKnowledgeSuggestionForDocument(file.id)
 								: undefined;
-						const suggestionCount = getKnowledgeSuggestionCount(
+						const suggestionCount = getPropertyKnowledgeSuggestionCount(
 							latestKnowledgeSuggestion,
 						);
 						const reviewedKnowledgeStatus =

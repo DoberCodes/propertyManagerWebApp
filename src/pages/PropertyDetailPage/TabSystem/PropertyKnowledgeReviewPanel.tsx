@@ -46,6 +46,9 @@ import {
 	updatePropertyKnowledgeSuggestionInCollection,
 } from 'propertyKnowledge/propertyMemoryRecordService';
 import { usePropertyMemoryRecords } from 'propertyKnowledge/usePropertyMemoryRecords';
+import {
+	getPropertyKnowledgeSuggestionCount,
+} from 'propertyKnowledge/propertyKnowledgeSuggestionSummary';
 import { getPropertyDocumentConnections } from 'utils/propertyDocumentRelationships';
 import {
 	findAssetTargetCandidate,
@@ -105,12 +108,6 @@ const EQUIPMENT_SKIP_REASONS = [
 	'Incorrect information',
 	'Other',
 ];
-
-const getKnowledgeSuggestionCount = (suggestion?: PropertyKnowledgeSuggestion) =>
-	(suggestion?.extractedFields.length || 0) +
-	(suggestion?.suggestedParts?.length || 0) +
-	(suggestion?.suggestedTasks?.length || 0) +
-	(suggestion?.suggestedEquipment?.length || 0);
 
 const normalizeLookupValue = (value?: string) =>
 	String(value || '')
@@ -2509,7 +2506,9 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 					String((currentUser as any)?.accountId || '').trim() ||
 					String((currentUser as any)?.id || '').trim();
 				if (accountId) {
-					const importedCount = getKnowledgeSuggestionCount(result.appliedSuggestion);
+					const importedCount = getPropertyKnowledgeSuggestionCount(
+						result.appliedSuggestion,
+					);
 					await publishMaintleyEvent({
 						accountId,
 						propertyId: property.id,
@@ -2630,7 +2629,7 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 			<ReviewLayout>
 				<SuggestionList aria-label='Suggested details'>
 					{knowledgeSuggestions.map((suggestion) => {
-						const count = getKnowledgeSuggestionCount(suggestion);
+						const count = getPropertyKnowledgeSuggestionCount(suggestion);
 						const isActive = suggestion.id === selectedSuggestion?.id;
 						const destinations = getUniqueDestinationLabels(suggestion);
 						return (
@@ -2686,7 +2685,8 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 								</StatusBadge>
 							</DetailHeader>
 
-							{getKnowledgeSuggestionCount(selectedSuggestion) === 0 ? (
+							{getPropertyKnowledgeSuggestionCount(selectedSuggestion) ===
+							0 ? (
 								<KnowledgeEmptyState>
 									Maintley did not find structured details in this document yet. You can keep the document attached and review it again later.
 								</KnowledgeEmptyState>
@@ -2846,7 +2846,8 @@ export const PropertyKnowledgeReviewPanel: React.FC<
 									disabled={
 										selectedSuggestion.status === 'applied' ||
 										selectedSuggestion.status === 'rejected' ||
-										getKnowledgeSuggestionCount(selectedSuggestion) === 0 ||
+										getPropertyKnowledgeSuggestionCount(selectedSuggestion) ===
+											0 ||
 										activeReviewItemCount === 0 ||
 										(requiresPropertyAddressConfirmation &&
 											!propertyAddressConfirmed) ||
