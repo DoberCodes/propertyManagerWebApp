@@ -122,6 +122,12 @@ collapsed sections, while the dialog keeps Back and Save setup visible as the
 details scroll. Archived-Space conflicts remain visible because they require
 review before saving. A separate Quick Setup Review confirms what was saved.
 
+The Setup Assistant entry screen prioritizes two guided choices: nine
+10-minute essentials and the complete 28-item room-by-room review. Each choice
+shows its saved reviewed count and progress bar. Both derive from the same
+responses, so essential progress also counts toward full setup. Existing report
+upload remains available as a secondary action below the guided choices.
+
 Guidance-relevant Equipment subtypes refine Setup Assistant recurring-task
 suggestions. Tank water heaters keep tank-flush guidance, while tankless water
 heaters replace it with a descaling or manufacturer-service review. For mixed

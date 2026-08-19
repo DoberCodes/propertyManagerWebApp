@@ -142,6 +142,13 @@ The property-level assistant begins with three optional paths:
 All paths preserve the same property-owned Equipment, Task, Space, Document,
 and relationship models. They do not create parallel setup records.
 
+The two guided review paths are the primary choices. Each shows its own derived
+review count and progress bar from the shared saved setup responses: nine
+essential items for the short path and all 28 items for the full room-by-room
+path. Completing an essential item therefore also advances the full review.
+Existing-report upload remains available as a secondary text action below the
+guided choices rather than competing as a third setup card.
+
 Existing Equipment may be detected and explained to the user, but detection
 does not change the saved setup response or count as reviewed. `Present` and
 `Not Present` remain explicit user decisions. A completed area previews the
