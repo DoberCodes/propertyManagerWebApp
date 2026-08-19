@@ -551,6 +551,12 @@ and a half bathrooms, verifies the four generated Spaces exactly once, and
 confirms that first-property Homeowner+ access is presented separately from
 Free billing.
 
+Maintley Beta must enable the Homeowner+ product-trial and internal-grant
+issuance flags with a valid eligibility boundary whenever this activation suite
+expects Homeowner+ access. Keeping those development flags aligned with the
+launched production behavior ensures Beta tests the actual onboarding path
+instead of silently exercising the Free fallback.
+
 Each activation run uses an email derived from the GitHub run id. Its
 `always()` cleanup targets only that email, verifies Auth deletion, checks the
 configured Firebase project id, and removes account-owned property knowledge

@@ -23,7 +23,11 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 const startsAtMs = Date.parse('2026-07-23T16:00:00.000Z');
 const freeSubscription = { status: 'active', plan: 'homeowner' };
 
-const seedAccount = async (accountId, subscription = freeSubscription) => {
+const seedAccount = async (
+	accountId,
+	subscription = freeSubscription,
+	{ includeEligibility = true } = {},
+) => {
 	await db.collection('users').doc(accountId).set({
 		id: accountId,
 		accountId,
@@ -34,13 +38,20 @@ const seedAccount = async (accountId, subscription = freeSubscription) => {
 		ownerId: accountId,
 		propertyCount: 1,
 		subscription,
-		entitlementPrograms: {
-			[HOMEOWNER_PLUS_TRIAL_PROGRAM_ID]: {
-				programId: HOMEOWNER_PLUS_TRIAL_PROGRAM_ID,
-				policyVersion: 'v1',
-				status: 'eligible',
-			},
-		},
+		createdAt: admin.firestore.Timestamp.fromDate(
+			new Date('2026-07-20T00:00:00.000Z'),
+		),
+		...(includeEligibility
+			? {
+					entitlementPrograms: {
+						[HOMEOWNER_PLUS_TRIAL_PROGRAM_ID]: {
+							programId: HOMEOWNER_PLUS_TRIAL_PROGRAM_ID,
+							policyVersion: 'v1',
+							status: 'eligible',
+						},
+					},
+			  }
+			: {}),
 	});
 };
 
@@ -63,6 +74,27 @@ async function run() {
 			startsAtMs + 1_000,
 		),
 		'already_exists',
+	);
+
+	const recoveredEligibilityAccountId = 'recovered-trial-eligibility-owner';
+	await seedAccount(recoveredEligibilityAccountId, freeSubscription, {
+		includeEligibility: false,
+	});
+	assert.equal(
+		await issueFirstPropertyTrial(
+			recoveredEligibilityAccountId,
+			'property-recovered',
+			startsAtMs,
+		),
+		'created',
+		'An otherwise eligible account must recover when its rollout marker was not written.',
+	);
+	const recoveredAccount = (
+		await db.collection('familyAccounts').doc(recoveredEligibilityAccountId).get()
+	).data();
+	assert.ok(
+		recoveredAccount.entitlementPrograms[HOMEOWNER_PLUS_TRIAL_PROGRAM_ID]
+			.recoveredEligibilityAt,
 	);
 
 	const account = (

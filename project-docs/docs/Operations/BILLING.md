@@ -96,6 +96,11 @@ both `ENABLE_HOMEOWNER_PLUS_PRODUCT_TRIAL` and
 `HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT` is a valid launch boundary. Existing
 grants continue resolving when issuance is disabled. No internal trial creates
 a Stripe customer, subscription, payment method, schedule, or automatic charge.
+When an otherwise eligible account was created while issuance was temporarily
+disabled, first-property issuance may recover the missing eligibility marker
+from the account creation date, launch boundary, owner status, and canonical
+Free subscription. The server remains authoritative and the grant id remains
+idempotent, so retries cannot restart or duplicate the trial.
 
 Lifecycle email and in-app delivery has its own server flag,
 `ENABLE_ACCESS_LIFECYCLE_COMMUNICATION`. Enabling grant issuance does not enable

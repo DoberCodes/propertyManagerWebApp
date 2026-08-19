@@ -52,6 +52,13 @@ const SYSTEM_ACTOR_ID = 'system:first-property-trial';
 const isTrialIssuanceEnabled = () => subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.homeownerPlusProductTrial === true &&
     subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.internalEntitlementGrantIssuance === true;
 const asRecord = (value) => typeof value === 'object' && value ? value : {};
+const toMillis = (value) => {
+    if (value &&
+        typeof value.toMillis === 'function') {
+        return value.toMillis();
+    }
+    return Date.parse(String(value || ''));
+};
 const isIntentionalFreeOwnerSubscription = (value) => {
     return (0, entitlements_1.isFirstPropertyTrialEligible)({
         homeownerPlusProductTrial: true,
@@ -79,10 +86,7 @@ const serializeCallableValue = (value) => {
 };
 const getInitialTrialEligibility = (subscription, accountCreatedAt) => {
     const eligibilityStartMs = Date.parse(String(process.env.HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT || ''));
-    const createdAtMs = accountCreatedAt &&
-        typeof accountCreatedAt.toMillis === 'function'
-        ? accountCreatedAt.toMillis()
-        : Date.parse(String(accountCreatedAt || ''));
+    const createdAtMs = toMillis(accountCreatedAt);
     if (!(0, entitlements_1.isFirstPropertyTrialEligible)({
         homeownerPlusProductTrial: subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.homeownerPlusProductTrial,
         internalEntitlementGrantIssuance: subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.internalEntitlementGrantIssuance,
@@ -161,7 +165,15 @@ const issueFirstPropertyTrial = async (accountId, propertyId, startsAtMs) => {
             owner.isTeamMemberAccount !== true;
         const accountSubscription = account.subscription;
         const ownerSubscription = owner.subscription;
-        if (programState.status !== 'eligible' ||
+        const recoveredEligibility = !programState.status &&
+            (0, entitlements_1.isFirstPropertyTrialEligible)({
+                homeownerPlusProductTrial: subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.homeownerPlusProductTrial,
+                internalEntitlementGrantIssuance: subscriptionEntitlements_1.ENTITLEMENT_FEATURE_FLAGS.internalEntitlementGrantIssuance,
+                accountCreatedAtMs: toMillis(account.createdAt),
+                eligibilityStartMs: Date.parse(String(process.env.HOMEOWNER_PLUS_TRIAL_ELIGIBILITY_START_AT || '')),
+                subscription: asRecord(accountSubscription),
+            });
+        if ((programState.status !== 'eligible' && !recoveredEligibility) ||
             programState.consumedAt ||
             propertyCount < 1 ||
             !ownerIsEligible ||
@@ -223,6 +235,11 @@ const issueFirstPropertyTrial = async (accountId, propertyId, startsAtMs) => {
                 ...asRecord(account.entitlementPrograms),
                 [exports.HOMEOWNER_PLUS_TRIAL_PROGRAM_ID]: {
                     ...programState,
+                    ...(recoveredEligibility
+                        ? {
+                            recoveredEligibilityAt: admin.firestore.FieldValue.serverTimestamp(),
+                        }
+                        : {}),
                     status: 'issued',
                     grantId: exports.HOMEOWNER_PLUS_TRIAL_GRANT_ID,
                     consumedAt: admin.firestore.FieldValue.serverTimestamp(),
