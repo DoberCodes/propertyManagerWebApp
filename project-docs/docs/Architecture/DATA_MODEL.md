@@ -384,12 +384,21 @@ Typical fields:
 * accountId
 * name
 * address
+* addressDetails
 * propertyType
 * propertyClassification
 * photoUrl
 * notes
 * createdAt
 * updatedAt
+
+`address` remains the formatted, display-ready address used by existing views,
+exports, document matching, and older records. New or edited addresses may also
+store `addressDetails` with `streetAddress`, optional `unit`, `city`, two-letter
+`state`, `postalCode`, and `countryCode`. Maintley derives the formatted
+`address` from these structured fields. Older records that only contain
+`address` remain valid and are not automatically rewritten from guessed
+components.
 
 Optional fields may include:
 
