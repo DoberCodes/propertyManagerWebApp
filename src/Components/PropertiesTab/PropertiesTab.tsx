@@ -2347,9 +2347,8 @@ export const Properties = () => {
 			}
 		} else {
 			// Add new property
-			const shouldFinalizeFirstPropertyTrial =
+			const shouldAttemptFirstPropertyTrial =
 				totalProperties === 0 &&
-				isHomeownerPlusTrialEnabled() &&
 				isIntentionalFreeAccountSubscription(currentUser?.subscription) &&
 				!isTeamMemberAccount &&
 				currentUser?.isAccountOwner !== false;
@@ -2435,11 +2434,13 @@ export const Properties = () => {
 							);
 						}
 					}
-					if (shouldFinalizeFirstPropertyTrial) {
-						reportProgress?.({
-							title: 'Activating Homeowner+...',
-							text: `Your ${isHomeowner ? 'home' : 'property'} is saved. We are preparing the 30-day Homeowner+ access used by the setup assistant.`,
-						});
+					if (shouldAttemptFirstPropertyTrial) {
+						if (isHomeownerPlusTrialEnabled()) {
+							reportProgress?.({
+								title: 'Activating Homeowner+...',
+								text: `Your ${isHomeowner ? 'home' : 'property'} is saved. We are preparing the 30-day Homeowner+ access used by the setup assistant.`,
+							});
+						}
 						try {
 							const activation = await finalizeFirstPropertyTrial(result.data.id);
 							if (activation.effectiveEntitlementProjection) {

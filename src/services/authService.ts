@@ -131,6 +131,30 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
 	}
 };
 
+const createFirebaseAuthUser = async (email: string, password: string) => {
+	try {
+		return await createUserWithEmailAndPassword(auth, email, password);
+	} catch (error: any) {
+		const currentAuthUser = auth.currentUser;
+		const requestedEmail = email.trim().toLowerCase();
+		const currentEmail = String(currentAuthUser?.email || '').trim().toLowerCase();
+		const errorCode = String(error?.code || '').toLowerCase();
+		const canResumeProvisioning =
+			Boolean(currentAuthUser) &&
+			currentEmail === requestedEmail &&
+			errorCode === 'auth/network-request-failed';
+
+		if (!canResumeProvisioning || !currentAuthUser) {
+			throw error;
+		}
+
+		console.warn(
+			'Firebase Auth created the account but signup did not finish. Resuming profile provisioning for the current user.',
+		);
+		return { user: currentAuthUser };
+	}
+};
+
 const findActiveTenantPromoCode = async (promoCode: string, email: string) => {
 	const validateInvite = await getAuthCallable<
 		{ promoCode: string; tenantEmail: string },
@@ -401,11 +425,7 @@ export const signUpWithEmail = async (
 		}
 
 		// Create Firebase Auth user
-		const userCredential = await createUserWithEmailAndPassword(
-			auth,
-			email,
-			password,
-		);
+		const userCredential = await createFirebaseAuthUser(email, password);
 
 		// Update display name in Firebase Auth
 		await updateProfile(userCredential.user, {

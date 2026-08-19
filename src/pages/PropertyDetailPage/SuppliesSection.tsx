@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { GenericModal } from '../../Components/Library/Modal';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
@@ -195,6 +195,7 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		[devices],
 	);
 	const equipmentContextId = String(searchParams.get('equipmentId') || '').trim();
+	const requestedAction = String(searchParams.get('action') || '').trim();
 	const equipmentContext = deviceById.get(equipmentContextId);
 	const spaceById = useMemo(
 		() => new Map(spaces.map((space) => [space.id, space])),
@@ -238,6 +239,30 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		setFormError('');
 		setIsFormOpen(true);
 	};
+
+	useEffect(() => {
+		if (requestedAction !== 'add-supply' || !canManageSupplies) return;
+
+		setActionError('');
+		setEditingSupply(null);
+		setDraft(EMPTY_DRAFT);
+		setConnections({
+			...EMPTY_CONNECTIONS,
+			equipmentIds: equipmentContextId ? [equipmentContextId] : [],
+		});
+		setFormError('');
+		setIsFormOpen(true);
+
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.delete('action');
+		setSearchParams(nextParams, { replace: true });
+	}, [
+		canManageSupplies,
+		equipmentContextId,
+		requestedAction,
+		searchParams,
+		setSearchParams,
+	]);
 
 	const openEditForm = (supply: PropertySupply) => {
 		setActionError('');
