@@ -118,23 +118,15 @@ export const signInWithEmail = async (
  */
 export const checkEmailExists = async (email: string): Promise<boolean> => {
 	try {
-		// Check if email exists in Firebase Auth
+		// Registration is unauthenticated, so this check must stay within Firebase
+		// Auth. Querying the protected users collection here creates a permission
+		// warning for every new email and would weaken email privacy if allowed.
 		const signInMethods = await fetchSignInMethodsForEmail(auth, email);
-		if (signInMethods.length > 0) {
-			return true;
-		}
-
-		// Also check Firestore users collection as backup
-		const q = query(
-			collection(db, 'users'),
-			where('email', '==', email.toLowerCase().trim()),
-		);
-		const snapshot = await getDocs(q);
-		return !snapshot.empty;
+		return signInMethods.length > 0;
 	} catch (error: any) {
-		// If there's an error (e.g., network issue), assume email doesn't exist
-		// to not block registration unnecessarily
-		console.warn('Error checking email existence:', error);
+		// Account creation remains the authoritative duplicate-email check. A
+		// transient lookup failure should not block a legitimate registration.
+		console.info('Email availability pre-check was unavailable.', error);
 		return false;
 	}
 };

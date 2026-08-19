@@ -560,6 +560,11 @@ Avoid:
 
 Users should be able to scan information quickly.
 
+Authenticated page content must remain contained within the device viewport.
+Flex and grid children should use shrink-safe sizing such as `min-width: 0`,
+and padded full-width cards should use border-box sizing. Profile headers,
+property groups, and property cards must not create horizontal page scrolling.
+
 ---
 
 # Tables

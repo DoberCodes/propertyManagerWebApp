@@ -49,6 +49,7 @@ const getPlanById = (planId: string) => {
 
 const resolveSubscriptionEntitlements = (
 	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
+	nowMs?: number,
 ) => {
 	const grants = Array.isArray(subscription?.entitlementGrants)
 		? (subscription.entitlementGrants as EntitlementGrant[])
@@ -65,6 +66,7 @@ const resolveSubscriptionEntitlements = (
 		mode: 'compatibility',
 		allowLegacyPlanWithoutStatus: true,
 		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
+		...(Number.isFinite(nowMs) ? { nowMs } : {}),
 	});
 };
 
@@ -121,8 +123,9 @@ export const isIntentionalFreeAccountSubscription = (
 
 export const getEffectiveAccessPlanId = (
 	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
+	nowMs?: number,
 ): string => {
-	const result = resolveSubscriptionEntitlements(subscription);
+	const result = resolveSubscriptionEntitlements(subscription, nowMs);
 	const candidates = [
 		result.basePlanId,
 		...result.appliedBundleIds.map((value) => String(value).split('@')[0]),

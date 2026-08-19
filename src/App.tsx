@@ -7,6 +7,7 @@ import {
 	updateSubscriptionFromStripe,
 	setAuthLoading,
 } from './Redux/Slices/userSlice';
+import { isAccountDeletionSessionActive } from './services/accountDeletionSession';
 import type { AppDispatch, RootState } from './Redux/store/store';
 import { RouterComponent } from './router';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
@@ -207,6 +208,7 @@ export const App = () => {
 				dispatch(updateEntitlementProjection({ accountId, projection }));
 			},
 			(error) => {
+				if (isAccountDeletionSessionActive()) return;
 				console.warn('Account access updates could not be loaded:', error);
 			},
 		);

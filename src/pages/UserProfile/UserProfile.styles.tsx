@@ -2,12 +2,16 @@ import styled from 'styled-components';
 import { COLORS } from '../../constants/colors';
 
 export const Wrapper = styled.div`
+	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
 	flex: 0 0 auto;
 	min-height: 100%;
+	min-width: 0;
 	width: 100%;
-	overflow: visible;
+	max-width: 100%;
+	overflow-x: hidden;
+	overflow-y: visible;
 	background-color: ${COLORS.bgLight};
 
 	&::after {
@@ -32,11 +36,14 @@ export const Wrapper = styled.div`
 `;
 
 export const Container = styled.div`
+	box-sizing: border-box;
 	background: ${COLORS.bgWhite};
 	margin: 0;
 	padding: 2rem;
 	width: 100%;
 	max-width: 100%;
+	min-width: 0;
+	overflow-x: hidden;
 	position: relative;
 	z-index: 1;
 	box-shadow: none;
@@ -56,14 +63,22 @@ export const Container = styled.div`
 `;
 
 export const UserProfileHeader = styled.div`
+	box-sizing: border-box;
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	gap: 16px;
+	width: 100%;
+	min-width: 0;
 
 	@media (max-width: 640px) {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		align-items: flex-start;
-		flex-direction: column;
+		align-self: stretch;
+		width: auto;
+		max-width: 100%;
+		overflow: hidden;
 	}
 
 	@media (max-width: 480px) {
@@ -72,6 +87,7 @@ export const UserProfileHeader = styled.div`
 `;
 
 export const ProfileAvatarColumn = styled.div`
+	box-sizing: border-box;
 	display: flex;
 	flex: 0 0 160px;
 	flex-direction: column;
@@ -82,8 +98,10 @@ export const ProfileAvatarColumn = styled.div`
 
 	@media (max-width: 640px) {
 		flex: 0 0 auto;
-		width: 100%;
-		max-width: none;
+		align-items: flex-start;
+		width: auto;
+		max-width: 100%;
+		min-width: 0;
 	}
 `;
 
@@ -91,6 +109,7 @@ export const ProfileDetailsPanel = styled.div`
 	display: flex;
 	flex: 1 1 auto;
 	min-width: 0;
+	max-width: 100%;
 	flex-direction: column;
 	align-items: flex-start;
 	justify-content: center;
@@ -101,6 +120,10 @@ export const ProfileDetailsPanel = styled.div`
 		margin: 0;
 		max-width: 100%;
 		overflow-wrap: anywhere;
+	}
+
+	@media (max-width: 640px) {
+		width: 100%;
 	}
 `;
 
@@ -121,8 +144,10 @@ export const EditProfileButton = styled.button<{ $disabled?: boolean }>`
 `;
 
 export const FormContentWrapper = styled.div`
+	box-sizing: border-box;
 	width: 100%;
 	max-width: 800px;
+	min-width: 0;
 `;
 
 export const PageHeader = styled.div`
@@ -273,6 +298,7 @@ export const StatusPill = styled.div`
 `;
 
 export const AccountSummaryCard = styled.div`
+	box-sizing: border-box;
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 1.25rem 2rem;
@@ -282,6 +308,9 @@ export const AccountSummaryCard = styled.div`
 	border-radius: 12px;
 	box-shadow: ${COLORS.shadow};
 	margin-bottom: 1.5rem;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
 
 	@media (max-width: 480px) {
 		gap: 1rem;
@@ -351,11 +380,15 @@ export const ProfileSectionLink = styled.a`
 `;
 
 export const ProfileListCard = styled.div`
+	box-sizing: border-box;
 	overflow: hidden;
 	background: ${COLORS.bgWhite};
 	border: 1px solid ${COLORS.gray200};
 	border-radius: 12px;
 	box-shadow: ${COLORS.shadow};
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
 `;
 
 export const ActivityRow = styled.div`
@@ -471,12 +504,16 @@ export const ButtonGroup = styled.div`
 `;
 
 export const AccountActionsPanel = styled.div`
+	box-sizing: border-box;
 	margin-top: 1rem;
 	padding: 1rem;
 	background: ${COLORS.bgWhite};
 	border: 1px solid ${COLORS.gray200};
 	border-radius: 12px;
 	box-shadow: ${COLORS.shadow};
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
 `;
 
 export const AccountActionButtons = styled.div`

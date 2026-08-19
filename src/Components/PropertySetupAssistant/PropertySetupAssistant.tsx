@@ -1029,33 +1029,40 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					const applicableSpaceIds = itemArea
 						? spaceIdsByArea.get(itemArea.id) || []
 						: [];
-					if (device?.id && applicableSpaceIds.length > 0) {
-						await setEquipmentSpaceLinks({
-							propertyId: property.id,
-							equipmentId: String(device.id),
-							spaceIds: Array.from(
-								new Set([
-									...getEquipmentSpaceIds(
-										propertyKnowledgeLinks,
-										String(device.id),
+					if (applicableSpaceIds.length > 0) {
+						const relationshipWrites: Array<Promise<unknown>> = [];
+						if (device?.id) {
+							relationshipWrites.push(
+								setEquipmentSpaceLinks({
+									propertyId: property.id,
+									equipmentId: String(device.id),
+									spaceIds: Array.from(
+										new Set([
+											...getEquipmentSpaceIds(
+												propertyKnowledgeLinks,
+												String(device.id),
+											),
+											...applicableSpaceIds,
+										]),
 									),
-									...applicableSpaceIds,
-								]),
-							),
-						}).unwrap();
-					}
-					for (const taskId of taskIds) {
-						if (applicableSpaceIds.length === 0) continue;
-						await setTaskSpaceLinks({
-							propertyId: property.id,
-							taskId,
-							spaceIds: Array.from(
-								new Set([
-									...getTaskSpaceIds(propertyKnowledgeLinks, taskId),
-									...applicableSpaceIds,
-								]),
-							),
-						}).unwrap();
+								}).unwrap(),
+							);
+						}
+						taskIds.forEach((taskId) => {
+							relationshipWrites.push(
+								setTaskSpaceLinks({
+									propertyId: property.id,
+									taskId,
+									spaceIds: Array.from(
+										new Set([
+											...getTaskSpaceIds(propertyKnowledgeLinks, taskId),
+											...applicableSpaceIds,
+										]),
+									),
+								}).unwrap(),
+							);
+						});
+						await Promise.all(relationshipWrites);
 					}
 
 					const nextItemState: PropertySetupAssistantItemState = {
