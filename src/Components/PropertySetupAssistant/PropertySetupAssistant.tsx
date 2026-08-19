@@ -29,10 +29,13 @@ import { Task } from '../../types/Task.types';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import {
 	PROPERTY_SETUP_AREAS,
+	PROPERTY_SETUP_ESSENTIAL_AREAS,
 	PropertySetupAreaId,
+	PropertySetupPath,
 	getFirstIncompleteSetupAreaId,
 	getPropertySetupItem,
 	getPropertySetupProgress,
+	getUnreviewedDetectedSetupItemIds,
 } from '../../utils/propertySetupAssistant';
 import {
 	SUGGESTED_MAINTENANCE_DISCLAIMER,
@@ -56,6 +59,10 @@ import {
 	getAnalyticsErrorCode,
 	trackAnalyticsEvent,
 } from '../../analytics/analytics';
+import {
+	WORKFLOW_SUPPORT_CODES,
+	withWorkflowSupportCode,
+} from '../../utils/workflowSupportCodes';
 import {
 	activatePropertySetupMaintenancePlan,
 	type PropertySetupTaskProposal,
@@ -144,6 +151,8 @@ const PROPERTY_SETUP_ITEM_ORDER = PROPERTY_SETUP_AREAS.flatMap(
 	(area) => area.itemIds,
 );
 
+type ActivePropertySetupPath = Exclude<PropertySetupPath, 'existing_report'>;
+
 const getDraftProposalCount = (
 	items: NonNullable<PropertySetupAssistantState['items']>,
 ) =>
@@ -229,6 +238,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		[setupAssistant],
 	);
 	const [isOpen, setIsOpen] = useState(false);
+	const [setupPath, setSetupPath] =
+		useState<ActivePropertySetupPath | null>(null);
 	const [draftItems, setDraftItems] = useState<
 		NonNullable<PropertySetupAssistantState['items']>
 	>(setupAssistant.items || {});
@@ -248,6 +259,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [isSaveComplete, setIsSaveComplete] = useState(false);
 	const [completionSummary, setCompletionSummary] =
 		useState<SetupCompletionSummary | null>(null);
+	const activeSetupAreas =
+		setupPath === 'essentials'
+			? PROPERTY_SETUP_ESSENTIAL_AREAS
+			: PROPERTY_SETUP_AREAS;
 	const suggestedMaintenancePackageLimit = currentUser?.subscription
 		? getSuggestedMaintenancePackageLimit(currentUser.subscription)
 		: 0;
@@ -390,25 +405,27 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			left: 0,
 			behavior: 'auto',
 		});
-		if (isOpen) {
-			const stageIndex = PROPERTY_SETUP_AREAS.findIndex(
+		if (isOpen && setupPath) {
+			const stageIndex = activeSetupAreas.findIndex(
 				(area) => area.id === selectedAreaId,
 			);
 			void trackAnalyticsEvent('property_setup_stage_viewed', {
 				setup_stage: selectedAreaId,
 				stage_index: stageIndex >= 0 ? stageIndex + 1 : 0,
-				stage_count: PROPERTY_SETUP_AREAS.length,
+				stage_count: activeSetupAreas.length,
+				setup_path: setupPath,
 			});
 		}
-	}, [isOpen, selectedAreaId]);
+	}, [activeSetupAreas, isOpen, selectedAreaId, setupPath]);
 
 	if (!canUseAssistant || !currentUser) {
 		return null;
 	}
 
 	const openAssistant = () => {
-		const nextDraftItems = buildDraftItems(setupAssistant.items || {});
+		const nextDraftItems = { ...(setupAssistant.items || {}) };
 		setDraftItems(nextDraftItems);
+		setSetupPath(null);
 		setHasUserDraftChanges(false);
 		setWasDraftRestored(false);
 		hasTrackedProposalViewRef.current = false;
@@ -426,23 +443,68 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		});
 	};
 
+	const handleSelectSetupPath = (path: PropertySetupPath) => {
+		void trackAnalyticsEvent('property_setup_path_selected', {
+			setup_path: path,
+			reviewed_count: savedSetupProgress.reviewed,
+			total_count: savedSetupProgress.total,
+		});
+
+		if (path === 'existing_report') {
+			setIsOpen(false);
+			onUploadDocuments?.();
+			return;
+		}
+
+		const nextAreas =
+			path === 'essentials'
+				? PROPERTY_SETUP_ESSENTIAL_AREAS
+				: PROPERTY_SETUP_AREAS;
+		setSetupPath(path);
+		setSelectedAreaId(
+			getFirstIncompleteSetupAreaId({ items: draftItems }, nextAreas),
+		);
+	};
+
 	const selectedAreaIndex = Math.max(
-		PROPERTY_SETUP_AREAS.findIndex((area) => area.id === selectedAreaId),
+		activeSetupAreas.findIndex((area) => area.id === selectedAreaId),
 		0,
 	);
 	const selectedArea =
-		PROPERTY_SETUP_AREAS[selectedAreaIndex] || PROPERTY_SETUP_AREAS[0];
+		activeSetupAreas[selectedAreaIndex] || activeSetupAreas[0];
 	const isFirstArea = selectedAreaIndex === 0;
-	const isLastArea = selectedAreaIndex === PROPERTY_SETUP_AREAS.length - 1;
-	const draftProgress = getPropertySetupProgress({ items: draftItems });
+	const isLastArea = selectedAreaIndex === activeSetupAreas.length - 1;
+	const draftProgress = getPropertySetupProgress(
+		{ items: draftItems },
+		activeSetupAreas,
+	);
 
 	const getAreaReviewedCount = (areaId: PropertySetupAreaId) => {
-		const area = PROPERTY_SETUP_AREAS.find((item) => item.id === areaId);
+		const area = activeSetupAreas.find((item) => item.id === areaId);
 		if (!area) return 0;
 		return area.itemIds.filter((itemId) => {
 			const status = draftItems[itemId]?.status;
 			return status === 'present' || status === 'not_present';
 		}).length;
+	};
+
+	const getAreaValueSummary = (areaId: PropertySetupAreaId) => {
+		const area = activeSetupAreas.find((item) => item.id === areaId);
+		if (!area) return null;
+		const presentItemIds = area.itemIds.filter(
+			(itemId) => draftItems[itemId]?.status === 'present',
+		);
+		const taskCount = presentItemIds.reduce(
+			(count, itemId) =>
+				count +
+				getSelectedSuggestedTaskIds(itemId, draftItems[itemId]).length,
+			0,
+		);
+		return {
+			isReviewed: getAreaReviewedCount(areaId) === area.itemIds.length,
+			equipmentCount: presentItemIds.length,
+			taskCount,
+		};
 	};
 
 	const findExistingDevice = (itemId: SuggestedSystemId) => {
@@ -477,33 +539,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		);
 	};
 
-	const buildDraftItems = (
-		baseItems: NonNullable<PropertySetupAssistantState['items']>,
-	) => {
-		const nextItems = { ...baseItems };
-		PROPERTY_SETUP_AREAS.forEach((area) => {
-			area.itemIds.forEach((itemId) => {
-				const existingDevice = findExistingDevice(itemId);
-				if (!existingDevice?.id) return;
-
-				nextItems[itemId] = {
-					...(nextItems[itemId] || {}),
-					status: 'present',
-					deviceId: existingDevice.id,
-				};
-			});
-		});
-		return nextItems;
-	};
-
-	const detectedSetupItems = buildDraftItems(setupAssistant.items || {});
-	const progress = getPropertySetupProgress({
-		...setupAssistant,
-		items: detectedSetupItems,
-	});
-	const hasDetectedUnsavedProgress =
-		progress.reviewed >
-		savedSetupProgress.reviewed;
+	const progress = savedSetupProgress;
+	const detectedUnreviewedItemCount = getUnreviewedDetectedSetupItemIds(
+		setupAssistant.items || {},
+		PROPERTY_SETUP_ITEM_ORDER.filter((itemId) =>
+			Boolean(findExistingDevice(itemId)?.id),
+		),
+	).length;
+	const hasDetectedUnsavedProgress = detectedUnreviewedItemCount > 0;
 
 	const ensureDeviceForItem = async (
 		itemId: SuggestedSystemId,
@@ -867,7 +910,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 	const handleBack = () => {
 		if (isSavingAssistant || isFirstArea) return;
-		setSelectedAreaId(PROPERTY_SETUP_AREAS[selectedAreaIndex - 1].id);
+		setSelectedAreaId(activeSetupAreas[selectedAreaIndex - 1].id);
 	};
 
 	const handleNext = () => {
@@ -876,10 +919,19 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			setIsSaveReviewOpen(true);
 			return;
 		}
-		setSelectedAreaId(PROPERTY_SETUP_AREAS[selectedAreaIndex + 1].id);
+		setSelectedAreaId(activeSetupAreas[selectedAreaIndex + 1].id);
 	};
 
 	const closeAssistant = () => {
+		if (setupPath) {
+			void trackAnalyticsEvent('property_setup_path_exited', {
+				setup_path: setupPath,
+				reviewed_count: draftProgress.reviewed,
+				total_count: draftProgress.total,
+				has_unsaved_changes: hasUserDraftChanges,
+				exit_reason: 'user_closed',
+			});
+		}
 		if (currentUser?.id && typeof window !== 'undefined') {
 			clearPropertySetupDraft(window.localStorage, {
 				userId: currentUser.id,
@@ -891,6 +943,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		setSetupPath(null);
 		setHasUserDraftChanges(false);
 		setWasDraftRestored(false);
 		hasTrackedProposalViewRef.current = false;
@@ -902,6 +955,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		setSetupPath(null);
 		onAssistantCompleted?.();
 	};
 
@@ -909,6 +963,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		setSetupPath(null);
 		onAddMoreAppliances?.();
 	};
 
@@ -916,6 +971,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		setSetupPath(null);
 		onUploadDocuments?.();
 	};
 
@@ -1123,6 +1179,20 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				linked_task_count: linkedTaskIdSet.size,
 				trusted_activation_enabled: TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED,
 			});
+			if (setupPath) {
+				const nextPathProgress = getPropertySetupProgress(
+					{ items: nextItems },
+					activeSetupAreas,
+				);
+				void trackAnalyticsEvent('property_setup_path_completed', {
+					setup_path: setupPath,
+					reviewed_count: nextPathProgress.reviewed,
+					total_count: nextPathProgress.total,
+					created_equipment_count: createdApplianceCount,
+					created_task_count: createdTaskCount,
+					linked_task_count: linkedTaskIdSet.size,
+				});
+			}
 			if (nextProgress.isComplete && !savedSetupProgress.isComplete) {
 				void trackAnalyticsEvent('property_setup_completed', {
 					created_equipment_count: createdApplianceCount,
@@ -1156,11 +1226,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				workflow_stage: 'save_progress',
 				error_code: getAnalyticsErrorCode(error),
 			});
-			feedback.notify('Could not save setup progress. Please try again.');
+			feedback.notify(
+				withWorkflowSupportCode(
+					'Could not save setup progress. Please try again.',
+					WORKFLOW_SUPPORT_CODES.propertySetupSave,
+				),
+			);
 		} finally {
 			setIsSavingAssistant(false);
 		}
 	};
+
+	const selectedAreaValueSummary = getAreaValueSummary(selectedArea.id);
 
 	return (
 		<>
@@ -1261,7 +1338,9 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							<div>
 								<ModalTitle>{setupLanguage.eyebrow}</ModalTitle>
 								<ModalHint>
-									Review one area at a time. Items marked Skip for now stay open so you can return later.
+									{setupPath
+										? 'Review one area at a time. Items marked Skip for now stay open so you can return later.'
+										: 'Choose the quickest useful starting point for this property.'}
 								</ModalHint>
 							</div>
 							<CloseButton
@@ -1273,6 +1352,56 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						</ModalHeader>
 
 						<ModalBody>
+							{!setupPath ? (
+								<SetupPathPanel>
+									<SetupPathIntro>
+										<AreaTitle>How would you like to begin?</AreaTitle>
+										<AreaHint>
+											You can stop at any time. Saved records remain available,
+											and you can return to the other options later.
+										</AreaHint>
+										{hasDetectedUnsavedProgress && (
+											<DetectedRecordNotice role='status'>
+												We found {detectedUnreviewedItemCount} matching equipment{' '}
+												{detectedUnreviewedItemCount === 1 ? 'record' : 'records'}.
+												They will not count as reviewed until you confirm them.
+											</DetectedRecordNotice>
+										)}
+									</SetupPathIntro>
+									<SetupPathGrid>
+										<SetupPathButton
+											type='button'
+											onClick={() => handleSelectSetupPath('essentials')}>
+											<strong>10-minute essentials</strong>
+											<span>
+												Review nine common safety, utility, laundry, and exterior
+												items for a useful starting record.
+											</span>
+											<SetupPathAction>Start essentials</SetupPathAction>
+										</SetupPathButton>
+										<SetupPathButton
+											type='button'
+											onClick={() => handleSelectSetupPath('room_by_room')}>
+											<strong>Continue room by room</strong>
+											<span>
+												Review all seven areas at your own pace and resume whenever
+												you are ready.
+											</span>
+											<SetupPathAction>Review all areas</SetupPathAction>
+										</SetupPathButton>
+										<SetupPathButton
+											type='button'
+											onClick={() => handleSelectSetupPath('existing_report')}>
+											<strong>Upload an existing report</strong>
+											<span>
+												Upload an inspection or service report for Maintley to turn
+												into details you can review.
+											</span>
+											<SetupPathAction>Choose a report</SetupPathAction>
+										</SetupPathButton>
+									</SetupPathGrid>
+								</SetupPathPanel>
+							) : (
 							<AreaPanel ref={areaPanelRef}>
 								{wasDraftRestored && (
 									<RestoredDraftNotice role='status'>
@@ -1281,21 +1410,21 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 								)}
 								<WizardProgressHeader>
 									<WizardProgressText>
-										Step {selectedAreaIndex + 1} of {PROPERTY_SETUP_AREAS.length}
+										Step {selectedAreaIndex + 1} of {activeSetupAreas.length}
 									</WizardProgressText>
 									<WizardProgressTrack>
 										<WizardProgressFill
 											style={{
 												width: `${Math.round(
 													((selectedAreaIndex + 1) /
-														PROPERTY_SETUP_AREAS.length) *
+														activeSetupAreas.length) *
 													100,
 												)}%`,
 											}}
 										/>
 									</WizardProgressTrack>
 									<WizardStepDots aria-label='Property setup areas'>
-										{PROPERTY_SETUP_AREAS.map((area, index) => {
+										{activeSetupAreas.map((area, index) => {
 											const reviewed = getAreaReviewedCount(area.id);
 											return (
 												<WizardStepDotButton
@@ -1321,6 +1450,29 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 										{selectedArea.itemIds.length} reviewed
 									</AreaReviewedPill>
 								</AreaHeader>
+								{selectedAreaValueSummary?.isReviewed && (
+									<AreaValueSummary role='status'>
+										<strong>{selectedArea.title} is ready to save.</strong>
+										{selectedAreaValueSummary.equipmentCount > 0 ? (
+											<span>
+												This area prepares {selectedAreaValueSummary.equipmentCount}{' '}
+												equipment{' '}
+												{selectedAreaValueSummary.equipmentCount === 1
+													? 'record'
+													: 'records'}{' '}
+												and {selectedAreaValueSummary.taskCount} recurring task{' '}
+												{selectedAreaValueSummary.taskCount === 1 ? 'suggestion' : 'suggestions'}.
+												Applicable Spaces will be connected when you save, giving Maintley
+												more context for future guidance.
+											</span>
+										) : (
+											<span>
+												Your answers are recorded. Items marked Not Present will not create
+												equipment or tasks.
+											</span>
+										)}
+									</AreaValueSummary>
+								)}
 
 								<ItemList>
 									{selectedArea.itemIds.map((itemId) => {
@@ -1365,9 +1517,11 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 													<ItemInfo>
 														<ItemTitle>{item.label}</ItemTitle>
 														<ItemMeta>
-															{existingDevice && status === 'present'
-																? 'Already in Equipment'
-																: status === 'present'
+													{existingDevice && status === 'unknown'
+														? 'Already in Equipment - confirm Present to review'
+														: existingDevice && status === 'present'
+															? 'Already in Equipment'
+														: status === 'present'
 																	? 'Will add when you click Done'
 																	: status === 'not_present'
 																		? 'Not present'
@@ -1521,6 +1675,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 									</NavigationActions>
 								</WizardNavigation>
 							</AreaPanel>
+							)}
 						</ModalBody>
 					</ModalPanel>
 					{isCloseConfirmOpen && (
@@ -1923,6 +2078,93 @@ const ModalBody = styled.div`
 	}
 `;
 
+const SetupPathPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	padding: 22px;
+	overflow-y: auto;
+
+	@media (max-width: 640px) {
+		padding: 16px 14px max(24px, calc(18px + env(safe-area-inset-bottom)));
+		gap: 14px;
+	}
+`;
+
+const SetupPathIntro = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+const DetectedRecordNotice = styled.div`
+	margin-top: 6px;
+	padding: 11px 12px;
+	border: 1px solid ${COLORS.primary};
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.45;
+`;
+
+const SetupPathGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+
+	@media (max-width: 760px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const SetupPathButton = styled.button`
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 9px;
+	min-height: 180px;
+	padding: 16px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 12px;
+	background: ${COLORS.white};
+	color: ${COLORS.textPrimary};
+	text-align: left;
+	cursor: pointer;
+
+	strong {
+		font-size: 16px;
+		line-height: 1.3;
+	}
+
+	span {
+		font-size: 13px;
+		line-height: 1.5;
+		color: ${COLORS.textSecondary};
+	}
+
+	&:hover {
+		border-color: ${COLORS.primary};
+		box-shadow: 0 8px 24px rgba(4, 120, 87, 0.12);
+	}
+
+	&:focus-visible {
+		outline: 3px solid rgba(4, 120, 87, 0.22);
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 760px) {
+		min-height: 0;
+	}
+`;
+
+const SetupPathAction = styled.span`
+	margin-top: auto;
+	font-weight: 800;
+	color: ${COLORS.primary} !important;
+`;
+
 const AreaPanel = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -2036,6 +2278,19 @@ const AreaReviewedPill = styled.div`
 	font-size: 12px;
 	font-weight: 800;
 	padding: 7px 10px;
+`;
+
+const AreaValueSummary = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 11px 12px;
+	border: 1px solid ${COLORS.successLight};
+	border-radius: 10px;
+	background: ${COLORS.successLight};
+	color: ${COLORS.successDark};
+	font-size: 12px;
+	line-height: 1.5;
 `;
 
 const ItemList = styled.div`

@@ -223,13 +223,23 @@ yarn test:rules:all
 yarn init:firestore
 yarn seed:firebase
 yarn seed:demo-account -- --email demo@example.com --plan portfolio
+yarn seed:demo-account -- --email perf@example.com --plan portfolio --property-count 100
+yarn validate:demo-seed
 yarn support:updates
 yarn support:updates:dry-run
 ```
 
 `seed:demo-account` populates an existing Firebase Auth user. Create the demo
 login first, then run a dry-run, then add `--apply` when the summary looks
-right.
+right. Both demo plans include a deterministic exemplary Property with Spaces,
+property-owned Supplies, first-class Documents, Tasks, Maintenance History,
+Intelligence scans, and canonical relationships between those records.
+`--property-count` creates a deterministic Portfolio fixture with 1 to 100
+properties. Counts above the current plan limit are test fixtures only; they do
+not change entitlements. Omit `--apply` to inspect the record summary first.
+`validate:demo-seed` builds Homeowner+ plus 1-, 5-, 15-, and 100-property
+Portfolio fixtures without Firebase access and fails when connected-property
+coverage or Firestore-safe serialization regresses.
 
 ---
 

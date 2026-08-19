@@ -241,6 +241,9 @@ jobs:
       - name: Build functions
         run: yarn --cwd functions build
 
+      - name: Validate Firebase Function export inventory
+        run: yarn validate:functions-exports
+
       - name: Functions unit and integration tests
         run: yarn --cwd functions test:ci
 

@@ -74,6 +74,10 @@ import {
 	isTrialExpired,
 } from '../../utils/subscriptionUtils';
 import {
+	WORKFLOW_SUPPORT_CODES,
+	withWorkflowSupportCode,
+} from '../../utils/workflowSupportCodes';
+import {
 	getDefaultPropertyClassification,
 	isMultiUnitProperty,
 	isResidentialProperty,
@@ -2304,7 +2308,10 @@ export const Properties = () => {
 							spaceError,
 						);
 						feedback.notify(
-							'Property details were saved, but Maintley could not add every Bedroom and Bathroom Space. Please try saving again.',
+							withWorkflowSupportCode(
+								'Property details were saved, but Maintley could not add every Bedroom and Bathroom Space. Please try saving again.',
+								WORKFLOW_SUPPORT_CODES.propertySpaceReconciliation,
+							),
 						);
 					}
 				}
@@ -2430,7 +2437,10 @@ export const Properties = () => {
 						} catch (spaceError) {
 							console.error('Property created but reviewed Spaces were not all created:', spaceError);
 							feedback.notify(
-								'Your property was saved, but Maintley could not add every reviewed Space. The Setup Assistant can safely retry without creating duplicates.',
+								withWorkflowSupportCode(
+									'Your property was saved, but Maintley could not add every reviewed Space. The Setup Assistant can safely retry without creating duplicates.',
+									WORKFLOW_SUPPORT_CODES.propertySpaceReconciliation,
+								),
 							);
 						}
 					}
@@ -2468,7 +2478,10 @@ export const Properties = () => {
 					} catch (visibilityError) {
 						console.error('Failed to update dashboard visibility:', visibilityError);
 						feedback.notify(
-							'Property was created, but dashboard visibility could not be updated. Please try again.',
+							withWorkflowSupportCode(
+								'Property was created, but dashboard visibility could not be updated. Please try again.',
+								WORKFLOW_SUPPORT_CODES.propertyDashboardPreference,
+							),
 						);
 					}
 
@@ -2490,7 +2503,10 @@ export const Properties = () => {
 							} catch (applianceCopyError) {
 								console.error('Failed to copy equipment:', applianceCopyError);
 								feedback.notify(
-									'Property was duplicated, but equipment could not all be copied.',
+									withWorkflowSupportCode(
+										'Property was duplicated, but equipment could not all be copied.',
+										WORKFLOW_SUPPORT_CODES.propertyEquipmentCopy,
+									),
 								);
 							}
 						}
@@ -2504,7 +2520,10 @@ export const Properties = () => {
 							} catch (taskCopyError) {
 								console.error('Failed to copy tasks:', taskCopyError);
 								feedback.notify(
-									'Property was duplicated, but tasks could not all be copied.',
+									withWorkflowSupportCode(
+										'Property was duplicated, but tasks could not all be copied.',
+										WORKFLOW_SUPPORT_CODES.propertyTaskCopy,
+									),
 								);
 							}
 						}

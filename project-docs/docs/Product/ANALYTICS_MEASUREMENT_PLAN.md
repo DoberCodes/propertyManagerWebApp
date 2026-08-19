@@ -27,6 +27,9 @@ parameters allowlisted there may be sent.
 | `signup_completed` | Firebase account creation succeeds | Account conversion |
 | `property_created` | A property transaction succeeds | First property or additional-property adoption |
 | `property_setup_started` | The Setup Assistant opens for an active session | Setup attempt |
+| `property_setup_path_selected` | The user chooses essentials, room-by-room, or report upload | Setup intent by preferred input |
+| `property_setup_path_completed` | A guided setup path is reviewed and saved | Guided setup value created |
+| `property_setup_path_exited` | The user explicitly leaves a selected guided path | Exit location and unsaved-change context |
 | `property_setup_stage_viewed` | A setup area becomes active | Setup progression and abandonment location |
 | `property_setup_completed` | The accepted setup plan reaches completion | Initial property memory established |
 | `equipment_created` | An equipment record is saved | Equipment creation, separated by source |
@@ -76,7 +79,17 @@ landing page view
 
 Setup abandonment is `property_setup_started` without
 `property_setup_completed` in the selected reporting window. Break down the last
-`property_setup_stage_viewed` event to locate the exit stage.
+`property_setup_stage_viewed` event to locate the exit stage. Explicit closes
+also emit `property_setup_path_exited` with the controlled `exit_reason` and
+whether unsaved choices existed; a browser close or expired session remains a
+derived abandonment rather than a misleading synthetic exit.
+
+For the optional property-level assistant, use `property_setup_path_selected`,
+`property_setup_path_completed`, and `property_setup_path_exited` to compare the
+focused essentials and room-by-room paths. Report upload continues into the
+existing `document_uploaded` funnel after its path-selection event. An explicit
+exit is useful context, but cohort abandonment should still be derived from a
+selected path without a later completion.
 
 ### Self-directed activation
 
@@ -93,11 +106,30 @@ this set as the first self-directed value signal:
 
 Do not use Setup Assistant-created equipment or tasks as proof of activation.
 
+### Activated homeowner
+
+`activated_homeowner` is a derived metric, not a client event. A homeowner is
+activated when they create a Property and then complete any two different
+intentional value signals within 14 days:
+
+* manual `document_uploaded`;
+* user-authored `task_created`;
+* user-completed `task_completed` or `maintenance_history_added`;
+* user-requested `property_scan_completed`;
+* user-authored `equipment_updated`; or
+* an accepted reviewed suggestion represented by one of those events with
+  `action_source = ai_suggestion`.
+
+Setup-generated records, imports, route views, and system activity do not count.
+Report median time from `signup_completed` to the first qualifying signal and
+to activation. Preserve the individual signals so the definition can be
+re-evaluated without changing collection behavior.
+
 ### Retention
 
-Seven-day return is an authenticated user with meaningful product activity on
-or after day 7 from `signup_completed`. Route views alone should be reported
-separately from meaningful return activity.
+Report one-, seven-, and thirty-day return as an authenticated user with a
+meaningful product event on or after that interval from `signup_completed`.
+Route views alone should be reported separately from meaningful return activity.
 
 ## GA4 Configuration Handoff
 
@@ -110,6 +142,7 @@ Create event-scoped custom dimensions for:
 * `equipment_type`
 * `equipment_category`
 * `setup_stage`
+* `setup_path`
 * `scan_type`
 * `workflow_name`
 * `workflow_stage`

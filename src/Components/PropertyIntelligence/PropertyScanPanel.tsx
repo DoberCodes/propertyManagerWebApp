@@ -76,9 +76,6 @@ const DEFAULT_VISIBLE_RECOMMENDATIONS = 3;
 const getDismissedStorageKey = (propertyId: string): string =>
 	`maintley:property-scan-v1:dismissed:${propertyId}`;
 
-const getEducationStorageKey = (accountId: string): string =>
-	`maintley:property-scan-v1:education-seen:${accountId}`;
-
 const formatScanDate = (value?: string): string => {
 	if (!value) return 'No scan run yet';
 	const parsed = new Date(value);
@@ -331,11 +328,9 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		panelLabel: isHomeowner ? 'Home Quick Scan' : 'Property Quick Scan',
 		recordNoun: isHomeowner ? 'home record' : 'property record',
 		recordPlural: isHomeowner ? 'home records' : 'property records',
-		possessiveNoun: isHomeowner ? 'home record' : "property's history",
 		subjectNoun: isHomeowner ? 'home' : 'property',
 		historyLabel: isHomeowner ? 'Home History' : 'Property History',
 		locationNoun: isHomeowner ? 'home' : 'property',
-		systemLabelPlural: 'equipment records',
 		memoryLabel: isHomeowner ? 'Home Memory' : 'Property Memory',
 	};
 	const [dismissedIds, setDismissedIds] = useState<string[]>([]);
@@ -346,7 +341,6 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 	const [isQuickScanCollapsed, setIsQuickScanCollapsed] = useState(true);
 	const [scanProgressMessage, setScanProgressMessage] = useState('');
 	const [scanSaveError, setScanSaveError] = useState('');
-	const [showQuickScanEducation, setShowQuickScanEducation] = useState(false);
 	const [isQuickScanInfoOpen, setIsQuickScanInfoOpen] = useState(false);
 	const [detailRecommendation, setDetailRecommendation] =
 		useState<PropertyScanRecommendation | null>(null);
@@ -387,12 +381,6 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 			active: !isFreePlan,
 		},
 	];
-	const educationAccountId = getPropertyAccountId(
-		property,
-		String((currentUser as any)?.accountId || '').trim(),
-		String(currentUser?.id || '').trim(),
-	);
-
 	useEffect(() => {
 		if (typeof window === 'undefined') {
 			setLastScanSnapshot(null);
@@ -412,17 +400,6 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		setScanSaveError('');
 		setDetailRecommendation(null);
 	}, [property.id]);
-
-	useEffect(() => {
-		if (typeof window === 'undefined' || !educationAccountId) {
-			setShowQuickScanEducation(false);
-			return;
-		}
-
-		setShowQuickScanEducation(
-			window.localStorage.getItem(getEducationStorageKey(educationAccountId)) !== 'true',
-		);
-	}, [educationAccountId]);
 
 	useEffect(() => {
 		if (!isRunningScan) {
@@ -548,18 +525,7 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 		}
 	};
 
-	const handleDismissQuickScanEducation = () => {
-		setShowQuickScanEducation(false);
-		if (typeof window !== 'undefined' && educationAccountId) {
-			window.localStorage.setItem(
-				getEducationStorageKey(educationAccountId),
-				'true',
-			);
-		}
-	};
-
 	const handleOpenQuickScanInfo = () => {
-		handleDismissQuickScanEducation();
 		setIsQuickScanInfoOpen(true);
 	};
 
@@ -660,14 +626,9 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 						</CollapseButton>
 					</ScanTitleRow>
 					<ScanText>
-						Maintley reviews your {scanLanguage.possessiveNoun},{' '}
-						{scanLanguage.systemLabelPlural}, maintenance
-						records, and documents to identify the few items most likely to
-						improve your records or reduce future maintenance surprises.
-						Maintley Intelligence provides recommendations based on the
-						information recorded for your {scanLanguage.subjectNoun}. It does not inspect your{' '}
-						{scanLanguage.subjectNoun}, verify equipment condition, or replace professional
-						maintenance advice or inspections.
+						Review a short, prioritized list based on the records saved for
+						this {scanLanguage.subjectNoun}. Maintley explains the evidence
+						behind each next step before you act.
 					</ScanText>
 				</ScanTitleBlock>
 				<ScanActions>
@@ -737,28 +698,6 @@ export const PropertyScanPanel: React.FC<PropertyScanPanelProps> = ({
 					</IntelligenceDepthFooter>
 				) : null}
 			</IntelligenceDepthCard>
-			{showQuickScanEducation ? (
-				<QuickScanEducation>
-					<div>
-							<strong>New to {scanLanguage.panelLabel}?</strong>
-							<span>
-								{isFreePlan
-									? `Maintley Intelligence starts with your ${scanLanguage.recordNoun} and shows the most useful Home Memory gaps to review next.`
-									: `Maintley Intelligence combines your ${scanLanguage.recordNoun} with maintenance knowledge, history, and context to help you plan ahead.`}
-						</span>
-					</div>
-					<EducationActions>
-						<EducationButton type='button' onClick={handleOpenQuickScanInfo}>
-							Learn More
-						</EducationButton>
-						<EducationDismissButton
-							type='button'
-							onClick={handleDismissQuickScanEducation}>
-							Not now
-						</EducationDismissButton>
-					</EducationActions>
-				</QuickScanEducation>
-			) : null}
 			{scanSaveError ? <ErrorResult>{scanSaveError}</ErrorResult> : null}
 
 			{isLoadingLatestScan ? (
@@ -1370,56 +1309,6 @@ const InfoButton = styled.button`
 		outline-offset: 2px;
 		border-radius: 4px;
 	}
-`;
-
-const QuickScanEducation = styled.div`
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 14px;
-	border-left: 3px solid ${COLORS.primaryDark};
-	background: ${COLORS.primaryLight};
-	padding: 12px 14px;
-	color: ${COLORS.primaryDark};
-
-	> div:first-child {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		font-size: 13px;
-		line-height: 1.45;
-	}
-
-	@media (max-width: 640px) {
-		align-items: flex-start;
-		flex-direction: column;
-	}
-`;
-
-const EducationActions = styled.div`
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-wrap: wrap;
-`;
-
-const EducationButton = styled.button`
-	border: 0;
-	background: transparent;
-	color: ${COLORS.primaryDark};
-	font-size: 13px;
-	font-weight: 700;
-	padding: 4px 0;
-	cursor: pointer;
-
-	&:hover {
-		text-decoration: underline;
-	}
-`;
-
-const EducationDismissButton = styled(EducationButton)`
-	color: #475569;
-	font-weight: 600;
 `;
 
 const QuickScanInfoBody = styled.div`

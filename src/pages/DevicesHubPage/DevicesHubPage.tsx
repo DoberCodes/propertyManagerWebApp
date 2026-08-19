@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -50,6 +50,10 @@ import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedback
 import type { PendingEquipmentSupplyDraft } from '../../Components/EquipmentSuppliesReview/EquipmentSuppliesReview';
 import { buildEquipmentSupplyLinkUpdates } from '../../propertyKnowledge/equipmentSupplyConnections';
 import {
+	readCollapsedGroupPreference,
+	writeCollapsedGroupPreference,
+} from '../../utils/listViewPreferences';
+import {
 	AppPage as StandardAppPage,
 	AppPageHeader as StandardAppPageHeader,
 	AppPageSubtitle as StandardAppPageSubtitle,
@@ -100,6 +104,7 @@ import {
 	StatusPill,
 	Value
 } from './DeviceHubPage.styles';
+import { formatRelativeCalendarTime } from '../../utils/dateDisplay';
 
 
 const toDate = (value?: string): Date | null => {
@@ -115,23 +120,7 @@ const formatDate = (value?: string): string => {
 	return date.toLocaleDateString();
 };
 
-const formatRelativeTime = (value?: string): string => {
-	const date = toDate(value);
-	if (!date) return 'recently';
-
-	const diffMs = Date.now() - date.getTime();
-	const diffDays = Math.round(Math.abs(diffMs) / 86400000);
-
-	if (diffDays === 0) return diffMs >= 0 ? 'today' : 'later today';
-	if (diffDays === 1) return diffMs >= 0 ? 'yesterday' : 'tomorrow';
-	if (diffDays < 7) return diffMs >= 0 ? `${diffDays} days ago` : `in ${diffDays} days`;
-	if (diffDays < 30) {
-		const weeks = Math.round(diffDays / 7);
-		return diffMs >= 0 ? `${weeks} weeks ago` : `in ${weeks} weeks`;
-	}
-	const months = Math.round(diffDays / 30);
-	return diffMs >= 0 ? `${months} months ago` : `in ${months} months`;
-};
+const formatRelativeTime = formatRelativeCalendarTime;
 
 const isOpenTask = (task: any): boolean => String(task?.status || '') !== 'Completed';
 
@@ -310,6 +299,15 @@ const equipmentGroupOrder: EquipmentGroupId[] = [
 	'other',
 ];
 
+const DEFAULT_COLLAPSED_EQUIPMENT_GROUPS: Record<EquipmentGroupId, boolean> = {
+	comfort: true,
+	safety: true,
+	exterior: true,
+	utilities: true,
+	appliances: true,
+	other: true,
+};
+
 const getEquipmentGroupId = (device: Device): EquipmentGroupId => {
 	const context = [
 		device.type,
@@ -423,16 +421,18 @@ export const DevicesHubPage: React.FC = () => {
 	const [draftStatusFilter, setDraftStatusFilter] =
 		useState<typeof statusFilter>('All');
 	const [draftPropertyFilter, setDraftPropertyFilter] = useState('');
+	const equipmentGroupPreferenceKey = `maintley:equipment:collapsed:${currentUser?.id || 'anonymous'}`;
+	const initialEquipmentGroupPreference = readCollapsedGroupPreference(
+		typeof window === 'undefined' ? null : window.localStorage,
+		equipmentGroupPreferenceKey,
+		DEFAULT_COLLAPSED_EQUIPMENT_GROUPS,
+	);
+	const hasSavedEquipmentGroupPreference = useRef(
+		initialEquipmentGroupPreference.wasSaved,
+	);
 	const [collapsedEquipmentGroups, setCollapsedEquipmentGroups] = useState<
 		Record<EquipmentGroupId, boolean>
-	>({
-		comfort: false,
-		safety: false,
-		exterior: false,
-		utilities: false,
-		appliances: false,
-		other: false,
-	});
+	>(() => initialEquipmentGroupPreference.value);
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
 	const [isSavingDevice, setIsSavingDevice] = useState(false);
 	const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
@@ -994,15 +994,59 @@ export const DevicesHubPage: React.FC = () => {
 				id: groupId,
 				...equipmentGroupDetails[groupId],
 				rows: groups.get(groupId) || [],
+				attentionCount: (groups.get(groupId) || []).filter(
+					(row) =>
+						row.status === 'Broken' ||
+						row.status === 'Maintenance' ||
+						row.openTaskCount > 0,
+				).length,
 			}))
-			.filter((group) => group.rows.length > 0);
+			.filter((group) => group.rows.length > 0)
+			.sort((left, right) => {
+				if (right.attentionCount !== left.attentionCount) {
+					return right.attentionCount - left.attentionCount;
+				}
+				return (
+					equipmentGroupOrder.indexOf(left.id) -
+					equipmentGroupOrder.indexOf(right.id)
+				);
+			});
 	}, [filteredDeviceRows]);
 
+	useEffect(() => {
+		if (
+			hasSavedEquipmentGroupPreference.current ||
+			equipmentGroups.length === 0
+		) {
+			return;
+		}
+
+		const next = { ...DEFAULT_COLLAPSED_EQUIPMENT_GROUPS };
+		equipmentGroups.forEach((group) => {
+			next[group.id] = group.attentionCount === 0;
+		});
+		hasSavedEquipmentGroupPreference.current = true;
+		setCollapsedEquipmentGroups(next);
+		writeCollapsedGroupPreference(
+			window.localStorage,
+			equipmentGroupPreferenceKey,
+			next,
+		);
+	}, [equipmentGroupPreferenceKey, equipmentGroups]);
+
 	const toggleEquipmentGroup = (groupId: EquipmentGroupId) => {
-		setCollapsedEquipmentGroups((current) => ({
-			...current,
-			[groupId]: !current[groupId],
-		}));
+		setCollapsedEquipmentGroups((current) => {
+			const next = {
+				...current,
+				[groupId]: !current[groupId],
+			};
+			writeCollapsedGroupPreference(
+				typeof window === 'undefined' ? null : window.localStorage,
+				equipmentGroupPreferenceKey,
+				next,
+			);
+			return next;
+		});
 	};
 
 	const needsAttentionCount = useMemo(
@@ -1366,9 +1410,11 @@ export const DevicesHubPage: React.FC = () => {
 									aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${group.label}`}>
 									<EquipmentGroupTitleBlock>
 										<EquipmentGroupTitle>{group.label}</EquipmentGroupTitle>
-										<EquipmentGroupDescription>
-											{group.description}
-										</EquipmentGroupDescription>
+									<EquipmentGroupDescription>
+										{group.attentionCount > 0
+											? `${group.attentionCount} ${group.attentionCount === 1 ? 'record needs' : 'records need'} attention. ${group.description}`
+											: `No immediate attention recorded. ${group.description}`}
+									</EquipmentGroupDescription>
 									</EquipmentGroupTitleBlock>
 									<EquipmentGroupMeta>
 										<EquipmentGroupBadge>{group.rows.length}</EquipmentGroupBadge>

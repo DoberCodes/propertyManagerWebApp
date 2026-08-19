@@ -46,7 +46,7 @@ describe('Maintley Intelligence readiness', () => {
 		expect(result).not.toHaveProperty('percentage');
 	});
 
-	it('marks recognized equipment context ready without grading record completeness', () => {
+	it('labels recognized equipment context as recorded without grading completeness', () => {
 		const result = deriveMaintleyIntelligenceReadiness({
 			systems: [system()],
 			tasks: [],
@@ -54,10 +54,10 @@ describe('Maintley Intelligence readiness', () => {
 		});
 
 		expect(result.categories[0]).toEqual(
-			expect.objectContaining({
-				id: 'equipment_context',
-				level: 'ready',
-				levelLabel: 'Ready',
+				expect.objectContaining({
+					id: 'equipment_context',
+					level: 'ready',
+					levelLabel: 'Recorded',
 			}),
 		);
 	});
@@ -85,10 +85,11 @@ describe('Maintley Intelligence readiness', () => {
 		});
 
 		expect(result.categories[1]).toEqual(
-			expect.objectContaining({
-				id: 'maintenance_coverage',
-				level: 'ready',
-			}),
+				expect.objectContaining({
+					id: 'maintenance_coverage',
+					level: 'ready',
+					levelLabel: 'Scheduled',
+				}),
 		);
 	});
 
@@ -136,7 +137,7 @@ describe('Maintley Intelligence readiness', () => {
 		);
 	});
 
-	it('marks linked service history ready', () => {
+	it('keeps one linked service event in building history', () => {
 		const result = deriveMaintleyIntelligenceReadiness({
 			systems: [system()],
 			tasks: [],
@@ -152,9 +153,14 @@ describe('Maintley Intelligence readiness', () => {
 		});
 
 		expect(result.categories[2]).toEqual(
-			expect.objectContaining({
-				id: 'service_history',
-				level: 'ready',
+				expect.objectContaining({
+					id: 'service_history',
+					level: 'building_context',
+					levelLabel: 'Building history',
+					evidence: expect.objectContaining({
+						historyLinkedRecords: 1,
+						patternRecords: 0,
+					}),
 			}),
 		);
 	});
@@ -175,6 +181,12 @@ describe('Maintley Intelligence readiness', () => {
 		});
 
 		expect(result.categories[2].evidence.patternRecords).toBe(1);
+		expect(result.categories[2]).toEqual(
+			expect.objectContaining({
+				level: 'ready',
+				levelLabel: 'Informed',
+			}),
+		);
 	});
 
 	it('aggregates independently derived property readiness without creating a score', () => {

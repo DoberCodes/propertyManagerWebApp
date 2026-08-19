@@ -15,10 +15,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const { createHash } = require('crypto');
 
-const DEMO_SCHEMA_VERSION = 1;
+const DEMO_SCHEMA_VERSION = 2;
 const DEFAULT_HISTORY_YEARS = 4;
 const VALID_PLANS = new Set(['homeowner_plus', 'portfolio']);
+const PERFORMANCE_FIXTURE_PROPERTY_COUNTS = [1, 5, 15, 100];
 
 const COLLECTIONS_TO_REPLACE = [
 	'propertyScanLatest',
@@ -28,6 +30,10 @@ const COLLECTIONS_TO_REPLACE = [
 	'teamMembers',
 	'teamGroups',
 	'contractors',
+	'propertyKnowledgeLinks',
+	'propertyDocuments',
+	'propertySupplies',
+	'propertySpaces',
 	'maintenanceEvents',
 	'tasks',
 	'devices',
@@ -396,6 +402,7 @@ function parseArgs(argv) {
 	const args = {
 		apply: false,
 		replace: false,
+		validateFixture: false,
 		historyYears: DEFAULT_HISTORY_YEARS,
 		asOf: new Date().toISOString().slice(0, 10),
 	};
@@ -404,6 +411,8 @@ function parseArgs(argv) {
 		const token = argv[index];
 		if (token === '--apply') {
 			args.apply = true;
+		} else if (token === '--validate-fixture') {
+			args.validateFixture = true;
 		} else if (token === '--replace') {
 			args.replace = true;
 		} else if (token === '--email') {
@@ -416,6 +425,8 @@ function parseArgs(argv) {
 			args.plan = normalizePlan(argv[++index]);
 		} else if (token === '--history-years') {
 			args.historyYears = Number(argv[++index]);
+		} else if (token === '--property-count') {
+			args.propertyCount = Number(argv[++index]);
 		} else if (token === '--as-of') {
 			args.asOf = argv[++index];
 		} else if (token === '--service-account') {
@@ -456,15 +467,17 @@ Options:
   --account-id <accountId>    Override account id; defaults to user accountId or uid
   --plan <plan>               homeowner_plus or portfolio
   --history-years <years>     Number of years of maintenance history, default 4
+  --property-count <count>    Portfolio fixture size from 1 to 100
   --as-of <YYYY-MM-DD>        Anchor date for generated history and active tasks
   --replace                   Remove prior demo records for this account and plan
   --apply                     Write to Firebase; omitted means dry-run
   --service-account <path>    Service account JSON path; defaults to serviceAccountKey.json
+  --validate-fixture          Validate both deterministic demo plans without Firebase access
 `);
 }
 
 function assertValidArgs(args) {
-	if (args.help) return;
+	if (args.help || args.validateFixture) return;
 	if (!args.email && !args.uid) {
 		throw new Error('Provide --email or --uid.');
 	}
@@ -473,6 +486,17 @@ function assertValidArgs(args) {
 	}
 	if (!Number.isInteger(args.historyYears) || args.historyYears < 1) {
 		throw new Error('--history-years must be a positive integer.');
+	}
+	if (
+		args.propertyCount !== undefined &&
+		(!Number.isInteger(args.propertyCount) ||
+			args.propertyCount < 1 ||
+			args.propertyCount > 100)
+	) {
+		throw new Error('--property-count must be an integer from 1 to 100.');
+	}
+	if (args.propertyCount !== undefined && args.plan !== 'portfolio') {
+		throw new Error('--property-count is available only for the portfolio fixture.');
 	}
 	if (Number.isNaN(new Date(`${args.asOf}T00:00:00.000Z`).getTime())) {
 		throw new Error('--as-of must be a valid YYYY-MM-DD date.');
@@ -526,6 +550,25 @@ function slugify(value) {
 
 function makeId(seedId, ...parts) {
 	return [seedId, ...parts.map(sanitizeId)].filter(Boolean).join('-');
+}
+
+function makeKnowledgeLinkId({
+	propertyId,
+	fromType,
+	fromId,
+	relationshipType,
+	toType,
+	toId,
+}) {
+	const canonical = [
+		propertyId,
+		fromType,
+		fromId,
+		relationshipType,
+		toType,
+		toId,
+	].join('|');
+	return `pkl_${createHash('sha256').update(canonical).digest('hex')}`;
 }
 
 function toDate(value) {
@@ -626,6 +669,45 @@ function assertRecordsDoNotContainUndefined(records) {
 	);
 }
 
+function assertDemoKnowledgeCoverage(plan) {
+	const collectionCount = (collection) =>
+		plan.records.filter((record) => record.collection === collection).length;
+	const knowledgeLinks = plan.records.filter(
+		(record) => record.collection === 'propertyKnowledgeLinks',
+	);
+	const relationshipCount = (fromType, relationshipType, toType) =>
+		knowledgeLinks.filter(
+			(record) =>
+				record.data.fromType === fromType &&
+				record.data.relationshipType === relationshipType &&
+				record.data.toType === toType,
+		).length;
+
+	const requirements = [
+		['propertySpaces', collectionCount('propertySpaces'), 4],
+		['propertySupplies', collectionCount('propertySupplies'), 3],
+		['propertyDocuments', collectionCount('propertyDocuments'), 2],
+		[
+			'equipment located_in Space links',
+			relationshipCount('equipment', 'located_in', 'space'),
+			2,
+		],
+		['equipment uses Supply links', relationshipCount('equipment', 'uses', 'supply'), 1],
+		['task occurs_in Space links', relationshipCount('task', 'occurs_in', 'space'), 1],
+		['task uses Supply links', relationshipCount('task', 'uses', 'supply'), 1],
+		['Document relationship links', relationshipCount('document', 'documents', 'space') + relationshipCount('document', 'documents', 'equipment') + relationshipCount('document', 'documents', 'supply'), 3],
+	];
+	const missing = requirements.filter(([, actual, minimum]) => actual < minimum);
+
+	if (missing.length === 0) return;
+
+	throw new Error(
+		`Generated demo plan is missing required connected-property coverage:\n${missing
+			.map(([label, actual, minimum]) => `  ${label}: ${actual}/${minimum}`)
+			.join('\n')}`,
+	);
+}
+
 function subscriptionForPlan(plan, asOfDate) {
 	const start = Math.floor(addDays(asOfDate, -30).getTime() / 1000);
 	const end = Math.floor(addYears(asOfDate, 1).getTime() / 1000);
@@ -637,6 +719,22 @@ function subscriptionForPlan(plan, asOfDate) {
 		trialEndsAt: null,
 		updatedAt: isoDateTime(asOfDate),
 	};
+}
+
+function buildPortfolioPropertyTemplates(requestedCount) {
+	const count = requestedCount || PORTFOLIO_PROPERTIES.length;
+	return Array.from({ length: count }, (_, index) => {
+		const source = PORTFOLIO_PROPERTIES[index % PORTFOLIO_PROPERTIES.length];
+		if (index < PORTFOLIO_PROPERTIES.length) return source;
+
+		const sequence = index + 1;
+		return {
+			...source,
+			key: `${source.key}-fixture-${sequence}`,
+			title: `${source.title} ${sequence}`,
+			address: `${1000 + sequence} Performance Fixture Road, Austin, TX 78701`,
+		};
+	});
 }
 
 async function resolveTarget(admin, args) {
@@ -696,7 +794,9 @@ function buildDemoData(target, args) {
 	const nowIso = isoDateTime(asOfDate);
 	const subscription = subscriptionForPlan(args.plan, asOfDate);
 	const propertyTemplates =
-		args.plan === 'portfolio' ? PORTFOLIO_PROPERTIES : HOMEOWNER_PROPERTY;
+		args.plan === 'portfolio'
+			? buildPortfolioPropertyTemplates(args.propertyCount)
+			: HOMEOWNER_PROPERTY;
 	const groups = args.plan === 'portfolio' ? PORTFOLIO_GROUPS : [];
 	const records = [];
 	const summary = {};
@@ -718,6 +818,39 @@ function buildDemoData(target, args) {
 	const addUntaggedRecord = (collection, id, data) => {
 		records.push({ collection, id, data: removeUndefinedValues(data) });
 		summary[collection] = (summary[collection] || 0) + 1;
+	};
+
+	const addKnowledgeLink = ({
+		propertyId,
+		fromType,
+		fromId,
+		relationshipType,
+		toType,
+		toId,
+	}) => {
+		const id = makeKnowledgeLinkId({
+			propertyId,
+			fromType,
+			fromId,
+			relationshipType,
+			toType,
+			toId,
+		});
+		addRecord('propertyKnowledgeLinks', id, {
+			id,
+			accountId: target.accountId,
+			propertyId,
+			fromType,
+			fromId,
+			relationshipType,
+			toType,
+			toId,
+			source: 'migration',
+			createdAt: nowIso,
+			createdBy: target.uid,
+			updatedAt: nowIso,
+			updatedBy: target.uid,
+		});
 	};
 
 	addUntaggedRecord('users', target.uid, {
@@ -920,6 +1053,174 @@ function buildDemoData(target, args) {
 			createdAt: isoDateTime(propertyCreated),
 			updatedAt: nowIso,
 		});
+
+		if (index === 0) {
+			const spaces = [
+				{ key: 'kitchen', name: 'Kitchen', type: 'interior', sortOrder: 10 },
+				{
+					key: 'mechanical-room',
+					name: 'Mechanical Room',
+					type: 'utility',
+					sortOrder: 20,
+				},
+				{ key: 'garage', name: 'Garage', type: 'storage', sortOrder: 30 },
+				{ key: 'exterior', name: 'Exterior', type: 'exterior', sortOrder: 40 },
+			];
+			spaces.forEach((space) => {
+				const spaceId = makeId(seedId, 'space', property.key, space.key);
+				addRecord('propertySpaces', spaceId, {
+					id: spaceId,
+					accountId: target.accountId,
+					propertyId,
+					name: space.name,
+					type: space.type,
+					sortOrder: space.sortOrder,
+					isArchived: false,
+					source: 'migration',
+					createdBy: target.uid,
+					updatedBy: target.uid,
+					createdAt: isoDateTime(propertyCreated),
+					updatedAt: nowIso,
+				});
+			});
+
+			const supplies = [
+				{
+					key: 'hvac-filter',
+					name: 'HVAC Filter 20x25x1',
+					type: 'filter',
+					manufacturer: 'Filtrete',
+					modelOrSku: 'MPR-1000-20X25X1',
+					size: '20x25x1',
+					mervRating: '11',
+					replacementInterval: 'Every 3 months',
+				},
+				{
+					key: 'detector-battery',
+					name: 'Smoke and CO Detector Batteries',
+					type: 'electrical',
+					manufacturer: 'Energizer',
+					modelOrSku: '9V-MAX',
+					size: '9V',
+					replacementInterval: 'Yearly',
+				},
+				{
+					key: 'exterior-paint',
+					name: 'Exterior Trim Paint',
+					type: 'paint_and_finish',
+					manufacturer: 'Sherwin-Williams',
+					modelOrSku: 'Duration Exterior',
+					details: 'Satin finish, warm white demo color.',
+				},
+			];
+			supplies.forEach((supply) => {
+				const supplyId = makeId(seedId, 'supply', property.key, supply.key);
+				addRecord('propertySupplies', supplyId, {
+					id: supplyId,
+					accountId: target.accountId,
+					propertyId,
+					...supply,
+					key: undefined,
+					isArchived: false,
+					source: 'migration',
+					createdBy: target.uid,
+					updatedBy: target.uid,
+					createdAt: isoDateTime(propertyCreated),
+					updatedAt: nowIso,
+				});
+			});
+
+			documents.forEach((document) => {
+				addRecord('propertyDocuments', document.id, {
+					...document,
+					accountId: target.accountId,
+					updatedAt: nowIso,
+				});
+			});
+
+			const hvacId = makeId(seedId, 'device', property.key, 'hvac');
+			const roofId = makeId(seedId, 'device', property.key, 'roof');
+			const mechanicalSpaceId = makeId(
+				seedId,
+				'space',
+				property.key,
+				'mechanical-room',
+			);
+			const exteriorSpaceId = makeId(
+				seedId,
+				'space',
+				property.key,
+				'exterior',
+			);
+			const filterSupplyId = makeId(
+				seedId,
+				'supply',
+				property.key,
+				'hvac-filter',
+			);
+			const paintSupplyId = makeId(
+				seedId,
+				'supply',
+				property.key,
+				'exterior-paint',
+			);
+			addKnowledgeLink({
+				propertyId,
+				fromType: 'equipment',
+				fromId: hvacId,
+				relationshipType: 'located_in',
+				toType: 'space',
+				toId: mechanicalSpaceId,
+			});
+			addKnowledgeLink({
+				propertyId,
+				fromType: 'equipment',
+				fromId: roofId,
+				relationshipType: 'located_in',
+				toType: 'space',
+				toId: exteriorSpaceId,
+			});
+			addKnowledgeLink({
+				propertyId,
+				fromType: 'equipment',
+				fromId: hvacId,
+				relationshipType: 'uses',
+				toType: 'supply',
+				toId: filterSupplyId,
+			});
+			addKnowledgeLink({
+				propertyId,
+				fromType: 'space',
+				fromId: exteriorSpaceId,
+				relationshipType: 'uses',
+				toType: 'supply',
+				toId: paintSupplyId,
+			});
+			addKnowledgeLink({
+				propertyId,
+				fromType: 'document',
+				fromId: documents[0].id,
+				relationshipType: 'documents',
+				toType: 'space',
+				toId: mechanicalSpaceId,
+			});
+			addKnowledgeLink({
+				propertyId,
+				fromType: 'document',
+				fromId: documents[1].id,
+				relationshipType: 'documents',
+				toType: 'equipment',
+				toId: hvacId,
+			});
+			addKnowledgeLink({
+				propertyId,
+				fromType: 'document',
+				fromId: documents[1].id,
+				relationshipType: 'documents',
+				toType: 'supply',
+				toId: filterSupplyId,
+			});
+		}
 
 		if (groupId) {
 			addRecord('propertyGroupMemberships', `${groupId}_${propertyId}`, {
@@ -1169,6 +1470,35 @@ function buildDemoData(target, args) {
 					createdAt: isoDateTime(addDays(asOfDate, -45)),
 					updatedAt: nowIso,
 				});
+
+				if (propertyIndex === 0 && task.key === 'hvac-filter') {
+					addKnowledgeLink({
+						propertyId,
+						fromType: 'task',
+						fromId: taskId,
+						relationshipType: 'occurs_in',
+						toType: 'space',
+						toId: makeId(
+							seedId,
+							'space',
+							property.key,
+							'mechanical-room',
+						),
+					});
+					addKnowledgeLink({
+						propertyId,
+						fromType: 'task',
+						fromId: taskId,
+						relationshipType: 'uses',
+						toType: 'supply',
+						toId: makeId(
+							seedId,
+							'supply',
+							property.key,
+							'hvac-filter',
+						),
+					});
+				}
 			}
 		});
 	});
@@ -1352,11 +1682,42 @@ async function main() {
 	}
 
 	assertValidArgs(args);
+	if (args.validateFixture) {
+		for (const planName of VALID_PLANS) {
+			const propertyCounts =
+				planName === 'portfolio'
+					? PERFORMANCE_FIXTURE_PROPERTY_COUNTS
+					: [undefined];
+			for (const propertyCount of propertyCounts) {
+				const fixtureArgs = {
+					...args,
+					plan: planName,
+					propertyCount,
+				};
+				const plan = buildDemoData(
+					{
+						uid: `demo-${planName}-owner`,
+						accountId: `demo-${planName}-account`,
+						email: `${planName}@example.com`,
+						existingUserData: {},
+					},
+					fixtureArgs,
+				);
+				assertRecordsDoNotContainUndefined(plan.records);
+				assertDemoKnowledgeCoverage(plan);
+				console.log(
+					`Validated ${planName} (${plan.propertyCount} properties): ${plan.records.length} records across ${Object.keys(plan.summary).length} collections.`,
+				);
+			}
+		}
+		return;
+	}
 	const admin = loadAdmin(args);
 	const db = admin.firestore();
 	const target = await resolveTarget(admin, args);
 	const plan = buildDemoData(target, args);
 	assertRecordsDoNotContainUndefined(plan.records);
+	assertDemoKnowledgeCoverage(plan);
 	printSummary({ args, target, plan });
 
 	if (!args.apply) {

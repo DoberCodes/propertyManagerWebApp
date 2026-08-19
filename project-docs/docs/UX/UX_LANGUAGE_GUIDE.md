@@ -441,11 +441,11 @@ Documentation Score: 41%
 Maintley Intelligence should encourage progress.
 
 Maintley Intelligence readiness may describe whether saved records support a
-specific kind of guidance. Use categorical, explainable levels:
+specific kind of guidance. Use capability-specific, explainable labels:
 
-* Starting
-* Building context
-* Ready
+* Recorded
+* Scheduled
+* Informed
 
 Pair every level with what Maintley can currently do and one useful next step.
 Readiness describes Maintley's available context, not the property's physical
@@ -454,10 +454,10 @@ condition, the customer's performance, or subscription access.
 Use:
 
 ```text
-Equipment context - Building context
+Equipment context - Partly recorded
 
-Maintley can suggest general care for the systems you added. Add installation
-details for more specific guidance.
+Maintley recognizes some of the systems you added. Choose the missing equipment
+types for more specific guidance.
 ```
 
 Avoid:

@@ -29,3 +29,30 @@ export const formatDisplayDate = (
 export const getDisplayDateTime = (value?: string | Date | null): number => {
 	return parseDisplayDate(value)?.getTime() || 0;
 };
+
+export const formatRelativeCalendarTime = (
+	value?: string | Date | null,
+	now = new Date(),
+): string => {
+	const date = parseDisplayDate(value);
+	if (!date) return 'recently';
+
+	const diffMs = now.getTime() - date.getTime();
+	const diffDays = Math.round(Math.abs(diffMs) / 86400000);
+	const direction = diffMs >= 0 ? 'past' : 'future';
+
+	if (diffDays === 0) return direction === 'past' ? 'today' : 'later today';
+	if (diffDays === 1) return direction === 'past' ? 'yesterday' : 'tomorrow';
+	if (diffDays < 7) {
+		return direction === 'past' ? `${diffDays} days ago` : `in ${diffDays} days`;
+	}
+	if (diffDays < 30) {
+		const weeks = Math.max(1, Math.round(diffDays / 7));
+		const label = `${weeks} week${weeks === 1 ? '' : 's'}`;
+		return direction === 'past' ? `${label} ago` : `in ${label}`;
+	}
+
+	const months = Math.max(1, Math.round(diffDays / 30));
+	const label = `${months} month${months === 1 ? '' : 's'}`;
+	return direction === 'past' ? `${label} ago` : `in ${label}`;
+};

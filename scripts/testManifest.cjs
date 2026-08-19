@@ -1,4 +1,5 @@
 const rootScriptTests = [
+	'androidReleaseContract.test.cjs',
 	'bootstrapEnvironment.test.cjs',
 	'checkEntitlementPackageVersion.test.cjs',
 	'checkEquipmentTerminology.test.cjs',
@@ -8,6 +9,7 @@ const rootScriptTests = [
 	'environmentContract.test.cjs',
 	'extractReleasePullRequestNotes.test.cjs',
 	'firebaseDeploymentSafety.test.cjs',
+	'firestoreIndexContract.test.cjs',
 	'frontendBuildProfile.test.cjs',
 	'generatePullRequestSummary.test.cjs',
 	'generateReleaseNotes.test.cjs',
