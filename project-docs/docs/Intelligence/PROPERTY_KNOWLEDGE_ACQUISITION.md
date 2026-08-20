@@ -83,7 +83,7 @@ same deterministic visit interpreter after format-specific extraction.
 Recognized text-based general home-inspection PDFs and DOCX files use a separate staged interpreter that
 first preserves report sections, observations, specifications, and explicit
 recommendations before mapping them to reviewable Equipment and Task candidates.
-The `inspection-v3` interpreter recognizes both simple headings such as
+The `inspection-v4` interpreter recognizes both simple headings such as
 **Electrical** and compound headings such as **Electrical and Life Safety** or
 **Heating, Cooling, and Plumbing**. A compound section may participate in more
 than one system category so controlled equipment and recommendations are not
@@ -93,6 +93,12 @@ filter size, and other specifications do not leak between adjacent assets. It
 also recognizes explicitly listed reusable supplies and proposes them as
 Property-owned Supplies linked to the reviewed Equipment rather than as
 additional Equipment records.
+Inspection v4 records exact Equipment suggestion relationships rather than
+relying only on broad asset types. This allows a filter recommendation to
+target the Air Handler instead of another HVAC record and allows one Task, such
+as smoke and carbon-monoxide alarm testing, to link to multiple Equipment
+records. Older suggestions without exact relationship identifiers continue to
+use the type-and-subtype compatibility matcher.
 Maintley does not perform AI
 extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
 this phase.
@@ -131,6 +137,16 @@ not infer that maintenance occurred.
 Inspection recommendations without a stated due date are created as **Not
 scheduled** when accepted. Repeated recommendations in system sections and a
 maintenance summary are deduplicated before review.
+Relative timing such as **within 14 days** remains visible as report evidence
+without silently becoming a calculated due date. The reviewer may choose a due
+date or ASAP during review.
+
+The inspection review shows editable proposed Equipment details, including
+manufacturer, model, serial number, installation date, reported location,
+filter size, and specifications. Task and Supply cards show their proposed
+Equipment links and allow the reviewer to add or remove relationships before
+saving. The apply flow resolves exact suggestion identifiers only after matched
+or approved new Equipment records have stable IDs.
 
 Inspection recommendation classification remains evidence-scoped. Refrigerator
 filter wording is resolved before general HVAC-filter wording, tankless

@@ -51,15 +51,33 @@ type ReviewKnowledgeSuggestionInput = {
 	fieldReviewStatuses?: Record<string, { accepted?: boolean }>;
 	partValues?: Record<
 		string,
-		{ name?: string; category?: string; accepted?: boolean }
+		{
+			name?: string;
+			category?: string;
+			accepted?: boolean;
+			matchedDeviceIds?: string[];
+			relatedEquipmentSuggestionIds?: string[];
+		}
 	>;
 	taskValues?: Record<
 		string,
-		{ title?: string; description?: string; accepted?: boolean; matchedDeviceId?: string }
+		{
+			title?: string;
+			description?: string;
+			accepted?: boolean;
+			matchedDeviceId?: string;
+			matchedDeviceIds?: string[];
+			relatedEquipmentSuggestionIds?: string[];
+		}
 	>;
 	equipmentValues?: Record<
 		string,
-		{ accepted?: boolean; matchedDeviceId?: string; skipReason?: string }
+		{
+			accepted?: boolean;
+			matchedDeviceId?: string;
+			skipReason?: string;
+			details?: PropertyKnowledgeEquipmentSuggestion['details'];
+		}
 	>;
 };
 
@@ -99,6 +117,8 @@ type ApplyKnowledgeSuggestionResult = {
 		equipmentId?: string;
 		relatedAssetTypes?: string[];
 		relatedAssetVariant?: string;
+		matchedDeviceIds?: string[];
+		relatedEquipmentSuggestionIds?: string[];
 	}>;
 	taskSuggestions: PropertyKnowledgeTaskSuggestion[];
 	equipmentSuggestions: PropertyKnowledgeEquipmentSuggestion[];
@@ -1592,6 +1612,15 @@ const buildSupplySuggestionsFromAcceptedParts = ({
 				...(part.relatedAssetVariant
 					? { relatedAssetVariant: part.relatedAssetVariant }
 					: {}),
+				...(part.matchedDeviceIds?.length
+					? { matchedDeviceIds: part.matchedDeviceIds }
+					: {}),
+				...(part.relatedEquipmentSuggestionIds?.length
+					? {
+							relatedEquipmentSuggestionIds:
+								part.relatedEquipmentSuggestionIds,
+					  }
+					: {}),
 			};
 		})
 		.filter((item) => Boolean(item.draft.name));
@@ -1834,6 +1863,11 @@ export const acceptKnowledgeSuggestion = (
 			(partValues[part.id]?.category as PartKnowledgeCategory | undefined) ??
 			part.userEditableCategory ??
 			part.category,
+		matchedDeviceIds:
+			partValues[part.id]?.matchedDeviceIds ?? part.matchedDeviceIds,
+		relatedEquipmentSuggestionIds:
+			partValues[part.id]?.relatedEquipmentSuggestionIds ??
+			part.relatedEquipmentSuggestionIds,
 		reviewStatus:
 			partValues[part.id]?.accepted === false ? 'rejected' : 'accepted',
 		provenance: {
@@ -1861,11 +1895,20 @@ export const acceptKnowledgeSuggestion = (
 		...(taskValues[task.id]?.matchedDeviceId
 			? { matchedDeviceId: taskValues[task.id]?.matchedDeviceId }
 			: {}),
+		matchedDeviceIds:
+			taskValues[task.id]?.matchedDeviceIds ?? task.matchedDeviceIds,
+		relatedEquipmentSuggestionIds:
+			taskValues[task.id]?.relatedEquipmentSuggestionIds ??
+			task.relatedEquipmentSuggestionIds,
 		reviewStatus:
 			taskValues[task.id]?.accepted === false ? 'rejected' : 'accepted',
 	})),
 	suggestedEquipment: suggestion.suggestedEquipment?.map((equipment) => ({
 		...equipment,
+		details: {
+			...(equipment.details || {}),
+			...(equipmentValues[equipment.id]?.details || {}),
+		},
 		...(equipmentValues[equipment.id]?.matchedDeviceId
 			? { matchedDeviceId: equipmentValues[equipment.id]?.matchedDeviceId }
 			: {}),

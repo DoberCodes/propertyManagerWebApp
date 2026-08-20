@@ -938,4 +938,89 @@ describe('property knowledge acquisition', () => {
 		);
 		expect(accepted.suggestedParts?.[1].reviewStatus).toBe('rejected');
 	});
+
+	it('preserves reviewed exact equipment relationships and edited equipment details', () => {
+		const accepted = acceptKnowledgeSuggestion(
+			{
+				id: 'suggestion-inspection-v4',
+				sourceDocumentId: 'doc-inspection-v4',
+				propertyId: 'property-1',
+				documentType: 'inspection_report',
+				extractionMethod: 'pdf_text',
+				extractedFields: [],
+				suggestedParts: [
+					{
+						id: 'part-filter',
+						partKnowledgeId: 'part-filter',
+						label: 'HVAC filter',
+						name: '20x25x1 HVAC filter',
+						category: 'consumable',
+						relatedAssetTypes: ['HVAC'],
+						relatedEquipmentSuggestionIds: ['equipment-air-handler'],
+						targetEntity: 'part',
+						sourceText: '20x25x1 HVAC filter',
+					},
+				],
+				suggestedTasks: [
+					{
+						id: 'task-filter',
+						title: 'Replace HVAC filter',
+						description: 'Replace every 90 days.',
+						priority: 'Medium',
+						relatedAssetType: 'HVAC',
+						relatedAssetVariant: 'Air Handler',
+						relatedEquipmentSuggestionIds: ['equipment-air-handler'],
+						sourceText: 'Replace the filter every 90 days.',
+					},
+				],
+				suggestedEquipment: [
+					{
+						id: 'equipment-air-handler',
+						label: 'Air Handler',
+						assetType: 'HVAC',
+						assetVariant: 'Air Handler',
+						details: { model: 'TEM6' },
+						sourceText: 'Trane TEM6 air handler',
+					},
+				],
+				status: 'pending',
+				createdAt: '2026-08-19T12:00:00.000Z',
+			},
+			{
+				partValues: {
+					'part-filter': {
+						matchedDeviceIds: ['existing-air-handler'],
+						relatedEquipmentSuggestionIds: [],
+					},
+				},
+				taskValues: {
+					'task-filter': {
+						matchedDeviceIds: ['existing-air-handler'],
+						relatedEquipmentSuggestionIds: [],
+					},
+				},
+				equipmentValues: {
+					'equipment-air-handler': {
+						details: {
+							model: 'TEM6A0C36H31',
+							serialNumber: '18191K9P',
+						},
+					},
+				},
+			},
+		);
+
+		expect(accepted.suggestedParts?.[0]).toMatchObject({
+			matchedDeviceIds: ['existing-air-handler'],
+			relatedEquipmentSuggestionIds: [],
+		});
+		expect(accepted.suggestedTasks?.[0]).toMatchObject({
+			matchedDeviceIds: ['existing-air-handler'],
+			relatedEquipmentSuggestionIds: [],
+		});
+		expect(accepted.suggestedEquipment?.[0].details).toMatchObject({
+			model: 'TEM6A0C36H31',
+			serialNumber: '18191K9P',
+		});
+	});
 });

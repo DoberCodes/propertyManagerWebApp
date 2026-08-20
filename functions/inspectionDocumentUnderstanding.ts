@@ -43,6 +43,7 @@ export type InspectionSupplyCandidate = {
 	category: 'supply' | 'consumable';
 	relatedAssetTypes: string[];
 	relatedAssetVariant?: string;
+	relatedEquipmentSuggestionIds?: string[];
 	targetEntity: 'part';
 	sourceText: string;
 	confidence: number;
@@ -63,7 +64,7 @@ export type InspectionDocumentUnderstanding = {
 	supplies: InspectionSupplyCandidate[];
 	specifications: InspectionSpecification[];
 	diagnostics: {
-		parserVersion: 'inspection-v3';
+		parserVersion: 'inspection-v4';
 		sectionCount: number;
 		observationCount: number;
 		recommendationCount: number;
@@ -453,6 +454,9 @@ const buildEquipment = (sections: InspectionDocumentSection[]) => {
 const getCadence = (sourceText: string) =>
 	sourceText.match(/every\s+\d+\s+(?:days?|months?)|twice\s+(?:a\s+year|yearly)|annually|annual(?:ly)?|monthly|each month|when pressure rises\s+\d+\s*-\s*\d+\s*psi[^.]*?/i)?.[0] || '';
 
+const getReportedTiming = (sourceText: string) =>
+	sourceText.match(/within\s+\d+\s+days?|before\s+(?:the\s+)?next\s+heavy\s+storm|before\s+regular\s+use|during\s+the\s+next\s+irrigation\s+service|next\s+irrigation\s+service|\bnow\b|due\s+by\s+[A-Za-z]+\s+\d{4}/i)?.[0] || '';
+
 const NON_ACTIONABLE_RECOMMENDATION_TEXT = /\b(?:no task is needed|should not (?:be represented|become)|not evidence that|not automatically create|already completed|these actions were already completed|classification note|tests whether|expected (?:relationship|deduplication) behavior|optional or informational)\b/i;
 
 const cleanRecommendationSource = (sourceText: string) =>
@@ -480,7 +484,13 @@ const getExplicitRecommendationSources = (section: InspectionDocumentSection) =>
 			continue;
 		}
 		if (current) {
-			if (isRecommendationBoundary(line)) {
+			if (
+				/^Verify\s+(?:alarm|manufacture)|^Replace\s+(?:smoke|CO|carbon monoxide)/i.test(line) &&
+				/\b(?:smoke|CO|carbon monoxide)\b/i.test(current)
+			) {
+				flush();
+				sources.push(cleanRecommendationSource(line));
+			} else if (isRecommendationBoundary(line)) {
 				flush();
 			} else {
 				current = `${current} ${line}`.trim();
@@ -519,7 +529,7 @@ const classifyRecommendation = (sourceText: string, contextText: string) => {
 		return { title: 'Replace refrigerator water filter', relatedAssetType: 'Refrigerator' };
 	}
 	if (/professional service|service.*hvac|hvac.*service/i.test(normalizedSource)) {
-		return { title: 'Schedule annual HVAC service', relatedAssetType: 'HVAC', relatedAssetVariant: 'Heat Pump' };
+		return { title: 'Schedule annual HVAC service', relatedAssetType: 'HVAC' };
 	}
 	if (
 		/(?:replace|change).*(?:hvac |air )?filter|(?:hvac |air )?filter.*(?:replace|change)/i.test(normalizedSource) &&
@@ -610,6 +620,7 @@ const buildRecommendations = (sections: InspectionDocumentSection[]) => {
 			if (!classified) continue;
 			const key = classified.title.toLowerCase();
 			const cadence = getCadence(sourceText);
+			const reportedTiming = getReportedTiming(sourceText);
 			const existing = taskByTitle.get(key);
 			if (existing) {
 				if (!existing.sourceText.includes(sourceText)) {
@@ -625,6 +636,7 @@ const buildRecommendations = (sections: InspectionDocumentSection[]) => {
 					.join('\n'),
 				priority: /safety|smoke|carbon monoxide/i.test(sourceText) ? 'High' : 'Medium',
 				scheduleMode: 'unscheduled',
+				...(reportedTiming ? { reportedTiming } : {}),
 				...(classified.relatedAssetType
 					? { relatedAssetType: classified.relatedAssetType }
 					: {}),
@@ -722,6 +734,38 @@ const buildSupplies = (rawText: string): InspectionSupplyCandidate[] => {
 	});
 };
 
+const matchesRelatedEquipment = (
+	equipment: ServiceReportEquipmentCandidate,
+	relatedAssetType?: string,
+	relatedAssetVariant?: string,
+) =>
+	Boolean(relatedAssetType) &&
+	equipment.assetType.toLowerCase() === relatedAssetType?.toLowerCase() &&
+	(!relatedAssetVariant ||
+		equipment.assetVariant?.toLowerCase() === relatedAssetVariant.toLowerCase());
+
+const addExactEquipmentRelationships = <
+	T extends { relatedAssetType?: string; relatedAssetVariant?: string },
+>(candidate: T, equipment: ServiceReportEquipmentCandidate[]): T & {
+	relatedEquipmentSuggestionIds?: string[];
+} => {
+	const relatedEquipmentSuggestionIds = equipment
+		.filter((item) =>
+			matchesRelatedEquipment(
+				item,
+				candidate.relatedAssetType,
+				candidate.relatedAssetVariant,
+			),
+		)
+		.map((item) => item.id);
+	return {
+		...candidate,
+		...(relatedEquipmentSuggestionIds.length
+			? { relatedEquipmentSuggestionIds }
+			: {}),
+	};
+};
+
 export const understandInspectionDocument = (
 	rawText: string,
 ): InspectionDocumentUnderstanding | undefined => {
@@ -733,9 +777,25 @@ export const understandInspectionDocument = (
 		.map(normalizeLine)
 		.find((line) => /inspection report/i.test(line)) || 'Property inspection report';
 	const observations = buildObservations(sections);
-	const recommendations = buildRecommendations(sections);
 	const equipment = buildEquipment(sections);
-	const supplies = buildSupplies(rawText);
+	const recommendations = buildRecommendations(sections).map((recommendation) =>
+		addExactEquipmentRelationships(recommendation, equipment),
+	);
+	const supplies = buildSupplies(rawText).map((supply) => {
+		const relatedEquipmentSuggestionIds = equipment
+			.filter((item) =>
+				supply.relatedAssetTypes.some((assetType) =>
+					matchesRelatedEquipment(item, assetType, supply.relatedAssetVariant),
+				),
+			)
+			.map((item) => item.id);
+		return {
+			...supply,
+			...(relatedEquipmentSuggestionIds.length
+				? { relatedEquipmentSuggestionIds }
+				: {}),
+		};
+	});
 	const specifications = buildSpecifications(equipment);
 	const visitDate =
 		getLabeledValue(sections, ['Inspection Date', 'Assessment Date', 'Visit Date', 'Date']) ||
@@ -760,7 +820,7 @@ export const understandInspectionDocument = (
 		supplies,
 		specifications,
 		diagnostics: {
-			parserVersion: 'inspection-v3',
+			parserVersion: 'inspection-v4',
 			sectionCount: sections.length,
 			observationCount: observations.length,
 			recommendationCount: recommendations.length,
