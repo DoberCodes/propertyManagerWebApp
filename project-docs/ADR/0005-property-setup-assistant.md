@@ -142,6 +142,13 @@ The property-level assistant begins with three optional paths:
 All paths preserve the same property-owned Equipment, Task, Space, Document,
 and relationship models. They do not create parallel setup records.
 
+The two guided review paths are the primary choices. Each shows its own derived
+review count and progress bar from the shared saved setup responses: nine
+essential items for the short path and all 28 items for the full room-by-room
+path. Completing an essential item therefore also advances the full review.
+Existing-report upload remains available as a secondary text action below the
+guided choices rather than competing as a third setup card.
+
 Existing Equipment may be detected and explained to the user, but detection
 does not change the saved setup response or count as reviewed. `Present` and
 `Not Present` remain explicit user decisions. A completed area previews the
@@ -169,6 +176,13 @@ connects the accepted Space to the current Equipment instance. The final
 review names every Equipment record, subtype, Space connection, and generated
 Space before creation. Missing subtype or Space details remain optional and do
 not block setup.
+
+The pre-save review uses a bounded dialog with a fixed header and actions. It
+leads with compact Equipment, Space, and recurring-task counts; complete record
+details remain available in collapsed sections with their New or Existing
+status. Only conflicts that prevent saving, such as an archived matching Space,
+are shown by default. The post-save Quick Setup Review remains the record of
+what was actually saved.
 
 When a setup area resolves to exactly one active matching Space, newly marked
 Present Equipment in that area begins with the Space selected. This includes a

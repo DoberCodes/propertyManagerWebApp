@@ -99,6 +99,7 @@ import {
 	getTaskSpaceIds,
 } from '../../types/PropertyKnowledgeLink.types';
 import type { PropertySpace, PropertySpaceType } from '../../types/Space.types';
+import { SetupSaveReviewDialog } from './SetupSaveReviewDialog';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -200,6 +201,52 @@ const waitForMinimumDuration = (startedAt: number) => {
 		window.setTimeout(resolve, remainingMs);
 	});
 };
+
+type SetupPathChoiceProps = {
+	title: string;
+	description: string;
+	progress: ReturnType<typeof getPropertySetupProgress>;
+	progressLabel: string;
+	progressAriaLabel: string;
+	action: string;
+	onClick: () => void;
+};
+
+const SetupPathChoice: React.FC<SetupPathChoiceProps> = ({
+	title,
+	description,
+	progress,
+	progressLabel,
+	progressAriaLabel,
+	action,
+	onClick,
+}) => (
+	<SetupPathButton type='button' onClick={onClick}>
+		<strong>{title}</strong>
+		<span>{description}</span>
+		<SetupPathProgress>
+			<SetupPathProgressLabel>
+				<span>
+					{progress.reviewed} of {progress.total} reviewed
+				</span>
+				<strong>{progress.isComplete ? 'Complete' : progressLabel}</strong>
+			</SetupPathProgressLabel>
+			<SetupPathProgressTrack
+				role='progressbar'
+				aria-label={progressAriaLabel}
+				aria-valuemin={0}
+				aria-valuemax={progress.total}
+				aria-valuenow={progress.reviewed}>
+				<SetupPathProgressFill
+					style={{
+						width: `${Math.round((progress.reviewed / progress.total) * 100)}%`,
+					}}
+				/>
+			</SetupPathProgressTrack>
+		</SetupPathProgress>
+		<SetupPathAction>{action}</SetupPathAction>
+	</SetupPathButton>
+);
 
 export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	property,
@@ -537,6 +584,14 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const draftProgress = getPropertySetupProgress(
 		{ items: draftItems },
 		activeSetupAreas,
+	);
+	const essentialsPathProgress = getPropertySetupProgress(
+		{ items: draftItems },
+		PROPERTY_SETUP_ESSENTIAL_AREAS,
+	);
+	const roomByRoomPathProgress = getPropertySetupProgress(
+		{ items: draftItems },
+		PROPERTY_SETUP_AREAS,
 	);
 
 	const getAreaReviewedCount = (areaId: PropertySetupAreaId) => {
@@ -1732,6 +1787,28 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			};
 		});
 	});
+	const setupTaskReview = (
+		Object.entries(draftItems) as Array<
+			[SuggestedSystemId, PropertySetupAssistantItemState]
+		>
+	).flatMap(([itemId, itemState]) => {
+		if (
+			itemState?.status !== 'present' ||
+			!canGenerateSuggestedPackageForItem(itemId)
+		) {
+			return [];
+		}
+		const selectedTaskIds = getSelectedSuggestedTaskIds(itemId, itemState);
+		const deviceIds = getInitialInstances(itemId, itemState)
+			.map((instance) => instance.deviceId)
+			.filter((deviceId): deviceId is string => Boolean(deviceId));
+		return getSuggestedTasksForSystems([itemId], selectedTaskIds).map((task) => ({
+			key: `${itemId}:${task.id}`,
+			title: task.title,
+			intervalLabel: task.intervalLabel,
+			isExisting: Boolean(findExistingSuggestedTask(task, deviceIds)),
+		}));
+	});
 
 	return (
 		<>
@@ -1863,37 +1940,42 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 										)}
 									</SetupPathIntro>
 									<SetupPathGrid>
-										<SetupPathButton
-											type='button'
-											onClick={() => handleSelectSetupPath('essentials')}>
-											<strong>10-minute essentials</strong>
-											<span>
-												Review nine common safety, utility, laundry, and exterior
-												items for a useful starting record.
-											</span>
-											<SetupPathAction>Start essentials</SetupPathAction>
-										</SetupPathButton>
-										<SetupPathButton
-											type='button'
-											onClick={() => handleSelectSetupPath('room_by_room')}>
-											<strong>Continue room by room</strong>
-											<span>
-												Review all seven areas at your own pace and resume whenever
-												you are ready.
-											</span>
-											<SetupPathAction>Review all areas</SetupPathAction>
-										</SetupPathButton>
-										<SetupPathButton
+										<SetupPathChoice
+											title='10-minute essentials'
+											description='Confirm nine high-value basics: safety detectors, HVAC, water heater, dryer, roof, gutters, electrical panel, and GFCI outlets.'
+											progress={essentialsPathProgress}
+											progressLabel='Essentials'
+											progressAriaLabel='10-minute essentials progress'
+											action={
+												essentialsPathProgress.reviewed > 0
+													? 'Continue essentials'
+													: 'Start essentials'
+											}
+											onClick={() => handleSelectSetupPath('essentials')}
+										/>
+										<SetupPathChoice
+											title='Continue room by room'
+											description='Review 28 items across Kitchen, Bathrooms, Laundry, Garage, Exterior, Utility Systems, and Safety.'
+											progress={roomByRoomPathProgress}
+											progressLabel='Full setup'
+											progressAriaLabel='Room-by-room progress'
+											action={
+												roomByRoomPathProgress.reviewed > 0
+													? 'Continue full setup'
+													: 'Start full setup'
+											}
+											onClick={() => handleSelectSetupPath('room_by_room')}
+										/>
+									</SetupPathGrid>
+									<SetupReportAction
 											type='button'
 											onClick={() => handleSelectSetupPath('existing_report')}>
-											<strong>Upload an existing report</strong>
-											<span>
-												Upload an inspection or service report for Maintley to turn
-												into details you can review.
-											</span>
-											<SetupPathAction>Choose a report</SetupPathAction>
-										</SetupPathButton>
-									</SetupPathGrid>
+										<span>
+											<strong>Already have an inspection or service report?</strong>
+											Upload it for Maintley to turn into details you can review.
+										</span>
+										<em>Upload a report</em>
+									</SetupReportAction>
 								</SetupPathPanel>
 							) : (
 							<AreaPanel>
@@ -2404,69 +2486,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						</ConfirmPanel>
 					)}
 					{isSaveReviewOpen && (
-						<ConfirmPanel role='alertdialog' aria-modal='true'>
-							<ConfirmTitle>Review setup changes</ConfirmTitle>
-							<ConfirmText>
-								Confirm the equipment and Space connections Maintley will save.
-							</ConfirmText>
-							{setupEquipmentReview.length > 0 && (
-								<>
-									<ReviewSectionTitle>Equipment records</ReviewSectionTitle>
-									<ReviewList>
-										{setupEquipmentReview.map((entry) => (
-											<li key={entry.key}>
-												<strong>{entry.name}</strong>
-												{entry.assetVariant ? ` - ${entry.assetVariant}` : ''}
-												{' - '}
-												{entry.isExisting ? 'Reuse existing record' : 'Create new record'}
-												{entry.spaceNames.length > 0
-													? ` - ${entry.spaceNames.join(', ')}`
-													: ' - No Space selected'}
-											</li>
-										))}
-									</ReviewList>
-								</>
-							)}
-							{reviewedSetupSpacePlan.length > 0 && (
-								<>
-									<ReviewSectionTitle>Suggested Spaces</ReviewSectionTitle>
-									<ReviewList>
-										{reviewedSetupSpacePlan.map((entry) => (
-											<li key={entry.template.generationKey}>
-												<strong>{entry.space?.name || entry.template.name}</strong>
-												{' - '}
-												{entry.status === 'create'
-													? 'Create new Space'
-													: entry.status === 'reuse'
-														? 'Reuse existing Space'
-														: 'Archived match requires review'}
-											</li>
-										))}
-									</ReviewList>
-								</>
-							)}
-							<ConfirmText>
-								Suggested tasks will use the combined Spaces selected for their equipment.
-							</ConfirmText>
-							<ConfirmActions>
-								<SecondaryAction
-									type='button'
-									onClick={() => setIsSaveReviewOpen(false)}
-									disabled={isSavingAssistant}>
-									Back
-								</SecondaryAction>
-								<AssistantButton
-									type='button'
-									onClick={handleDone}
-									disabled={isSavingAssistant || hasArchivedSpaceConflict}>
-									{hasArchivedSpaceConflict
-										? 'Review Archived Spaces'
-										: isSavingAssistant
-											? 'Saving...'
-											: 'Save & Create'}
-								</AssistantButton>
-							</ConfirmActions>
-						</ConfirmPanel>
+						<SetupSaveReviewDialog
+							equipment={setupEquipmentReview}
+							spaces={reviewedSetupSpacePlan.map((entry) => ({
+								key: entry.template.generationKey,
+								name: entry.space?.name || entry.template.name,
+								status: entry.status,
+							}))}
+							tasks={setupTaskReview}
+							isSaving={isSavingAssistant}
+							onBack={() => setIsSaveReviewOpen(false)}
+							onSave={handleDone}
+						/>
 					)}
 					{isSavingAssistant && (
 						<LoadingState
@@ -2826,7 +2857,7 @@ const DetectedRecordNotice = styled.div`
 
 const SetupPathGrid = styled.div`
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 12px;
 
 	@media (max-width: 760px) {
@@ -2839,7 +2870,7 @@ const SetupPathButton = styled.button`
 	flex-direction: column;
 	align-items: flex-start;
 	gap: 9px;
-	min-height: 180px;
+	min-height: 250px;
 	padding: 16px;
 	border: 1px solid ${COLORS.border};
 	border-radius: 12px;
@@ -2853,7 +2884,7 @@ const SetupPathButton = styled.button`
 		line-height: 1.3;
 	}
 
-	span {
+	> span {
 		font-size: 13px;
 		line-height: 1.5;
 		color: ${COLORS.textSecondary};
@@ -2875,9 +2906,106 @@ const SetupPathButton = styled.button`
 `;
 
 const SetupPathAction = styled.span`
-	margin-top: auto;
+	margin-top: 2px;
 	font-weight: 800;
 	color: ${COLORS.primary} !important;
+`;
+
+const SetupPathProgress = styled.div`
+	display: flex;
+	width: 100%;
+	flex-direction: column;
+	gap: 7px;
+	margin-top: auto;
+`;
+
+const SetupPathProgressLabel = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	font-size: 11px;
+	line-height: 1.3;
+
+	span {
+		color: ${COLORS.textSecondary};
+	}
+
+	strong {
+		font-size: 11px;
+		color: ${COLORS.primary};
+	}
+`;
+
+const SetupPathProgressTrack = styled.div`
+	width: 100%;
+	height: 7px;
+	border-radius: 999px;
+	background: ${COLORS.border};
+	overflow: hidden;
+`;
+
+const SetupPathProgressFill = styled.div`
+	height: 100%;
+	border-radius: inherit;
+	background: ${COLORS.primary};
+	transition: width 0.2s ease;
+`;
+
+const SetupReportAction = styled.button`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	width: 100%;
+	min-height: 52px;
+	padding: 12px 4px;
+	border: none;
+	border-top: 1px solid ${COLORS.border};
+	background: transparent;
+	color: ${COLORS.textSecondary};
+	text-align: left;
+	cursor: pointer;
+
+	> span {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		gap: 2px;
+		font-size: 12px;
+		line-height: 1.4;
+	}
+
+	strong {
+		font-size: 13px;
+		color: ${COLORS.textPrimary};
+	}
+
+	em {
+		flex: 0 0 auto;
+		font-size: 13px;
+		font-style: normal;
+		font-weight: 800;
+		color: ${COLORS.primary};
+	}
+
+	&:hover em,
+	&:focus-visible em {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	&:focus-visible {
+		outline: 3px solid rgba(4, 120, 87, 0.22);
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 520px) {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 6px;
+		padding-inline: 2px;
+	}
 `;
 
 const AreaPanel = styled.div`
@@ -3720,13 +3848,6 @@ const ReviewList = styled.ul`
 		line-height: 1.2;
 		padding: 6px 10px;
 	}
-`;
-
-const ReviewSectionTitle = styled.div`
-	margin-top: 10px;
-	font-size: 12px;
-	font-weight: 900;
-	color: ${COLORS.textPrimary};
 `;
 
 const ReviewActions = styled.div`

@@ -384,12 +384,21 @@ Typical fields:
 * accountId
 * name
 * address
+* addressDetails
 * propertyType
 * propertyClassification
 * photoUrl
 * notes
 * createdAt
 * updatedAt
+
+`address` remains the formatted, display-ready address used by existing views,
+exports, document matching, and older records. New or edited addresses may also
+store `addressDetails` with `streetAddress`, optional `unit`, `city`, two-letter
+`state`, `postalCode`, and `countryCode`. Maintley derives the formatted
+`address` from these structured fields. Older records that only contain
+`address` remain valid and are not automatically rewritten from guessed
+components.
 
 Optional fields may include:
 
@@ -1635,6 +1644,10 @@ Typical property knowledge suggestion fields:
 * confidence
 * extractedFields
 * suggestedParts
+* suggestedTasks
+* suggestedEquipment
+* visitObservations
+* acquisitionDiagnostics
 * createdAt
 * updatedAt
 
@@ -1674,6 +1687,11 @@ links should be migrated in a later phase.
 Legacy document fields such as `name`, `url`, `category`, `assignedDeviceId`, and `assignedTaskId` may remain during migration.
 
 Knowledge suggestions are review records.
+
+`acquisitionDiagnostics` contains processing metadata only, including parser or
+interpreter version and source/candidate counts. It must not contain raw
+document text. Source-specific intermediate understanding models are ephemeral
+processing artifacts and are not a parallel Property Memory store.
 
 Typical fields:
 

@@ -10,6 +10,7 @@ import {
 	getPropertyImageSrc,
 	isPropertyImageFallback,
 } from '../../utils/propertyImagePlaceholder';
+import { formatPropertyAddress } from '../../utils/propertyAddress';
 import {
 	AppPage as StandardAppPage,
 	AppPageHeader as StandardAppPageHeader,
@@ -930,6 +931,7 @@ export const Properties = () => {
 			photo: propertyToDuplicate.image,
 			owner: propertyToDuplicate.owner || '',
 			address: propertyToDuplicate.address || '',
+			addressDetails: propertyToDuplicate.addressDetails,
 			propertyType: normalizePropertyType(propertyToDuplicate.propertyType),
 			propertyClassification:
 				propertyToDuplicate.propertyClassification ||
@@ -1990,7 +1992,8 @@ export const Properties = () => {
 
 	const getPropertyAddress = useCallback((property: Property) => {
 		const propertyTitle = property.title?.trim() || 'Untitled Property';
-		const rawAddress = property.address?.trim();
+		const rawAddress =
+			formatPropertyAddress(property.addressDetails) || property.address?.trim();
 		if (!rawAddress) {
 			return {
 				primary: propertyTitle,
@@ -2264,6 +2267,7 @@ export const Properties = () => {
 					groupId: normalizedGroupId,
 					owner: formData.owner,
 					address: formData.address,
+					addressDetails: formData.addressDetails,
 					propertyType: effectivePropertyType,
 					propertyClassification: formData.propertyClassification,
 					bedrooms: formData.bedrooms,
@@ -2402,6 +2406,9 @@ export const Properties = () => {
 				...(formData.photo && { image: formData.photo }),
 				owner: formData.owner,
 				address: normalizedAddress,
+				...(formData.addressDetails && {
+					addressDetails: formData.addressDetails,
+				}),
 				propertyType: effectivePropertyType,
 				propertyClassification: formData.propertyClassification,
 				bedrooms: formData.bedrooms,
@@ -3034,6 +3041,7 @@ export const Properties = () => {
 								photo: selectedPropertyForEdit.image,
 								owner: selectedPropertyForEdit.owner || '',
 								address: selectedPropertyForEdit.address || '',
+								addressDetails: selectedPropertyForEdit.addressDetails,
 								propertyType: normalizePropertyType(selectedPropertyForEdit.propertyType),
 								propertyClassification:
 									selectedPropertyForEdit.propertyClassification ||

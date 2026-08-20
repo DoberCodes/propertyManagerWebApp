@@ -118,6 +118,15 @@ export interface PropertyAccessSnapshot {
 	source?: 'team' | 'family';
 }
 
+export interface PropertyAddressDetails {
+	streetAddress: string;
+	unit?: string;
+	city: string;
+	state: string;
+	postalCode: string;
+	countryCode: 'US';
+}
+
 export interface Property {
 	id: string;
 	accountId?: string;
@@ -132,6 +141,7 @@ export interface Property {
 	viewers?: string[]; // Read-only access
 	accessSnapshots?: Record<string, PropertyAccessSnapshot>;
 	address?: string;
+	addressDetails?: PropertyAddressDetails;
 	propertyType?: PropertyTypeInput;
 	propertyClassification?: PropertyClassification;
 	bedrooms?: number;

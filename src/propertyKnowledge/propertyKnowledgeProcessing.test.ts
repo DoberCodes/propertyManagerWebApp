@@ -84,6 +84,18 @@ describe('getPropertyDocumentScanAction', () => {
 		).toBeNull();
 	});
 
+	it('offers a rescan when a completed review found no suggested details', () => {
+		expect(
+			getPropertyDocumentScanAction({
+				document: pdfDocument,
+				hasSuggestion: true,
+				suggestionCount: 0,
+				suggestionStatus: 'pending',
+				isRetryable: false,
+			}),
+		).toBe('rescan');
+	});
+
 	it('does not offer rescanning for formats without backend processing', () => {
 		expect(
 			getPropertyDocumentScanAction({

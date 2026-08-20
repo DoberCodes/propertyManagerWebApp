@@ -186,6 +186,64 @@ describe('property knowledge acquisition', () => {
 		expect(result.maintenanceHistorySuggestion).toBeUndefined();
 	});
 
+	it('fills blank details on matched equipment without overwriting existing memory', () => {
+		const suggestion = acceptKnowledgeSuggestion({
+			id: 'knowledge-inspection-1',
+			sourceDocumentId: 'inspection-1',
+			propertyId: 'property-1',
+			documentType: 'inspection_report' as const,
+			extractionMethod: 'pdf_text' as const,
+			extractedFields: [],
+			suggestedEquipment: [{
+				id: 'equipment-hvac',
+				label: 'HVAC',
+				assetType: 'HVAC',
+				details: {
+					brand: 'Trane',
+					model: '4TWR5036H1000',
+					serialNumber: '18182AB3F',
+					installDate: '2018',
+					filterSize: '16x25x1',
+					specNotes: 'Reported heat pump',
+				},
+				sourceText: 'HVAC: heat pump with 16x25x1 filter',
+			}],
+			status: 'pending' as const,
+			createdAt: '2026-08-19T12:00:00.000Z',
+		}, {
+			acceptedByUser: 'user-1',
+			equipmentValues: {
+				'equipment-hvac': {
+					accepted: true,
+					matchedDeviceId: 'system-hvac',
+				},
+			},
+		});
+		const result = applyAcceptedKnowledgeSuggestion({
+			suggestion,
+			property: baseProperty,
+			systems: [{
+				...baseSystem,
+				id: 'system-hvac',
+				type: 'HVAC',
+				specNotes: 'Existing notes',
+			}],
+			acceptedByUser: 'user-1',
+			acceptedAt: '2026-08-19T12:30:00.000Z',
+		});
+
+		expect(result.systemUpdates).toHaveLength(1);
+		expect(result.systemUpdates[0].updates.brand).toBe('Trane');
+		expect(result.systemUpdates[0].updates.model).toBe('4TWR5036H1000');
+		expect(result.systemUpdates[0].updates.serialNumber).toBe('18182AB3F');
+		expect(result.systemUpdates[0].updates.installationDate).toBe('2018');
+		expect(result.systemUpdates[0].updates.filterSize).toBe('16x25x1');
+		expect(result.systemUpdates[0].updates.specNotes).toBeUndefined();
+		expect(
+			result.systemUpdates[0].updates.propertyKnowledgeProvenance?.filterSize,
+		).toHaveLength(1);
+	});
+
 	it('keeps the reason when an equipment suggestion is intentionally skipped', () => {
 		const suggestion = {
 			id: 'knowledge-docx-skip',
@@ -822,6 +880,7 @@ describe('property knowledge acquisition', () => {
 						name: 'Honeywell T6 Pro Smart Thermostat',
 						category: 'accessory',
 						relatedAssetTypes: ['hvac'],
+						relatedAssetVariant: 'Air Handler',
 						targetEntity: 'part',
 						sourceText: 'Honeywell T6 Pro Smart Thermostat',
 						confidence: 0.65,
@@ -864,7 +923,10 @@ describe('property knowledge acquisition', () => {
 		expect(result.systemUpdates).toHaveLength(0);
 		expect(result.supplySuggestions).toHaveLength(1);
 		expect(result.supplySuggestions[0]).toMatchObject({
+			partSuggestionId: 'part-thermostat-1',
 			equipmentId: 'system-1',
+			relatedAssetTypes: ['hvac'],
+			relatedAssetVariant: 'Air Handler',
 			draft: {
 			name: 'Honeywell T6 Pro Smart Thermostat',
 			type: 'other',

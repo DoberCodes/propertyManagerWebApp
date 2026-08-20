@@ -116,7 +116,7 @@ describe('PropertySetupAssistant equipment customization', () => {
 					{
 						id: 'owner-1',
 						workspaceMode: 'homeowner',
-						subscription: { planId: 'homeowner_plus' },
+						subscription: { planId: 'homeowner_plus', status: 'active' },
 					} as any
 				}
 				devices={[]}
@@ -328,5 +328,117 @@ describe('PropertySetupAssistant equipment customization', () => {
 		screen
 			.getAllByLabelText(/Kitchen/i)
 			.forEach((checkbox) => expect(checkbox).not.toBeChecked());
+	});
+
+	it('uses a compact review summary with collapsed details and separate actions', () => {
+		render(
+			<PropertySetupAssistant
+				property={
+					{
+						id: 'property-1',
+						title: 'Lakeview',
+						accountId: 'owner-1',
+						userId: 'owner-1',
+						propertyType: 'residential',
+					} as any
+				}
+				currentUser={
+					{
+						id: 'owner-1',
+						workspaceMode: 'homeowner',
+						subscription: { planId: 'homeowner_plus', status: 'active' },
+					} as any
+				}
+				devices={[]}
+				tasks={[]}
+				canUseAssistant
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Continue Setup' }));
+		fireEvent.click(
+			screen.getByRole('button', { name: /Continue room by room/i }),
+		);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Present' })[0]);
+		fireEvent.click(screen.getByRole('button', { name: 'Go to Safety' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+
+		const reviewDialog = screen.getByRole('dialog', {
+			name: 'Ready to save setup?',
+		});
+		const summary = within(reviewDialog).getByLabelText('Setup change summary');
+		expect(within(summary).getByText('Equipment')).toBeInTheDocument();
+		expect(within(summary).getByText('Spaces')).toBeInTheDocument();
+		expect(within(summary).getByText('Recurring tasks')).toBeInTheDocument();
+		expect(within(reviewDialog).getByText(/[1-9]\d* selected/)).toBeInTheDocument();
+		expect(
+			within(reviewDialog).getByTestId('setup-review-equipment-spaces'),
+		).not.toHaveAttribute('open');
+		expect(
+			within(reviewDialog).getByTestId('setup-review-tasks'),
+		).not.toHaveAttribute('open');
+		expect(
+			within(
+				within(reviewDialog).getByTestId('setup-review-scroll-content'),
+			).queryByTestId('setup-review-actions'),
+		).not.toBeInTheDocument();
+		expect(
+			within(reviewDialog).getByTestId('setup-review-actions'),
+		).toBeInTheDocument();
+		expect(
+			within(reviewDialog).getByRole('button', { name: 'Save setup' }),
+		).toBeInTheDocument();
+	});
+
+	it('shows separate saved progress for the guided paths and a quiet report action', () => {
+		render(
+			<PropertySetupAssistant
+				property={
+					{
+						id: 'property-1',
+						title: 'Lakeview',
+						accountId: 'owner-1',
+						userId: 'owner-1',
+						propertyType: 'residential',
+						setupAssistant: {
+							items: {
+								hvac: { status: 'present', reviewedAt: '2026-08-19' },
+								roof: { status: 'not_present', reviewedAt: '2026-08-19' },
+								refrigerator: {
+									status: 'present',
+									reviewedAt: '2026-08-19',
+								},
+							},
+						},
+					} as any
+				}
+				currentUser={
+					{
+						id: 'owner-1',
+						workspaceMode: 'homeowner',
+						subscription: { planId: 'homeowner_plus', status: 'active' },
+					} as any
+				}
+				devices={[]}
+				tasks={[]}
+				canUseAssistant
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Continue Setup' }));
+
+		expect(screen.getByText('2 of 9 reviewed')).toBeInTheDocument();
+		expect(screen.getByText('3 of 28 reviewed')).toBeInTheDocument();
+		expect(
+			screen.getByRole('progressbar', { name: '10-minute essentials progress' }),
+		).toHaveAttribute('aria-valuenow', '2');
+		expect(
+			screen.getByRole('progressbar', { name: 'Room-by-room progress' }),
+		).toHaveAttribute('aria-valuenow', '3');
+		expect(
+			screen.getByRole('button', {
+				name: /Already have an inspection or service report/i,
+			}),
+		).toBeInTheDocument();
 	});
 });

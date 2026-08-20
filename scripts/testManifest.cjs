@@ -41,6 +41,7 @@ const functionTests = [
 	'complimentaryAccessCodes.test.cjs',
 	'docxServiceReport.test.cjs',
 	'grantAwareCheckout.test.cjs',
+	'inspectionDocumentUnderstanding.test.cjs',
 	'legacyMaintenancePromotion.test.cjs',
 	'manageManualOccupancy.test.cjs',
 	'manageRecurringTask.test.cjs',

@@ -94,8 +94,11 @@ type ApplyKnowledgeSuggestionResult = {
 		tags?: string[];
 	};
 	supplySuggestions: Array<{
+		partSuggestionId: string;
 		draft: PropertySupplyDraft;
 		equipmentId?: string;
+		relatedAssetTypes?: string[];
+		relatedAssetVariant?: string;
 	}>;
 	taskSuggestions: PropertyKnowledgeTaskSuggestion[];
 	equipmentSuggestions: PropertyKnowledgeEquipmentSuggestion[];
@@ -1568,6 +1571,7 @@ const buildSupplySuggestionsFromAcceptedParts = ({
 			const category = part.userEditableCategory || part.category;
 			const manufacturer = inferManufacturerFromPartName(name);
 			return {
+				partSuggestionId: part.id,
 				draft: {
 					name,
 					type: getPropertySupplyTypeFromLegacyCategory(category),
@@ -1581,6 +1585,12 @@ const buildSupplySuggestionsFromAcceptedParts = ({
 				},
 				...(suggestion.relatedSystemId
 					? { equipmentId: suggestion.relatedSystemId }
+					: {}),
+				...(part.relatedAssetTypes.length
+					? { relatedAssetTypes: part.relatedAssetTypes }
+					: {}),
+				...(part.relatedAssetVariant
+					? { relatedAssetVariant: part.relatedAssetVariant }
 					: {}),
 			};
 		})
@@ -1974,6 +1984,89 @@ export const applyAcceptedKnowledgeSuggestion = ({
 		);
 		systemUpdateMap.set(acceptedSuggestion.relatedSystemId, currentUpdates);
 	});
+
+	(acceptedSuggestion.suggestedEquipment || [])
+		.filter(
+			(equipment) =>
+				equipment.reviewStatus !== 'rejected' && equipment.matchedDeviceId,
+		)
+		.forEach((equipment) => {
+			const system = systems.find(
+				(candidate) => String(candidate.id) === String(equipment.matchedDeviceId),
+			);
+			if (!system || !equipment.details) return;
+
+			const currentUpdates = systemUpdateMap.get(String(system.id)) || {};
+			let provenance =
+				currentUpdates.propertyKnowledgeProvenance ||
+				system.propertyKnowledgeProvenance;
+			const sourceProvenance: PropertyKnowledgeProvenance = {
+				sourceDocumentId: acceptedSuggestion.sourceDocumentId,
+				sourceDocumentType: acceptedSuggestion.documentType,
+				extractionMethod: acceptedSuggestion.extractionMethod,
+				acceptedByUser,
+				acceptedAt,
+				suggestionId: acceptedSuggestion.id,
+				sourceText: equipment.sourceText,
+			};
+
+			if (equipment.details.filterSize && !system.filterSize) {
+				currentUpdates.filterSize = equipment.details.filterSize;
+				provenance = appendProvenance(provenance, 'filterSize', {
+					...sourceProvenance,
+					fieldKey: 'filterSize',
+				});
+			}
+			if (equipment.details.brand && !system.brand) {
+				currentUpdates.brand = equipment.details.brand;
+				provenance = appendProvenance(provenance, 'brand', {
+					...sourceProvenance,
+					fieldKey: 'brand',
+				});
+			}
+			if (equipment.details.model && !system.model) {
+				currentUpdates.model = equipment.details.model;
+				provenance = appendProvenance(provenance, 'model', {
+					...sourceProvenance,
+					fieldKey: 'model',
+				});
+			}
+			if (equipment.details.serialNumber && !system.serialNumber) {
+				currentUpdates.serialNumber = equipment.details.serialNumber;
+				provenance = appendProvenance(provenance, 'serialNumber', {
+					...sourceProvenance,
+					fieldKey: 'serialNumber',
+				});
+			}
+			if (
+				equipment.details.installDate &&
+				!system.installationDate &&
+				!system.installDate
+			) {
+				currentUpdates.installationDate = equipment.details.installDate;
+				provenance = appendProvenance(provenance, 'installationDate', {
+					...sourceProvenance,
+					fieldKey: 'installDate',
+				});
+			}
+			if (equipment.details.specNotes && !system.specNotes) {
+				currentUpdates.specNotes = equipment.details.specNotes;
+				provenance = appendProvenance(provenance, 'specNotes', {
+					...sourceProvenance,
+				});
+			}
+			if (
+				currentUpdates.filterSize ||
+				currentUpdates.specNotes ||
+				currentUpdates.brand ||
+				currentUpdates.model ||
+				currentUpdates.serialNumber ||
+				currentUpdates.installationDate
+			) {
+				currentUpdates.propertyKnowledgeProvenance = provenance;
+				systemUpdateMap.set(String(system.id), currentUpdates);
+			}
+		});
 
 	const supplySuggestions = buildSupplySuggestionsFromAcceptedParts({
 		suggestion: acceptedSuggestion,
