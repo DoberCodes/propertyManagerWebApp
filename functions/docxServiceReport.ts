@@ -8,6 +8,8 @@ export type ServiceReportTaskCandidate = {
 	scheduleMode?: 'scheduled' | 'asap' | 'unscheduled';
 	relatedAssetType?: string;
 	relatedAssetVariant?: string;
+	relatedEquipmentSuggestionIds?: string[];
+	reportedTiming?: string;
 	sourceText: string;
 	confidence: number;
 	confidenceLevel: 'high' | 'medium';

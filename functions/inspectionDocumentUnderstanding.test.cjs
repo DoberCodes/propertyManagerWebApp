@@ -78,6 +78,8 @@ Garage door opener LiftMaster 8550WLB; battery-backup unit.
 
 Electrical and Life Safety
 Main electrical panel Square D QO; 200 A.
+Smoke alarms Five interconnected alarms in bedrooms and halls.
+CO alarms Two plug-in alarms in the upstairs hall and living room.
 Recommendation Have a licensed electrician evaluate and correct the double-tapped breaker within 30 days.
 Recommendation Test smoke and CO alarms monthly.
 Recommendation Verify manufacture dates and replace detector batteries as needed.
@@ -190,7 +192,7 @@ test('does not invent a completed maintenance event without a report date', () =
 test('recognizes compound inspection headings and preserves broad system coverage', () => {
   const understanding = understandInspectionDocument(COMPOUND_SECTION_INSPECTION_TEXT);
   assert.ok(understanding);
-  assert.equal(understanding.diagnostics.parserVersion, 'inspection-v3');
+  assert.equal(understanding.diagnostics.parserVersion, 'inspection-v4');
   assert.equal(understanding.propertyAddress, '1842 Meadow Ridge Drive');
   assert.equal(understanding.visitDate, 'August 12, 2026');
   assert.equal(understanding.providerName, 'Morgan Lee, NC License HI-48210');
@@ -264,6 +266,40 @@ test('keeps compound-layout recommendations distinct and avoids a tank flush', (
   );
   assert.match(refrigeratorFilter.description, /every 6 months/i);
   assert.doesNotMatch(refrigeratorFilter.description, /90 days/i);
+
+  const hvacFilter = understanding.recommendations.find(
+    (recommendation) => recommendation.title === 'Replace HVAC filter',
+  );
+  assert.deepEqual(hvacFilter.relatedEquipmentSuggestionIds, [
+    'equipment-hvac-air-handler',
+  ]);
+
+  const hvacService = understanding.recommendations.find(
+    (recommendation) => recommendation.title === 'Schedule annual HVAC service',
+  );
+  assert.deepEqual(hvacService.relatedEquipmentSuggestionIds, [
+    'equipment-hvac-heat-pump',
+    'equipment-hvac-air-handler',
+  ]);
+
+  const smokeTest = understanding.recommendations.find(
+    (recommendation) => recommendation.title === 'Test smoke/CO detectors',
+  );
+  assert.doesNotMatch(smokeTest.description, /manufacture dates/i);
+  assert.deepEqual(smokeTest.relatedEquipmentSuggestionIds, [
+    'equipment-smoke-detectors',
+    'equipment-co-detectors',
+  ]);
+
+  const alarmVerification = understanding.recommendations.find(
+    (recommendation) =>
+      recommendation.title === 'Verify smoke/CO detectors and batteries',
+  );
+  assert.match(alarmVerification.description, /manufacture dates/i);
+  assert.deepEqual(alarmVerification.relatedEquipmentSuggestionIds, [
+    'equipment-smoke-detectors',
+    'equipment-co-detectors',
+  ]);
 });
 
 test('extracts row-specific equipment details and property-owned supplies', () => {
@@ -298,6 +334,11 @@ test('extracts row-specific equipment details and property-owned supplies', () =
     understanding.supplies.find((supply) => supply.name === '20x25x1 HVAC filter')
       .relatedAssetVariant,
     'Air Handler',
+  );
+  assert.deepEqual(
+    understanding.supplies.find((supply) => supply.name === '20x25x1 HVAC filter')
+      .relatedEquipmentSuggestionIds,
+    ['equipment-hvac-air-handler'],
   );
 });
 

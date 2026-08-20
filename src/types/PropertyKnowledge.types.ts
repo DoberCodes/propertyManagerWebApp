@@ -120,6 +120,8 @@ export interface ExtractedPartSuggestion {
 	category: PartKnowledgeCategory;
 	relatedAssetTypes: string[];
 	relatedAssetVariant?: string;
+	relatedEquipmentSuggestionIds?: string[];
+	matchedDeviceIds?: string[];
 	targetEntity: 'part';
 	sourceText: string;
 	confidence?: number;
@@ -140,7 +142,10 @@ export interface PropertyKnowledgeTaskSuggestion {
 	dueDate?: string;
 	relatedAssetType?: string;
 	relatedAssetVariant?: string;
+	relatedEquipmentSuggestionIds?: string[];
 	matchedDeviceId?: string;
+	matchedDeviceIds?: string[];
+	reportedTiming?: string;
 	sourceText: string;
 	confidence?: number;
 	confidenceLevel?: PropertyKnowledgeConfidenceLevel;
@@ -175,7 +180,7 @@ export interface PropertyKnowledgeEquipmentSuggestion {
 
 export interface PropertyKnowledgeAcquisitionDiagnostics {
 	parserVersion: string;
-	interpreter: 'inspection-v1' | 'inspection-v2' | 'inspection-v3' | 'structured-service-v1' | 'generic-v1';
+	interpreter: 'inspection-v1' | 'inspection-v2' | 'inspection-v3' | 'inspection-v4' | 'structured-service-v1' | 'generic-v1';
 	pageCount?: number;
 	extractedCharacterCount: number;
 	tableCount?: number;
