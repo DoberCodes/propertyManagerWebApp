@@ -508,6 +508,14 @@ Stored legacy values remain readable by compatibility and historical paths.
 Accepted Equipment-to-Space and Task-to-Space locations use canonical
 relationship records.
 
+The Space overview is derived rather than stored. It resolves connected
+Equipment, Tasks, Supplies, and Documents from `propertyKnowledgeLinks` and
+legacy-compatible Document readers. Recent Maintenance History is shown only
+when a record explicitly references Equipment or a Task connected to that
+Space, or when a future canonical Maintenance Event-to-Space relationship
+exists. Counts, next-work labels, overdue state, and presentation icons are not
+persisted on `propertySpaces`.
+
 ## propertySupplies
 
 Represents a material, part, consumable, or product specification used by one

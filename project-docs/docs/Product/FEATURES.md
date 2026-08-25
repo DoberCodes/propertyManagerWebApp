@@ -100,6 +100,14 @@ visible; account managers can review and restore archived Spaces. Existing Task
 location values remain stored during a conservative exact-match migration
 period rather than being discarded or guessed.
 
+Property Details presents each Space as a connected snapshot. Cards summarize
+Equipment, open Tasks, Supplies, and Documents and call attention to overdue or
+next scheduled work. The fixed-size Space detail view provides direct access to
+linked Equipment and Tasks, opens connected Supplies and Documents through
+their canonical Property experiences, and derives recent Maintenance History
+from explicitly connected Equipment and Tasks. These summaries do not copy
+records into the Space or create another source of truth.
+
 New residential Properties preview numbered Bedroom, Bathroom, and Half
 Bathroom Spaces before saving. Later Property Profile edits reconcile those
 same generated Spaces whenever bedroom or bathroom counts increase. Creation

@@ -306,6 +306,16 @@ Referenced Spaces are archived rather than deleted so historical location
 context remains resolvable. Property Details includes an archived-Space view and
 an account-manager restore action.
 
+The expanded Property Details experience treats each Space as a derived lens
+over connected property knowledge rather than a new owner of that knowledge.
+Space cards summarize connected Equipment, open Tasks, Supplies, and Documents,
+and surface overdue or next scheduled work. Opening a Space presents those
+records together with recent Maintenance History derived from its connected
+Equipment and Tasks. Equipment and Tasks remain directly addressable records;
+Supplies and Documents open through their canonical Property experiences or
+source file. Derived Space icons and summaries are presentation metadata and do
+not add duplicate Firestore fields.
+
 ## Supplies
 
 Supplies represent durable property knowledge about materials, parts,
@@ -518,6 +528,8 @@ must remain until backfill and validation prove that the new records are complet
 - [x] Reconcile generated Bedroom and Bathroom Spaces after Property Profile edits.
 - [x] Add reviewed canonical Supply creation and connection from Equipment workflows.
 - [x] Remove legacy embedded Supply editing paths and enforce read-only compatibility.
+- [x] Expand Spaces into a connected Property view with Supplies, Documents,
+  upcoming work, and derived recent Maintenance History.
 
 Quick Scan and Property Review now consume accepted relationship records as
 read-only supporting evidence. Existing findings may identify connected Spaces,
