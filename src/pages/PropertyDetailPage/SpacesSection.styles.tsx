@@ -124,24 +124,36 @@ export const SpaceCardOpenArea = styled.button`
 
 export const SpaceCardHeader = styled.div`
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 0.75rem;
-
-	> div:last-child {
-		display: flex;
-		flex: 1;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.65rem;
-		min-width: 0;
-	}
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.6rem;
 
 	strong {
 		min-width: 0;
 		color: ${COLORS.textPrimary};
 		font-size: 0.98rem;
-		word-break: break-word;
+		line-height: 1.35;
+		overflow-wrap: break-word;
+		word-break: normal;
+	}
+`;
+
+export const SpaceCardTypeRow = styled.div`
+	display: flex;
+	justify-content: flex-end;
+	min-height: 1.65rem;
+	min-width: 0;
+`;
+
+export const SpaceCardIdentityRow = styled.div`
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: center;
+	gap: 0.75rem;
+	min-width: 0;
+
+	strong {
+		min-width: 0;
 	}
 `;
 
@@ -160,12 +172,16 @@ export const SpaceCardIcon = styled.span`
 
 export const SpaceTypeBadge = styled.span`
 	flex: 0 0 auto;
+	max-width: 100%;
+	margin-left: auto;
 	padding: 0.25rem 0.5rem;
 	border-radius: 999px;
 	background: ${COLORS.primaryLight};
 	color: ${COLORS.primaryDark};
 	font-size: 0.72rem;
 	font-weight: 700;
+	line-height: 1.2;
+	text-align: center;
 `;
 
 export const SpaceNotes = styled.p`
@@ -288,8 +304,8 @@ export const SpacesStatus = styled.p`
 
 export const SpaceCardSummary = styled.div`
 	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 0.4rem;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.55rem 0.75rem;
 `;
 
 export const SpaceCardMetric = styled.span`
@@ -307,6 +323,7 @@ export const SpaceCardMetric = styled.span`
 		color: ${COLORS.textMuted};
 		font-size: 0.66rem;
 		line-height: 1.2;
+		overflow-wrap: break-word;
 	}
 `;
 
