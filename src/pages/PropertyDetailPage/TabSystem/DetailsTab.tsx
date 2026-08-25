@@ -10,6 +10,7 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 	teamMembers,
 	familyMembers = [],
 	homeownerMode = false,
+	maintenanceHistoryRecords = [],
 	permissions,
 }) => {
 	return (
@@ -24,7 +25,11 @@ export const DetailsTab: React.FC<DetailsTabProps> = ({
 				familyMembers={familyMembers}
 				homeownerMode={homeownerMode}
 			/>
-			<SpacesSection property={property} permissions={permissions} />
+			<SpacesSection
+				property={property}
+				maintenanceHistoryRecords={maintenanceHistoryRecords}
+				permissions={permissions}
+			/>
 		</>
 	);
 };

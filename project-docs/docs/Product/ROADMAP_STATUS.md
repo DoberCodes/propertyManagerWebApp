@@ -198,7 +198,9 @@ Status: Implemented
 Spaces, Equipment, Supplies, Documents, and Tasks are Property-owned records
 connected through relationships. Spaces and Supplies are available through
 their current Property experiences, and Documents can connect to multiple
-records without changing ownership.
+records without changing ownership. Space cards and details now provide a
+derived connected snapshot of Equipment, Tasks, Supplies, Documents, and recent
+Maintenance History without duplicating those records.
 
 ### Homeowner Plans and Access
 

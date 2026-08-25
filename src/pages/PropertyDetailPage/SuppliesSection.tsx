@@ -195,6 +195,7 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		[devices],
 	);
 	const equipmentContextId = String(searchParams.get('equipmentId') || '').trim();
+	const requestedSupplyId = String(searchParams.get('supplyId') || '').trim();
 	const requestedAction = String(searchParams.get('action') || '').trim();
 	const equipmentContext = deviceById.get(equipmentContextId);
 	const spaceById = useMemo(
@@ -263,6 +264,14 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		searchParams,
 		setSearchParams,
 	]);
+
+	useEffect(() => {
+		if (!requestedSupplyId || selectedSupply?.id === requestedSupplyId) return;
+		const requestedSupply = supplies.find(
+			(supply) => supply.id === requestedSupplyId,
+		);
+		if (requestedSupply) setSelectedSupply(requestedSupply);
+	}, [requestedSupplyId, selectedSupply?.id, supplies]);
 
 	const openEditForm = (supply: PropertySupply) => {
 		setActionError('');
@@ -443,6 +452,13 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		const nextParams = new URLSearchParams(searchParams);
 		nextParams.delete('equipmentId');
 		setSearchParams(nextParams);
+	};
+	const closeSupplyDetails = () => {
+		setSelectedSupply(null);
+		if (!requestedSupplyId) return;
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.delete('supplyId');
+		setSearchParams(nextParams, { replace: true });
 	};
 
 	return (
@@ -888,7 +904,7 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 			<GenericModal
 				isOpen={Boolean(selectedSupply)}
 				title={selectedSupply?.name || 'Supply'}
-				onClose={() => setSelectedSupply(null)}
+				onClose={closeSupplyDetails}
 			>
 				<SupplyFormHint>
 					{selectedSupply

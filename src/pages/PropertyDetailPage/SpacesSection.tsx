@@ -1,5 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+	faBoxArchive,
+	faCloudSun,
+	faHouse,
+	faLocationDot,
+	faScrewdriverWrench,
+	faStar,
+	faTree,
+} from '@fortawesome/free-solid-svg-icons';
 import { GenericModal } from '../../Components/Library/Modal';
 import {
 	FormGroup,
@@ -15,6 +25,7 @@ import {
 } from '../../Redux/API/spaceSlice';
 import { useGetDevicesQuery } from '../../Redux/API/deviceSlice';
 import { useGetTasksQuery } from '../../Redux/API/taskSlice';
+import { useGetPropertySuppliesQuery } from '../../Redux/API/supplySlice';
 import {
 	useGetPropertyKnowledgeLinksQuery,
 	useRemovePropertySpaceMutation,
@@ -29,13 +40,18 @@ import {
 import { RoleCapabilities } from '../../utils/permissions';
 import { buildDeviceSlug } from '../../utils/deviceSlug';
 import { getTaskTimingLabel } from '../../tasks/taskSchedule';
+import { getTaskTimeBucketId } from '../../tasks/taskTimeBuckets';
 import { usePropertyMemoryRecords } from '../../propertyKnowledge/usePropertyMemoryRecords';
-import { documentIsLinkedToEndpoint } from '../../utils/propertyDocumentRelationships';
+import {
+	buildPropertySpaceOverview,
+	type PropertySpaceOverview,
+} from '../../propertyKnowledge/propertySpaceOverview';
 import {
 	getNextPropertySpaceSortOrder,
 	getPropertySpaceTypeLabel,
 	PROPERTY_SPACE_TYPE_OPTIONS,
 } from '../../utils/propertySpaces';
+import { getPropertySupplyTypeLabel } from '../../utils/propertySupplies';
 import {
 	AddSpaceButton,
 	ArchivedSpacesPanel,
@@ -57,10 +73,24 @@ import {
 	SpaceDetailList,
 	SpaceDetailItem,
 	SpaceDetailEmpty,
+	SpaceCardOpenArea,
+	SpaceCardIcon,
+	SpaceCardSummary,
+	SpaceCardMetric,
+	SpaceNextAction,
+	SpaceDetailIntro,
+	SpaceDetailMetrics,
+	SpaceDetailMetric,
+	SpaceDetailGrid,
+	SpaceDetailSection,
+	SpaceDetailSectionHeader,
+	SpaceDetailActions,
+	SpaceMaintenanceDate,
 } from './SpacesSection.styles';
 
 interface SpacesSectionProps {
 	property: Property;
+	maintenanceHistoryRecords?: Record<string, any>[];
 	permissions?: RoleCapabilities;
 }
 
@@ -68,6 +98,42 @@ const EMPTY_DRAFT: PropertySpaceDraft = {
 	name: '',
 	type: 'interior',
 	notes: '',
+};
+
+const SPACE_TYPE_ICONS = {
+	interior: faHouse,
+	utility: faScrewdriverWrench,
+	storage: faBoxArchive,
+	exterior: faCloudSun,
+	grounds: faTree,
+	amenity: faStar,
+	other: faLocationDot,
+} as const;
+
+const getMaintenanceTitle = (record: Record<string, any>) =>
+	String(
+		record.title ||
+			record.taskTitle ||
+			record.servicePerformed ||
+			record.description ||
+			'Maintenance recorded',
+	).trim();
+
+const getMaintenanceDateLabel = (record: Record<string, any>) => {
+	const raw =
+		record.serviceDate ||
+		record.completionDate ||
+		record.date ||
+		record.completedAt ||
+		record.createdAt;
+	if (!raw) return 'Date not recorded';
+	const parsed = new Date(raw);
+	if (Number.isNaN(parsed.getTime())) return 'Date not recorded';
+	return new Intl.DateTimeFormat(undefined, {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	}).format(parsed);
 };
 
 const getMutationError = (error: unknown): string => {
@@ -92,6 +158,7 @@ const getMutationError = (error: unknown): string => {
 
 export const SpacesSection: React.FC<SpacesSectionProps> = ({
 	property,
+	maintenanceHistoryRecords = [],
 	permissions,
 }) => {
 	const navigate = useNavigate();
@@ -122,6 +189,11 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 		{ skip: !accountId || !property.id },
 	);
 	const { documents: propertyDocuments } = usePropertyMemoryRecords(property);
+	const { data: supplies = [], isLoading: areSuppliesLoading } =
+		useGetPropertySuppliesQuery(
+			{ accountId, propertyId: property.id, includeArchived: true },
+			{ skip: !accountId || !property.id },
+		);
 	const [removeSpace, { isLoading: isRemoving }] =
 		useRemovePropertySpaceMutation();
 	const [restoreSpace, { isLoading: isRestoring }] =
@@ -149,64 +221,39 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 		() => getNextPropertySpaceSortOrder(activeSpaces),
 		[activeSpaces],
 	);
-	const equipmentBySpaceId = useMemo(() => {
-		const deviceById = new Map(devices.map((device) => [String(device.id), device]));
-		const result = new Map<string, typeof devices>();
-		knowledgeLinks.forEach((link) => {
-			if (
-				link.fromType !== 'equipment' ||
-				link.relationshipType !== 'located_in' ||
-				link.toType !== 'space'
-			) {
-				return;
-			}
-			const device = deviceById.get(link.fromId);
-			if (!device) return;
-			const current = result.get(link.toId) || [];
-			result.set(link.toId, [...current, device]);
-		});
-		return result;
-	}, [devices, knowledgeLinks]);
-	const tasksBySpaceId = useMemo(() => {
-		const taskById = new Map(propertyTasks.map((task) => [String(task.id), task]));
-		const result = new Map<string, typeof propertyTasks>();
-		knowledgeLinks.forEach((link) => {
-			if (
-				link.fromType !== 'task' ||
-				link.relationshipType !== 'occurs_in' ||
-				link.toType !== 'space'
-			) {
-				return;
-			}
-			const task = taskById.get(link.fromId);
-			if (!task) return;
-			const current = result.get(link.toId) || [];
-			result.set(link.toId, [...current, task]);
-		});
-		return result;
-	}, [knowledgeLinks, propertyTasks]);
-	const documentsBySpaceId = useMemo(() => {
-		const result = new Map<string, typeof propertyDocuments>();
-		spaces.forEach((space) => {
-			const documents = propertyDocuments.filter((document) =>
-				documentIsLinkedToEndpoint(
-					document,
-					knowledgeLinks,
-					'space',
+	const overviewBySpaceId = useMemo(
+		() =>
+			new Map<string, PropertySpaceOverview>(
+				spaces.map((space) => [
 					space.id,
-				),
-			);
-			if (documents.length > 0) result.set(space.id, documents);
-		});
-		return result;
-	}, [knowledgeLinks, propertyDocuments, spaces]);
+					buildPropertySpaceOverview({
+						spaceId: space.id,
+						links: knowledgeLinks,
+						equipment: devices,
+						tasks: propertyTasks,
+						supplies,
+						documents: propertyDocuments,
+						maintenanceHistory: maintenanceHistoryRecords,
+					}),
+				]),
+			),
+		[
+			devices,
+			knowledgeLinks,
+			maintenanceHistoryRecords,
+			propertyDocuments,
+			propertyTasks,
+			spaces,
+			supplies,
+		],
+	);
 	const getSpaceReferenceCount = (spaceId: string) =>
 		knowledgeLinks.filter(
 			(link) =>
 				link.toType === 'space' &&
 				link.toId === spaceId &&
 				link.fromType !== 'document',
-		).length + (documentsBySpaceId.get(spaceId)?.length || 0);
+		).length + (overviewBySpaceId.get(spaceId)?.documents.length || 0);
 
 	const openCreateForm = () => {
 		setActionError('');
@@ -307,15 +354,32 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 		}
 	};
 
-	const selectedEquipment = selectedSpace
-		? equipmentBySpaceId.get(selectedSpace.id) || []
-		: [];
-	const selectedTasks = selectedSpace
-		? tasksBySpaceId.get(selectedSpace.id) || []
-		: [];
-	const selectedDocuments = selectedSpace
-		? documentsBySpaceId.get(selectedSpace.id) || []
-		: [];
+	const selectedOverview = selectedSpace
+		? overviewBySpaceId.get(selectedSpace.id)
+		: undefined;
+	const selectedEquipment = selectedOverview?.equipment || [];
+	const selectedTasks = selectedOverview?.tasks || [];
+	const selectedSupplies = selectedOverview?.supplies || [];
+	const selectedDocuments = selectedOverview?.documents || [];
+	const selectedMaintenance = selectedOverview?.recentMaintenance || [];
+
+	const openPropertyTab = (
+		tab: 'tasks' | 'supplies' | 'documents' | 'maintenance',
+		params: Record<string, string> = {},
+	) => {
+		const search = new URLSearchParams({ tab, ...params });
+		setSelectedSpace(null);
+		navigate(`/property/${property.slug}?${search.toString()}`);
+	};
+
+	const openDocument = (document: (typeof selectedDocuments)[number]) => {
+		const url = String(document.fileUrl || document.url || '').trim();
+		if (!url) {
+			openPropertyTab('documents');
+			return;
+		}
+		window.open(url, '_blank', 'noopener,noreferrer');
+	};
 
 	return (
 		<SpacesContainer aria-labelledby="property-spaces-heading">
@@ -355,25 +419,61 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 			)}
 			{activeSpaces.length > 0 && (
 				<SpacesGrid>
-					{activeSpaces.map((space) => (
+					{activeSpaces.map((space) => {
+						const overview = overviewBySpaceId.get(space.id);
+						return (
 						<SpaceCard key={space.id}>
-							<SpaceCardHeader>
-								<strong>{space.name}</strong>
-								<SpaceTypeBadge>
-									{getPropertySpaceTypeLabel(space.type)}
-								</SpaceTypeBadge>
-							</SpaceCardHeader>
-							{space.notes && <SpaceNotes>{space.notes}</SpaceNotes>}
-							<SpaceLinkedCount>
-								{equipmentBySpaceId.get(space.id)?.length || 0} equipment -{' '}
-								{tasksBySpaceId.get(space.id)?.length || 0} task
-								{(tasksBySpaceId.get(space.id)?.length || 0) === 1 ? '' : 's'}
-							</SpaceLinkedCount>
-							<SpaceActions>
-								<button type="button" onClick={() => setSelectedSpace(space)}>
-									View
-								</button>
+							<SpaceCardOpenArea
+								type="button"
+								onClick={() => setSelectedSpace(space)}
+								aria-label={`Open ${space.name} Space`}
+							>
+								<SpaceCardHeader>
+									<SpaceCardIcon aria-hidden="true">
+										<FontAwesomeIcon icon={SPACE_TYPE_ICONS[space.type]} />
+									</SpaceCardIcon>
+									<div>
+										<strong>{space.name}</strong>
+										<SpaceTypeBadge>
+											{getPropertySpaceTypeLabel(space.type)}
+										</SpaceTypeBadge>
+									</div>
+								</SpaceCardHeader>
+								{space.notes && <SpaceNotes>{space.notes}</SpaceNotes>}
+								<SpaceCardSummary>
+									<SpaceCardMetric>
+										<strong>{overview?.equipment.length || 0}</strong>
+										<span>Equipment</span>
+									</SpaceCardMetric>
+									<SpaceCardMetric>
+										<strong>{overview?.activeTasks.length || 0}</strong>
+										<span>Open tasks</span>
+									</SpaceCardMetric>
+									<SpaceCardMetric>
+										<strong>{overview?.supplies.length || 0}</strong>
+										<span>Supplies</span>
+									</SpaceCardMetric>
+									<SpaceCardMetric>
+										<strong>{overview?.documents.length || 0}</strong>
+										<span>Documents</span>
+									</SpaceCardMetric>
+								</SpaceCardSummary>
+								{overview?.overdueTaskCount ? (
+									<SpaceNextAction data-tone="attention">
+										{overview.overdueTaskCount} overdue task
+										{overview.overdueTaskCount === 1 ? '' : 's'}
+									</SpaceNextAction>
+								) : overview?.nextTask ? (
+									<SpaceNextAction>
+										Next: {overview.nextTask.title} ·{' '}
+										{getTaskTimingLabel(overview.nextTask)}
+									</SpaceNextAction>
+								) : (
+									<SpaceNextAction>No open work connected</SpaceNextAction>
+								)}
+							</SpaceCardOpenArea>
 							{canManageSpaces && (
+							<SpaceActions>
 								<>
 									<button type="button" onClick={() => openEditForm(space)}>
 										Edit
@@ -391,10 +491,11 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 											: 'Remove'}
 									</button>
 								</>
-							)}
 							</SpaceActions>
+							)}
 						</SpaceCard>
-					))}
+						);
+					})}
 				</SpacesGrid>
 			)}
 
@@ -569,82 +670,243 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 				title={selectedSpace?.name || 'Space'}
 				onClose={() => setSelectedSpace(null)}
 			>
-				<SpaceFormHint>
-					{selectedSpace
-						? `${getPropertySpaceTypeLabel(selectedSpace.type)} Space`
-						: ''}
-				</SpaceFormHint>
-				{selectedSpace?.notes && <SpaceNotes>{selectedSpace.notes}</SpaceNotes>}
-				<h4>Equipment</h4>
-				{selectedEquipment.length > 0 ? (
-					<SpaceDetailList>
-						{selectedEquipment.map((device) => (
-							<SpaceDetailItem key={device.id}>
-								<div>
-									<strong>{device.type || 'Equipment'}</strong>
-									<span>
-										{[device.brand, device.model].filter(Boolean).join(' ') ||
-											'No brand or model recorded'}
-									</span>
-								</div>
-								<button
-									type="button"
-									onClick={() =>
-										navigate(
-											`/property/${property.slug}/device/${buildDeviceSlug(device)}`,
-										)
-									}
-								>
-									Open
-								</button>
-							</SpaceDetailItem>
-						))}
-					</SpaceDetailList>
-				) : (
-					<SpaceDetailEmpty>
-						No equipment is connected to this Space yet. Edit an equipment
-						record to add it here.
-					</SpaceDetailEmpty>
-				)}
-				<h4>Tasks</h4>
-				{selectedTasks.length > 0 ? (
-					<SpaceDetailList>
-						{selectedTasks.map((task) => (
-							<SpaceDetailItem key={task.id}>
-								<div>
-									<strong>{task.title}</strong>
-									<span>
-										{task.status || 'Open'}
-										{' - '}
-										{getTaskTimingLabel(task)}
-									</span>
-								</div>
-							</SpaceDetailItem>
-						))}
-					</SpaceDetailList>
-				) : (
-					<SpaceDetailEmpty>
-						No tasks are connected to this Space yet. Add or edit a task to
-						connect it here.
-					</SpaceDetailEmpty>
-				)}
-				<h4>Documents</h4>
-				{selectedDocuments.length > 0 ? (
-					<SpaceDetailList>
-						{selectedDocuments.map((document) => (
-							<SpaceDetailItem key={document.id}>
-								<div>
-									<strong>{document.fileName || document.name}</strong>
-									<span>{document.category || 'Document'}</span>
-								</div>
-							</SpaceDetailItem>
-						))}
-					</SpaceDetailList>
-				) : (
-					<SpaceDetailEmpty>
-						No documents are connected to this Space yet.
-					</SpaceDetailEmpty>
-				)}
+				<SpaceDetailIntro>
+					<div>
+						<SpaceCardIcon aria-hidden="true">
+							{selectedSpace && (
+								<FontAwesomeIcon icon={SPACE_TYPE_ICONS[selectedSpace.type]} />
+							)}
+						</SpaceCardIcon>
+						<div>
+							<strong>
+								{selectedSpace
+									? `${getPropertySpaceTypeLabel(selectedSpace.type)} Space`
+									: ''}
+							</strong>
+							<span>
+								Connected property records stay owned by the property and are
+								shown here as one useful view.
+							</span>
+						</div>
+					</div>
+					{selectedSpace?.notes && <SpaceNotes>{selectedSpace.notes}</SpaceNotes>}
+				</SpaceDetailIntro>
+
+				<SpaceDetailMetrics>
+					<SpaceDetailMetric>
+						<strong>{selectedEquipment.length}</strong>
+						<span>Equipment</span>
+					</SpaceDetailMetric>
+					<SpaceDetailMetric data-tone={selectedOverview?.overdueTaskCount ? 'attention' : undefined}>
+						<strong>{selectedOverview?.activeTasks.length || 0}</strong>
+						<span>
+							{selectedOverview?.overdueTaskCount
+								? `${selectedOverview.overdueTaskCount} overdue`
+								: 'Open tasks'}
+						</span>
+					</SpaceDetailMetric>
+					<SpaceDetailMetric>
+						<strong>{selectedSupplies.length}</strong>
+						<span>Supplies</span>
+					</SpaceDetailMetric>
+					<SpaceDetailMetric>
+						<strong>{selectedDocuments.length}</strong>
+						<span>Documents</span>
+					</SpaceDetailMetric>
+				</SpaceDetailMetrics>
+
+				<SpaceDetailGrid>
+					<SpaceDetailSection>
+						<SpaceDetailSectionHeader>
+							<div>
+								<h4>Equipment</h4>
+								<span>{selectedEquipment.length} connected</span>
+							</div>
+						</SpaceDetailSectionHeader>
+						{selectedEquipment.length > 0 ? (
+							<SpaceDetailList>
+								{selectedEquipment.slice(0, 5).map((device) => (
+									<SpaceDetailItem key={device.id}>
+										<div>
+											<strong>{device.type || 'Equipment'}</strong>
+											<span>
+												{[device.brand, device.model].filter(Boolean).join(' ') ||
+													'No brand or model recorded'}
+											</span>
+										</div>
+										<button
+											type="button"
+											onClick={() =>
+												navigate(
+													`/property/${property.slug}/device/${buildDeviceSlug(device)}`,
+												)
+											}
+										>
+											Open
+										</button>
+									</SpaceDetailItem>
+								))}
+							</SpaceDetailList>
+						) : (
+							<SpaceDetailEmpty>
+								No equipment is connected yet. Edit an equipment record to add
+								this Space.
+							</SpaceDetailEmpty>
+						)}
+					</SpaceDetailSection>
+
+					<SpaceDetailSection>
+						<SpaceDetailSectionHeader>
+							<div>
+								<h4>Tasks</h4>
+								<span>{selectedOverview?.activeTasks.length || 0} open</span>
+							</div>
+							<button type="button" onClick={() => openPropertyTab('tasks')}>
+								View all
+							</button>
+						</SpaceDetailSectionHeader>
+						{selectedTasks.length > 0 ? (
+							<SpaceDetailList>
+								{selectedTasks.slice(0, 5).map((task) => (
+									<SpaceDetailItem key={task.id}>
+										<div>
+											<strong>{task.title}</strong>
+											<span>
+												{task.status || 'Open'} · {getTaskTimingLabel(task)}
+												{selectedOverview?.activeTasks.some(
+													(activeTask) => activeTask.id === task.id,
+												) && getTaskTimeBucketId(task) === 'overdue'
+													? ' · Overdue'
+													: ''}
+											</span>
+										</div>
+										<button type="button" onClick={() => navigate(`/tasks/${task.id}`)}>
+											Open
+										</button>
+									</SpaceDetailItem>
+								))}
+							</SpaceDetailList>
+						) : (
+							<SpaceDetailEmpty>
+								No tasks are connected yet. Add or edit a task to connect it here.
+							</SpaceDetailEmpty>
+						)}
+					</SpaceDetailSection>
+
+					<SpaceDetailSection>
+						<SpaceDetailSectionHeader>
+							<div>
+								<h4>Supplies</h4>
+								<span>{selectedSupplies.length} connected</span>
+							</div>
+							<button type="button" onClick={() => openPropertyTab('supplies')}>
+								View all
+							</button>
+						</SpaceDetailSectionHeader>
+						{areSuppliesLoading ? (
+							<SpaceDetailEmpty>Loading connected Supplies…</SpaceDetailEmpty>
+						) : selectedSupplies.length > 0 ? (
+							<SpaceDetailList>
+								{selectedSupplies.slice(0, 5).map((supply) => (
+									<SpaceDetailItem key={supply.id}>
+										<div>
+											<strong>{supply.name}</strong>
+											<span>
+												{getPropertySupplyTypeLabel(supply.type)}
+												{supply.isArchived ? ' · Archived' : ''}
+											</span>
+										</div>
+										<button
+											type="button"
+											onClick={() => openPropertyTab('supplies', { supplyId: supply.id })}
+										>
+											Open
+										</button>
+									</SpaceDetailItem>
+								))}
+							</SpaceDetailList>
+						) : (
+							<SpaceDetailEmpty>
+								No Supplies are connected yet. Edit a Supply to connect it here.
+							</SpaceDetailEmpty>
+						)}
+					</SpaceDetailSection>
+
+					<SpaceDetailSection>
+						<SpaceDetailSectionHeader>
+							<div>
+								<h4>Documents</h4>
+								<span>{selectedDocuments.length} connected</span>
+							</div>
+							<button type="button" onClick={() => openPropertyTab('documents')}>
+								View all
+							</button>
+						</SpaceDetailSectionHeader>
+						{selectedDocuments.length > 0 ? (
+							<SpaceDetailList>
+								{selectedDocuments.slice(0, 5).map((document) => (
+									<SpaceDetailItem key={document.id}>
+										<div>
+											<strong>{document.fileName || document.name}</strong>
+											<span>{document.category || 'Document'}</span>
+										</div>
+										<button type="button" onClick={() => openDocument(document)}>
+											Open
+										</button>
+									</SpaceDetailItem>
+								))}
+							</SpaceDetailList>
+						) : (
+							<SpaceDetailEmpty>No documents are connected yet.</SpaceDetailEmpty>
+						)}
+					</SpaceDetailSection>
+				</SpaceDetailGrid>
+
+				<SpaceDetailSection>
+					<SpaceDetailSectionHeader>
+						<div>
+							<h4>Recent maintenance</h4>
+							<span>Derived from connected Equipment and Tasks</span>
+						</div>
+						<button type="button" onClick={() => openPropertyTab('maintenance')}>
+							View history
+						</button>
+					</SpaceDetailSectionHeader>
+					{selectedMaintenance.length > 0 ? (
+						<SpaceDetailList>
+							{selectedMaintenance.map((record, index) => (
+								<SpaceDetailItem key={record.id || `maintenance-${index}`}>
+									<div>
+										<strong>{getMaintenanceTitle(record)}</strong>
+										<SpaceMaintenanceDate>
+											{getMaintenanceDateLabel(record)}
+										</SpaceMaintenanceDate>
+									</div>
+								</SpaceDetailItem>
+							))}
+						</SpaceDetailList>
+					) : (
+						<SpaceDetailEmpty>
+							No maintenance history is connected through this Space’s Equipment or
+							Tasks yet.
+						</SpaceDetailEmpty>
+					)}
+				</SpaceDetailSection>
+
+				<SpaceDetailActions>
+					{canManageSpaces && selectedSpace && (
+						<button
+							type="button"
+							onClick={() => {
+								const space = selectedSpace;
+								setSelectedSpace(null);
+								openEditForm(space);
+							}}
+						>
+							Edit Space
+						</button>
+					)}
+				</SpaceDetailActions>
 			</GenericModal>
 		</SpacesContainer>
 	);
