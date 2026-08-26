@@ -10,6 +10,12 @@ interface SetEquipmentSpaceLinksArgs {
 	spaceIds: string[];
 }
 
+interface SetAttachedEquipmentArgs {
+	propertyId: string;
+	primaryEquipmentId: string;
+	attachedEquipmentIds: string[];
+}
+
 interface SetTaskSpaceLinksArgs {
 	propertyId: string;
 	taskId: string;
@@ -107,6 +113,24 @@ const propertyKnowledgeLinkSlice = apiSlice.injectEndpoints({
 				}
 			},
 			invalidatesTags: ['PropertyKnowledgeLinks'],
+		}),
+
+		setAttachedEquipment: builder.mutation<
+			{ success: boolean; linkCount: number },
+			SetAttachedEquipmentArgs
+		>({
+			async queryFn(args) {
+				try {
+					const result = await callFirebaseFunction<
+						SetAttachedEquipmentArgs,
+						{ success: boolean; linkCount: number }
+					>('setAttachedEquipment', args);
+					return { data: result.data };
+				} catch (error: any) {
+					return { error: error.message };
+				}
+			},
+			invalidatesTags: ['Devices', 'PropertyKnowledgeLinks'],
 		}),
 
 		setTaskSpaceLinks: builder.mutation<
@@ -244,6 +268,7 @@ export const {
 	useRestorePropertySpaceMutation,
 	useRestorePropertySupplyMutation,
 	useSetEquipmentSpaceLinksMutation,
+	useSetAttachedEquipmentMutation,
 	useSetDocumentLinksMutation,
 	useSetSupplyLinksMutation,
 	useSetTaskSpaceLinksMutation,

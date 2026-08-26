@@ -77,6 +77,23 @@ describe('Maintley Intelligence readiness', () => {
 		);
 	});
 
+	it('does not double count a combined Equipment record as a physical record', () => {
+		const result = deriveMaintleyIntelligenceReadiness({
+			systems: [
+				system({ id: 'hvac-primary', recordScope: 'combined' }),
+				system({ id: 'air-handler' }),
+				system({ id: 'condenser' }),
+			],
+			tasks: [],
+			maintenanceHistory: [],
+		});
+
+		expect(result.categories[0].evidence).toEqual({
+			applicableRecords: 2,
+			supportedRecords: 2,
+		});
+	});
+
 	it('marks maintenance coverage ready when recurring care is linked', () => {
 		const result = deriveMaintleyIntelligenceReadiness({
 			systems: [system()],

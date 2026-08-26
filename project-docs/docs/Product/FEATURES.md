@@ -254,6 +254,14 @@ Current capabilities:
 * Associate maintenance history.
 * Browse Equipment Hub groups such as Comfort, Safety, Exterior, Utilities,
   Appliances, and Other.
+* Connect several physical Equipment records beneath one primary Equipment
+  profile without merging their model, serial, Space, status, or history.
+* Add new Equipment from a primary Equipment profile or connect existing
+  standalone Equipment.
+
+Connected physical Equipment is omitted from ordinary top-level Equipment
+cards and remains available from the primary profile, direct links, reports,
+exports, search-backed record resolution, and its own Equipment profile.
 
 Supported statuses:
 

@@ -90,6 +90,7 @@
 	"sendTaskReminderEmails",
 	"sendTeamMemberTaskReports",
 	"sendWelcomeSignupEmail",
+	"setAttachedEquipment",
 	"setDocumentLinks",
 	"setEquipmentSpaceLinks",
 	"setSupplyLinks",

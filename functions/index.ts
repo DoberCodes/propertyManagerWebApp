@@ -134,6 +134,7 @@ export {
 	restorePropertySupply,
 	setSupplyLinks,
 	setDocumentLinks,
+	setAttachedEquipment,
 	setEquipmentSpaceLinks,
 	setTaskSpaceLinks,
 } from './propertyKnowledgeLinks';

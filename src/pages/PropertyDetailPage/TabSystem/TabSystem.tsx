@@ -47,6 +47,7 @@ interface TabsProps {
 	createHistoryDraftRecommendationId?: string | null;
 	onCreateHistoryDraftSaved?: (recommendationId: string) => void;
 	openCreateDeviceToken?: number;
+	attachToEquipmentId?: string;
 	openDocumentsUploadToken?: number;
 	openCreateContractorToken?: number;
 	canRunPropertyScan?: boolean;
@@ -94,6 +95,7 @@ export const TabSystem = ({
 	createHistoryDraftRecommendationId = null,
 	onCreateHistoryDraftSaved,
 	openCreateDeviceToken = 0,
+	attachToEquipmentId,
 	openDocumentsUploadToken = 0,
 	openCreateContractorToken = 0,
 	canRunPropertyScan = false,
@@ -179,6 +181,7 @@ export const TabSystem = ({
 						maintenanceHistoryRecords={maintenanceHistoryRecords}
 						permissions={permissions}
 						openCreateDeviceToken={openCreateDeviceToken}
+						attachToEquipmentId={attachToEquipmentId}
 					/>
 				);
 			case 'supplies':

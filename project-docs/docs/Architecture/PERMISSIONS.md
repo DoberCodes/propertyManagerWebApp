@@ -718,6 +718,12 @@ same account and property boundary and rejects new links to archived Spaces.
 Recurring Task generation may copy already accepted Task-to-Space links through
 the trusted writer. Task deletion removes its outgoing links.
 
+Account managers may replace one-level Equipment `part_of` Equipment links.
+The trusted callable validates both Equipment records against the same account
+and Property, permits only one primary connection per physical record, and
+rejects self-reference, recursive nesting, and combined Equipment as an
+attached record. Direct relationship writes remain denied.
+
 Trusted Supply relationship writes support Equipment, Space, or Task `uses`
 Supply for account managers. The callable validates the Property, Supply, and
 every selected endpoint against the same account and property and rejects new

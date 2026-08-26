@@ -220,6 +220,10 @@ npm run test:ci
 Plus:
 
 * Manual workflow validation
+* For Equipment relationships: connect existing Equipment, create and attach
+  new Equipment, remove a connection, open both profiles directly, confirm the
+  attached record leaves top-level cards, and verify recursive or cross-Property
+  selections are rejected.
 
 ---
 
