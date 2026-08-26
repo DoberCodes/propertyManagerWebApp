@@ -791,6 +791,13 @@ owned by the stable Beta deployment workflow. A PR that changes
 `firestore.indexes.json` may validate the contract in CI, but the index change
 becomes active only after the approved change merges into `beta`.
 
+When stable Beta reclaims an active pull-request backend, it redeploys only the
+same shared preview targets: Functions, Firestore Rules, and Storage Rules.
+Firestore indexes are included only when `firestore.indexes.json` itself changed.
+This keeps project-wide index infrastructure outside the preview restoration
+lifecycle and requires Firestore index-administration access only for an
+intentional index deployment.
+
 While the label is active, later pushes redeploy automatically after required
 checks pass. An older queued request fails safely if a later push changes the PR
 head before it obtains the deployment lock. Localhost and every Hosting preview
