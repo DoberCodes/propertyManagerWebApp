@@ -75,6 +75,8 @@ import {
 	SpaceDetailEmpty,
 	SpaceCardOpenArea,
 	SpaceCardIcon,
+	SpaceCardIdentityRow,
+	SpaceCardTypeRow,
 	SpaceCardSummary,
 	SpaceCardMetric,
 	SpaceNextAction,
@@ -429,15 +431,17 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 								aria-label={`Open ${space.name} Space`}
 							>
 								<SpaceCardHeader>
-									<SpaceCardIcon aria-hidden="true">
-										<FontAwesomeIcon icon={SPACE_TYPE_ICONS[space.type]} />
-									</SpaceCardIcon>
-									<div>
-										<strong>{space.name}</strong>
+									<SpaceCardTypeRow>
 										<SpaceTypeBadge>
 											{getPropertySpaceTypeLabel(space.type)}
 										</SpaceTypeBadge>
-									</div>
+									</SpaceCardTypeRow>
+									<SpaceCardIdentityRow>
+										<SpaceCardIcon aria-hidden="true">
+											<FontAwesomeIcon icon={SPACE_TYPE_ICONS[space.type]} />
+										</SpaceCardIcon>
+										<strong>{space.name}</strong>
+									</SpaceCardIdentityRow>
 								</SpaceCardHeader>
 								{space.notes && <SpaceNotes>{space.notes}</SpaceNotes>}
 								<SpaceCardSummary>
@@ -517,8 +521,10 @@ export const SpacesSection: React.FC<SpacesSectionProps> = ({
 								{archivedSpaces.map((space) => (
 									<SpaceCard key={space.id}>
 										<SpaceCardHeader>
+											<SpaceCardTypeRow>
+												<SpaceTypeBadge>Archived</SpaceTypeBadge>
+											</SpaceCardTypeRow>
 											<strong>{space.name}</strong>
-											<SpaceTypeBadge>Archived</SpaceTypeBadge>
 										</SpaceCardHeader>
 										{space.notes && <SpaceNotes>{space.notes}</SpaceNotes>}
 										<SpaceLinkedCount>

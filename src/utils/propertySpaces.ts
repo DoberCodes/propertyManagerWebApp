@@ -9,7 +9,7 @@ export const PROPERTY_SPACE_TYPE_OPTIONS: Array<{
 	label: string;
 }> = [
 	{ value: 'interior', label: 'Interior' },
-	{ value: 'utility', label: 'Utility or mechanical' },
+	{ value: 'utility', label: 'Utility' },
 	{ value: 'storage', label: 'Storage' },
 	{ value: 'exterior', label: 'Exterior' },
 	{ value: 'grounds', label: 'Grounds' },
