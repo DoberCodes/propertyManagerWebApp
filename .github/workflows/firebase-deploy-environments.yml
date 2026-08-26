@@ -195,9 +195,9 @@ jobs:
 
           ACTIVE_BACKEND_PREVIEWS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=all&labels=beta-backend-active&per_page=100" --jq 'length' | awk '{ total += $1 } END { print total + 0 }')"
           if [[ "$ACTIVE_BACKEND_PREVIEWS" -gt 0 ]]; then
-            echo "An active pull-request backend preview exists; this stable Beta deployment will reclaim the complete backend."
-            targets=("hosting:beta" "functions" "firestore:rules" "firestore:indexes" "storage")
-            backend_targets=("functions" "firestore:rules" "firestore:indexes" "storage")
+            echo "An active pull-request backend preview exists; this stable Beta deployment will reclaim the shared preview targets."
+            targets=("hosting:beta" "functions" "firestore:rules" "storage")
+            backend_targets=("functions" "firestore:rules" "storage")
           fi
 
           TARGETS="$(IFS=,; echo "${targets[*]}")"
