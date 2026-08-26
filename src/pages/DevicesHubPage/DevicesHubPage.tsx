@@ -49,6 +49,7 @@ import { getRoleCapabilities } from '../../utils/permissions';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import type { PendingEquipmentSupplyDraft } from '../../Components/EquipmentSuppliesReview/EquipmentSuppliesReview';
 import { buildEquipmentSupplyLinkUpdates } from '../../propertyKnowledge/equipmentSupplyConnections';
+import { getTopLevelEquipment } from '../../propertyKnowledge/equipmentRelationships';
 import {
 	readCollapsedGroupPreference,
 	writeCollapsedGroupPreference,
@@ -388,6 +389,7 @@ export const DevicesHubPage: React.FC = () => {
 	const location = useLocation();
 	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const hubAccountId = String(currentUser?.accountId || currentUser?.id || '').trim();
 	const {
 		data: devices = [],
 		isLoading,
@@ -404,6 +406,15 @@ export const DevicesHubPage: React.FC = () => {
 		isError: didPropertiesFail,
 		refetch: refetchProperties,
 	} = useGetPropertiesQuery();
+	const { data: hubPropertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId: hubAccountId },
+			{ skip: !hubAccountId },
+		);
+	const topLevelDevices = useMemo(
+		() => getTopLevelEquipment(devices, hubPropertyKnowledgeLinks),
+		[devices, hubPropertyKnowledgeLinks],
+	);
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 	const resolvedMaintenanceHistory = useMemo(
@@ -964,7 +975,9 @@ export const DevicesHubPage: React.FC = () => {
 
 	const filteredDeviceRows = useMemo(() => {
 		const query = searchQuery.trim().toLowerCase();
+		const topLevelIds = new Set(topLevelDevices.map((device) => String(device.id)));
 		return deviceRows.filter((row) => {
+			if (!query && !topLevelIds.has(String(row.id))) return false;
 			if (statusFilter !== 'All' && row.status !== statusFilter) return false;
 			if (propertyFilter && row.propertyId !== propertyFilter) return false;
 			if (query) {
@@ -977,7 +990,10 @@ export const DevicesHubPage: React.FC = () => {
 			}
 			return true;
 		});
-	}, [deviceRows, searchQuery, statusFilter, propertyFilter]);
+	}, [deviceRows, propertyFilter, searchQuery, statusFilter, topLevelDevices]);
+	const visibleDeviceRowCount = searchQuery.trim()
+		? deviceRows.length
+		: topLevelDevices.length;
 
 	const equipmentGroups = useMemo(() => {
 		const groups = new Map<
@@ -1317,12 +1333,12 @@ export const DevicesHubPage: React.FC = () => {
 					</PropertySelect>
 				) : null}
 				<FilterResultCount>
-					{filteredDeviceRows.length} of {deviceRows.length} equipment record{deviceRows.length === 1 ? '' : 's'}
+					{filteredDeviceRows.length} of {visibleDeviceRowCount} equipment record{visibleDeviceRowCount === 1 ? '' : 's'}
 				</FilterResultCount>
 			</FilterBar>
 			<CompactFilterResultCount>
-				Showing {filteredDeviceRows.length} of {deviceRows.length}{' '}
-				{deviceRows.length === 1 ? 'equipment record' : 'equipment records'}
+				Showing {filteredDeviceRows.length} of {visibleDeviceRowCount}{' '}
+				{visibleDeviceRowCount === 1 ? 'equipment record' : 'equipment records'}
 			</CompactFilterResultCount>
 			<FloatingFilterPanel
 				isOpen={isFilterPanelOpen}

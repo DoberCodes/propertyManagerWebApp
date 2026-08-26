@@ -300,6 +300,7 @@ export type AssetCategory =
 export interface Device {
 	id: string;
 	userId: string; // Owner of the device
+	recordScope?: 'physical' | 'combined'; // Missing values retain legacy physical behavior.
 	type: string; // Homeowner-facing display type retained on the record
 	name?: string; // Optional user-facing label for distinguishing repeated equipment
 	assetType?: string; // Canonical internal type for maintainable assets (e.g. refrigerator, heat_pump)

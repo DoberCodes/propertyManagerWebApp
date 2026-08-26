@@ -1573,6 +1573,7 @@ export const PropertyDetailPage: React.FC<PropertyDetailPageProps> = (
 					handlePropertyScanAction={handlePropertyScanAction}
 					openCreateTaskToken={openCreateTaskToken}
 					openCreateDeviceToken={openCreateDeviceToken}
+					attachToEquipmentId={searchParams.get('attachTo') || undefined}
 					openDocumentsUploadToken={openDocumentsUploadToken}
 					openCreateContractorToken={openCreateContractorToken}
 					permissions={roleCapabilities}

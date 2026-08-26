@@ -10,7 +10,8 @@ export type PropertyKnowledgeRelationshipType =
 	| 'located_in'
 	| 'occurs_in'
 	| 'uses'
-	| 'documents';
+	| 'documents'
+	| 'part_of';
 
 export type PropertyKnowledgeLinkSource =
 	| 'manual'
@@ -47,6 +48,32 @@ export const getEquipmentSpaceIds = (
 				link.toType === 'space',
 		)
 		.map((link) => link.toId);
+
+export const getEquipmentPrimaryId = (
+	links: PropertyKnowledgeLink[],
+	equipmentId: string,
+): string | undefined =>
+	links.find(
+		(link) =>
+			link.fromType === 'equipment' &&
+			link.fromId === equipmentId &&
+			link.relationshipType === 'part_of' &&
+			link.toType === 'equipment',
+	)?.toId;
+
+export const getAttachedEquipmentIds = (
+	links: PropertyKnowledgeLink[],
+	primaryEquipmentId: string,
+): string[] =>
+	links
+		.filter(
+			(link) =>
+				link.fromType === 'equipment' &&
+				link.relationshipType === 'part_of' &&
+				link.toType === 'equipment' &&
+				link.toId === primaryEquipmentId,
+		)
+		.map((link) => link.fromId);
 
 export const getTaskSpaceIds = (
 	links: PropertyKnowledgeLink[],

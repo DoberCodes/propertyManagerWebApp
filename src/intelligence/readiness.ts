@@ -172,11 +172,14 @@ const isKnownEquipmentType = (system: Device): boolean => {
 const buildEquipmentContext = (
 	systems: Device[],
 ): MaintleyIntelligenceReadinessCategory => {
-	const recognized = systems.filter(isKnownEquipmentType).length;
+	const physicalSystems = systems.filter(
+		(system) => system.recordScope !== 'combined',
+	);
+	const recognized = physicalSystems.filter(isKnownEquipmentType).length;
 	const level: MaintleyIntelligenceReadinessLevel =
-		systems.length === 0
+		physicalSystems.length === 0
 			? 'starting'
-			: recognized === systems.length
+			: recognized === physicalSystems.length
 				? 'ready'
 				: 'building_context';
 
@@ -184,13 +187,13 @@ const buildEquipmentContext = (
 		level === 'starting'
 			? 'Add equipment so Maintley can provide equipment-specific guidance.'
 			: level === 'ready'
-				? `Maintley recognizes ${systems.length === 1 ? 'the tracked equipment record' : `all ${systems.length} tracked equipment records`} and can use their types for more specific guidance.`
-				: `Maintley recognizes ${recognized} of ${systems.length} tracked equipment records and can provide specific guidance for those records.`;
+				? `Maintley recognizes ${physicalSystems.length === 1 ? 'the tracked equipment record' : `all ${physicalSystems.length} tracked equipment records`} and can use their types for more specific guidance.`
+				: `Maintley recognizes ${recognized} of ${physicalSystems.length} tracked equipment records and can provide specific guidance for those records.`;
 	const nextStep =
 		level === 'starting'
 			? 'Add the first system or appliance you want Maintley to help track.'
-			: recognized < systems.length
-				? `Choose an equipment type for ${systems.length - recognized} ${systems.length - recognized === 1 ? 'record' : 'records'}.`
+			: recognized < physicalSystems.length
+				? `Choose an equipment type for ${physicalSystems.length - recognized} ${physicalSystems.length - recognized === 1 ? 'record' : 'records'}.`
 				: 'Add model or installation details when they are available.';
 
 	return {
@@ -201,7 +204,7 @@ const buildEquipmentContext = (
 		summary,
 		nextStep,
 		evidence: {
-			applicableRecords: systems.length,
+			applicableRecords: physicalSystems.length,
 			supportedRecords: recognized,
 		},
 	};

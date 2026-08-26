@@ -492,6 +492,10 @@ records. This is especially important for distributed safety devices. One
 Equipment record may connect to several Spaces only when it represents one
 physical system associated with those Spaces. Setup-generated Tasks may connect
 to the combined accepted Spaces and Equipment records for the reviewed item.
+Independent physical Equipment may also be presented through one combined
+Equipment record under ADR 0039. The physical records remain Property-owned;
+their one-level relationship is derived from canonical `part_of` links rather
+than embedded Equipment IDs.
 
 Spaces are stored in the top-level `propertySpaces` collection. Firestore rules
 validate that the referenced Property exists and carries the same `accountId`.
@@ -597,6 +601,7 @@ The first supported relationships are:
 * Task `occurs_in` Space
 * Equipment, Space, or Task `uses` Supply
 * Document `documents` Equipment, Space, Task, or Supply
+* Physical Equipment `part_of` combined Equipment
 
 Required fields:
 
@@ -604,7 +609,7 @@ Required fields:
 * propertyId
 * fromType (`equipment`, `space`, `task`, or `document`, constrained by the relationship)
 * fromId
-* relationshipType (`located_in`, `occurs_in`, `uses`, or `documents`)
+* relationshipType (`located_in`, `occurs_in`, `uses`, `documents`, or `part_of`)
 * toType (`equipment`, `space`, `task`, or `supply`, constrained by the relationship)
 * toId
 * source (`manual` or `migration` for an explicitly reviewed backfill)
@@ -628,6 +633,13 @@ account and Property. It does not clear the legacy field, infer partial matches,
 or choose between duplicate names. A new recurring Task inherits accepted Space
 links from the Task that generated it. Deleting a Task removes its outgoing
 relationship records.
+
+Equipment `part_of` links are one-level and always connect a physical Equipment
+record to a combined Equipment record in the same account and Property. An
+Equipment record may be attached to only one combined record. Self-reference,
+recursive nesting, attaching a combined record, and cross-Property links are
+rejected by the trusted callable. Removing the link returns the physical record
+to ordinary standalone presentation without deleting its history.
 
 Document links are many-to-many and always originate from a first-class
 Property Document. Account managers replace the accepted Equipment, Space,
@@ -724,6 +736,11 @@ Typical fields:
 * notes
 * createdAt
 * updatedAt
+
+Optional `recordScope` is `physical` or `combined`. Missing values retain
+legacy `physical` behavior. A combined record presents related Equipment but
+does not own or embed it. Physical records retain their own identity, Space,
+status, Documents, Supplies, Tasks, and Maintenance History.
 
 Optional fields may include:
 

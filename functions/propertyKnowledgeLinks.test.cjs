@@ -9,6 +9,7 @@ const {
 	normalizeSpaceIds,
 	RELATIONSHIP_MANAGER_ROLES,
 	supplyEndpointMatchesProperty,
+	validateEquipmentRelationshipSelection,
 } = require('./lib/propertyKnowledgeLinks.js');
 const { hasAnyRole } = require('./lib/accountAuthz.js');
 
@@ -214,5 +215,53 @@ test('limits relationship editing to property management roles', () => {
 			RELATIONSHIP_MANAGER_ROLES,
 		),
 		false,
+	);
+});
+
+test('enforces one-level Equipment relationships', () => {
+	const base = {
+		fromType: 'equipment',
+		toType: 'equipment',
+		relationshipType: 'part_of',
+	};
+	assert.equal(
+		validateEquipmentRelationshipSelection({
+			primaryEquipmentId: 'primary',
+			attachedEquipmentIds: ['physical'],
+			existingLinks: [],
+		}),
+		null,
+	);
+	assert.equal(
+		validateEquipmentRelationshipSelection({
+			primaryEquipmentId: 'primary',
+			attachedEquipmentIds: ['primary'],
+			existingLinks: [],
+		}),
+		'Equipment cannot be connected to itself.',
+	);
+	assert.equal(
+		validateEquipmentRelationshipSelection({
+			primaryEquipmentId: 'primary',
+			attachedEquipmentIds: ['physical'],
+			existingLinks: [{ ...base, fromId: 'primary', toId: 'other' }],
+		}),
+		'Attached Equipment cannot also contain other Equipment.',
+	);
+	assert.equal(
+		validateEquipmentRelationshipSelection({
+			primaryEquipmentId: 'primary',
+			attachedEquipmentIds: ['physical'],
+			existingLinks: [{ ...base, fromId: 'physical', toId: 'other' }],
+		}),
+		'One or more Equipment records are already connected elsewhere.',
+	);
+	assert.equal(
+		validateEquipmentRelationshipSelection({
+			primaryEquipmentId: 'primary',
+			attachedEquipmentIds: ['combined'],
+			existingLinks: [{ ...base, fromId: 'nested', toId: 'combined' }],
+		}),
+		'Equipment that already contains other Equipment cannot be attached.',
 	);
 });
