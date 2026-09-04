@@ -24,6 +24,7 @@ const routeDefinitions: RouteDefinition[] = [
 	{ pattern: '/forgot-password', routeName: 'forgot_password', area: 'auth' },
 	{ pattern: '/registration', routeName: 'registration', area: 'auth' },
 	{ pattern: '/register', routeName: 'registration', area: 'auth' },
+	{ pattern: '/verify-email', routeName: 'email_verification', area: 'auth' },
 	{ pattern: '/admin', routeName: 'admin', area: 'admin' },
 	{ pattern: '/unauthorized', routeName: 'unauthorized', area: 'auth' },
 	{ pattern: '/subscription/*', routeName: 'subscription_legacy', area: 'billing' },

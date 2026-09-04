@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RegistrationCard } from '../../Components/RegistrationCard/RegistrationCard';
 import { Wrapper } from './RegistrationPage.styles';
@@ -11,9 +11,13 @@ import { USER_ROLES } from '../../constants/roles';
 
 export const RegistrationPage = () => {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
 	const authLoading = useSelector((state: RootState) => state.user.authLoading);
 	const pendingCheckoutPlan = currentUser?.subscription?.pendingCheckoutPlan;
+	const isContinuingComplimentaryAccess =
+		new URLSearchParams(location.search).get('continue') ===
+		'complimentary-access';
 
 	useEffect(() => {
 		if (!isNativeApp()) return;
@@ -42,11 +46,15 @@ export const RegistrationPage = () => {
 		return <LoadingState />;
 	}
 
-	if (pendingCheckoutPlan) {
+	if (currentUser?.registrationStatus === 'pending_email_verification') {
+		return <Navigate to="/verify-email" replace />;
+	}
+
+	if (pendingCheckoutPlan && !isContinuingComplimentaryAccess) {
 		return <Navigate to="/checkout/start" replace />;
 	}
 
-	if (currentUser) {
+	if (currentUser && !isContinuingComplimentaryAccess) {
 		return (
 			<Navigate
 				to={

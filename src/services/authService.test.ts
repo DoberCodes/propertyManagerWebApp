@@ -407,6 +407,13 @@ describe('Family Account Functionality', () => {
 					pendingCheckoutStartedAt: expect.any(Number),
 				}),
 			);
+			expect(userProfileWrite?.[1]).toEqual(
+				expect.objectContaining({
+					email: 'paid@example.com',
+					registrationStatus: 'pending_email_verification',
+					registrationMode: 'standard',
+				}),
+			);
 
 			expect(ensureFamilyAccount).not.toHaveBeenCalled();
 
@@ -459,6 +466,9 @@ describe('Family Account Functionality', () => {
 					status: SUBSCRIPTION_STATUS.ACTIVE,
 					plan: 'homeowner',
 				}),
+			);
+			expect(result.user.registrationStatus).toBe(
+				'pending_email_verification',
 			);
 			expect(ensureFamilyAccount).toHaveBeenCalledWith(
 				expect.objectContaining({

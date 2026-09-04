@@ -24,7 +24,9 @@ parameters allowlisted there may be sent.
 | Event | Successful trigger | Primary interpretation |
 | --- | --- | --- |
 | `signup_started` | A visitor passes the first registration step | Intent to create an account |
-| `signup_completed` | Firebase account creation succeeds | Account conversion |
+| `email_verification_sent` | Firebase accepts a registration, verification-page, or Profile verification request | Verification funnel entry |
+| `email_verification_completed` | Trusted finalization confirms the Firebase Auth email | Verified identity conversion |
+| `signup_completed` | A new verified registration is finalized | Usable account conversion |
 | `property_created` | A property transaction succeeds | First property or additional-property adoption |
 | `property_setup_started` | The Setup Assistant opens for an active session | Setup attempt |
 | `property_setup_path_selected` | The user chooses essentials, room-by-room, or report upload | Setup intent by preferred input |
@@ -71,6 +73,8 @@ team can compare guided Intelligence value with independently authored records.
 ```text
 landing page view
 -> signup_started
+-> email_verification_sent
+-> email_verification_completed
 -> signup_completed
 -> property_created
 -> property_setup_started

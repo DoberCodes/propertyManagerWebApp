@@ -4,6 +4,7 @@ import {
 	isLoggedIn,
 	login,
 	registerNewAccount,
+	verifyTestEmailAsAdmin,
 	waitForPageLoaded,
 } from './auth.helper';
 
@@ -22,6 +23,12 @@ test.describe('First owner value', () => {
 			.replace(/[^\w-]/g, '');
 
 		await registerNewAccount(page, email, password);
+		await expect(
+			page.getByRole('heading', { name: /verify your email/i }),
+		).toBeVisible({ timeout: 30000 });
+		await verifyTestEmailAsAdmin(email);
+		await page.getByRole('button', { name: /i've verified my email/i }).click();
+		await expect(page).toHaveURL(/\/dashboard$/i, { timeout: 30000 });
 		if (!(await isLoggedIn(page))) await login(page, email, password);
 		expect(await isLoggedIn(page)).toBeTruthy();
 

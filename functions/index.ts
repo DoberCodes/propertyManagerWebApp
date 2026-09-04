@@ -43,6 +43,7 @@ export { acceptFamilyInvite } from './acceptFamilyInvite';
 export { updateFamilyMemberRole } from './updateFamilyMemberRole';
 export { updateFamilyMember } from './updateFamilyMember';
 export { ensureFamilyAccount } from './ensureFamilyAccount';
+export { finalizeEmailVerification } from './finalizeEmailVerification';
 export { recordUserActivity } from './recordUserActivity';
 export {
 	finalizeFirstPropertyTrial,

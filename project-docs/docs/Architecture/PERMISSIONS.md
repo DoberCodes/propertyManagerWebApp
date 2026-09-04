@@ -57,6 +57,15 @@ a non-blocking availability hint. It must not query the protected `users`
 collection before authentication. Firebase Authentication account creation is
 the authoritative duplicate-email check.
 
+New self-service registrations are created with
+`registrationStatus: pending_email_verification`. They may authenticate, but
+the application routes them only to email verification until a trusted callable
+confirms `emailVerified` from Firebase Authentication and sets the profile to
+`active`. Clients and account managers cannot change `registrationStatus`,
+`registrationMode`, or `emailVerifiedAt` directly. Existing profiles without a
+registration status remain active for compatibility and may verify voluntarily
+from Profile. Maintley does not automatically delete unverified accounts.
+
 Authorization answers:
 
 > What may this user access?

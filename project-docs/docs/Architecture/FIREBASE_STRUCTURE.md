@@ -483,6 +483,7 @@ Shared authorization helpers:
 Examples:
 
 * ensureFamilyAccount
+* finalizeEmailVerification
 * createFamilyInvite
 * acceptFamilyInvite
 * getFamilyMembers

@@ -39,6 +39,7 @@ describe('Property Audit consumer', () => {
 			],
 			tasks: [],
 			maintenanceHistory: [],
+			currentDate: new Date('2026-07-01T12:00:00.000Z'),
 			createdAt: '2026-06-30T12:00:00.000Z',
 		}, {
 			planId: 'homeowner_plus',
@@ -73,6 +74,7 @@ describe('Property Audit consumer', () => {
 			systems,
 			tasks: [],
 			maintenanceHistory: [],
+			currentDate: new Date('2026-07-01T12:00:00.000Z'),
 			createdAt: '2026-06-30T12:00:00.000Z',
 		};
 
@@ -105,6 +107,7 @@ describe('Property Audit consumer', () => {
 			systems: [],
 			tasks: [],
 			maintenanceHistory: [],
+			currentDate: new Date('2026-07-01T12:00:00.000Z'),
 			createdAt: '2026-06-30T12:00:00.000Z',
 		}, {
 			planId: 'homeowner_plus',
@@ -138,6 +141,7 @@ describe('Property Audit consumer', () => {
 			],
 			tasks: [],
 			maintenanceHistory: [],
+			currentDate: new Date('2026-07-01T12:00:00.000Z'),
 			createdAt: '2026-06-30T12:00:00.000Z',
 		}, {
 			planId: 'homeowner_plus',
