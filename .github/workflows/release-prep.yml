@@ -64,10 +64,15 @@ jobs:
           VERSION="$(node -e "const data=require('./tmp/release-notes.json'); process.stdout.write(data.version || '')")"
           BUMP="$(node -e "const data=require('./tmp/release-notes.json'); process.stdout.write(data.bump || '')")"
           INFERRED_BUMP="$(node -e "const data=require('./tmp/release-notes.json'); process.stdout.write(data.inferredBump || '')")"
+          node scripts/resolveBetaVersion.cjs \
+            --candidate-metadata tmp/release-notes.json \
+            --output tmp/beta-version.json
+          BETA_VERSION="$(node -p "require('./tmp/beta-version.json').label")"
           echo "has_metadata=true" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
           echo "inferred_bump=$INFERRED_BUMP" >> "$GITHUB_OUTPUT"
+          echo "beta_version=$BETA_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Prepare release version files
         if: steps.notes.outputs.has_metadata == 'true'
@@ -99,6 +104,7 @@ jobs:
           VERSION_CODE: ${{ steps.prep.outputs.version_code }}
           BUMP: ${{ steps.notes.outputs.bump }}
           INFERRED_BUMP: ${{ steps.notes.outputs.inferred_bump }}
+          BETA_VERSION: ${{ steps.notes.outputs.beta_version }}
         run: |
           BRANCH="release/next"
 
@@ -116,6 +122,8 @@ jobs:
           git push --force-with-lease origin "$BRANCH"
 
           {
+            echo "**Beta version:** $BETA_VERSION"
+            echo ""
             echo "This PR prepares Maintley v$VERSION for release."
             echo ""
             echo "Version updates:"
@@ -164,6 +172,7 @@ jobs:
             echo "## Release Prep"
             echo ""
             echo "**Version:** v${{ steps.prep.outputs.version }}"
+            echo "**Beta version:** ${{ steps.notes.outputs.beta_version }}"
             echo "**Selected bump:** ${{ steps.notes.outputs.bump }}"
             echo "**Inferred bump:** ${{ steps.notes.outputs.inferred_bump }}"
             echo ""

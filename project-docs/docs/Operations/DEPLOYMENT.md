@@ -562,6 +562,9 @@ from the homeowner-facing Beta label.
 
 Beta labels do not modify `package.json`, Android `versionName`, tags, or GitHub
 Releases. Those remain owned by Release Prep and production finalization.
+Release Prep carries the latest accumulated Beta label into the top of the
+`release/next` PR description so reviewers can see which Beta build produced
+the candidate.
 
 Do not open synchronization PRs from `main` back into `beta`. After a normal
 release is deployed, tagged, and published, the finalizer verifies that the
