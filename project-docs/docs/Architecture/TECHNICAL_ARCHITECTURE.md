@@ -566,6 +566,7 @@ Examples:
 Examples:
 
 * ensureFamilyAccount
+* finalizeEmailVerification
 * createFamilyInvite
 * acceptFamilyInvite
 * getFamilyMembers

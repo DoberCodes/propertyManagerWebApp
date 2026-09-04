@@ -58,6 +58,46 @@ test('renders app', () => {
 	expect(document.body).toBeInTheDocument();
 });
 
+test('does not start account subscriptions while email verification is pending', async () => {
+	mockAccountSnapshotSubscribe.mockClear();
+	mockStripeSubscriptionSync.mockClear();
+	act(() => {
+		store.dispatch(
+			setCurrentUser({
+				id: 'pending-user',
+				email: 'pending@example.com',
+				role: 'admin',
+				accountId: 'pending-user',
+				isAccountOwner: true,
+				registrationStatus: 'pending_email_verification',
+				subscription: {
+					status: 'active',
+					plan: 'homeowner',
+					currentPeriodStart: 1,
+					currentPeriodEnd: 2,
+					stripeCustomerId: 'cus_pending',
+				},
+			} as any),
+		);
+	});
+
+	render(
+		<Provider store={store}>
+			<App />
+		</Provider>,
+	);
+
+	await waitFor(() => {
+		expect(mockAccountSnapshotSubscribe).not.toHaveBeenCalled();
+	});
+	await waitFor(() => {
+		expect(mockStripeSubscriptionSync).not.toHaveBeenCalled();
+	});
+	act(() => {
+		store.dispatch(setCurrentUser(null));
+	});
+});
+
 test('does not erase a resolved grant when an account snapshot omits its projection', () => {
 	const grant = {
 		grantId: 'portfolio-lifetime',

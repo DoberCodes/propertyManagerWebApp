@@ -425,7 +425,10 @@ export const signUpWithEmail = async (
 		}
 
 		// Create Firebase Auth user
-		const userCredential = await createFirebaseAuthUser(email, password);
+		const userCredential = await createFirebaseAuthUser(
+			email.trim().toLowerCase(),
+			password,
+		);
 
 		// Update display name in Firebase Auth
 		await updateProfile(userCredential.user, {
@@ -434,11 +437,21 @@ export const signUpWithEmail = async (
 
 		// Create user profile in Firestore
 		const isTeamInviteSignup = inviteType === 'team';
+		const registrationMode: NonNullable<User['registrationMode']> =
+			inviteType === 'team'
+				? 'team_invite'
+				: inviteType === 'tenant'
+					? 'tenant_invite'
+					: resolvedRole === USER_ROLES.TENANT
+						? 'tenant'
+						: 'standard';
 		const userProfile: User = {
 			id: userCredential.user.uid,
 			firstName,
 			lastName,
-			email,
+			email: email.trim().toLowerCase(),
+			registrationStatus: 'pending_email_verification',
+			registrationMode,
 			role: resolvedRole as any,
 			title: getRoleTitleFromRole(resolvedRole),
 			image: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=22c55e&color=fff`,

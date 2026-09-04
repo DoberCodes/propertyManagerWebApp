@@ -31,6 +31,7 @@ const renderProtectedRoute = (
 			future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
 			<Routes>
 				<Route path='/login' element={<div>Login Page</div>} />
+				<Route path='/verify-email' element={<div>Verify Email Page</div>} />
 				<Route path='/paywall' element={<div>Paywall Page</div>} />
 				<Route path='/checkout/start' element={<div>Checkout Start Page</div>} />
 				<Route
@@ -84,6 +85,38 @@ describe('ProtectedRoutes', () => {
 		renderProtectedRoute('/report', { requireSubscription: true });
 
 		expect(screen.getByText('Paywall Page')).toBeInTheDocument();
+	});
+
+	it('keeps newly registered users out of the app until email verification', () => {
+		mockState.user.currentUser = {
+			id: 'u1',
+			email: 'pending@test.com',
+			role: 'admin',
+			registrationStatus: 'pending_email_verification',
+			subscription: {
+				status: 'active',
+				plan: 'homeowner',
+				currentPeriodStart: 1,
+				currentPeriodEnd: 2,
+			},
+		};
+
+		renderProtectedRoute('/report');
+
+		expect(screen.getByText('Verify Email Page')).toBeInTheDocument();
+		expect(screen.queryByText('Report Page')).not.toBeInTheDocument();
+	});
+
+	it('grandfathers existing users without a registration status', () => {
+		mockState.user.currentUser = {
+			id: 'legacy-user',
+			email: 'legacy@test.com',
+			role: 'admin',
+		};
+
+		renderProtectedRoute('/report');
+
+		expect(screen.getByText('Report Page')).toBeInTheDocument();
 	});
 
 	it('recovers an authenticated pending checkout before entering the app', () => {

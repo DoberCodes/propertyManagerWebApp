@@ -40,6 +40,7 @@ const functionTests = [
 	'activatePropertySetupMaintenancePlan.test.cjs',
 	'complimentaryAccessCodes.test.cjs',
 	'docxServiceReport.test.cjs',
+	'emailVerificationPolicy.test.cjs',
 	'grantAwareCheckout.test.cjs',
 	'inspectionDocumentUnderstanding.test.cjs',
 	'legacyMaintenancePromotion.test.cjs',

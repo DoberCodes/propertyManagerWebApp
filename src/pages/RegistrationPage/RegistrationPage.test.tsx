@@ -20,6 +20,37 @@ jest.mock('../../Components/RegistrationCard/RegistrationCard', () => ({
 }));
 
 describe('RegistrationPage checkout gate', () => {
+	it('routes a newly created pending account to email verification before checkout', () => {
+		(useSelector as unknown as jest.Mock).mockImplementation((selector) =>
+			selector({
+				user: {
+					authLoading: false,
+					currentUser: {
+						id: 'user-123',
+						role: 'admin',
+						registrationStatus: 'pending_email_verification',
+						subscription: {
+							status: 'active',
+							plan: 'homeowner',
+							pendingCheckoutPlan: 'homeowner_plus',
+						},
+					},
+				},
+			}),
+		);
+
+		render(
+			<MemoryRouter initialEntries={['/registration']}>
+				<Routes>
+					<Route path='/registration' element={<RegistrationPage />} />
+					<Route path='/verify-email' element={<div>Verify email page</div>} />
+				</Routes>
+			</MemoryRouter>,
+		);
+
+		expect(screen.getByText('Verify email page')).toBeInTheDocument();
+	});
+
 	it('does not enter the app while a paid checkout is pending', () => {
 		(useSelector as unknown as jest.Mock).mockImplementation((selector) =>
 			selector({

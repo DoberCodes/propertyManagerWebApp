@@ -126,6 +126,12 @@ import {
 	endAccountDeletionSession,
 	finalizeDeletedAccountSession,
 } from '../../services/accountDeletionSession';
+import {
+	finalizeCurrentUserEmailVerification,
+	refreshCurrentUserEmailVerification,
+	sendCurrentUserEmailVerification,
+} from '../../services/emailVerificationService';
+import { trackAnalyticsEvent } from '../../analytics/analytics';
 
 export const UserProfile: React.FC = () => {
 	const dispatch = useDispatch<AppDispatch>();
@@ -160,6 +166,12 @@ export const UserProfile: React.FC = () => {
 	const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+	const [isEmailVerified, setIsEmailVerified] = useState(
+		Boolean(auth.currentUser?.emailVerified),
+	);
+	const [isEmailVerificationBusy, setIsEmailVerificationBusy] = useState(false);
+	const [emailVerificationMessage, setEmailVerificationMessage] = useState('');
+	const [emailVerificationError, setEmailVerificationError] = useState('');
 	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 	const [showNewPassword, setShowNewPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -570,6 +582,58 @@ export const UserProfile: React.FC = () => {
 		}
 	}, [currentUser, navigate]);
 
+	useEffect(() => {
+		if (!auth.currentUser) return;
+		void refreshCurrentUserEmailVerification()
+			.then(setIsEmailVerified)
+			.catch(() => undefined);
+	}, [currentUser?.id]);
+
+	const handleSendEmailVerification = async () => {
+		setIsEmailVerificationBusy(true);
+		setEmailVerificationError('');
+		setEmailVerificationMessage('');
+		try {
+			await sendCurrentUserEmailVerification();
+			setEmailVerificationMessage(
+				'A verification email has been sent. Open the link, then return here to confirm it.',
+			);
+			void trackAnalyticsEvent('email_verification_sent', {
+				verification_source: 'profile',
+			});
+		} catch (verificationError: any) {
+			setEmailVerificationError(
+				String(
+					verificationError?.message ||
+						'Maintley could not send a verification email. Please try again shortly.',
+				),
+			);
+		} finally {
+			setIsEmailVerificationBusy(false);
+		}
+	};
+
+	const handleConfirmEmailVerification = async () => {
+		setIsEmailVerificationBusy(true);
+		setEmailVerificationError('');
+		setEmailVerificationMessage('');
+		try {
+			const updatedUser = await finalizeCurrentUserEmailVerification();
+			dispatch(setCurrentUser(updatedUser));
+			setIsEmailVerified(true);
+			setEmailVerificationMessage('Your email address is verified.');
+		} catch (verificationError: any) {
+			setEmailVerificationError(
+				String(
+					verificationError?.message ||
+						'Maintley could not confirm your email yet. Please try again.',
+				),
+			);
+		} finally {
+			setIsEmailVerificationBusy(false);
+		}
+	};
+
 	const handleInputChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
 	) => {
@@ -922,6 +986,33 @@ export const UserProfile: React.FC = () => {
 
 					<AccountActionsPanel>
 						<ProfileSectionTitle>Account Actions</ProfileSectionTitle>
+						{!isEmailVerified ? (
+							<>
+								<ActionHelperText>
+									Verify {currentUser.email} so Maintley can confirm that account messages are reaching you.
+								</ActionHelperText>
+								<AccountActionButtons>
+									<ProfileActionButton
+										type='button'
+										disabled={isEmailVerificationBusy}
+										onClick={() => void handleSendEmailVerification()}>
+										Send Verification Email
+									</ProfileActionButton>
+									<ProfileActionButton
+										type='button'
+										disabled={isEmailVerificationBusy}
+										onClick={() => void handleConfirmEmailVerification()}>
+										I've Verified My Email
+									</ProfileActionButton>
+								</AccountActionButtons>
+								{emailVerificationMessage ? (
+									<SuccessMessage>{emailVerificationMessage}</SuccessMessage>
+								) : null}
+								{emailVerificationError ? (
+									<ErrorMessage>{emailVerificationError}</ErrorMessage>
+								) : null}
+							</>
+						) : null}
 						<AccountActionButtons>
 							<ProfileActionButton type='button' onClick={openChangePasswordModal}>
 								Change Password

@@ -687,6 +687,21 @@ async function run() {
 				subscription: { status: 'active', plan: 'portfolio' },
 			}),
 		);
+		await assertSucceeds(
+			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).set({
+				id: maliciousNewUserUid,
+				email: `${maliciousNewUserUid}@example.com`,
+				registrationStatus: 'pending_email_verification',
+				registrationMode: 'standard',
+				subscription: { status: 'active', plan: 'homeowner' },
+			}),
+		);
+		await assertFails(
+			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).update({
+				registrationStatus: 'active',
+				emailVerifiedAt: '2026-09-04T12:00:00.000Z',
+			}),
+		);
 		await assertFails(
 			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).set({
 				id: maliciousNewUserUid,

@@ -42,6 +42,10 @@ const RegistrationPage = lazyNamed(
 	() => import('./pages/RegistrationPage'),
 	'RegistrationPage',
 );
+const EmailVerificationPage = lazyNamed(
+	() => import('./pages/EmailVerificationPage'),
+	'EmailVerificationPage',
+);
 const FeatureDocsPage = lazyNamed(
 	() => import('./pages/FeatureDocs/FeatureDocsPage'),
 	'FeatureDocsPage',
@@ -200,6 +204,14 @@ export const RouterComponent = () => {
 					/>
 					<Route path='registration' element={<RegistrationPage />} />
 					<Route path='register' element={<RegistrationPage />} />
+					<Route
+						path='verify-email'
+						element={
+							<ProtectedRoutes>
+								<EmailVerificationPage />
+							</ProtectedRoutes>
+						}
+					/>
 					<Route path='admin/*' element={<MaintleyAdminRoute />} />
 					<Route path='unauthorized' element={<UnauthorizedPage />} />
 					<Route path='subscription/*' element={<LegacySubscriptionRoute />} />

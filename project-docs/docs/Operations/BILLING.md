@@ -244,10 +244,12 @@ Users may use the free homeowner plan without creating a Stripe subscription.
 
 No Stripe customer is required until entering a paid plan flow.
 
-Free registration is complete as soon as Firebase creates the user and Firestore
-profile. Maintley should keep that authenticated profile active and open
-onboarding directly. It must not clear the new session or add a second
-authentication-loading transition before onboarding.
+Free registration creates the Firebase user and a pending Firestore profile,
+then requires Firebase email verification before opening onboarding. The
+authenticated session remains available while the user verifies the address.
+After trusted finalization changes the profile to active, Maintley continues to
+onboarding without requiring another registration. Existing profiles without a
+registration status remain active for compatibility.
 
 ---
 
@@ -297,8 +299,9 @@ not wait on a separate `ensureFamilyAccount` callable. The
 `createCheckoutSession` function initializes or synchronizes the family account
 and owner membership within the same server invocation before creating the
 Stripe session. This avoids an additional callable cold start while preserving
-account consistency. Free registration still completes family-account setup
-before opening onboarding because it has no checkout step to perform that work.
+account consistency. Free registration still completes family-account setup,
+but opens onboarding only after email verification because it has no checkout
+step to perform that work.
 
 Checkout completion runs outside the primary application layout. The dashboard
 and onboarding flow must not mount until verification and profile refresh finish.

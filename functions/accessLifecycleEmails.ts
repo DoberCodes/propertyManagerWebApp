@@ -712,6 +712,29 @@ const processMilestone = async (
 		});
 		return 'skipped';
 	}
+	let recipient: admin.auth.UserRecord;
+	try {
+		recipient = await admin.auth().getUser(context.ownerId);
+	} catch (error: any) {
+		if (String(error?.code || '') !== 'auth/user-not-found') throw error;
+		await markDelivery(deliveryRef, {
+			...base,
+			status: 'skipped',
+			outcome: 'recipient_auth_missing',
+			terminalAt: admin.firestore.FieldValue.serverTimestamp(),
+		});
+		return 'skipped';
+	}
+	if (!recipient.emailVerified) {
+		await markDelivery(deliveryRef, {
+			...base,
+			status: 'deferred',
+			outcome: 'recipient_email_unverified',
+			leaseExpiresAtMs: 0,
+			updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+		});
+		return 'deferred';
+	}
 	if (!(await claimDelivery(deliveryRef, base, nowMs, recoverSuppressedPaidConversion))) return 'deferred';
 
 	try {

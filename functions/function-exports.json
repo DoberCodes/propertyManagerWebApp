@@ -38,6 +38,7 @@
 	"deleteUserAccount",
 	"enforceEmailPreferences",
 	"ensureFamilyAccount",
+	"finalizeEmailVerification",
 	"finalizeFirstPropertyTrial",
 	"finalizeStorageQuotaUsage",
 	"getAdminPortalUserTroubleshootingDetails",

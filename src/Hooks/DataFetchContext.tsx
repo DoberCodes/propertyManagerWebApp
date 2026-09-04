@@ -65,6 +65,9 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 }) => {
 	const dispatch = useDispatch<AppDispatch>();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
+	const canLoadAppData =
+		Boolean(currentUser) &&
+		currentUser?.registrationStatus !== 'pending_email_verification';
 	const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -74,22 +77,22 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 		isLoading: groupsLoading,
 		error: groupsError,
 	} =
-		useGetPropertyGroupsQuery(undefined, { skip: !currentUser });
+		useGetPropertyGroupsQuery(undefined, { skip: !canLoadAppData });
 	const {
 		data: properties = [],
 		isLoading: propertiesLoading,
 		error: propertiesError,
 	} = useGetPropertiesQuery(undefined, {
-		skip: !currentUser,
+		skip: !canLoadAppData,
 	});
 	const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useGetTasksQuery(
 		undefined,
-		{ skip: !currentUser },
+		{ skip: !canLoadAppData },
 	);
 	const { data: teamGroups = [], isLoading: teamGroupsLoading, error: teamGroupsError } =
-		useGetTeamGroupsQuery(undefined, { skip: !currentUser });
+		useGetTeamGroupsQuery(undefined, { skip: !canLoadAppData });
 	const { isLoading: teamMembersLoading, error: teamMembersError } = useGetTeamMembersQuery(undefined, {
-		skip: !currentUser,
+		skip: !canLoadAppData,
 	});
 
 	const isLoading =
@@ -100,7 +103,7 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 		teamMembersLoading;
 
 	useEffect(() => {
-		if (!currentUser || !isLoading) {
+		if (!canLoadAppData || !isLoading) {
 			dispatch(hideAppLoading('initial-data'));
 			return;
 		}
@@ -117,11 +120,11 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 		return () => {
 			dispatch(hideAppLoading('initial-data'));
 		};
-	}, [currentUser, dispatch, isLoading]);
+	}, [canLoadAppData, dispatch, isLoading]);
 
 	// Track initial load
 	useEffect(() => {
-		if (!currentUser) {
+		if (!canLoadAppData || !currentUser) {
 			setIsInitialLoadComplete(false);
 			return;
 		}
@@ -281,6 +284,7 @@ export const DataFetchProvider: React.FC<DataFetchProviderProps> = ({
 		}
 		setError(null);
 	}, [
+		canLoadAppData,
 		currentUser,
 		groupsLoading,
 		propertiesLoading,

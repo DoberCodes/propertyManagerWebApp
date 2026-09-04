@@ -17,6 +17,8 @@ export const isAnalyticsActionSource = (
 export type AnalyticsEventName =
 	| 'route_viewed'
 	| 'signup_started'
+	| 'email_verification_sent'
+	| 'email_verification_completed'
 	| 'signup_completed'
 	| 'property_created'
 	| 'equipment_created'
@@ -59,6 +61,8 @@ export const ANALYTICS_EVENT_PARAM_ALLOWLIST: Record<
 		'has_access_code',
 		'starting_audience',
 	],
+	email_verification_sent: ['verification_source'],
+	email_verification_completed: ['registration_mode'],
 	signup_completed: [
 		'registration_mode',
 		'selected_plan',

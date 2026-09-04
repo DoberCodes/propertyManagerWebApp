@@ -1,0 +1,61 @@
+import {
+	reload,
+	sendEmailVerification,
+	type ActionCodeSettings,
+} from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { callFirebaseFunction } from '../config/firebaseFunctions';
+import type { User } from '../Redux/Slices/userSlice';
+import { getUserProfile } from './userProfileService';
+
+const getEmailVerificationReturnUrl = (): string => {
+	const origin = window.location.origin;
+	const hostname = window.location.hostname.toLowerCase();
+	const isFirebasePreview = hostname.endsWith('.web.app') && hostname.includes('--');
+	const authDomain = String(process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || '').trim();
+	if (isFirebasePreview && authDomain) {
+		return `https://${authDomain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}/verify-email`;
+	}
+	return `${origin}/verify-email`;
+};
+
+const getEmailVerificationSettings = (): ActionCodeSettings => ({
+	url: getEmailVerificationReturnUrl(),
+	handleCodeInApp: false,
+});
+
+export const sendCurrentUserEmailVerification = async (): Promise<void> => {
+	const firebaseUser = auth.currentUser;
+	if (!firebaseUser) {
+		throw new Error('Sign in before requesting a verification email.');
+	}
+	if (firebaseUser.emailVerified) return;
+
+	await sendEmailVerification(firebaseUser, getEmailVerificationSettings());
+};
+
+export const refreshCurrentUserEmailVerification = async (): Promise<boolean> => {
+	const firebaseUser = auth.currentUser;
+	if (!firebaseUser) return false;
+
+	await reload(firebaseUser);
+	if (firebaseUser.emailVerified) {
+		await firebaseUser.getIdToken(true);
+	}
+	return firebaseUser.emailVerified;
+};
+
+export const finalizeCurrentUserEmailVerification = async (): Promise<User> => {
+	const verified = await refreshCurrentUserEmailVerification();
+	if (!verified || !auth.currentUser) {
+		throw new Error(
+			'Your email is not verified yet. Open the link in your email, then try again.',
+		);
+	}
+
+	await callFirebaseFunction<Record<string, never>, { status: 'active' }>(
+		'finalizeEmailVerification',
+		{},
+	);
+	return getUserProfile(auth.currentUser.uid);
+};

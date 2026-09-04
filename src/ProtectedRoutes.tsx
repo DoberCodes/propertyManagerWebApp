@@ -60,10 +60,21 @@ export const ProtectedRoutes = ({
 		location.pathname === '/checkout/start' ||
 		location.pathname === '/checkout/complete' ||
 		location.pathname === '/paywall';
+	const isEmailVerificationRoute =
+		location.pathname === '/verify-email' ||
+		location.pathname === '/verify-email/';
+
+	if (
+		currentUser?.registrationStatus === 'pending_email_verification' &&
+		!isEmailVerificationRoute
+	) {
+		return <Navigate to='/verify-email' replace />;
+	}
 
 	if (
 		currentUser?.subscription?.pendingCheckoutPlan &&
-		!isCheckoutRecoveryRoute
+		!isCheckoutRecoveryRoute &&
+		!isEmailVerificationRoute
 	) {
 		return <Navigate to='/checkout/start' replace />;
 	}

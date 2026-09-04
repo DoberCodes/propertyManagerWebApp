@@ -539,6 +539,12 @@ export const ProfileActionButton = styled.button`
 		transform: translateY(-1px);
 		box-shadow: ${COLORS.shadowLg};
 	}
+
+	&:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		transform: none;
+	}
 `;
 
 export const DangerProfileActionButton = styled(ProfileActionButton)`

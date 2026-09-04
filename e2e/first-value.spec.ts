@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+	activateTestEmailAsAdmin,
 	generateTestEmail,
 	isLoggedIn,
 	login,
@@ -22,6 +23,15 @@ test.describe('First owner value', () => {
 			.replace(/[^\w-]/g, '');
 
 		await registerNewAccount(page, email, password);
+		await expect(
+			page.getByRole('heading', { name: /verify your email/i }),
+		).toBeVisible({ timeout: 30000 });
+		// PR browser tests run before an optional backend preview is approved. Use the
+		// private Admin test boundary to represent the trusted callable transition;
+		// the callable itself is validated after deployment during manual Beta review.
+		await activateTestEmailAsAdmin(email);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page).toHaveURL(/\/dashboard$/i, { timeout: 30000 });
 		if (!(await isLoggedIn(page))) await login(page, email, password);
 		expect(await isLoggedIn(page)).toBeTruthy();
 

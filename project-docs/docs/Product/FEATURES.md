@@ -22,6 +22,17 @@ For related documentation:
 
 ---
 
+# Accounts and Email Verification
+
+New email-and-password registrations verify their email address before entering
+checkout, onboarding, or the working application. Users can resend the message
+and resume the same registration after verification. Existing accounts remain
+available when they predate this requirement, and an unverified existing user
+can verify voluntarily from Profile. Maintley does not automatically delete an
+account because its email is unverified.
+
+---
+
 # Core Maintenance Loop
 
 Maintley is centered around a simple maintenance record workflow:

@@ -74,6 +74,9 @@ export interface FamilyAccount {
 export interface User {
 	id: string;
 	email: string;
+	registrationStatus?: 'pending_email_verification' | 'active';
+	registrationMode?: 'standard' | 'tenant' | 'tenant_invite' | 'team_invite';
+	emailVerifiedAt?: string;
 	role: UserRole;
 	firstName?: string;
 	lastName?: string;

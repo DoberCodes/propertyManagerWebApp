@@ -24,6 +24,7 @@ test('uses safe public BrowserRouter routes by default', () => {
 		'/login',
 		'/registration',
 		'/forgot-password',
+		'/verify-email',
 	]);
 	assert.deepEqual(parseArgs(['--base-url', 'https://example.web.app']), {
 		baseUrl: 'https://example.web.app',

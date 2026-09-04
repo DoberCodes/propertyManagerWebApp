@@ -1,4 +1,7 @@
 import { Page } from '@playwright/test';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
 /**
  * Helper functions to handle Firebase authentication in tests
@@ -13,6 +16,35 @@ export function generateTestEmail(): string {
 	const timestamp = Date.now();
 	const random = Math.floor(Math.random() * 10000);
 	return `test.user.${timestamp}.${random}@maintley-test.com`;
+}
+
+export async function activateTestEmailAsAdmin(email: string): Promise<void> {
+	const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+	if (!serviceAccountJson) {
+		throw new Error(
+			'FIREBASE_SERVICE_ACCOUNT_JSON is required to verify an activation-test email.',
+		);
+	}
+
+	const appName = 'maintley-e2e-email-verification';
+	const app =
+		getApps().find((candidate) => candidate.name === appName) ||
+		initializeApp(
+			{
+				credential: cert(JSON.parse(serviceAccountJson)),
+			},
+			appName,
+		);
+	const user = await getAuth(app).getUserByEmail(email);
+	await getAuth(app).updateUser(user.uid, { emailVerified: true });
+	await getFirestore(app).collection('users').doc(user.uid).set(
+		{
+			registrationStatus: 'active',
+			emailVerifiedAt: FieldValue.serverTimestamp(),
+			updatedAt: FieldValue.serverTimestamp(),
+		},
+		{ merge: true },
+	);
 }
 
 export function getDemoCredentials(): { email: string; password: string } {
