@@ -127,7 +127,6 @@ import {
 	finalizeDeletedAccountSession,
 } from '../../services/accountDeletionSession';
 import {
-	finalizeCurrentUserEmailVerification,
 	refreshCurrentUserEmailVerification,
 	sendCurrentUserEmailVerification,
 } from '../../services/emailVerificationService';
@@ -613,27 +612,6 @@ export const UserProfile: React.FC = () => {
 		}
 	};
 
-	const handleConfirmEmailVerification = async () => {
-		setIsEmailVerificationBusy(true);
-		setEmailVerificationError('');
-		setEmailVerificationMessage('');
-		try {
-			const updatedUser = await finalizeCurrentUserEmailVerification();
-			dispatch(setCurrentUser(updatedUser));
-			setIsEmailVerified(true);
-			setEmailVerificationMessage('Your email address is verified.');
-		} catch (verificationError: any) {
-			setEmailVerificationError(
-				String(
-					verificationError?.message ||
-						'Maintley could not confirm your email yet. Please try again.',
-				),
-			);
-		} finally {
-			setIsEmailVerificationBusy(false);
-		}
-	};
-
 	const handleInputChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
 	) => {
@@ -989,7 +967,7 @@ export const UserProfile: React.FC = () => {
 						{!isEmailVerified ? (
 							<>
 								<ActionHelperText>
-									Verify {currentUser.email} so Maintley can confirm that account messages are reaching you.
+									Verify {currentUser.email} so Maintley can confirm that account messages are reaching you. Maintley will recognize verification the next time you sign in.
 								</ActionHelperText>
 								<AccountActionButtons>
 									<ProfileActionButton
@@ -997,12 +975,6 @@ export const UserProfile: React.FC = () => {
 										disabled={isEmailVerificationBusy}
 										onClick={() => void handleSendEmailVerification()}>
 										Send Verification Email
-									</ProfileActionButton>
-									<ProfileActionButton
-										type='button'
-										disabled={isEmailVerificationBusy}
-										onClick={() => void handleConfirmEmailVerification()}>
-										I've Verified My Email
 									</ProfileActionButton>
 								</AccountActionButtons>
 								{emailVerificationMessage ? (

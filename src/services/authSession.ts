@@ -2,6 +2,7 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { User } from '../Redux/Slices/userSlice';
 import { getUserProfile } from './userProfileService';
+import { reconcileCurrentUserEmailVerification } from './emailVerificationService';
 
 type AuthStateChangeOptions = {
 	onAuthUserResolving?: (userId: string | null) => void;
@@ -23,7 +24,8 @@ export const onAuthStateChange = (
 		if (firebaseUser) {
 			try {
 				const userProfile = await getUserProfile(firebaseUser.uid);
-				await callback(userProfile);
+				const resolvedUser = await reconcileCurrentUserEmailVerification(userProfile);
+				await callback(resolvedUser);
 			} catch (error) {
 				console.error('Error loading user profile:', error);
 				await callback(null);

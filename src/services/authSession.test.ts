@@ -16,15 +16,24 @@ jest.mock('./userProfileService', () => ({
 	getUserProfile: jest.fn(),
 }));
 
+jest.mock('./emailVerificationService', () => ({
+	reconcileCurrentUserEmailVerification: jest.fn(async (user) => user),
+}));
+
 describe('authSession', () => {
 	const loadAuthSession = () =>
 		require('./authSession') as typeof import('./authSession');
 	const loadUserProfileService = () =>
 		require('./userProfileService') as typeof import('./userProfileService');
+	const loadEmailVerificationService = () =>
+		require('./emailVerificationService') as typeof import('./emailVerificationService');
 
 	beforeEach(() => {
 		mockAuthStateCallback = null;
 		(loadUserProfileService().getUserProfile as jest.Mock).mockReset();
+		(loadEmailVerificationService().reconcileCurrentUserEmailVerification as jest.Mock)
+			.mockReset()
+			.mockImplementation(async (user) => user);
 	});
 
 	it('notifies the app before resolving profile changes', async () => {
@@ -56,6 +65,13 @@ describe('authSession', () => {
 			'resolved-user',
 		]);
 		expect(onResolvedUser).toHaveBeenCalledWith({
+			id: 'user-b',
+			email: 'b@example.com',
+			role: 'admin',
+		});
+		expect(
+			loadEmailVerificationService().reconcileCurrentUserEmailVerification,
+		).toHaveBeenCalledWith({
 			id: 'user-b',
 			email: 'b@example.com',
 			role: 'admin',

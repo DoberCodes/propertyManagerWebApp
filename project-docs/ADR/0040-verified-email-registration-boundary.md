@@ -39,9 +39,14 @@ All new self-service email-and-password registrations enter an explicit
 
 After creating the Firebase Auth identity and Firestore profile, Maintley sends
 a Firebase-managed verification message and routes the authenticated user to a
-dedicated verification screen. A pending user may request another verification
-message, confirm that the link has been used, sign out, or return with the same
-account later.
+dedicated verification screen. The screen keeps confirmation in one focused
+experience: the user may confirm that the link has been used, request another
+message, or choose `Do this later`, which signs the pending account out.
+
+When the user signs in again, Maintley refreshes the Firebase Authentication
+record. If Firebase already reports the email as verified, Maintley completes
+the trusted profile transition automatically before routing. Otherwise, the
+user returns to the verification screen.
 
 The user may not enter checkout, onboarding, or the working application while
 the profile remains pending.
@@ -120,9 +125,11 @@ to use its existing server-side recipient and eligibility checks.
 ## Profile Experience
 
 An authenticated legacy user whose Firebase Authentication email remains
-unverified can send a verification email and confirm verification from Profile.
-Verification remains optional for legacy application access. No expiration or
-automatic cleanup is attached to the reminder.
+unverified can send a verification email from Profile. Maintley recognizes the
+updated Firebase verification state on a later sign-in; Profile does not expose
+a separate client confirmation action. Verification remains optional for legacy
+application access. No expiration or automatic cleanup is attached to the
+reminder.
 
 ## Analytics
 
