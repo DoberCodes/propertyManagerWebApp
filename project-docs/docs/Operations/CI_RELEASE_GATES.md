@@ -77,6 +77,11 @@ promotes the entire accumulated Beta release.
 The `release/next` PR also reruns the isolated activation journey against Beta
 before release approval. A cleanup failure fails the same E2E check.
 
+Release Prep records the accumulated Beta prerelease label at the top of the
+release PR description, immediately before the prepared production version.
+This provides a direct link between the tested Beta build and its production
+candidate without changing the final release version.
+
 Pull requests targeting Main use the `release-validation` GitHub environment.
 That environment contains only the browser-safe `PROD_REACT_APP_*` variables
 needed to compile the production frontend. It does not contain deployment

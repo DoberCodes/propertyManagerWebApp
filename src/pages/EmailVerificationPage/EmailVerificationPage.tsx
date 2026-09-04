@@ -139,7 +139,8 @@ export const EmailVerificationPage = () => {
 					 Open it to confirm this address before continuing into Maintley.
 				</VerificationText>
 				<VerificationText>
-					After you use the link, return here and select the button below.
+					After you use the link, return here and let Maintley confirm it. You
+					can also finish later by signing in again with this account.
 				</VerificationText>
 				{message ? <VerificationMessage>{message}</VerificationMessage> : null}
 				{error ? <VerificationMessage $error>{error}</VerificationMessage> : null}
@@ -161,7 +162,7 @@ export const EmailVerificationPage = () => {
 								: 'Send another verification email'}
 					</SecondaryAction>
 					<TextAction type='button' onClick={() => void signOutAndReturn()}>
-						Use a different account
+						Do this later
 					</TextAction>
 				</VerificationActions>
 			</VerificationCard>

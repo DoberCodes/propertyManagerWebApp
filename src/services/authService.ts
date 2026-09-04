@@ -27,6 +27,7 @@ import { createLegalAgreementDocuments } from '../constants/legal';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../utils/notificationPreferences';
 import { DEFAULT_EMAIL_PREFERENCES } from '../utils/emailPreferences';
 import { getUserProfile } from './userProfileService';
+import { reconcileCurrentUserEmailVerification } from './emailVerificationService';
 
 export { getUserProfile } from './userProfileService';
 export { onAuthStateChange } from './authSession';
@@ -101,7 +102,7 @@ export const signInWithEmail = async (
 		}
 
 		const user = await getUserProfile(userCredential.user.uid);
-		return user;
+		return reconcileCurrentUserEmailVerification(user);
 	} catch (error: any) {
 		console.error('Sign in error:', error);
 		if (isBlockedByClientError(error)) {

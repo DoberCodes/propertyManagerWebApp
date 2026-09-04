@@ -59,3 +59,26 @@ export const finalizeCurrentUserEmailVerification = async (): Promise<User> => {
 	);
 	return getUserProfile(auth.currentUser.uid);
 };
+
+export const reconcileCurrentUserEmailVerification = async (
+	user: User,
+): Promise<User> => {
+	if (user.registrationStatus !== 'pending_email_verification') return user;
+
+	try {
+		const verified = await refreshCurrentUserEmailVerification();
+		if (!verified || !auth.currentUser) return user;
+
+		await callFirebaseFunction<Record<string, never>, { status: 'active' }>(
+			'finalizeEmailVerification',
+			{},
+		);
+		return getUserProfile(auth.currentUser.uid);
+	} catch (error) {
+		console.warn(
+			'Email verification could not be reconciled during sign in.',
+			error,
+		);
+		return user;
+	}
+};

@@ -35,4 +35,12 @@ test('release publication uses the approved prepared-version notes', () => {
 	const releasePrep = read('.github/workflows/release-prep.yml');
 	assert.match(releasePrep, /maintley-customer-release-notes:start/);
 	assert.match(releasePrep, /maintley-customer-release-notes:end/);
+	assert.match(
+		releasePrep,
+		/echo "\*\*Beta version:\*\* \$BETA_VERSION"[\s\S]*echo "This PR prepares Maintley v\$VERSION for release\."/,
+	);
+	assert.match(
+		releasePrep,
+		/node scripts\/resolveBetaVersion\.cjs[\s\S]*--candidate-metadata tmp\/release-notes\.json/,
+	);
 });
