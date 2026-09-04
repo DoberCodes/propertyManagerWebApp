@@ -43,7 +43,6 @@ import {
 	createLegalAgreementDocuments,
 } from '../../constants/legal';
 import { auth } from '../../config/firebase';
-import { sendEmailVerification } from 'firebase/auth';
 import {
 	complimentaryAccessCodesEnabled,
 	ComplimentaryAccessCodePreview,
@@ -54,6 +53,10 @@ import {
 	getAnalyticsErrorCode,
 	trackAnalyticsEvent,
 } from '../../analytics/analytics';
+import {
+	finalizeCurrentUserEmailVerification,
+	sendCurrentUserEmailVerification,
+} from '../../services/emailVerificationService';
 
 // Map selected account type to appropriate role
 const getRoleFromAccountType = (accountType: string): string => {
@@ -70,7 +73,15 @@ export const RegistrationCard = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const dispatch = useDispatch();
-	const [step, setStep] = useState<number>(1);
+	const isContinuingComplimentaryAccess =
+		new URLSearchParams(location.search).get('continue') ===
+		'complimentary-access';
+	const savedComplimentaryCode = isContinuingComplimentaryAccess
+		? sessionStorage.getItem('pendingComplimentaryAccessCode') || ''
+		: '';
+	const [step, setStep] = useState<number>(
+		isContinuingComplimentaryAccess ? 4 : 1,
+	);
 	const [firstName, setFirstName] = useState<string>('');
 	const [lastName, setLastName] = useState<string>('');
 	const [email, setEmail] = useState<string>('');
@@ -88,7 +99,9 @@ export const RegistrationCard = () => {
 	const [selectedPlan, setSelectedPlan] = useState<string>('');
 	const [promoCode, setPromoCode] = useState<string>('');
 	const [showComplimentaryCode, setShowComplimentaryCode] = useState(false);
-	const [complimentaryCode, setComplimentaryCode] = useState('');
+	const [complimentaryCode, setComplimentaryCode] = useState(
+		savedComplimentaryCode,
+	);
 	const [complimentaryPreview, setComplimentaryPreview] =
 		useState<ComplimentaryAccessCodePreview | null>(null);
 	const [complimentaryError, setComplimentaryError] = useState('');
@@ -410,10 +423,8 @@ export const RegistrationCard = () => {
 		setComplimentaryError('');
 		setComplimentaryPreview(null);
 		try {
-			if (auth.currentUser) {
-				await auth.currentUser.reload();
-				await auth.currentUser.getIdToken(true);
-			}
+			const verifiedUser = await finalizeCurrentUserEmailVerification();
+			dispatch(setCurrentUser(verifiedUser));
 			setComplimentaryPreview(
 				await previewComplimentaryAccessCode(complimentaryCode),
 			);
@@ -432,6 +443,7 @@ export const RegistrationCard = () => {
 		setComplimentaryError('');
 		try {
 			await redeemComplimentaryAccessCode(complimentaryCode);
+			sessionStorage.removeItem('pendingComplimentaryAccessCode');
 			navigate('/dashboard', { replace: true });
 		} catch (activationError: any) {
 			setComplimentaryError(
@@ -488,12 +500,6 @@ export const RegistrationCard = () => {
 				},
 				inviteMode ? inviteType : undefined,
 			);
-			void trackAnalyticsEvent('signup_completed', {
-				registration_mode: registrationMode,
-				selected_plan: signupPlan,
-				used_access_code: hasRegistrationAccessCode,
-				requires_checkout: Boolean(user.subscription?.pendingCheckoutPlan),
-			});
 			signupStage = 'post_signup_access';
 
 			// Store session in localStorage
@@ -504,33 +510,35 @@ export const RegistrationCard = () => {
 					user,
 				}),
 			);
+			if (hasRegistrationAccessCode) {
+				sessionStorage.setItem(
+					'pendingComplimentaryAccessCode',
+					complimentaryCode,
+				);
+			}
 
 			// Update Redux store to mark user as logged in
 			dispatch(setCurrentUser(user));
 
+			try {
+				await sendCurrentUserEmailVerification();
+				void trackAnalyticsEvent('email_verification_sent', {
+					verification_source: 'registration',
+				});
+			} catch (verificationError) {
+				console.warn(
+					'Account created, but the verification email was not sent.',
+					verificationError,
+				);
+			}
+
 			if (hasRegistrationAccessCode) {
 				setStep(4);
 				setLoading(false);
-				if (auth.currentUser && !auth.currentUser.emailVerified) {
-					try {
-						await sendEmailVerification(auth.currentUser);
-					} catch {
-						// The access-code review explains verification if the code is email restricted.
-					}
-				}
-				await reviewRegistrationAccessCode();
 				return;
 			}
 
-			if (user.subscription?.pendingCheckoutPlan) {
-				navigate('/checkout/start', { replace: true });
-				return;
-			}
-
-			navigate(
-				user.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard',
-				{ replace: true },
-			);
+			navigate('/verify-email', { replace: true });
 		} catch (error: any) {
 			console.error('RegistrationCard: Registration error', error);
 			void trackAnalyticsEvent('workflow_error_shown', {
@@ -804,8 +812,20 @@ export const RegistrationCard = () => {
 										handleViewDocument('terms-of-service', 'Terms of Service')
 									}>
 									Terms of Service
+								</LegalDocumentButton>{' '}
+								and{' '}
+								<LegalDocumentButton
+									type='button'
+									onClick={() => handleViewDocument('eula', 'EULA')}>
+									EULA
 								</LegalDocumentButton>
-								,{' '}
+								. I acknowledge the Privacy Policy and important maintenance and
+								subscription disclosures. *
+							</span>
+						</LegalAgreementLabel>
+						<details>
+							<summary>Review privacy and important disclosures</summary>
+							<div>
 								<LegalDocumentButton
 									type='button'
 									onClick={() =>
@@ -813,7 +833,7 @@ export const RegistrationCard = () => {
 									}>
 									Privacy Policy
 								</LegalDocumentButton>
-								, and{' '}
+								{' · '}
 								<LegalDocumentButton
 									type='button'
 									onClick={() =>
@@ -824,7 +844,7 @@ export const RegistrationCard = () => {
 									}>
 									Maintenance Disclaimer
 								</LegalDocumentButton>
-								,{' '}
+								{' · '}
 								<LegalDocumentButton
 									type='button'
 									onClick={() =>
@@ -835,15 +855,8 @@ export const RegistrationCard = () => {
 									}>
 									Subscription Terms
 								</LegalDocumentButton>
-								, and{' '}
-								<LegalDocumentButton
-									type='button'
-									onClick={() => handleViewDocument('eula', 'EULA')}>
-									EULA
-								</LegalDocumentButton>
-								*
-							</span>
-						</LegalAgreementLabel>
+							</div>
+						</details>
 					</LegalAgreementSection>
 					<Submit type='button' onClick={handleNext}>
 						Next
@@ -854,6 +867,11 @@ export const RegistrationCard = () => {
 			{/* Step 3: Plan Selection + Create Account */}
 			{step === 3 && !skipsPlanSelection && (
 				<>
+					<TrialNotice>
+						Start with Free. After you create your first home, eligible new
+						homeowners receive temporary Homeowner+ access automatically—no
+						payment method is required.
+					</TrialNotice>
 					<PaywallPage
 						subscription={{
 							status: 'trial',
@@ -893,7 +911,7 @@ export const RegistrationCard = () => {
 			{step === 4 && (
 				<>
 					<TrialNotice>
-						Your Free account is ready. Review this code before activating temporary access.
+						Verify your email, then review this code before activating temporary access.
 					</TrialNotice>
 					{complimentaryError ? <ErrorMessage>{complimentaryError}</ErrorMessage> : null}
 					<Input
@@ -923,7 +941,16 @@ export const RegistrationCard = () => {
 							{complimentaryBusy ? 'Reviewing...' : 'Review Access'}
 						</Submit>
 					)}
-					<InviteModeActionButton type='button' $secondary onClick={() => navigate('/dashboard', { replace: true })}>
+					<InviteModeActionButton
+						type='button'
+						$secondary
+						onClick={() => {
+							sessionStorage.removeItem('pendingComplimentaryAccessCode');
+							navigate(
+								auth.currentUser?.emailVerified ? '/dashboard' : '/verify-email',
+								{ replace: true },
+							);
+						}}>
 						Skip for now
 					</InviteModeActionButton>
 				</>

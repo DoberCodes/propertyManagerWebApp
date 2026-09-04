@@ -566,6 +566,18 @@ The Property Setup Assistant should help users create useful records without ove
 
 The setup experience should remain lightweight.
 
+When entering the property-level Setup Assistant, users choose one of three
+paths:
+
+1. 10-minute essentials
+2. Continue room by room
+3. Upload an existing report
+
+The essentials path is a focused subset of common safety, utility, laundry,
+and exterior records. The report path reuses Property Knowledge Acquisition;
+it does not introduce a separate document-processing workflow. Detected
+Equipment remains unreviewed until the user confirms it.
+
 Recommended flow:
 
 1. Basics

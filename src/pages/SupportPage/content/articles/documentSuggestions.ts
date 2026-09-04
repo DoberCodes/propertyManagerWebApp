@@ -32,9 +32,11 @@ export const documentSuggestionsArticle: HelpfulArticle = {
 			heading: 'Review suggestions step by step',
 			steps: [
 				'Upload the file from the most specific relevant record when possible: property, equipment, task, or maintenance record.',
-				'Wait for document processing to finish and open the review summary.',
+				'Watch the document card for the Checking status. You can leave the page while Maintley works; the card and your notifications will tell you when suggested details are ready.',
 				'Confirm the selected property before reviewing individual fields.',
-				'Compare suggested dates, totals, contractor details, model identifiers, parts, and work descriptions with the original file.',
+				'Expand proposed equipment and compare the manufacturer, model, serial number, installation date, location, filter size, and specifications with the original file. Correct an extracted value before saving when needed.',
+				'Review the equipment links shown on Tasks and Supplies. One recommendation may relate to more than one equipment record, and a reusable supply should connect to the system that uses it.',
+				'Compare suggested dates, totals, contractor details, parts, and work descriptions with the original file.',
 				'Review warnings, possible duplicates, and any information that could not be matched confidently.',
 				'Apply only accurate suggestions. Skip uncertain details and enter a correction manually when needed.',
 				'Create a task for recommended or follow-up work that has not yet occurred.',
@@ -62,6 +64,7 @@ export const documentSuggestionsArticle: HelpfulArticle = {
 			heading: 'Troubleshooting, plans, and permissions',
 			paragraphs: [
 				'Text-based PDFs, clear images, and structured DOCX service reports generally provide better results than blurry photographs, handwriting, unusual layouts, or packets containing several documents. Word report processing reads paragraphs and tables; it does not interpret handwritten or image-only content embedded in a DOCX file. If important text is missed, upload a clearer source when available or enter the verified information manually.',
+				'Inspection reports may group several systems under one heading, such as Heating, Cooling, and Plumbing. Maintley checks those compound sections for controlled equipment and explicit recommendations, but you should still compare every proposed record with the original report.',
 				'A structured service report may propose one dated maintenance visit, future tasks, and equipment matches. Review each equipment mention before adding it: rooms and general inspection areas remain visit observations, and an all-clear result is recorded as the provider’s dated observation rather than a Maintley diagnosis.',
 				'File upload and organization are available across standard plans. Advanced suggested-details review is available on Homeowner+, Property, and Portfolio, while Free may show a limited preview. You must also have access to the relevant property and permission to update the destination record. If an Apply action is unavailable, check the plan, property selection, role, and whether the proposed destination still exists.',
 			],

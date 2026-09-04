@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { GenericModal } from '../../Components/Library/Modal';
 import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/BarcodeScannerModal';
@@ -195,6 +195,8 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		[devices],
 	);
 	const equipmentContextId = String(searchParams.get('equipmentId') || '').trim();
+	const requestedSupplyId = String(searchParams.get('supplyId') || '').trim();
+	const requestedAction = String(searchParams.get('action') || '').trim();
 	const equipmentContext = deviceById.get(equipmentContextId);
 	const spaceById = useMemo(
 		() => new Map(spaces.map((space) => [space.id, space])),
@@ -238,6 +240,38 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		setFormError('');
 		setIsFormOpen(true);
 	};
+
+	useEffect(() => {
+		if (requestedAction !== 'add-supply' || !canManageSupplies) return;
+
+		setActionError('');
+		setEditingSupply(null);
+		setDraft(EMPTY_DRAFT);
+		setConnections({
+			...EMPTY_CONNECTIONS,
+			equipmentIds: equipmentContextId ? [equipmentContextId] : [],
+		});
+		setFormError('');
+		setIsFormOpen(true);
+
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.delete('action');
+		setSearchParams(nextParams, { replace: true });
+	}, [
+		canManageSupplies,
+		equipmentContextId,
+		requestedAction,
+		searchParams,
+		setSearchParams,
+	]);
+
+	useEffect(() => {
+		if (!requestedSupplyId || selectedSupply?.id === requestedSupplyId) return;
+		const requestedSupply = supplies.find(
+			(supply) => supply.id === requestedSupplyId,
+		);
+		if (requestedSupply) setSelectedSupply(requestedSupply);
+	}, [requestedSupplyId, selectedSupply?.id, supplies]);
 
 	const openEditForm = (supply: PropertySupply) => {
 		setActionError('');
@@ -418,6 +452,13 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 		const nextParams = new URLSearchParams(searchParams);
 		nextParams.delete('equipmentId');
 		setSearchParams(nextParams);
+	};
+	const closeSupplyDetails = () => {
+		setSelectedSupply(null);
+		if (!requestedSupplyId) return;
+		const nextParams = new URLSearchParams(searchParams);
+		nextParams.delete('supplyId');
+		setSearchParams(nextParams, { replace: true });
 	};
 
 	return (
@@ -863,7 +904,7 @@ export const SuppliesSection: React.FC<SuppliesSectionProps> = ({
 			<GenericModal
 				isOpen={Boolean(selectedSupply)}
 				title={selectedSupply?.name || 'Supply'}
-				onClose={() => setSelectedSupply(null)}
+				onClose={closeSupplyDetails}
 			>
 				<SupplyFormHint>
 					{selectedSupply

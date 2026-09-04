@@ -98,14 +98,14 @@ const PLAN_GROUPS: Record<PlanAudience, PaidPlanId[]> = {
 
 const PLAN_GROUP_COPY: Record<PlanAudience, string> = {
 	home:
-		'Free helps find record gaps. Homeowner+ turns those records into reminders, timelines, and Maintley Intelligence.',
+		'Free includes recurring care and reminders. Homeowner+ adds more homes, deeper reviews, and Maintley Intelligence.',
 	business:
 		'For rentals and multi-property teams that need shared records, assignments, reporting, and service workflows.',
 };
 
 const PLAN_BEST_FOR: Record<PaidPlanId, string> = {
-	homeowner: 'Ideal for finding gaps in one home record.',
-	homeowner_plus: 'Ideal for deeper records, reminders, and proactive upkeep.',
+	homeowner: 'Ideal for maintaining one complete home record.',
+	homeowner_plus: 'Ideal for deeper guidance and up to five homes.',
 	property: 'Ideal for managing multiple properties with stronger controls.',
 	portfolio: 'Ideal for teams operating larger property portfolios.',
 };
@@ -713,7 +713,7 @@ export const PaywallPage: React.FC<PaywallPageProps> = ({
 			: 'Choose the plan that fits your rentals';
 	const paywallIntro =
 		planAudience === 'home'
-			? 'Free helps you find gaps in your home record. Homeowner+ turns maintenance insight into reminders, timelines, exports, and Maintley Intelligence.'
+			? 'Free includes recurring care, reminders, history, and exports for one home. Homeowner+ adds more homes, deeper reviews, and Maintley Intelligence.'
 			: 'Start with core property records, then upgrade when you need assignments, reporting, resident workflows, and cross-property coordination.';
 
 	return (

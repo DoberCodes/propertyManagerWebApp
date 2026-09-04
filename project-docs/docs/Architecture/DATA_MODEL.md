@@ -384,12 +384,21 @@ Typical fields:
 * accountId
 * name
 * address
+* addressDetails
 * propertyType
 * propertyClassification
 * photoUrl
 * notes
 * createdAt
 * updatedAt
+
+`address` remains the formatted, display-ready address used by existing views,
+exports, document matching, and older records. New or edited addresses may also
+store `addressDetails` with `streetAddress`, optional `unit`, `city`, two-letter
+`state`, `postalCode`, and `countryCode`. Maintley derives the formatted
+`address` from these structured fields. Older records that only contain
+`address` remain valid and are not automatically rewritten from guessed
+components.
 
 Optional fields may include:
 
@@ -459,9 +468,34 @@ Bathroom. Every save checks current active and archived Spaces before creating
 missing records. Setup may create or reuse Kitchen,
 Bathroom, Laundry Room, Garage, and Exterior Spaces before connecting accepted
 Equipment and Tasks. Generation is idempotent: `generationKey` is checked
-first, followed by an active normalized name-and-type match. Archived matches
-require review and are neither restored nor duplicated automatically. Utility
-Systems and Safety records do not infer Spaces.
+first, followed by a property-wide normalized name match. An explicit
+user-created Space keeps its selected type and is reused instead of generating
+a duplicate with the same name. Archived matches require review and are
+neither restored nor duplicated automatically. Utility Systems and Safety
+records do not infer Spaces.
+
+A user who explicitly adds a Space from inside Setup creates an ordinary
+`manual` Space without a `generationKey`. The Setup context may connect that
+record immediately, but it does not convert an explicit user record into a
+generated Space.
+
+Setup progress may retain an `instances` array for a Present item. Each draft
+instance has a stable setup ID, homeowner-readable name, optional Equipment
+`deviceId`, optional `assetVariant`, and optional accepted `spaceIds`. The
+legacy item-level `deviceId` remains as a compatibility pointer to the first
+instance. Instance preparation is not a competing Equipment model: after save,
+the `devices` record is authoritative and every Equipment `located_in` Space
+connection is stored in `propertyKnowledgeLinks`.
+
+Several physical assets of the same type are represented by several Equipment
+records. This is especially important for distributed safety devices. One
+Equipment record may connect to several Spaces only when it represents one
+physical system associated with those Spaces. Setup-generated Tasks may connect
+to the combined accepted Spaces and Equipment records for the reviewed item.
+Independent physical Equipment may also be presented through one combined
+Equipment record under ADR 0039. The physical records remain Property-owned;
+their one-level relationship is derived from canonical `part_of` links rather
+than embedded Equipment IDs.
 
 Spaces are stored in the top-level `propertySpaces` collection. Firestore rules
 validate that the referenced Property exists and carries the same `accountId`.
@@ -477,6 +511,14 @@ current forms, cards, search, and filters; new manual Task writes omit it.
 Stored legacy values remain readable by compatibility and historical paths.
 Accepted Equipment-to-Space and Task-to-Space locations use canonical
 relationship records.
+
+The Space overview is derived rather than stored. It resolves connected
+Equipment, Tasks, Supplies, and Documents from `propertyKnowledgeLinks` and
+legacy-compatible Document readers. Recent Maintenance History is shown only
+when a record explicitly references Equipment or a Task connected to that
+Space, or when a future canonical Maintenance Event-to-Space relationship
+exists. Counts, next-work labels, overdue state, and presentation icons are not
+persisted on `propertySpaces`.
 
 ## propertySupplies
 
@@ -559,6 +601,7 @@ The first supported relationships are:
 * Task `occurs_in` Space
 * Equipment, Space, or Task `uses` Supply
 * Document `documents` Equipment, Space, Task, or Supply
+* Physical Equipment `part_of` combined Equipment
 
 Required fields:
 
@@ -566,7 +609,7 @@ Required fields:
 * propertyId
 * fromType (`equipment`, `space`, `task`, or `document`, constrained by the relationship)
 * fromId
-* relationshipType (`located_in`, `occurs_in`, `uses`, or `documents`)
+* relationshipType (`located_in`, `occurs_in`, `uses`, `documents`, or `part_of`)
 * toType (`equipment`, `space`, `task`, or `supply`, constrained by the relationship)
 * toId
 * source (`manual` or `migration` for an explicitly reviewed backfill)
@@ -590,6 +633,13 @@ account and Property. It does not clear the legacy field, infer partial matches,
 or choose between duplicate names. A new recurring Task inherits accepted Space
 links from the Task that generated it. Deleting a Task removes its outgoing
 relationship records.
+
+Equipment `part_of` links are one-level and always connect a physical Equipment
+record to a combined Equipment record in the same account and Property. An
+Equipment record may be attached to only one combined record. Self-reference,
+recursive nesting, attaching a combined record, and cross-Property links are
+rejected by the trusted callable. Removing the link returns the physical record
+to ordinary standalone presentation without deleting its history.
 
 Document links are many-to-many and always originate from a first-class
 Property Document. Account managers replace the accepted Equipment, Space,
@@ -686,6 +736,11 @@ Typical fields:
 * notes
 * createdAt
 * updatedAt
+
+Optional `recordScope` is `physical` or `combined`. Missing values retain
+legacy `physical` behavior. A combined record presents related Equipment but
+does not own or embed it. Physical records retain their own identity, Space,
+status, Documents, Supplies, Tasks, and Maintenance History.
 
 Optional fields may include:
 
@@ -1614,6 +1669,10 @@ Typical property knowledge suggestion fields:
 * confidence
 * extractedFields
 * suggestedParts
+* suggestedTasks
+* suggestedEquipment
+* visitObservations
+* acquisitionDiagnostics
 * createdAt
 * updatedAt
 
@@ -1653,6 +1712,11 @@ links should be migrated in a later phase.
 Legacy document fields such as `name`, `url`, `category`, `assignedDeviceId`, and `assignedTaskId` may remain during migration.
 
 Knowledge suggestions are review records.
+
+`acquisitionDiagnostics` contains processing metadata only, including parser or
+interpreter version and source/candidate counts. It must not contain raw
+document text. Source-specific intermediate understanding models are ephemeral
+processing artifacts and are not a parallel Property Memory store.
 
 Typical fields:
 

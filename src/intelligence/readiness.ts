@@ -8,7 +8,7 @@ import {
 import { getDeviceAssetType, UNKNOWN_ASSET_TYPE } from '../utils/systemTypes';
 import { getBaselineDefinitionForAsset } from './baselineCareLibrary';
 
-export const MAINTLEY_INTELLIGENCE_READINESS_VERSION = 'maintley-readiness-v1';
+export const MAINTLEY_INTELLIGENCE_READINESS_VERSION = 'maintley-readiness-v2';
 
 export type MaintleyIntelligenceReadinessLevel =
 	| 'starting'
@@ -24,7 +24,7 @@ export interface MaintleyIntelligenceReadinessCategory {
 	id: MaintleyIntelligenceReadinessCategoryId;
 	title: string;
 	level: MaintleyIntelligenceReadinessLevel;
-	levelLabel: 'Starting' | 'Building context' | 'Ready';
+	levelLabel: string;
 	summary: string;
 	nextStep: string;
 	evidence: {
@@ -33,6 +33,7 @@ export interface MaintleyIntelligenceReadinessCategory {
 		scheduledRecords?: number;
 		guidedRecords?: number;
 		customScheduleRecords?: number;
+		historyLinkedRecords?: number;
 		patternRecords?: number;
 	};
 }
@@ -65,11 +66,22 @@ const ACTIVE_RECURRING_TASK_STATUSES = new Set([
 ]);
 
 const levelLabel = (
+	categoryId: MaintleyIntelligenceReadinessCategoryId,
 	level: MaintleyIntelligenceReadinessLevel,
 ): MaintleyIntelligenceReadinessCategory['levelLabel'] => {
-	if (level === 'ready') return 'Ready';
-	if (level === 'building_context') return 'Building context';
-	return 'Starting';
+	if (categoryId === 'equipment_context') {
+		if (level === 'ready') return 'Recorded';
+		if (level === 'building_context') return 'Partly recorded';
+		return 'Not recorded yet';
+	}
+	if (categoryId === 'maintenance_coverage') {
+		if (level === 'ready') return 'Scheduled';
+		if (level === 'building_context') return 'Partly scheduled';
+		return 'Not scheduled yet';
+	}
+	if (level === 'ready') return 'Informed';
+	if (level === 'building_context') return 'Building history';
+	return 'No history yet';
 };
 
 const normalizedId = (value: unknown): string => String(value || '').trim();
@@ -160,11 +172,14 @@ const isKnownEquipmentType = (system: Device): boolean => {
 const buildEquipmentContext = (
 	systems: Device[],
 ): MaintleyIntelligenceReadinessCategory => {
-	const recognized = systems.filter(isKnownEquipmentType).length;
+	const physicalSystems = systems.filter(
+		(system) => system.recordScope !== 'combined',
+	);
+	const recognized = physicalSystems.filter(isKnownEquipmentType).length;
 	const level: MaintleyIntelligenceReadinessLevel =
-		systems.length === 0
+		physicalSystems.length === 0
 			? 'starting'
-			: recognized === systems.length
+			: recognized === physicalSystems.length
 				? 'ready'
 				: 'building_context';
 
@@ -172,24 +187,24 @@ const buildEquipmentContext = (
 		level === 'starting'
 			? 'Add equipment so Maintley can provide equipment-specific guidance.'
 			: level === 'ready'
-				? `Maintley recognizes ${systems.length === 1 ? 'the tracked equipment record' : `all ${systems.length} tracked equipment records`} and can use their types for more specific guidance.`
-				: `Maintley recognizes ${recognized} of ${systems.length} tracked equipment records and can provide specific guidance for those records.`;
+				? `Maintley recognizes ${physicalSystems.length === 1 ? 'the tracked equipment record' : `all ${physicalSystems.length} tracked equipment records`} and can use their types for more specific guidance.`
+				: `Maintley recognizes ${recognized} of ${physicalSystems.length} tracked equipment records and can provide specific guidance for those records.`;
 	const nextStep =
 		level === 'starting'
 			? 'Add the first system or appliance you want Maintley to help track.'
-			: recognized < systems.length
-				? `Choose an equipment type for ${systems.length - recognized} ${systems.length - recognized === 1 ? 'record' : 'records'}.`
+			: recognized < physicalSystems.length
+				? `Choose an equipment type for ${physicalSystems.length - recognized} ${physicalSystems.length - recognized === 1 ? 'record' : 'records'}.`
 				: 'Add model or installation details when they are available.';
 
 	return {
 		id: 'equipment_context',
 		title: 'Equipment context',
 		level,
-		levelLabel: levelLabel(level),
+		levelLabel: levelLabel('equipment_context', level),
 		summary,
 		nextStep,
 		evidence: {
-			applicableRecords: systems.length,
+			applicableRecords: physicalSystems.length,
 			supportedRecords: recognized,
 		},
 	};
@@ -248,7 +263,7 @@ const buildMaintenanceCoverage = (
 		id: 'maintenance_coverage',
 		title: 'Maintenance coverage',
 		level,
-		levelLabel: levelLabel(level),
+		levelLabel: levelLabel('maintenance_coverage', level),
 		summary,
 		nextStep,
 		evidence: {
@@ -283,41 +298,42 @@ const buildServiceHistory = (
 	});
 
 	const level: MaintleyIntelligenceReadinessLevel =
-		maintenanceHistory.length === 0
+		maintenanceHistory.length === 0 || linkedIds.size === 0
 			? 'starting'
-			: applicableSystems.length === 0 || linkedIds.size === applicableSystems.length
+			: applicableSystems.length > 0 && patternIds.size === applicableSystems.length
 				? 'ready'
 				: 'building_context';
 	const summary =
 		level === 'starting'
-			? 'Record completed work so Maintley can use service history in future guidance.'
+			? 'Record completed work and connect it to equipment so Maintley can use service history in future guidance.'
 			: level === 'ready'
-				? applicableSystems.length === 0
-					? 'Maintley can use the saved property service history as context for future guidance.'
-					: 'Maintley can use linked service history as context for all tracked equipment that needs it.'
-				: linkedIds.size === 0
-					? 'Maintley can show the property history, but linking completed work to equipment will provide more specific context.'
-					: `Maintley can use linked service history for ${linkedIds.size} of ${applicableSystems.length} tracked equipment records.`;
-	const remaining = Math.max(0, applicableSystems.length - linkedIds.size);
+				? 'Comparable dated service events support pattern-based guidance for all applicable equipment records.'
+				: `${linkedIds.size} of ${applicableSystems.length} applicable equipment records have linked history, and ${patternIds.size} currently support recorded-pattern guidance.`;
+	const remainingLinks = Math.max(0, applicableSystems.length - linkedIds.size);
+	const remainingPatterns = Math.max(
+		0,
+		applicableSystems.length - patternIds.size,
+	);
 	const nextStep =
 		level === 'starting'
 			? 'Record the most recent maintenance or repair.'
-			: remaining > 0
-				? `Connect completed work to ${remaining} ${remaining === 1 ? 'equipment record' : 'equipment records'} as service happens.`
-				: 'Keep recording completed work as service happens.';
+			: remainingLinks > 0
+				? `Connect completed work to ${remainingLinks} ${remainingLinks === 1 ? 'equipment record' : 'equipment records'} as service happens.`
+				: remainingPatterns > 0
+					? 'Keep recording comparable, dated service events to build pattern-based guidance.'
+					: 'Keep recording completed work as service happens.';
 
 	return {
 		id: 'service_history',
 		title: 'Service history',
 		level,
-		levelLabel: levelLabel(level),
+		levelLabel: levelLabel('service_history', level),
 		summary,
 		nextStep,
 		evidence: {
-			applicableRecords:
-				applicableSystems.length || maintenanceHistory.length,
-			supportedRecords:
-				applicableSystems.length > 0 ? linkedIds.size : maintenanceHistory.length,
+			applicableRecords: applicableSystems.length,
+			supportedRecords: patternIds.size,
+			historyLinkedRecords: linkedIds.size,
 			patternRecords: patternIds.size,
 		},
 	};
@@ -371,7 +387,12 @@ export const aggregateMaintleyIntelligenceReadiness = (
 			0,
 		);
 		const sumEvidence = (
-			key: 'scheduledRecords' | 'guidedRecords' | 'customScheduleRecords' | 'patternRecords',
+			key:
+				| 'scheduledRecords'
+				| 'guidedRecords'
+				| 'customScheduleRecords'
+				| 'historyLinkedRecords'
+				| 'patternRecords',
 		) =>
 			propertyCategories.reduce(
 				(total, category) => total + (category.evidence[key] || 0),
@@ -405,7 +426,7 @@ export const aggregateMaintleyIntelligenceReadiness = (
 			id: categoryId,
 			title,
 			level,
-			levelLabel: levelLabel(level),
+			levelLabel: levelLabel(categoryId, level),
 			summary,
 			nextStep,
 			evidence: {
@@ -419,7 +440,10 @@ export const aggregateMaintleyIntelligenceReadiness = (
 						}
 					: {}),
 				...(categoryId === 'service_history'
-					? { patternRecords: sumEvidence('patternRecords') }
+					? {
+							historyLinkedRecords: sumEvidence('historyLinkedRecords'),
+							patternRecords: sumEvidence('patternRecords'),
+						}
 					: {}),
 			},
 		};

@@ -1,0 +1,37 @@
+{
+	"indexes": [
+		{
+			"collectionGroup": "familyInvites",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "accountId", "order": "ASCENDING" },
+				{ "fieldPath": "createdAt", "order": "DESCENDING" },
+				{ "fieldPath": "__name__", "order": "DESCENDING" }
+			],
+			"density": "SPARSE_ALL"
+		},
+		{
+			"collectionGroup": "notifications",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "userId", "order": "ASCENDING" },
+				{ "fieldPath": "createdAt", "order": "DESCENDING" },
+				{ "fieldPath": "__name__", "order": "DESCENDING" }
+			],
+			"density": "SPARSE_ALL"
+		},
+		{
+			"collectionGroup": "notifications",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "type", "order": "ASCENDING" },
+				{ "fieldPath": "data.taskId", "order": "ASCENDING" },
+				{ "fieldPath": "data.notificationId", "order": "ASCENDING" },
+				{ "fieldPath": "createdAt", "order": "ASCENDING" },
+				{ "fieldPath": "__name__", "order": "ASCENDING" }
+			],
+			"density": "SPARSE_ALL"
+		}
+	],
+	"fieldOverrides": []
+}

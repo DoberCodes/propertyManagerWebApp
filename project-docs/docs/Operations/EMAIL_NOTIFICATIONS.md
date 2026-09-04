@@ -240,6 +240,17 @@ Activation satisfies the 30-day notice for this 30-day program. It must not be
 duplicated by a second 30-day reminder. The existing signup welcome email and
 the later grant-activation message describe different events.
 
+The signup welcome email is held until a new registration transitions from
+`pending_email_verification` to `active` and Firebase Authentication confirms
+the address. Access-lifecycle delivery also checks the Firebase Auth recipient
+before calling Resend. Unverified recipients are recorded as deferred with
+`recipient_email_unverified`; no provider attempt is made while the address is
+unverified. Existing unverified accounts are not deleted and may request
+verification from Profile. Pending registrations confirm Firebase's current
+verification state before leaving the verification screen. If the user finishes
+later, the next login automatically completes the trusted activation when
+Firebase already reports the address as verified.
+
 Each delivery uses a deterministic account-scoped provider identity based on
 account, program, grant, milestone, and template version. The stored delivery
 identifier remains scoped beneath its account. Operational state records sent,

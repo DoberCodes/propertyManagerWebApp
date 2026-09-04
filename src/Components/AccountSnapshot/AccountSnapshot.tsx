@@ -4,10 +4,9 @@ import { useSelector } from "react-redux";
 import { RootState } from "Redux/store/store";
 import { filterPropertyGroupsByRole } from "utils/dataFilters";
 import {
-	getEffectiveSubscriptionPlanId,
 	getRemainingPropertySlots,
-	getSubscriptionPlanDetails,
 } from "utils/subscriptionUtils";
+import { getAccountAccessPresentation } from 'utils/accountAccessPresentation';
 import { formatStorageBytes } from 'utils/storageQuota';
 import { TeamMember } from 'Redux/Slices/teamSlice';
 import { useNavigate } from "react-router";
@@ -80,16 +79,10 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 			).length,
 		[filteredPropertyGroups],
 	);
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
+	const accessPresentation = getAccountAccessPresentation(
 		currentUser?.subscription,
-		'homeowner',
 	);
-
-
-
-	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
-
-	const maxProperties = planDetails?.maxProperties ?? 1;
+	const maxProperties = accessPresentation.maxProperties;
 	const remainingSlots = currentUser?.subscription
 		? getRemainingPropertySlots(currentUser.subscription, totalProperties)
 		: 0;
@@ -106,7 +99,7 @@ export const AccountSnapshot: React.FC<AccountSnapshotProps> = ({ isSidebarOpen,
 		: remainingSlots === 0 && totalProperties > maxProperties
 			? `${totalProperties - maxProperties} over plan limit`
 			: `${remainingSlots} ${planRecordNoun} slot${remainingSlots === 1 ? '' : 's'} available`;
-	const planSubtitle = `Plan: ${planDetails?.name || 'Home'}`;
+	const planSubtitle = `Current access: ${accessPresentation.accessPlanName}`;
 	const storageUsagePercent = Math.min(100, storageUsage?.usagePercent || 0);
 	const storageUsageLabel = isStorageUsageLoading
 		? 'Loading storage...'

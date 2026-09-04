@@ -14,6 +14,7 @@ import {
 import {
 	FormSection,
 	FormRow,
+	AddressDetailRow,
 	FormField,
 	Label,
 	ValidationMessage,
@@ -82,6 +83,7 @@ import { RootState } from '../../Redux/store/store';
 import { TeamMember } from '../../types/Team.types';
 import {
 	PropertyAccessSnapshot,
+	PropertyAddressDetails,
 	PropertyClassification,
 	PropertyType,
 } from '../../types/Property.types';
@@ -103,11 +105,18 @@ import {
 	hasValidBathroomCount,
 	hasValidBedroomCount,
 } from '../../propertyKnowledge/propertySpaceGeneration';
+import {
+	formatPropertyAddress,
+	getPropertyAddressFormValues,
+	isCompletePropertyAddress,
+	normalizePropertyAddressDetails,
+} from '../../utils/propertyAddress';
 export interface PropertyFormData {
 	photo?: string;
 	name: string;
 	owner: string;
 	address: string;
+	addressDetails?: PropertyAddressDetails;
 	propertyType: PropertyType;
 	propertyClassification?: PropertyClassification;
 	isRental?: boolean;
@@ -317,10 +326,22 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		formData.name.trim().toLowerCase() ===
 		duplicateSourceName!.trim().toLowerCase();
 	const propertyNameCreatesSlug = buildPropertySlug(formData.name).length > 0;
+	const addressFormValues = useMemo(
+		() => getPropertyAddressFormValues(formData.address, formData.addressDetails),
+		[formData.address, formData.addressDetails],
+	);
+	const retainsUnconvertedLegacyAddress = Boolean(
+		initialData?.address?.trim() &&
+			!initialData.addressDetails &&
+			!formData.addressDetails,
+	);
+	const propertyAddressComplete =
+		isCompletePropertyAddress(formData.addressDetails) ||
+		retainsUnconvertedLegacyAddress;
 	const requiredPropertyBasicsComplete = Boolean(
 		formData.name.trim() &&
 		propertyNameCreatesSlug &&
-		formData.address.trim() &&
+		propertyAddressComplete &&
 		!duplicateNameUnchanged,
 	);
 	const steps = isOnboardingHomeCreateFlow ? ONBOARDING_HOME_STEPS : STEPS;
@@ -530,6 +551,29 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
+	const handleAddressInputChange = (
+		field: keyof Omit<PropertyAddressDetails, 'countryCode'>,
+		value: string,
+	) => {
+		setFormData((previous) => {
+			const current = getPropertyAddressFormValues(
+				previous.address,
+				previous.addressDetails,
+			);
+			const nextDetails: PropertyAddressDetails = {
+				...current,
+				[field]: field === 'state' ? value.toUpperCase() : value,
+				countryCode: 'US',
+			};
+
+			return {
+				...previous,
+				addressDetails: nextDetails,
+				address: formatPropertyAddress(nextDetails),
+			};
+		});
+	};
+
 	const handleUseFallbackPhoto = () => {
 		handleInputChange('photo', PROPERTY_IMAGE_PLACEHOLDER);
 		setImageError(null);
@@ -673,8 +717,17 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 		setIsSubmitting(true);
 		setSaveProgress(null);
 		try {
+			const normalizedAddressDetails = formData.addressDetails
+				? normalizePropertyAddressDetails(formData.addressDetails)
+				: undefined;
 			await onSave({
 				...formData,
+				address: normalizedAddressDetails
+					? formatPropertyAddress(normalizedAddressDetails)
+					: formData.address.trim(),
+				...(normalizedAddressDetails
+					? { addressDetails: normalizedAddressDetails }
+					: {}),
 				accessSnapshots: buildAccessSnapshots(),
 				propertyType: hasRetainedBusinessType ? initialPropertyType : formData.propertyType,
 				isRental: hasRetainedRental ? true : forceSingleFamily ? false : !!formData.isRental,
@@ -820,21 +873,99 @@ export const PropertyDialog: React.FC<PropertyDialogProps> = ({
 								)}
 							</FormField>
 							<FormField>
-								<Label>Address</Label>
+								<Label htmlFor='property-street-address'>Street address</Label>
 								<Input
+									id='property-street-address'
 									type='text'
-									value={formData.address}
-									onChange={(e) => handleInputChange('address', e.target.value)}
-									placeholder='Enter address'
+									value={addressFormValues.streetAddress}
+									onChange={(e) =>
+										handleAddressInputChange('streetAddress', e.target.value)
+									}
+									placeholder='123 Main Street'
+									autoComplete='address-line1'
 									required
 								/>
-								{!formData.address.trim() && (
+								{!addressFormValues.streetAddress.trim() && (
 									<ValidationMessage>
-										Address is required so this {recordLowerLabel} has enough context across the app.
+										Street address is required.
 									</ValidationMessage>
 								)}
 							</FormField>
 						</FormRow>
+						<AddressDetailRow>
+							<FormField>
+								<Label htmlFor='property-address-unit'>Apt / Unit / Suite</Label>
+								<Input
+									id='property-address-unit'
+									type='text'
+									value={addressFormValues.unit || ''}
+									onChange={(event) =>
+										handleAddressInputChange('unit', event.target.value)
+									}
+									placeholder='Optional'
+									autoComplete='address-line2'
+								/>
+							</FormField>
+							<FormField>
+								<Label htmlFor='property-address-city'>City</Label>
+								<Input
+									id='property-address-city'
+									type='text'
+									value={addressFormValues.city}
+									onChange={(event) =>
+										handleAddressInputChange('city', event.target.value)
+									}
+									placeholder='City'
+									autoComplete='address-level2'
+									required
+								/>
+								{formData.addressDetails && !addressFormValues.city.trim() && (
+									<ValidationMessage>City is required.</ValidationMessage>
+								)}
+							</FormField>
+							<FormField>
+								<Label htmlFor='property-address-state'>State</Label>
+								<Input
+									id='property-address-state'
+									type='text'
+									value={addressFormValues.state}
+									onChange={(event) =>
+										handleAddressInputChange('state', event.target.value)
+									}
+									placeholder='OH'
+									maxLength={2}
+									autoComplete='address-level1'
+									required
+								/>
+								{formData.addressDetails && !/^[A-Z]{2}$/.test(addressFormValues.state) && (
+									<ValidationMessage>Use the two-letter state abbreviation.</ValidationMessage>
+								)}
+							</FormField>
+							<FormField>
+								<Label htmlFor='property-address-postal-code'>ZIP code</Label>
+								<Input
+									id='property-address-postal-code'
+									type='text'
+									inputMode='numeric'
+									value={addressFormValues.postalCode}
+									onChange={(event) =>
+										handleAddressInputChange('postalCode', event.target.value)
+									}
+									placeholder='43215'
+									autoComplete='postal-code'
+									required
+								/>
+								{formData.addressDetails &&
+									!/^\d{5}(?:-\d{4})?$/.test(addressFormValues.postalCode) && (
+										<ValidationMessage>Use a 5-digit ZIP code or ZIP+4.</ValidationMessage>
+									)}
+							</FormField>
+						</AddressDetailRow>
+						{retainsUnconvertedLegacyAddress && (
+							<ValidationMessage>
+								This saved address remains available as-is. Update any address field to save it in the structured format.
+							</ValidationMessage>
+						)}
 						{isOnboardingHomeCreateFlow && (
 							<OnboardingNextStepBanner>
 								<FontAwesomeIcon icon={faInfoCircle} />

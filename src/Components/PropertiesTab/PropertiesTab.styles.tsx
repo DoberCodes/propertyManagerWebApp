@@ -232,6 +232,7 @@ export const GroupSection = styled.div`
 `;
 
 export const GroupHeader = styled.div`
+	box-sizing: border-box;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -245,6 +246,7 @@ export const GroupHeader = styled.div`
 
 	> div:first-child {
 		min-width: 0;
+		overflow: hidden;
 	}
 
 	@media (max-width: 1024px) {
@@ -271,6 +273,8 @@ export const GroupName = styled.h2`
 	cursor: default;
 	padding: 0;
 	border-radius: 0;
+	max-width: 100%;
+	overflow-wrap: anywhere;
 
 	@media (max-width: 1024px) {
 		font-size: 16px;
@@ -287,6 +291,7 @@ export const GroupTitleBlock = styled.div`
 	display: grid;
 	gap: 2px;
 	min-width: 0;
+	max-width: 100%;
 `;
 
 export const GroupIconBadge = styled.span<{
@@ -464,6 +469,10 @@ export const PropertiesGrid = styled.div<{
 	$singleProperty?: boolean;
 }>`
 	display: grid;
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	max-width: 100%;
 	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 	gap: 18px;
 	margin-top: 2px;
@@ -563,6 +572,7 @@ export const AddPropertyTileHint = styled.div`
 `;
 
 export const PropertyTile = styled.div`
+	box-sizing: border-box;
 	position: relative;
 	border-radius: 16px;
 	overflow: hidden;
@@ -572,6 +582,7 @@ export const PropertyTile = styled.div`
 	box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 	max-width: 100%;
+	min-width: 0;
 	width: 100%;
 	display: flex;
 	flex-direction: column;

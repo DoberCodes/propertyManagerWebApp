@@ -66,6 +66,21 @@ const GlobalStyles = createGlobalStyle`
         color: ${COLORS.textPrimary};
     }
 
+    @media (max-width: 768px), (pointer: coarse) {
+        button:not([data-inline-action='true']),
+        [role='button'],
+        input:not([type='checkbox']):not([type='radio']),
+        select {
+            min-height: 44px;
+        }
+
+        input[type='checkbox'],
+        input[type='radio'] {
+            min-width: 24px;
+            min-height: 24px;
+        }
+    }
+
 `;
 
 export const nav_height = '90px';

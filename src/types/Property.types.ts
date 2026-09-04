@@ -25,8 +25,18 @@ export type PropertySetupAssistantItemStatus =
 	| 'not_present'
 	| 'unknown';
 
+export interface PropertySetupAssistantEquipmentInstance {
+	id: string;
+	deviceId?: string;
+	name: string;
+	assetVariant?: string;
+	spaceIds?: string[];
+}
+
 export interface PropertySetupAssistantItemState {
 	status: PropertySetupAssistantItemStatus;
+	instances?: PropertySetupAssistantEquipmentInstance[];
+	/** Compatibility pointer for setup progress saved before repeatable instances. */
 	deviceId?: string;
 	taskIds?: string[];
 	selectedSuggestedTaskIds?: string[];
@@ -108,6 +118,15 @@ export interface PropertyAccessSnapshot {
 	source?: 'team' | 'family';
 }
 
+export interface PropertyAddressDetails {
+	streetAddress: string;
+	unit?: string;
+	city: string;
+	state: string;
+	postalCode: string;
+	countryCode: 'US';
+}
+
 export interface Property {
 	id: string;
 	accountId?: string;
@@ -122,6 +141,7 @@ export interface Property {
 	viewers?: string[]; // Read-only access
 	accessSnapshots?: Record<string, PropertyAccessSnapshot>;
 	address?: string;
+	addressDetails?: PropertyAddressDetails;
 	propertyType?: PropertyTypeInput;
 	propertyClassification?: PropertyClassification;
 	bedrooms?: number;
@@ -280,7 +300,9 @@ export type AssetCategory =
 export interface Device {
 	id: string;
 	userId: string; // Owner of the device
+	recordScope?: 'physical' | 'combined'; // Missing values retain legacy physical behavior.
 	type: string; // Homeowner-facing display type retained on the record
+	name?: string; // Optional user-facing label for distinguishing repeated equipment
 	assetType?: string; // Canonical internal type for maintainable assets (e.g. refrigerator, heat_pump)
 	assetVariant?: string; // Optional variant used to select more specific knowledge packs
 	assetCategory?: AssetCategory | string; // Portfolio grouping for rule orchestration and analytics

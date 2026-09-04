@@ -129,7 +129,11 @@ test('guards shared Beta backend previews with one owner and stable restoration'
 	assert.match(previewWorkflow, /\$1 != self/);
 	assert.match(previewWorkflow, /--project maintleybeta/);
 	assert.match(previewWorkflow, /firebase deploy\s+--project beta/);
-	assert.match(previewWorkflow, /--only functions,firestore:rules,storage/);
+	assert.match(
+		previewWorkflow,
+		/--only functions,firestore:rules,storage/,
+	);
+	assert.doesNotMatch(previewWorkflow, /--only[^\n]*firestore:indexes/);
 	assert.match(previewWorkflow, /github\.event\.pull_request\.merged == false/);
 	assert.match(previewWorkflow, /beta-backend-active/);
 	assert.match(deployJob, /Revalidate request after acquiring Beta deployment lock/);
@@ -138,6 +142,14 @@ test('guards shared Beta backend previews with one owner and stable restoration'
 	assert.match(deployJob, /PR_STATE.*open/);
 	assert.match(stableWorkflow, /ACTIVE_BACKEND_PREVIEWS/);
 	assert.match(stableWorkflow, /Clear pull request backend-preview ownership/);
+	assert.match(
+		stableWorkflow,
+		/targets=\("hosting:beta" "functions" "firestore:rules" "storage"\)/,
+	);
+	assert.doesNotMatch(
+		stableWorkflow,
+		/targets=\("hosting:beta" "functions" "firestore:rules" "firestore:indexes" "storage"\)/,
+	);
 });
 
 test('maps the shared Storage target to the correct environment bucket', () => {

@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RootState } from 'Redux/store/store';
 import { AppZeroState } from 'Components/Library/AppZeroState';
+import { LoadingState } from 'Components/LoadingState';
 import { useGetPropertiesQuery } from 'Redux/API/propertySlice';
 import {
 	selectIsTeamMemberAccount,
@@ -116,6 +117,19 @@ import { getTaskTimingLabel } from '../../tasks/taskSchedule';
 import { useGetAccountSpacesQuery } from '../../Redux/API/spaceSlice';
 import { useGetPropertyKnowledgeLinksQuery } from '../../Redux/API/propertyKnowledgeLinkSlice';
 import { getTaskSpaceIds } from '../../types/PropertyKnowledgeLink.types';
+import {
+	readCollapsedGroupPreference,
+	writeCollapsedGroupPreference,
+} from '../../utils/listViewPreferences';
+
+const DEFAULT_COLLAPSED_TASK_GROUPS: Record<TaskTimeBucketId, boolean> = {
+	overdue: false,
+	today: true,
+	'this-week': true,
+	upcoming: true,
+	asap: true,
+	unscheduled: true,
+};
 
 export const TasksPage = () => {
 	const navigate = useNavigate();
@@ -149,7 +163,14 @@ export const TasksPage = () => {
 	);
 
 	// Fetch tasks and properties from Firebase
-	const { data: allTasks = [] } = useGetTasksQuery();
+	const {
+		data: allTasks = [],
+		isLoading: areTasksLoading,
+		isFetching: areTasksFetching,
+		isSuccess: areTasksLoaded,
+		isError: didTasksFail,
+		refetch: refetchTasks,
+	} = useGetTasksQuery();
 	const { data: accountSpaces = [] } = useGetAccountSpacesQuery(
 		{ accountId, includeArchived: true },
 		{ skip: !accountId },
@@ -193,8 +214,14 @@ export const TasksPage = () => {
 	useEffect(() => {
 		updateOverdueTasks(allTasks).then(setProcessedTasks);
 	}, [allTasks]);
-	const { data: ownedProperties = [], isLoading: isLoadingProperties } =
-		useGetPropertiesQuery();
+	const {
+		data: ownedProperties = [],
+		isLoading: isLoadingProperties,
+		isFetching: isFetchingProperties,
+		isSuccess: arePropertiesLoaded,
+		isError: didPropertiesFail,
+		refetch: refetchProperties,
+	} = useGetPropertiesQuery();
 
 	// Use account/family accessible properties only.
 	const allProperties = useMemo(() => {
@@ -257,16 +284,16 @@ export const TasksPage = () => {
 		taskTitle: string;
 		timeoutId: number;
 	} | null>(null);
+	const taskGroupPreferenceKey = `maintley:tasks:collapsed:${currentUser?.id || 'anonymous'}`;
 	const [collapsedTaskGroups, setCollapsedTaskGroups] = useState<
 		Record<TaskTimeBucketId, boolean>
-	>({
-		overdue: false,
-		today: false,
-		'this-week': false,
-		upcoming: false,
-		asap: false,
-		unscheduled: false,
-	});
+	>(() =>
+		readCollapsedGroupPreference(
+			typeof window === 'undefined' ? null : window.localStorage,
+			taskGroupPreferenceKey,
+			DEFAULT_COLLAPSED_TASK_GROUPS,
+		).value,
+	);
 	// track the property id for the task we're assigning so the modal can fetch contractors immediately
 	const [assigningTaskPropertyId, setAssigningTaskPropertyId] =
 		useState<string>('');
@@ -845,10 +872,18 @@ export const TasksPage = () => {
 	};
 
 	const toggleTaskGroup = (bucketId: TaskTimeBucketId) => {
-		setCollapsedTaskGroups((current) => ({
-			...current,
-			[bucketId]: !current[bucketId],
-		}));
+		setCollapsedTaskGroups((current) => {
+			const next = {
+				...current,
+				[bucketId]: !current[bucketId],
+			};
+			writeCollapsedGroupPreference(
+				typeof window === 'undefined' ? null : window.localStorage,
+				taskGroupPreferenceKey,
+				next,
+			);
+			return next;
+		});
 	};
 
 	const getTaskGroupTone = (
@@ -993,7 +1028,44 @@ export const TasksPage = () => {
 		);
 	};
 
-	if (!isLoadingProperties && ownedProperties.length === 0) {
+	if (
+		(ownedProperties.length === 0 &&
+			(isLoadingProperties || isFetchingProperties)) ||
+		(allTasks.length === 0 && (areTasksLoading || areTasksFetching))
+	) {
+		return (
+			<LoadingState
+				loadingKey='tasks-page'
+				title='Loading tasks'
+				message='Preparing your properties and maintenance tasks.'
+			/>
+		);
+	}
+
+	if (
+		(ownedProperties.length === 0 && didPropertiesFail) ||
+		(allTasks.length === 0 && didTasksFail)
+	) {
+		return (
+			<AppZeroState
+				kind='noTasks'
+				title='Tasks could not be loaded'
+				description='Maintley could not load your task records. Try again before creating anything new.'
+				actions={[
+					{
+						label: 'Try Again',
+						onClick: () => {
+							void refetchProperties();
+							void refetchTasks();
+						},
+					},
+				]}
+				fullPage
+			/>
+		);
+	}
+
+	if (arePropertiesLoaded && ownedProperties.length === 0) {
 		return (
 			<AppZeroState
 				kind={isUserTenant || isTeamMemberAccount ? 'noAssignedProperties' : 'noProperties'}
@@ -1008,6 +1080,7 @@ export const TasksPage = () => {
 	}
 
 	if (
+		areTasksLoaded &&
 		filteredTasks.length === 0 &&
 		activeFilterCount === 0 &&
 		!showTaskDialog

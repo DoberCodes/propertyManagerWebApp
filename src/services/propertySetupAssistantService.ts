@@ -7,6 +7,7 @@ export type PropertySetupTaskProposal = {
 	priority?: string;
 	notes?: string;
 	deviceId?: string;
+	deviceIds?: string[];
 	recurrenceFrequency?: string;
 	recurrenceInterval?: number;
 	recurrenceCustomUnit?: string;

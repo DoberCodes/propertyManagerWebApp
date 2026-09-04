@@ -3,7 +3,7 @@
 Status: Implemented
 Date: 2026-06-12
 Accepted: 2026-06-12
-Amended: 2026-07-26
+Amended: 2026-08-19
 Decision Source: Manual
 
 ## Context
@@ -128,6 +128,76 @@ The first implementation adds:
 Future iterations can add richer Maintley Intelligence readiness integration,
 completed-state dismissal behavior, and more detailed room/property-record
 fields.
+
+## 2026-08 focused-entry amendment
+
+The property-level assistant begins with three optional paths:
+
+- `10-minute essentials`: a short review of common safety, utility, laundry,
+  and exterior items.
+- `Continue room by room`: the complete area-based review.
+- `Upload an existing report`: a handoff to the existing Property Knowledge
+  Acquisition document workflow.
+
+All paths preserve the same property-owned Equipment, Task, Space, Document,
+and relationship models. They do not create parallel setup records.
+
+The two guided review paths are the primary choices. Each shows its own derived
+review count and progress bar from the shared saved setup responses: nine
+essential items for the short path and all 28 items for the full room-by-room
+path. Completing an essential item therefore also advances the full review.
+Existing-report upload remains available as a secondary text action below the
+guided choices rather than competing as a third setup card.
+
+Existing Equipment may be detected and explained to the user, but detection
+does not change the saved setup response or count as reviewed. `Present` and
+`Not Present` remain explicit user decisions. A completed area previews the
+records, recurring tasks, and Space relationships that will be created or
+reused before the user saves.
+
+## 2026-08 equipment-detail amendment
+
+Selecting `Present` progressively expands the item in place. It does not open
+a second modal. The expanded row may describe one or more physical Equipment
+records, an optional guidance-relevant subtype, and the accepted Spaces for
+each record. Existing Equipment is reused when identified; users may add
+another instance when a property has several of the same type.
+
+Distributed safety devices remain separate physical Equipment records. For
+example, smoke detectors in five Spaces are five records rather than one
+record linked to five Spaces. A single system may still connect to several
+Spaces when that accurately describes the physical asset. The Setup Assistant
+stores instance preparation within setup progress, while Equipment and
+canonical `propertyKnowledgeLinks` remain authoritative after saving.
+
+Users may create a missing Space from the expanded item. This is an explicit
+Space creation action, checks existing active and archived names first, and
+connects the accepted Space to the current Equipment instance. The final
+review names every Equipment record, subtype, Space connection, and generated
+Space before creation. Missing subtype or Space details remain optional and do
+not block setup.
+
+The pre-save review uses a bounded dialog with a fixed header and actions. It
+leads with compact Equipment, Space, and recurring-task counts; complete record
+details remain available in collapsed sections with their New or Existing
+status. Only conflicts that prevent saving, such as an archived matching Space,
+are shown by default. The post-save Quick Setup Review remains the record of
+what was actually saved.
+
+When a setup area resolves to exactly one active matching Space, newly marked
+Present Equipment in that area begins with the Space selected. This includes a
+Space explicitly added earlier in the same setup step. The selection remains
+editable. Multiple active matches are treated as ambiguous and remain
+unselected so Setup does not guess between Spaces.
+
+Setup task suggestions respond to guidance-relevant Equipment subtypes. A
+tank-style water heater may suggest tank flushing, while a tankless water
+heater replaces that suggestion with a descaling or manufacturer-service
+review. When several Equipment records share one setup item, each generated
+Task connects only to the Equipment and Spaces for which that suggestion is
+applicable. Changing setup details never silently deletes an already saved
+Task.
+
 ## 2026-07 homeowner maintenance access update
 
 Recurring maintenance and setup-generated recurring tasks are part of the core

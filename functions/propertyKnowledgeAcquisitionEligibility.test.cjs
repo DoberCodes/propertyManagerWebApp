@@ -40,3 +40,25 @@ test('restricted scan authority is limited to Maintley Owner and Admin roles', (
   assert.equal(__test.isMaintleyRestrictedScanRole('property_owner'), false);
   assert.equal(__test.isMaintleyRestrictedScanRole('support'), false);
 });
+
+test('generic extraction does not turn smoke and CO guidance into a contractor', () => {
+  const fields = __test.extractFieldsFromPdfText(
+    'Safety Recommendations\nTest smoke/CO detectors monthly.',
+  );
+
+  assert.equal(
+    fields.some((field) => field.fieldKey === 'contractorName'),
+    false,
+  );
+});
+
+test('generic extraction does not use an asset name as performed maintenance', () => {
+  const fields = __test.extractFieldsFromPdfText(
+    'Kitchen\nA refrigerator is present.',
+  );
+
+  assert.equal(
+    fields.some((field) => field.fieldKey === 'maintenanceEventDescription'),
+    false,
+  );
+});

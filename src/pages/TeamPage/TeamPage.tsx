@@ -1241,7 +1241,11 @@ export default function TeamPage() {
 						<TeamStatValue>
 							{isAdvancedTeamManagement ? assignedPropertyCount : properties.length}
 						</TeamStatValue>
-						<TeamStatLabel>Properties covered</TeamStatLabel>
+						<TeamStatLabel>
+							{isAdvancedTeamManagement
+								? 'Properties assigned'
+								: 'Properties covered'}
+						</TeamStatLabel>
 					</TeamStatCard>
 				</TeamStatsGrid>
 			</TeamHero>

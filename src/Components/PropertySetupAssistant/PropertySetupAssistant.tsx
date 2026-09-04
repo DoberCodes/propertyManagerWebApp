@@ -3,9 +3,15 @@ import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch } from 'react-redux';
-import { useCreateDeviceMutation } from '../../Redux/API/deviceSlice';
+import {
+	useCreateDeviceMutation,
+	useUpdateDeviceMutation,
+} from '../../Redux/API/deviceSlice';
 import { useUpdatePropertyMutation } from '../../Redux/API/propertySlice';
-import { useCreateTaskMutation } from '../../Redux/API/taskSlice';
+import {
+	useCreateTaskMutation,
+	useUpdateTaskMutation,
+} from '../../Redux/API/taskSlice';
 import {
 	useCreatePropertySpaceMutation,
 	useGetPropertySpacesQuery,
@@ -21,6 +27,7 @@ import { User } from '../../Redux/Slices/userSlice';
 import {
 	Device,
 	Property,
+	PropertySetupAssistantEquipmentInstance,
 	PropertySetupAssistantItemState,
 	PropertySetupAssistantItemStatus,
 	PropertySetupAssistantState,
@@ -29,17 +36,25 @@ import { Task } from '../../types/Task.types';
 import { useAppFeedback } from '../Library/AppFeedback/AppFeedbackProvider';
 import {
 	PROPERTY_SETUP_AREAS,
+	PROPERTY_SETUP_ESSENTIAL_AREAS,
 	PropertySetupAreaId,
+	PropertySetupPath,
 	getFirstIncompleteSetupAreaId,
+	getPropertySetupInstanceName,
 	getPropertySetupItem,
 	getPropertySetupProgress,
+	getPropertySetupSubtypeOptions,
+	getUnreviewedDetectedSetupItemIds,
+	isDistributedPropertySetupItem,
 } from '../../utils/propertySetupAssistant';
 import {
 	SUGGESTED_MAINTENANCE_DISCLAIMER,
 	SuggestedSystemId,
 	SuggestedTaskTemplate,
 	getSuggestedTaskDueDate,
+	getSuggestedTaskApplicableRecords,
 	getSuggestedTaskIdsForSystems,
+	getSuggestedTaskIdsForSystemVariants,
 	getSuggestedTasksForSystems,
 } from '../../utils/suggestedMaintenance';
 import { getDefaultTaskNotifications } from '../../utils/taskNotificationUtils';
@@ -49,13 +64,21 @@ import {
 	getEffectiveAccessPlanId,
 	getSuggestedMaintenancePackageLimit,
 } from '../../utils/subscriptionUtils';
-import { normalizeAssetType } from '../../utils/systemTypes';
+import {
+	getDeviceAssetVariant,
+	normalizeAssetType,
+	normalizeAssetVariant,
+} from '../../utils/systemTypes';
 import { COLORS } from '../../constants/colors';
 import { LoadingState } from '../LoadingState';
 import {
 	getAnalyticsErrorCode,
 	trackAnalyticsEvent,
 } from '../../analytics/analytics';
+import {
+	WORKFLOW_SUPPORT_CODES,
+	withWorkflowSupportCode,
+} from '../../utils/workflowSupportCodes';
 import {
 	activatePropertySetupMaintenancePlan,
 	type PropertySetupTaskProposal,
@@ -75,6 +98,8 @@ import {
 	getEquipmentSpaceIds,
 	getTaskSpaceIds,
 } from '../../types/PropertyKnowledgeLink.types';
+import type { PropertySpace, PropertySpaceType } from '../../types/Space.types';
+import { SetupSaveReviewDialog } from './SetupSaveReviewDialog';
 
 interface PropertySetupAssistantProps {
 	property: Property;
@@ -103,6 +128,10 @@ type SetupCompletionSummary = {
 type SuggestedTaskCreateResult = {
 	taskIds: string[];
 	createdTaskIds: string[];
+	taskTargetsById: Record<
+		string,
+		{ deviceIds: string[]; spaceIds: string[] }
+	>;
 };
 
 const getSetupLoadingSteps = (isHomeownerMode: boolean) => [
@@ -144,14 +173,17 @@ const PROPERTY_SETUP_ITEM_ORDER = PROPERTY_SETUP_AREAS.flatMap(
 	(area) => area.itemIds,
 );
 
+type ActivePropertySetupPath = Exclude<PropertySetupPath, 'existing_report'>;
+
 const getDraftProposalCount = (
 	items: NonNullable<PropertySetupAssistantState['items']>,
 ) =>
 	Object.entries(items).reduce((count, [itemId, itemState]) => {
 		if (itemState?.status !== 'present') return count;
-		const defaultTaskIds = getSuggestedTaskIdsForSystems([
-			itemId as SuggestedSystemId,
-		]);
+		const defaultTaskIds = getSuggestedTaskIdsForSystemVariants(
+			[itemId as SuggestedSystemId],
+			(itemState.instances || []).map((instance) => instance.assetVariant),
+		);
 		const selectedTaskIds = Array.isArray(itemState.selectedSuggestedTaskIds)
 			? itemState.selectedSuggestedTaskIds.filter((taskId) =>
 					defaultTaskIds.includes(taskId),
@@ -169,6 +201,52 @@ const waitForMinimumDuration = (startedAt: number) => {
 		window.setTimeout(resolve, remainingMs);
 	});
 };
+
+type SetupPathChoiceProps = {
+	title: string;
+	description: string;
+	progress: ReturnType<typeof getPropertySetupProgress>;
+	progressLabel: string;
+	progressAriaLabel: string;
+	action: string;
+	onClick: () => void;
+};
+
+const SetupPathChoice: React.FC<SetupPathChoiceProps> = ({
+	title,
+	description,
+	progress,
+	progressLabel,
+	progressAriaLabel,
+	action,
+	onClick,
+}) => (
+	<SetupPathButton type='button' onClick={onClick}>
+		<strong>{title}</strong>
+		<span>{description}</span>
+		<SetupPathProgress>
+			<SetupPathProgressLabel>
+				<span>
+					{progress.reviewed} of {progress.total} reviewed
+				</span>
+				<strong>{progress.isComplete ? 'Complete' : progressLabel}</strong>
+			</SetupPathProgressLabel>
+			<SetupPathProgressTrack
+				role='progressbar'
+				aria-label={progressAriaLabel}
+				aria-valuemin={0}
+				aria-valuemax={progress.total}
+				aria-valuenow={progress.reviewed}>
+				<SetupPathProgressFill
+					style={{
+						width: `${Math.round((progress.reviewed / progress.total) * 100)}%`,
+					}}
+				/>
+			</SetupPathProgressTrack>
+		</SetupPathProgress>
+		<SetupPathAction>{action}</SetupPathAction>
+	</SetupPathButton>
+);
 
 export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	property,
@@ -206,7 +284,9 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	};
 	const [updateProperty] = useUpdatePropertyMutation();
 	const [createDevice] = useCreateDeviceMutation();
+	const [updateDevice] = useUpdateDeviceMutation();
 	const [createTask] = useCreateTaskMutation();
+	const [updateTask] = useUpdateTaskMutation();
 	const [createPropertySpace] = useCreatePropertySpaceMutation();
 	const [setEquipmentSpaceLinks] = useSetEquipmentSpaceLinksMutation();
 	const [setTaskSpaceLinks] = useSetTaskSpaceLinksMutation();
@@ -229,6 +309,8 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		[setupAssistant],
 	);
 	const [isOpen, setIsOpen] = useState(false);
+	const [setupPath, setSetupPath] =
+		useState<ActivePropertySetupPath | null>(null);
 	const [draftItems, setDraftItems] = useState<
 		NonNullable<PropertySetupAssistantState['items']>
 	>(setupAssistant.items || {});
@@ -241,6 +323,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [selectedAreaId, setSelectedAreaId] = useState<PropertySetupAreaId>(
 		getFirstIncompleteSetupAreaId(setupAssistant),
 	);
+	const [expandedItemId, setExpandedItemId] =
+		useState<SuggestedSystemId | null>(null);
+	const [quickAddSpaceTarget, setQuickAddSpaceTarget] = useState<{
+		itemId: SuggestedSystemId;
+		instanceId: string;
+	} | null>(null);
+	const [quickAddSpaceName, setQuickAddSpaceName] = useState('');
+	const [quickAddSpaceType, setQuickAddSpaceType] =
+		useState<PropertySpaceType>('interior');
+	const [isAddingQuickSpace, setIsAddingQuickSpace] = useState(false);
+	const [quickAddedSpaces, setQuickAddedSpaces] = useState<PropertySpace[]>([]);
+	const instanceSequenceRef = useRef(0);
 	const areaPanelRef = useRef<HTMLDivElement | null>(null);
 	const hasTrackedProposalViewRef = useRef(false);
 	const hasTrackedSetupStartRef = useRef(false);
@@ -248,6 +342,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 	const [isSaveComplete, setIsSaveComplete] = useState(false);
 	const [completionSummary, setCompletionSummary] =
 		useState<SetupCompletionSummary | null>(null);
+	const activeSetupAreas =
+		setupPath === 'essentials'
+			? PROPERTY_SETUP_ESSENTIAL_AREAS
+			: PROPERTY_SETUP_AREAS;
 	const suggestedMaintenancePackageLimit = currentUser?.subscription
 		? getSuggestedMaintenancePackageLimit(currentUser.subscription)
 		: 0;
@@ -266,14 +364,30 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			),
 		[devices, property.id],
 	);
+	const availablePropertySpaces = useMemo(
+		() =>
+			Array.from(
+				new Map(
+					[...propertySpaces, ...quickAddedSpaces].map((space) => [space.id, space]),
+				).values(),
+			),
+		[propertySpaces, quickAddedSpaces],
+	);
 	const reviewedSetupSpaceTemplates = useMemo(() => {
 		const templates = [
 			...buildPropertyProfileSpaceTemplates(property),
 			...PROPERTY_SETUP_AREAS.flatMap((area) => {
-				const hasPresentItem = area.itemIds.some(
-					(itemId) => draftItems[itemId]?.status === 'present',
+				const needsSuggestedAreaSpace = area.itemIds.some((itemId) => {
+					const itemState = draftItems[itemId];
+					if (itemState?.status !== 'present') return false;
+					return (
+						!Array.isArray(itemState.instances) ||
+						itemState.instances.length === 0 ||
+						itemState.instances.some((instance) => instance.spaceIds === undefined)
+					);
+				},
 				);
-				return hasPresentItem
+				return needsSuggestedAreaSpace
 					? getSetupAreaSpaceTemplates(area.id, property)
 					: [];
 			}),
@@ -283,8 +397,12 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		);
 	}, [draftItems, property]);
 	const reviewedSetupSpacePlan = useMemo(
-		() => planGeneratedPropertySpaces(reviewedSetupSpaceTemplates, propertySpaces),
-		[reviewedSetupSpaceTemplates, propertySpaces],
+		() =>
+			planGeneratedPropertySpaces(
+				reviewedSetupSpaceTemplates,
+				availablePropertySpaces,
+			),
+		[availablePropertySpaces, reviewedSetupSpaceTemplates],
 	);
 	const hasArchivedSpaceConflict = reviewedSetupSpacePlan.some(
 		(entry) => entry.status === 'archived_conflict',
@@ -301,6 +419,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		hasTrackedProposalViewRef.current = false;
 		hasTrackedSetupStartRef.current = false;
 		setWasDraftRestored(false);
+		setQuickAddedSpaces([]);
 	}, [property.id]);
 
 	useEffect(() => {
@@ -390,25 +509,27 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			left: 0,
 			behavior: 'auto',
 		});
-		if (isOpen) {
-			const stageIndex = PROPERTY_SETUP_AREAS.findIndex(
+		if (isOpen && setupPath) {
+			const stageIndex = activeSetupAreas.findIndex(
 				(area) => area.id === selectedAreaId,
 			);
 			void trackAnalyticsEvent('property_setup_stage_viewed', {
 				setup_stage: selectedAreaId,
 				stage_index: stageIndex >= 0 ? stageIndex + 1 : 0,
-				stage_count: PROPERTY_SETUP_AREAS.length,
+				stage_count: activeSetupAreas.length,
+				setup_path: setupPath,
 			});
 		}
-	}, [isOpen, selectedAreaId]);
+	}, [activeSetupAreas, isOpen, selectedAreaId, setupPath]);
 
 	if (!canUseAssistant || !currentUser) {
 		return null;
 	}
 
 	const openAssistant = () => {
-		const nextDraftItems = buildDraftItems(setupAssistant.items || {});
+		const nextDraftItems = { ...(setupAssistant.items || {}) };
 		setDraftItems(nextDraftItems);
+		setSetupPath(null);
 		setHasUserDraftChanges(false);
 		setWasDraftRestored(false);
 		hasTrackedProposalViewRef.current = false;
@@ -416,6 +537,9 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveReviewOpen(false);
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
+		setExpandedItemId(null);
+		setQuickAddSpaceTarget(null);
+		setQuickAddSpaceName('');
 		setSelectedAreaId(getFirstIncompleteSetupAreaId({ items: nextDraftItems }));
 		setIsOpen(true);
 		hasTrackedSetupStartRef.current = true;
@@ -426,18 +550,52 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		});
 	};
 
+	const handleSelectSetupPath = (path: PropertySetupPath) => {
+		void trackAnalyticsEvent('property_setup_path_selected', {
+			setup_path: path,
+			reviewed_count: savedSetupProgress.reviewed,
+			total_count: savedSetupProgress.total,
+		});
+
+		if (path === 'existing_report') {
+			setIsOpen(false);
+			onUploadDocuments?.();
+			return;
+		}
+
+		const nextAreas =
+			path === 'essentials'
+				? PROPERTY_SETUP_ESSENTIAL_AREAS
+				: PROPERTY_SETUP_AREAS;
+		setSetupPath(path);
+		setSelectedAreaId(
+			getFirstIncompleteSetupAreaId({ items: draftItems }, nextAreas),
+		);
+	};
+
 	const selectedAreaIndex = Math.max(
-		PROPERTY_SETUP_AREAS.findIndex((area) => area.id === selectedAreaId),
+		activeSetupAreas.findIndex((area) => area.id === selectedAreaId),
 		0,
 	);
 	const selectedArea =
-		PROPERTY_SETUP_AREAS[selectedAreaIndex] || PROPERTY_SETUP_AREAS[0];
+		activeSetupAreas[selectedAreaIndex] || activeSetupAreas[0];
 	const isFirstArea = selectedAreaIndex === 0;
-	const isLastArea = selectedAreaIndex === PROPERTY_SETUP_AREAS.length - 1;
-	const draftProgress = getPropertySetupProgress({ items: draftItems });
+	const isLastArea = selectedAreaIndex === activeSetupAreas.length - 1;
+	const draftProgress = getPropertySetupProgress(
+		{ items: draftItems },
+		activeSetupAreas,
+	);
+	const essentialsPathProgress = getPropertySetupProgress(
+		{ items: draftItems },
+		PROPERTY_SETUP_ESSENTIAL_AREAS,
+	);
+	const roomByRoomPathProgress = getPropertySetupProgress(
+		{ items: draftItems },
+		PROPERTY_SETUP_AREAS,
+	);
 
 	const getAreaReviewedCount = (areaId: PropertySetupAreaId) => {
-		const area = PROPERTY_SETUP_AREAS.find((item) => item.id === areaId);
+		const area = activeSetupAreas.find((item) => item.id === areaId);
 		if (!area) return 0;
 		return area.itemIds.filter((itemId) => {
 			const status = draftItems[itemId]?.status;
@@ -445,9 +603,37 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		}).length;
 	};
 
-	const findExistingDevice = (itemId: SuggestedSystemId) => {
+	const getAreaValueSummary = (areaId: PropertySetupAreaId) => {
+		const area = activeSetupAreas.find((item) => item.id === areaId);
+		if (!area) return null;
+		const presentItemIds = area.itemIds.filter(
+			(itemId) => draftItems[itemId]?.status === 'present',
+		);
+		const taskCount = presentItemIds.reduce(
+			(count, itemId) =>
+				count +
+				getSelectedSuggestedTaskIds(itemId, draftItems[itemId]).length,
+			0,
+		);
+		const equipmentCount = presentItemIds.reduce((count, itemId) => {
+			const itemState = draftItems[itemId];
+			return (
+				count +
+				(Array.isArray(itemState?.instances) && itemState.instances.length > 0
+					? itemState.instances.length
+					: 1)
+			);
+		}, 0);
+		return {
+			isReviewed: getAreaReviewedCount(areaId) === area.itemIds.length,
+			equipmentCount,
+			taskCount,
+		};
+	};
+
+	const findExistingDevices = (itemId: SuggestedSystemId) => {
 		const item = getPropertySetupItem(itemId);
-		if (!item) return null;
+		if (!item) return [];
 		const expectedNames = new Set([
 			normalize(item.system.label),
 			normalize(item.system.deviceType),
@@ -456,69 +642,152 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			compact(item.system.label),
 			compact(item.system.deviceType),
 		]);
+		const expectedAssetType = normalizeAssetType(item.system.deviceType);
+		const allowedVariants = getPropertySetupSubtypeOptions(itemId);
 
-		return (
-			propertyDevices.find((device: any) => {
-				const name = normalize(String(device.name || ''));
-				const type = normalize(String(device.type || ''));
-				const assetType = normalize(String(device.assetType || ''));
-				const compactName = compact(String(device.name || ''));
-				const compactType = compact(String(device.type || ''));
-				const compactAssetType = compact(String(device.assetType || ''));
-				return (
-					expectedNames.has(name) ||
-					expectedNames.has(type) ||
-					expectedNames.has(assetType) ||
-					expectedCompacts.has(compactName) ||
-					expectedCompacts.has(compactType) ||
-					expectedCompacts.has(compactAssetType)
-				);
-			}) || null
-		);
-	};
-
-	const buildDraftItems = (
-		baseItems: NonNullable<PropertySetupAssistantState['items']>,
-	) => {
-		const nextItems = { ...baseItems };
-		PROPERTY_SETUP_AREAS.forEach((area) => {
-			area.itemIds.forEach((itemId) => {
-				const existingDevice = findExistingDevice(itemId);
-				if (!existingDevice?.id) return;
-
-				nextItems[itemId] = {
-					...(nextItems[itemId] || {}),
-					status: 'present',
-					deviceId: existingDevice.id,
-				};
-			});
+		return propertyDevices.filter((device: any) => {
+			const name = normalize(String(device.name || ''));
+			const type = normalize(String(device.type || ''));
+			const assetType = normalize(String(device.assetType || ''));
+			const compactName = compact(String(device.name || ''));
+			const compactType = compact(String(device.type || ''));
+			const compactAssetType = compact(String(device.assetType || ''));
+			const canonicalTypeMatches =
+				normalizeAssetType(device.assetType || device.type) === expectedAssetType;
+			const deviceVariant = getDeviceAssetVariant(device);
+			const variantMatches =
+				!isDistributedPropertySetupItem(itemId) ||
+				!deviceVariant ||
+				allowedVariants.includes(deviceVariant);
+			return (
+				expectedNames.has(name) ||
+				expectedNames.has(type) ||
+				expectedNames.has(assetType) ||
+				expectedCompacts.has(compactName) ||
+				expectedCompacts.has(compactType) ||
+				expectedCompacts.has(compactAssetType) ||
+				(canonicalTypeMatches && variantMatches)
+			);
 		});
-		return nextItems;
 	};
 
-	const detectedSetupItems = buildDraftItems(setupAssistant.items || {});
-	const progress = getPropertySetupProgress({
-		...setupAssistant,
-		items: detectedSetupItems,
-	});
-	const hasDetectedUnsavedProgress =
-		progress.reviewed >
-		savedSetupProgress.reviewed;
+	const findExistingDevice = (itemId: SuggestedSystemId) =>
+		findExistingDevices(itemId)[0] || null;
 
-	const ensureDeviceForItem = async (
+	const createSetupInstanceId = (itemId: SuggestedSystemId) => {
+		instanceSequenceRef.current += 1;
+		return `${itemId}:${Date.now()}:${instanceSequenceRef.current}`;
+	};
+
+	const getDefaultSetupSpaceIds = (
 		itemId: SuggestedSystemId,
-		sourceItems: NonNullable<PropertySetupAssistantState['items']>,
-	) => {
-		const existingState = sourceItems[itemId];
-		const existingStateDevice = propertyDevices.find(
-			(device) => device.id === existingState?.deviceId,
+	): string[] | undefined => {
+		const itemArea = PROPERTY_SETUP_AREAS.find((area) =>
+			area.itemIds.includes(itemId),
 		);
-		if (existingStateDevice) {
-			return existingStateDevice;
+		if (!itemArea) return undefined;
+		const areaTemplates = getSetupAreaSpaceTemplates(itemArea.id, property);
+		if (areaTemplates.length === 0) return undefined;
+		const matchingSpaces = availablePropertySpaces.filter(
+			(space) =>
+				!space.isArchived &&
+				areaTemplates.some(
+					(template) =>
+						space.generationKey === template.generationKey ||
+						normalize(space.name) === normalize(template.name),
+				),
+		);
+		const matchingIds = Array.from(
+			new Set(matchingSpaces.map((space) => space.id)),
+		);
+		if (matchingIds.length === 1) return matchingIds;
+		return matchingIds.length > 1 ? [] : undefined;
+	};
+
+	const getInitialInstances = (
+		itemId: SuggestedSystemId,
+		state?: PropertySetupAssistantItemState,
+	): PropertySetupAssistantEquipmentInstance[] => {
+		if (Array.isArray(state?.instances) && state.instances.length > 0) {
+			return state.instances;
 		}
 
-		const existingDevice = findExistingDevice(itemId);
+		const legacyDevice = state?.deviceId
+			? propertyDevices.find((device) => device.id === state.deviceId)
+			: null;
+		const matchingDevices = legacyDevice
+			? [legacyDevice]
+			: findExistingDevices(itemId);
+		if (matchingDevices.length > 0) {
+			return matchingDevices.map((device, index) => ({
+				id: `existing:${device.id}`,
+				deviceId: String(device.id),
+				name:
+					String(device.name || '').trim() ||
+					getPropertySetupInstanceName(itemId, index),
+				assetVariant: getDeviceAssetVariant(device),
+				spaceIds: getEquipmentSpaceIds(
+					propertyKnowledgeLinks,
+					String(device.id),
+				),
+			}));
+		}
+
+		const defaultSpaceIds = getDefaultSetupSpaceIds(itemId);
+		return [
+			{
+				id: `draft:${itemId}:1`,
+				name: getPropertySetupInstanceName(itemId, 0),
+				...(defaultSpaceIds !== undefined
+					? { spaceIds: defaultSpaceIds }
+					: {}),
+				...(isDistributedPropertySetupItem(itemId)
+					? { assetVariant: getPropertySetupSubtypeOptions(itemId)[0] }
+					: {}),
+			},
+		];
+	};
+
+	const progress = savedSetupProgress;
+	const detectedUnreviewedItemCount = getUnreviewedDetectedSetupItemIds(
+		setupAssistant.items || {},
+		PROPERTY_SETUP_ITEM_ORDER.filter((itemId) =>
+			Boolean(findExistingDevice(itemId)?.id),
+		),
+	).length;
+	const hasDetectedUnsavedProgress = detectedUnreviewedItemCount > 0;
+
+	const ensureDeviceForInstance = async (
+		itemId: SuggestedSystemId,
+		instance: PropertySetupAssistantEquipmentInstance,
+	) => {
+		const requestedVariant =
+			instance.assetVariant ||
+			(isDistributedPropertySetupItem(itemId)
+				? getPropertySetupSubtypeOptions(itemId)[0]
+				: '');
+		const existingDevice = propertyDevices.find(
+			(device) => device.id === instance.deviceId,
+		);
 		if (existingDevice) {
+			const nextName = instance.name.trim() || existingDevice.name;
+			const nextVariant = normalizeAssetVariant(
+				existingDevice.assetType || existingDevice.type,
+				requestedVariant,
+			);
+			if (
+				nextName !== existingDevice.name ||
+				nextVariant !== getDeviceAssetVariant(existingDevice)
+			) {
+				return updateDevice({
+					id: String(existingDevice.id),
+					analyticsSource: 'setup_assistant',
+					updates: {
+						name: nextName,
+						assetVariant: nextVariant,
+					},
+				}).unwrap();
+			}
 			return existingDevice;
 		}
 
@@ -528,14 +797,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		}
 
 		try {
+			const assetType = normalizeAssetType(item.system.deviceType);
 			return await createDevice(
 				stripUndefinedValues({
 					analyticsSource: 'setup_assistant',
 					userId: currentUser.id,
-					type: normalizeAssetType(item.system.deviceType),
-					assetType: normalizeAssetType(item.system.deviceType),
-					assetVariant: '',
-					name: item.system.label,
+					type: assetType,
+					assetType,
+					assetVariant: normalizeAssetVariant(
+						assetType,
+						requestedVariant,
+					),
+					name: instance.name.trim() || item.system.label,
 					brand: '',
 					model: '',
 					serialNumber: '',
@@ -559,40 +832,83 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		}
 	};
 
+	const getSuggestedTaskTarget = (
+		suggestedTask: SuggestedTaskTemplate,
+		instances: PropertySetupAssistantEquipmentInstance[],
+	) => {
+		const applicableInstances = getSuggestedTaskApplicableRecords(
+			suggestedTask,
+			instances,
+		).filter(
+			(instance) => Boolean(instance.deviceId),
+		);
+		return {
+			deviceIds: Array.from(
+				new Set(
+					applicableInstances
+						.map((instance) => instance.deviceId)
+						.filter((deviceId): deviceId is string => Boolean(deviceId)),
+				),
+			),
+			spaceIds: Array.from(
+				new Set(
+					applicableInstances.flatMap((instance) => instance.spaceIds || []),
+				),
+			),
+		};
+	};
+
 	const ensureSuggestedTasksForItem = async (
 		itemId: SuggestedSystemId,
-		deviceId?: string,
+		equipmentInstances: PropertySetupAssistantEquipmentInstance[] = [],
 		selectedTaskIds = getSuggestedTaskIdsForSystems([itemId]),
 	): Promise<SuggestedTaskCreateResult> => {
 		const suggestedTasks = getSuggestedTasksForSystems([itemId], selectedTaskIds);
 		const existingTaskIds: string[] = [];
 		const proposals: PropertySetupTaskProposal[] = [];
+		const proposalTargets: Array<{
+			proposalId: string;
+			deviceIds: string[];
+			spaceIds: string[];
+		}> = [];
+		const taskTargetsById: SuggestedTaskCreateResult['taskTargetsById'] = {};
 		const systemOrderIndex = Math.max(
 			PROPERTY_SETUP_ITEM_ORDER.indexOf(itemId),
 			0,
 		);
 
 		for (const [taskIndex, suggestedTask] of suggestedTasks.entries()) {
+			const taskTarget = getSuggestedTaskTarget(
+				suggestedTask,
+				equipmentInstances,
+			);
+			if (equipmentInstances.length > 0 && taskTarget.deviceIds.length === 0) {
+				continue;
+			}
 			const existingTask = tasks.find((task) => {
 				const sameProperty =
 					String(task.propertyId || '') === String(property.id);
 				const sameTitle = normalize(task.title || '') === normalize(suggestedTask.title);
 				const linkedToDevice =
-					!deviceId ||
+					taskTarget.deviceIds.length === 0 ||
 					!Array.isArray(task.devices) ||
 					task.devices.length === 0 ||
-					task.devices.includes(deviceId);
+					taskTarget.deviceIds.some((deviceId) =>
+						task.devices?.includes(deviceId),
+					);
 				return sameProperty && sameTitle && linkedToDevice;
 			});
 
 			if (existingTask?.id) {
 				existingTaskIds.push(existingTask.id);
+				taskTargetsById[existingTask.id] = taskTarget;
 				continue;
 			}
 
+			const proposalId = `${itemId}:${suggestedTask.id}`;
 			proposals.push(
 				stripUndefinedValues({
-					proposalId: `${itemId}:${suggestedTask.id}`,
+					proposalId,
 					title: suggestedTask.title,
 					dueDate: getSuggestedTaskDueDate(
 						suggestedTask,
@@ -613,16 +929,19 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 					]
 						.filter(Boolean)
 						.join(' '),
-					...(deviceId ? { deviceId } : {}),
+					...(taskTarget.deviceIds.length > 0
+						? { deviceIds: taskTarget.deviceIds }
+						: {}),
 					recurrenceFrequency: suggestedTask.recurrenceFrequency,
 					recurrenceInterval: suggestedTask.recurrenceInterval,
 					recurrenceCustomUnit: suggestedTask.recurrenceCustomUnit,
 				}) as PropertySetupTaskProposal,
 			);
+			proposalTargets.push({ proposalId, ...taskTarget });
 		}
 
 		if (proposals.length === 0) {
-			return { taskIds: existingTaskIds, createdTaskIds: [] };
+			return { taskIds: existingTaskIds, createdTaskIds: [], taskTargetsById };
 		}
 
 		if (!TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED) {
@@ -652,11 +971,22 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 								: { isRecurring: false }),
 							enableNotifications: true,
 							notifications: getDefaultTaskNotifications(),
-							...(proposal.deviceId ? { devices: [proposal.deviceId] } : {}),
+							...(proposal.deviceIds?.length
+								? { devices: proposal.deviceIds }
+								: {}),
 						}) as any,
 					).unwrap();
 					if (createdTask?.id) {
 						createdTaskIds.push(createdTask.id);
+						const target = proposalTargets.find(
+							(entry) => entry.proposalId === proposal.proposalId,
+						);
+						if (target) {
+							taskTargetsById[createdTask.id] = {
+								deviceIds: target.deviceIds,
+								spaceIds: target.spaceIds,
+							};
+						}
 					}
 				} catch (error) {
 					console.warn('Property setup assistant could not create task:', {
@@ -670,6 +1000,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			return {
 				taskIds: [...existingTaskIds, ...createdTaskIds],
 				createdTaskIds,
+				taskTargetsById,
 			};
 		}
 
@@ -689,9 +1020,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				replayed_task_count: result.replayedTaskIds.length,
 				recurring_access_applied: result.recurringAccessApplied,
 			});
+			result.taskIds.forEach((taskId, index) => {
+				const target = proposalTargets[index];
+				if (!target) return;
+				taskTargetsById[taskId] = {
+					deviceIds: target.deviceIds,
+					spaceIds: target.spaceIds,
+				};
+			});
 			return {
 				taskIds: Array.from(new Set([...existingTaskIds, ...result.taskIds])),
 				createdTaskIds: result.createdTaskIds,
+				taskTargetsById,
 			};
 		} catch (error) {
 			console.warn('Property setup assistant could not activate tasks:', {
@@ -704,17 +1044,17 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 	const findExistingSuggestedTask = (
 		suggestedTask: SuggestedTaskTemplate,
-		deviceId?: string,
+		deviceIds: string[] = [],
 	) =>
 		tasks.find((task) => {
 			const sameProperty = String(task.propertyId || '') === String(property.id);
 			const sameTitle =
 				normalize(task.title || '') === normalize(suggestedTask.title);
 			const linkedToDevice =
-				!deviceId ||
+				deviceIds.length === 0 ||
 				!Array.isArray(task.devices) ||
 				task.devices.length === 0 ||
-				task.devices.includes(deviceId);
+				deviceIds.some((deviceId) => task.devices?.includes(deviceId));
 			return sameProperty && sameTitle && linkedToDevice;
 		}) || null;
 
@@ -777,17 +1117,181 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		sourceItems: NonNullable<PropertySetupAssistantState['items']> = draftItems,
 	) => getAllowedSuggestedPackageItemIds(sourceItems).has(itemId);
 
+	const updateSetupInstance = (
+		itemId: SuggestedSystemId,
+		instanceId: string,
+		updates: Partial<PropertySetupAssistantEquipmentInstance>,
+	) => {
+		if (isSavingAssistant) return;
+		setHasUserDraftChanges(true);
+		setDraftItems((previous) => {
+			const currentState = previous[itemId] || { status: 'present' as const };
+			const instances = getInitialInstances(itemId, currentState).map(
+				(instance) =>
+					instance.id === instanceId ? { ...instance, ...updates } : instance,
+			);
+			return {
+				...previous,
+				[itemId]: { ...currentState, status: 'present', instances },
+			};
+		});
+	};
+
+	const handleAddSetupInstance = (itemId: SuggestedSystemId) => {
+		if (isSavingAssistant) return;
+		setHasUserDraftChanges(true);
+		setExpandedItemId(itemId);
+		setDraftItems((previous) => {
+			const currentState = previous[itemId] || { status: 'present' as const };
+			const instances = getInitialInstances(itemId, currentState);
+			const defaultSpaceIds = getDefaultSetupSpaceIds(itemId);
+			return {
+				...previous,
+				[itemId]: {
+					...currentState,
+					status: 'present',
+					instances: [
+						...instances,
+						{
+							id: createSetupInstanceId(itemId),
+							name: getPropertySetupInstanceName(itemId, instances.length),
+							...(defaultSpaceIds !== undefined
+								? { spaceIds: defaultSpaceIds }
+								: {}),
+							...(isDistributedPropertySetupItem(itemId)
+								? { assetVariant: getPropertySetupSubtypeOptions(itemId)[0] }
+								: {}),
+						},
+					],
+				},
+			};
+		});
+	};
+
+	const handleRemoveSetupInstance = (
+		itemId: SuggestedSystemId,
+		instanceId: string,
+	) => {
+		if (isSavingAssistant) return;
+		setHasUserDraftChanges(true);
+		setDraftItems((previous) => {
+			const currentState = previous[itemId] || { status: 'present' as const };
+			const instances = getInitialInstances(itemId, currentState).filter(
+				(instance) => instance.id !== instanceId,
+			);
+			return {
+				...previous,
+				[itemId]: {
+					...currentState,
+					status: instances.length > 0 ? 'present' : 'unknown',
+					instances,
+				},
+			};
+		});
+	};
+
+	const handleToggleInstanceSpace = (
+		itemId: SuggestedSystemId,
+		instance: PropertySetupAssistantEquipmentInstance,
+		spaceId: string,
+	) => {
+		const currentSpaceIds = instance.spaceIds || [];
+		updateSetupInstance(itemId, instance.id, {
+			spaceIds: currentSpaceIds.includes(spaceId)
+				? currentSpaceIds.filter((id) => id !== spaceId)
+				: [...currentSpaceIds, spaceId],
+		});
+	};
+
+	const openQuickAddSpace = (
+		itemId: SuggestedSystemId,
+		instanceId: string,
+	) => {
+		setQuickAddSpaceTarget({ itemId, instanceId });
+		setQuickAddSpaceName('');
+		const itemArea = PROPERTY_SETUP_AREAS.find((area) =>
+			area.itemIds.includes(itemId),
+		);
+		const suggestedType = itemArea
+			? getSetupAreaSpaceTemplates(itemArea.id, property)[0]?.type
+			: undefined;
+		setQuickAddSpaceType(suggestedType || 'interior');
+	};
+
+	const handleQuickAddSpace = async () => {
+		if (!quickAddSpaceTarget || isAddingQuickSpace) return;
+		const name = quickAddSpaceName.trim();
+		if (!name) {
+			feedback.notify('Enter a name for this Space.');
+			return;
+		}
+		const matchingSpace = availablePropertySpaces.find(
+			(space) => normalize(space.name) === normalize(name),
+		);
+		if (matchingSpace?.isArchived) {
+			feedback.notify(
+				'A Space with this name is archived. Restore it in Property Details before connecting it.',
+			);
+			return;
+		}
+
+		setIsAddingQuickSpace(true);
+		try {
+			const space =
+				matchingSpace ||
+				(await createPropertySpace({
+					accountId,
+					propertyId: property.id,
+					name,
+					type: quickAddSpaceType,
+					notes: '',
+					source: 'manual',
+				}).unwrap());
+			if (!matchingSpace) {
+				setQuickAddedSpaces((current) => [...current, space]);
+			}
+			const itemState = draftItems[quickAddSpaceTarget.itemId];
+			const instance = getInitialInstances(
+				quickAddSpaceTarget.itemId,
+				itemState,
+			).find(({ id }) => id === quickAddSpaceTarget.instanceId);
+			if (instance && !instance.spaceIds?.includes(space.id)) {
+				updateSetupInstance(
+					quickAddSpaceTarget.itemId,
+					quickAddSpaceTarget.instanceId,
+					{ spaceIds: [...(instance.spaceIds || []), space.id] },
+				);
+			}
+			setQuickAddSpaceTarget(null);
+			setQuickAddSpaceName('');
+			feedback.notify(
+				matchingSpace ? `${space.name} connected.` : `${space.name} added and connected.`,
+			);
+		} catch (error) {
+			console.warn('Property setup assistant could not add Space:', error);
+			feedback.notify('Could not add this Space. Please try again.');
+		} finally {
+			setIsAddingQuickSpace(false);
+		}
+	};
+
 	const handleSetStatus = (
 		itemId: SuggestedSystemId,
 		status: PropertySetupAssistantItemStatus,
 	) => {
 		if (isSavingAssistant) return;
 		setHasUserDraftChanges(true);
+		if (status === 'present') {
+			setExpandedItemId(itemId);
+		}
 		setDraftItems((prev) => ({
 			...prev,
 			[itemId]: {
 				...(prev[itemId] || {}),
 				status,
+				...(status === 'present'
+					? { instances: getInitialInstances(itemId, prev[itemId]) }
+					: {}),
 				...(status === 'present' &&
 					!Array.isArray(prev[itemId]?.selectedSuggestedTaskIds)
 					? {
@@ -804,7 +1308,12 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		itemId: SuggestedSystemId,
 		state = draftItems[itemId],
 	) => {
-		const defaultTaskIds = getSuggestedTaskIdsForSystems([itemId]);
+		const defaultTaskIds = getSuggestedTaskIdsForSystemVariants(
+			[itemId],
+			getInitialInstances(itemId, state).map(
+				(instance) => instance.assetVariant,
+			),
+		);
 		if (!Array.isArray(state?.selectedSuggestedTaskIds)) {
 			return defaultTaskIds;
 		}
@@ -867,7 +1376,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 	const handleBack = () => {
 		if (isSavingAssistant || isFirstArea) return;
-		setSelectedAreaId(PROPERTY_SETUP_AREAS[selectedAreaIndex - 1].id);
+		setSelectedAreaId(activeSetupAreas[selectedAreaIndex - 1].id);
 	};
 
 	const handleNext = () => {
@@ -876,10 +1385,19 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			setIsSaveReviewOpen(true);
 			return;
 		}
-		setSelectedAreaId(PROPERTY_SETUP_AREAS[selectedAreaIndex + 1].id);
+		setSelectedAreaId(activeSetupAreas[selectedAreaIndex + 1].id);
 	};
 
 	const closeAssistant = () => {
+		if (setupPath) {
+			void trackAnalyticsEvent('property_setup_path_exited', {
+				setup_path: setupPath,
+				reviewed_count: draftProgress.reviewed,
+				total_count: draftProgress.total,
+				has_unsaved_changes: hasUserDraftChanges,
+				exit_reason: 'user_closed',
+			});
+		}
 		if (currentUser?.id && typeof window !== 'undefined') {
 			clearPropertySetupDraft(window.localStorage, {
 				userId: currentUser.id,
@@ -891,6 +1409,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		setSetupPath(null);
 		setHasUserDraftChanges(false);
 		setWasDraftRestored(false);
 		hasTrackedProposalViewRef.current = false;
@@ -902,6 +1421,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		setSetupPath(null);
 		onAssistantCompleted?.();
 	};
 
@@ -909,6 +1429,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		setSetupPath(null);
 		onAddMoreAppliances?.();
 	};
 
@@ -916,6 +1437,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 		setIsSaveComplete(false);
 		setCompletionSummary(null);
 		setIsOpen(false);
+		setSetupPath(null);
 		onUploadDocuments?.();
 	};
 
@@ -938,6 +1460,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			...draftItems,
 		};
 		const applianceLabelSet = new Set<string>();
+		const savedEquipmentIdSet = new Set<string>();
 		const linkedTaskIdSet = new Set<string>();
 		let createdApplianceCount = 0;
 		let createdTaskCount = 0;
@@ -955,7 +1478,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				accountId,
 				propertyId: property.id,
 				templates: reviewedSetupSpaceTemplates,
-				existingSpaces: propertySpaces,
+				existingSpaces: availablePropertySpaces,
 				source: 'setup_assistant',
 				createSpace: (input) => createPropertySpace(input).unwrap(),
 			});
@@ -981,16 +1504,48 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 
 				if (itemState.status === 'present') {
 					const item = getPropertySetupItem(itemId);
-					const hadExistingDevice = Boolean(
-						(itemState.deviceId &&
-							propertyDevices.some((device) => device.id === itemState.deviceId)) ||
-						findExistingDevice(itemId),
+					const itemArea = PROPERTY_SETUP_AREAS.find((area) =>
+						area.itemIds.includes(itemId),
 					);
-					const device = await ensureDeviceForItem(itemId, nextItems);
-					if (device?.id && !hadExistingDevice) {
-						createdApplianceCount += 1;
+					const fallbackSpaceIds = itemArea
+						? spaceIdsByArea.get(itemArea.id) || []
+						: [];
+					const instances = getInitialInstances(itemId, itemState);
+					const savedInstances: PropertySetupAssistantEquipmentInstance[] = [];
+
+					for (const instance of instances) {
+						const hadExistingDevice = Boolean(
+							instance.deviceId &&
+								propertyDevices.some((device) => device.id === instance.deviceId),
+						);
+						const device = await ensureDeviceForInstance(itemId, instance);
+						if (!device?.id) continue;
+						const deviceId = String(device.id);
+						savedEquipmentIdSet.add(deviceId);
+						if (!hadExistingDevice) createdApplianceCount += 1;
+						applianceLabelSet.add(instance.name || item?.system.label || itemId);
+
+						const desiredSpaceIds = Array.from(
+							new Set(
+								instance.spaceIds === undefined
+									? fallbackSpaceIds
+									: instance.spaceIds,
+							),
+						);
+						await setEquipmentSpaceLinks({
+							propertyId: property.id,
+							equipmentId: deviceId,
+							spaceIds: desiredSpaceIds,
+						}).unwrap();
+						savedInstances.push({
+							...instance,
+							deviceId,
+							name: instance.name.trim() || item?.system.label || 'Equipment',
+							assetVariant: getDeviceAssetVariant(device),
+							spaceIds: desiredSpaceIds,
+						});
 					}
-					applianceLabelSet.add(item?.system.label || device?.type || itemId);
+
 					const canGenerateSuggestedPackage =
 						canGenerateSuggestedPackageForItem(itemId, draftItems);
 					const selectedSuggestedTaskIds = canGenerateSuggestedPackage
@@ -1002,66 +1557,90 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						itemState.recreateSuggestedTaskIds || []
 					).filter((taskId) => selectedSuggestedTaskIds.includes(taskId));
 					let taskIds = liveCreatedTaskIds;
+					let taskTargetsById: SuggestedTaskCreateResult['taskTargetsById'] = {};
 
 					if (!wasAlreadyReviewed && liveCreatedTaskIds.length === 0) {
 						const taskResult = await ensureSuggestedTasksForItem(
 							itemId,
-							device?.id,
+							savedInstances,
 							selectedSuggestedTaskIds,
 						);
 						taskIds = taskResult.taskIds;
+						taskTargetsById = taskResult.taskTargetsById;
 						createdTaskCount += taskResult.createdTaskIds.length;
 					} else if (recreateSuggestedTaskIds.length > 0) {
 						const recreatedTaskResult = await ensureSuggestedTasksForItem(
 							itemId,
-							device?.id,
+							savedInstances,
 							recreateSuggestedTaskIds,
 						);
 						taskIds = Array.from(
 							new Set([...liveCreatedTaskIds, ...recreatedTaskResult.taskIds]),
-						);
+							);
+						taskTargetsById = recreatedTaskResult.taskTargetsById;
 						createdTaskCount += recreatedTaskResult.createdTaskIds.length;
 					}
-					taskIds.forEach((taskId) => linkedTaskIdSet.add(taskId));
-					const itemArea = PROPERTY_SETUP_AREAS.find((area) =>
-						area.itemIds.includes(itemId),
+					const selectedSuggestedTasks = getSuggestedTasksForSystems(
+						[itemId],
+						selectedSuggestedTaskIds,
 					);
-					const applicableSpaceIds = itemArea
-						? spaceIdsByArea.get(itemArea.id) || []
-						: [];
-					if (device?.id && applicableSpaceIds.length > 0) {
-						await setEquipmentSpaceLinks({
-							propertyId: property.id,
-							equipmentId: String(device.id),
-							spaceIds: Array.from(
+					taskIds.forEach((taskId) => {
+						if (taskTargetsById[taskId]) return;
+						const existingTask = tasks.find((task) => task.id === taskId);
+						const suggestedTask = selectedSuggestedTasks.find(
+							(task) =>
+								normalize(task.title) === normalize(existingTask?.title || ''),
+						);
+						if (suggestedTask) {
+							taskTargetsById[taskId] = getSuggestedTaskTarget(
+								suggestedTask,
+								savedInstances,
+							);
+						}
+					});
+					taskIds.forEach((taskId) => linkedTaskIdSet.add(taskId));
+					await Promise.all(
+						taskIds.map(async (taskId) => {
+							const existingTask = tasks.find((task) => task.id === taskId);
+							const target = taskTargetsById[taskId];
+							if (!existingTask || !target?.deviceIds.length) return;
+							const nextDeviceIds = Array.from(
 								new Set([
-									...getEquipmentSpaceIds(
-										propertyKnowledgeLinks,
-										String(device.id),
-									),
-									...applicableSpaceIds,
+									...(existingTask.devices || []),
+									...target.deviceIds,
 								]),
-							),
-						}).unwrap();
-					}
-					for (const taskId of taskIds) {
-						if (applicableSpaceIds.length === 0) continue;
-						await setTaskSpaceLinks({
-							propertyId: property.id,
-							taskId,
-							spaceIds: Array.from(
-								new Set([
-									...getTaskSpaceIds(propertyKnowledgeLinks, taskId),
-									...applicableSpaceIds,
-								]),
-							),
-						}).unwrap();
-					}
+							);
+							if (nextDeviceIds.length === (existingTask.devices || []).length) {
+								return;
+							}
+							await updateTask({
+								id: taskId,
+								updates: { devices: nextDeviceIds },
+							}).unwrap();
+						}),
+					);
+					await Promise.all(
+						taskIds.map((taskId) => {
+							const target = taskTargetsById[taskId];
+							if (!target) return Promise.resolve();
+							return setTaskSpaceLinks({
+								propertyId: property.id,
+								taskId,
+								spaceIds: Array.from(
+									new Set([
+										...getTaskSpaceIds(propertyKnowledgeLinks, taskId),
+										...target.spaceIds,
+									]),
+								),
+							}).unwrap();
+						}),
+					);
 
 					const nextItemState: PropertySetupAssistantItemState = {
 						...itemState,
 						status: 'present',
-						deviceId: device?.id,
+						instances: savedInstances,
+						deviceId: savedInstances[0]?.deviceId,
 						taskIds,
 						recreateSuggestedTaskIds: [],
 						reviewedAt: itemState.reviewedAt || nowIso,
@@ -1116,6 +1695,20 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				linked_task_count: linkedTaskIdSet.size,
 				trusted_activation_enabled: TRUSTED_SETUP_PLAN_ACTIVATION_ENABLED,
 			});
+			if (setupPath) {
+				const nextPathProgress = getPropertySetupProgress(
+					{ items: nextItems },
+					activeSetupAreas,
+				);
+				void trackAnalyticsEvent('property_setup_path_completed', {
+					setup_path: setupPath,
+					reviewed_count: nextPathProgress.reviewed,
+					total_count: nextPathProgress.total,
+					created_equipment_count: createdApplianceCount,
+					created_task_count: createdTaskCount,
+					linked_task_count: linkedTaskIdSet.size,
+				});
+			}
 			if (nextProgress.isComplete && !savedSetupProgress.isComplete) {
 				void trackAnalyticsEvent('property_setup_completed', {
 					created_equipment_count: createdApplianceCount,
@@ -1133,7 +1726,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 			setIsSaveReviewOpen(false);
 			setCompletionSummary({
 				applianceLabels: Array.from(applianceLabelSet),
-				applianceCount: applianceLabelSet.size,
+				applianceCount: savedEquipmentIdSet.size,
 				createdApplianceCount,
 				taskCount: linkedTaskIdSet.size,
 				createdTaskCount,
@@ -1149,11 +1742,73 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 				workflow_stage: 'save_progress',
 				error_code: getAnalyticsErrorCode(error),
 			});
-			feedback.notify('Could not save setup progress. Please try again.');
+			feedback.notify(
+				withWorkflowSupportCode(
+					'Could not save setup progress. Please try again.',
+					WORKFLOW_SUPPORT_CODES.propertySetupSave,
+				),
+			);
 		} finally {
 			setIsSavingAssistant(false);
 		}
 	};
+
+	const selectedAreaValueSummary = getAreaValueSummary(selectedArea.id);
+	const setupEquipmentReview = (
+		Object.entries(draftItems) as Array<
+			[SuggestedSystemId, PropertySetupAssistantItemState]
+		>
+	).flatMap(([itemId, itemState]) => {
+		if (itemState?.status !== 'present') return [];
+		const itemArea = PROPERTY_SETUP_AREAS.find((area) =>
+			area.itemIds.includes(itemId),
+		);
+		const suggestedSpaceNames = itemArea
+			? getSetupAreaSpaceTemplates(itemArea.id, property).map(
+					(template) => template.name,
+				)
+			: [];
+		return getInitialInstances(itemId, itemState).map((instance) => {
+			const selectedNames = (instance.spaceIds || [])
+				.map(
+					(spaceId) =>
+						availablePropertySpaces.find((space) => space.id === spaceId)?.name,
+				)
+				.filter((name): name is string => Boolean(name));
+			return {
+				key: `${itemId}:${instance.id}`,
+				name: instance.name,
+				assetVariant: instance.assetVariant,
+				spaceNames:
+					instance.spaceIds === undefined
+						? suggestedSpaceNames
+						: selectedNames,
+				isExisting: Boolean(instance.deviceId),
+			};
+		});
+	});
+	const setupTaskReview = (
+		Object.entries(draftItems) as Array<
+			[SuggestedSystemId, PropertySetupAssistantItemState]
+		>
+	).flatMap(([itemId, itemState]) => {
+		if (
+			itemState?.status !== 'present' ||
+			!canGenerateSuggestedPackageForItem(itemId)
+		) {
+			return [];
+		}
+		const selectedTaskIds = getSelectedSuggestedTaskIds(itemId, itemState);
+		const deviceIds = getInitialInstances(itemId, itemState)
+			.map((instance) => instance.deviceId)
+			.filter((deviceId): deviceId is string => Boolean(deviceId));
+		return getSuggestedTasksForSystems([itemId], selectedTaskIds).map((task) => ({
+			key: `${itemId}:${task.id}`,
+			title: task.title,
+			intervalLabel: task.intervalLabel,
+			isExisting: Boolean(findExistingSuggestedTask(task, deviceIds)),
+		}));
+	});
 
 	return (
 		<>
@@ -1254,7 +1909,9 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 							<div>
 								<ModalTitle>{setupLanguage.eyebrow}</ModalTitle>
 								<ModalHint>
-									Review one area at a time. Items marked Skip for now stay open so you can return later.
+									{setupPath
+										? 'Review one area at a time. Items marked Skip for now stay open so you can return later.'
+										: 'Choose the quickest useful starting point for this property.'}
 								</ModalHint>
 							</div>
 							<CloseButton
@@ -1266,7 +1923,65 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						</ModalHeader>
 
 						<ModalBody>
-							<AreaPanel ref={areaPanelRef}>
+							{!setupPath ? (
+								<SetupPathPanel>
+									<SetupPathIntro>
+										<AreaTitle>How would you like to begin?</AreaTitle>
+										<AreaHint>
+											You can stop at any time. Saved records remain available,
+											and you can return to the other options later.
+										</AreaHint>
+										{hasDetectedUnsavedProgress && (
+											<DetectedRecordNotice role='status'>
+												We found {detectedUnreviewedItemCount} matching equipment{' '}
+												{detectedUnreviewedItemCount === 1 ? 'record' : 'records'}.
+												They will not count as reviewed until you confirm them.
+											</DetectedRecordNotice>
+										)}
+									</SetupPathIntro>
+									<SetupPathGrid>
+										<SetupPathChoice
+											title='10-minute essentials'
+											description='Confirm nine high-value basics: safety detectors, HVAC, water heater, dryer, roof, gutters, electrical panel, and GFCI outlets.'
+											progress={essentialsPathProgress}
+											progressLabel='Essentials'
+											progressAriaLabel='10-minute essentials progress'
+											action={
+												essentialsPathProgress.reviewed > 0
+													? 'Continue essentials'
+													: 'Start essentials'
+											}
+											onClick={() => handleSelectSetupPath('essentials')}
+										/>
+										<SetupPathChoice
+											title='Continue room by room'
+											description='Review 28 items across Kitchen, Bathrooms, Laundry, Garage, Exterior, Utility Systems, and Safety.'
+											progress={roomByRoomPathProgress}
+											progressLabel='Full setup'
+											progressAriaLabel='Room-by-room progress'
+											action={
+												roomByRoomPathProgress.reviewed > 0
+													? 'Continue full setup'
+													: 'Start full setup'
+											}
+											onClick={() => handleSelectSetupPath('room_by_room')}
+										/>
+									</SetupPathGrid>
+									<SetupReportAction
+											type='button'
+											onClick={() => handleSelectSetupPath('existing_report')}>
+										<span>
+											<strong>Already have an inspection or service report?</strong>
+											Upload it for Maintley to turn into details you can review.
+										</span>
+										<em>Upload a report</em>
+									</SetupReportAction>
+								</SetupPathPanel>
+							) : (
+							<AreaPanel>
+								<AreaScrollContent
+									ref={areaPanelRef}
+									data-testid='setup-scroll-content'>
 								{wasDraftRestored && (
 									<RestoredDraftNotice role='status'>
 										Your unfinished setup changes were restored on this device.
@@ -1274,21 +1989,21 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 								)}
 								<WizardProgressHeader>
 									<WizardProgressText>
-										Step {selectedAreaIndex + 1} of {PROPERTY_SETUP_AREAS.length}
+										Step {selectedAreaIndex + 1} of {activeSetupAreas.length}
 									</WizardProgressText>
 									<WizardProgressTrack>
 										<WizardProgressFill
 											style={{
 												width: `${Math.round(
 													((selectedAreaIndex + 1) /
-														PROPERTY_SETUP_AREAS.length) *
+														activeSetupAreas.length) *
 													100,
 												)}%`,
 											}}
 										/>
 									</WizardProgressTrack>
 									<WizardStepDots aria-label='Property setup areas'>
-										{PROPERTY_SETUP_AREAS.map((area, index) => {
+										{activeSetupAreas.map((area, index) => {
 											const reviewed = getAreaReviewedCount(area.id);
 											return (
 												<WizardStepDotButton
@@ -1314,6 +2029,29 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 										{selectedArea.itemIds.length} reviewed
 									</AreaReviewedPill>
 								</AreaHeader>
+								{selectedAreaValueSummary?.isReviewed && (
+									<AreaValueSummary role='status'>
+										<strong>{selectedArea.title} is ready to save.</strong>
+										{selectedAreaValueSummary.equipmentCount > 0 ? (
+											<span>
+												This area prepares {selectedAreaValueSummary.equipmentCount}{' '}
+												equipment{' '}
+												{selectedAreaValueSummary.equipmentCount === 1
+													? 'record'
+													: 'records'}{' '}
+												and {selectedAreaValueSummary.taskCount} recurring task{' '}
+												{selectedAreaValueSummary.taskCount === 1 ? 'suggestion' : 'suggestions'}.
+												Applicable Spaces will be connected when you save, giving Maintley
+												more context for future guidance.
+											</span>
+										) : (
+											<span>
+												Your answers are recorded. Items marked Not Present will not create
+												equipment or tasks.
+											</span>
+										)}
+									</AreaValueSummary>
+								)}
 
 								<ItemList>
 									{selectedArea.itemIds.map((itemId) => {
@@ -1323,7 +2061,28 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 										const status = state?.status || 'unknown';
 										const existingDevice = findExistingDevice(itemId);
 										const savedState = setupAssistant.items?.[itemId];
-										const linkedDeviceId = state?.deviceId || existingDevice?.id;
+										const instances =
+											status === 'present'
+												? getInitialInstances(itemId, state)
+												: [];
+										const linkedDeviceIds = instances
+											.map((instance) => instance.deviceId)
+											.filter((id): id is string => Boolean(id));
+										const subtypeOptions = getPropertySetupSubtypeOptions(itemId);
+										const isExpanded = expandedItemId === itemId;
+										const selectedSpaceNames = Array.from(
+											new Set(
+												instances.flatMap((instance) =>
+													(instance.spaceIds || [])
+														.map(
+															(spaceId) =>
+																availablePropertySpaces.find((space) => space.id === spaceId)
+																	?.name,
+														)
+														.filter((name): name is string => Boolean(name)),
+												),
+											),
+										);
 										const selectedSuggestedTaskIds =
 											getSelectedSuggestedTaskIds(itemId, state);
 										const selectedSuggestedTasks =
@@ -1333,7 +2092,10 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 											);
 										const allSuggestedTasks = getSuggestedTasksForSystems(
 											[itemId],
-											getSuggestedTaskIdsForSystems([itemId]),
+											getSuggestedTaskIdsForSystemVariants(
+												[itemId],
+												instances.map((instance) => instance.assetVariant),
+											),
 										);
 										const canGenerateSuggestedPackage =
 											canGenerateSuggestedPackageForItem(itemId);
@@ -1355,21 +2117,34 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 										return (
 											<ItemCard key={itemId}>
 												<ItemTopRow>
-													<ItemInfo>
-														<ItemTitle>{item.label}</ItemTitle>
-														<ItemMeta>
-															{existingDevice && status === 'present'
-																? 'Already in Equipment'
-																: status === 'present'
-																	? 'Will add when you click Done'
-																	: status === 'not_present'
-																		? 'Not present'
-																		: 'Skipped for now'}
-															{savedState?.status &&
-																savedState.status !== status &&
-																' - Unsaved change'}
-														</ItemMeta>
-													</ItemInfo>
+													<ItemExpandButton
+														type='button'
+														onClick={() =>
+															setExpandedItemId(isExpanded ? null : itemId)
+														}
+														aria-expanded={isExpanded}
+														aria-controls={`setup-item-details-${itemId}`}>
+														<ItemInfo>
+															<ItemTitle>{item.label}</ItemTitle>
+															<ItemMeta>
+																{status === 'present'
+																	? `${instances.length} equipment ${instances.length === 1 ? 'record' : 'records'}${selectedSpaceNames.length > 0 ? ` - ${selectedSpaceNames.join(', ')}` : ''}`
+																	: existingDevice && status === 'unknown'
+																		? 'Already in Equipment - confirm Present to review'
+																		: status === 'not_present'
+																			? 'Not present'
+																			: 'Skipped for now'}
+																{savedState?.status &&
+																	savedState.status !== status &&
+																	' - Unsaved change'}
+															</ItemMeta>
+														</ItemInfo>
+														<ItemChevron aria-hidden='true'>
+															<FontAwesomeIcon
+																icon={isExpanded ? faChevronUp : faChevronDown}
+															/>
+														</ItemChevron>
+													</ItemExpandButton>
 													<StateButtonGrid>
 														<StateButton
 															type='button'
@@ -1394,8 +2169,159 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 														</StateButton>
 													</StateButtonGrid>
 												</ItemTopRow>
-												{status === 'present' && (
-													<TaskPreview>
+												{status === 'present' && isExpanded && (
+													<ItemDetails id={`setup-item-details-${itemId}`}>
+														<EquipmentCustomization>
+															<CustomizationHeader>
+																<div>
+																	<strong>Equipment details</strong>
+																	<span>
+																		{isDistributedPropertySetupItem(itemId)
+																			? 'Add each physical device separately so its Space and history stay accurate.'
+																			: 'Add another when this property has more than one.'}
+																	</span>
+																</div>
+																<AddInstanceButton
+																	type='button'
+																	onClick={() => handleAddSetupInstance(itemId)}>
+																	+ Add another
+																</AddInstanceButton>
+															</CustomizationHeader>
+															{instances.map((instance, instanceIndex) => (
+																<InstanceCard key={instance.id}>
+																	<InstanceHeader>
+																		<InstanceNumber>
+																			{instance.deviceId
+																				? 'Existing equipment'
+																				: `New equipment ${instanceIndex + 1}`}
+																		</InstanceNumber>
+																		{instances.length > 1 && (
+																			<RemoveInstanceButton
+																				type='button'
+																				onClick={() =>
+																					handleRemoveSetupInstance(
+																						itemId,
+																						instance.id,
+																					)
+																				}>
+																				Remove
+																			</RemoveInstanceButton>
+																		)}
+																	</InstanceHeader>
+																	<InstanceFieldGrid>
+																		<InstanceField>
+																			<span>Name</span>
+																			<input
+																				value={instance.name}
+																				onChange={(event) =>
+																					updateSetupInstance(itemId, instance.id, {
+																						name: event.target.value,
+																					})
+																				}
+																			/>
+																		</InstanceField>
+																		{subtypeOptions.length > 0 && (
+																			<InstanceField>
+																				<span>Subtype (optional)</span>
+																				<select
+																					value={instance.assetVariant || ''}
+																					onChange={(event) =>
+																						updateSetupInstance(itemId, instance.id, {
+																							assetVariant: event.target.value,
+																						})
+																					}>
+																					<option value=''>Choose later</option>
+																					{subtypeOptions.map((option) => (
+																						<option key={option} value={option}>
+																							{option}
+																						</option>
+																					))}
+																				</select>
+																			</InstanceField>
+																		)}
+																	</InstanceFieldGrid>
+																	<SpaceFieldLabel>Spaces (optional)</SpaceFieldLabel>
+																	<SpaceFieldHint>
+																		Choose every place connected to this equipment. Suggested area Spaces are used when no custom choice is made.
+																	</SpaceFieldHint>
+															{availablePropertySpaces.some((space) => !space.isArchived) && (
+																		<InstanceSpaceGrid>
+																	{availablePropertySpaces
+																				.filter((space) => !space.isArchived)
+																				.map((space) => {
+																					const selected = (instance.spaceIds || []).includes(
+																						space.id,
+																					);
+																					return (
+																						<InstanceSpaceOption
+																							key={space.id}
+																							$selected={selected}>
+																							<input
+																								type='checkbox'
+																								checked={selected}
+																								onChange={() =>
+																									handleToggleInstanceSpace(
+																										itemId,
+																										instance,
+																										space.id,
+																									)
+																								}
+																							/>
+																							<span>{space.name}</span>
+																						</InstanceSpaceOption>
+																					);
+																				})}
+																		</InstanceSpaceGrid>
+																	)}
+																	<QuickAddSpaceButton
+																		type='button'
+																		onClick={() => openQuickAddSpace(itemId, instance.id)}>
+																		+ Quick add Space
+																	</QuickAddSpaceButton>
+																	{quickAddSpaceTarget?.itemId === itemId &&
+																		quickAddSpaceTarget.instanceId === instance.id && (
+																			<QuickAddSpaceForm>
+																				<input
+																					aria-label='Space name'
+																					placeholder='Space name'
+																					value={quickAddSpaceName}
+																					onChange={(event) => setQuickAddSpaceName(event.target.value)}
+																				/>
+																				<select
+																					aria-label='Space type'
+																					value={quickAddSpaceType}
+																					onChange={(event) =>
+																						setQuickAddSpaceType(
+																							event.target.value as PropertySpaceType,
+																						)
+																					}>
+																					<option value='interior'>Interior</option>
+																					<option value='utility'>Utility</option>
+																					<option value='storage'>Storage</option>
+																					<option value='exterior'>Exterior</option>
+																					<option value='grounds'>Grounds</option>
+																					<option value='amenity'>Amenity</option>
+																					<option value='other'>Other</option>
+																				</select>
+																				<QuickAddSpaceActions>
+																					<button
+																						type='button'
+																						onClick={() => setQuickAddSpaceTarget(null)}>
+																						Cancel
+																					</button>
+																					<button
+																						type='button'
+																						onClick={handleQuickAddSpace}
+																						disabled={isAddingQuickSpace}>
+																						{isAddingQuickSpace ? 'Adding...' : 'Add Space'}
+																					</button>
+																				</QuickAddSpaceActions>
+																			</QuickAddSpaceForm>
+																		)}
+																</InstanceCard>
+															))}
+														</EquipmentCustomization>
+														<TaskPreview>
 														<TaskPreviewTitle>
 															{isSuggestedPackageLocked
 																? 'Suggested Maintenance Available'
@@ -1416,22 +2342,35 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 															{visibleSuggestedTasks.length > 0 ? (
 																visibleSuggestedTasks.map((suggestedTask) => {
 																	const existingSuggestedTask =
-																		findExistingSuggestedTask(
-																			suggestedTask,
-																			linkedDeviceId,
+																						findExistingSuggestedTask(
+																							suggestedTask,
+																							linkedDeviceIds,
 																		);
 																	const isQueuedForRecreate =
 																		state?.recreateSuggestedTaskIds?.includes(
 																			suggestedTask.id,
 																		) || false;
-																	const isMissingReviewedTask =
-																		wasAlreadyReviewed && !existingSuggestedTask;
+													const isMissingReviewedTask =
+														wasAlreadyReviewed && !existingSuggestedTask;
+													const applicableInstanceNames =
+														getSuggestedTaskApplicableRecords(
+															suggestedTask,
+															instances,
+														).map((instance) => instance.name);
 
-																	return (
-																		<TaskPreviewItem key={suggestedTask.id}>
-																			<TaskPreviewName>
-																				{suggestedTask.title}
-																			</TaskPreviewName>
+													return (
+														<TaskPreviewItem key={suggestedTask.id}>
+															<TaskPreviewNameGroup>
+																<TaskPreviewName>
+																	{suggestedTask.title}
+																</TaskPreviewName>
+																{instances.length > 1 &&
+																	suggestedTask.applicableVariants?.length && (
+																		<TaskApplicabilityText>
+																			For {applicableInstanceNames.join(', ')}
+																		</TaskApplicabilityText>
+																	)}
+															</TaskPreviewNameGroup>
 																			<TaskPreviewMeta>
 																				<TaskInterval>
 																					{suggestedTask.intervalLabel}
@@ -1482,15 +2421,17 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 																	still be added.
 																</EmptyTaskPreview>
 															)}
-														</TaskPreviewList>
-													</TaskPreview>
-												)}
+																</TaskPreviewList>
+															</TaskPreview>
+														</ItemDetails>
+													)}
 											</ItemCard>
 										);
 									})}
 								</ItemList>
 
-								<WizardNavigation>
+								</AreaScrollContent>
+								<WizardNavigation data-testid='setup-navigation'>
 									<FooterProgress>
 										{draftProgress.reviewed} of {draftProgress.total} reviewed
 									</FooterProgress>
@@ -1514,6 +2455,7 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 									</NavigationActions>
 								</WizardNavigation>
 							</AreaPanel>
+							)}
 						</ModalBody>
 					</ModalPanel>
 					{isCloseConfirmOpen && (
@@ -1544,52 +2486,18 @@ export const PropertySetupAssistant: React.FC<PropertySetupAssistantProps> = ({
 						</ConfirmPanel>
 					)}
 					{isSaveReviewOpen && (
-						<ConfirmPanel role='alertdialog' aria-modal='true'>
-							<ConfirmTitle>Review setup changes</ConfirmTitle>
-							<ConfirmText>
-								{reviewedSetupSpacePlan.length > 0
-									? 'Confirm how Maintley will handle each Space before saving:'
-									: 'No automatic Spaces apply to the selected Utility Systems or Safety equipment. Equipment and suggested tasks will still be created as reviewed.'}
-							</ConfirmText>
-							{reviewedSetupSpacePlan.length > 0 && (
-								<ReviewList>
-									{reviewedSetupSpacePlan.map((entry) => (
-										<li key={entry.template.generationKey}>
-											<strong>{entry.space?.name || entry.template.name}</strong>
-											{' - '}
-											{entry.status === 'create'
-												? 'Create new Space'
-												: entry.status === 'reuse'
-													? 'Reuse existing Space'
-													: 'Archived match requires review'}
-										</li>
-									))}
-								</ReviewList>
-							)}
-							<ConfirmText>
-								Equipment and suggested tasks will be connected to the applicable
-								Spaces. Utility Systems and Safety equipment remain unassigned unless
-								you connect a Space yourself.
-							</ConfirmText>
-							<ConfirmActions>
-								<SecondaryAction
-									type='button'
-									onClick={() => setIsSaveReviewOpen(false)}
-									disabled={isSavingAssistant}>
-									Back
-								</SecondaryAction>
-								<AssistantButton
-									type='button'
-									onClick={handleDone}
-									disabled={isSavingAssistant || hasArchivedSpaceConflict}>
-									{hasArchivedSpaceConflict
-										? 'Review Archived Spaces'
-										: isSavingAssistant
-											? 'Saving...'
-											: 'Save & Create'}
-								</AssistantButton>
-							</ConfirmActions>
-						</ConfirmPanel>
+						<SetupSaveReviewDialog
+							equipment={setupEquipmentReview}
+							spaces={reviewedSetupSpacePlan.map((entry) => ({
+								key: entry.template.generationKey,
+								name: entry.space?.name || entry.template.name,
+								status: entry.status,
+							}))}
+							tasks={setupTaskReview}
+							isSaving={isSavingAssistant}
+							onBack={() => setIsSaveReviewOpen(false)}
+							onSave={handleDone}
+						/>
 					)}
 					{isSavingAssistant && (
 						<LoadingState
@@ -1916,16 +2824,210 @@ const ModalBody = styled.div`
 	}
 `;
 
+const SetupPathPanel = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	padding: 22px;
+	overflow-y: auto;
+
+	@media (max-width: 640px) {
+		padding: 16px 14px max(24px, calc(18px + env(safe-area-inset-bottom)));
+		gap: 14px;
+	}
+`;
+
+const SetupPathIntro = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+const DetectedRecordNotice = styled.div`
+	margin-top: 6px;
+	padding: 11px 12px;
+	border: 1px solid ${COLORS.primary};
+	border-radius: 10px;
+	background: ${COLORS.primaryLight};
+	color: ${COLORS.primaryDark};
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.45;
+`;
+
+const SetupPathGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+
+	@media (max-width: 760px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const SetupPathButton = styled.button`
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 9px;
+	min-height: 250px;
+	padding: 16px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 12px;
+	background: ${COLORS.white};
+	color: ${COLORS.textPrimary};
+	text-align: left;
+	cursor: pointer;
+
+	strong {
+		font-size: 16px;
+		line-height: 1.3;
+	}
+
+	> span {
+		font-size: 13px;
+		line-height: 1.5;
+		color: ${COLORS.textSecondary};
+	}
+
+	&:hover {
+		border-color: ${COLORS.primary};
+		box-shadow: 0 8px 24px rgba(4, 120, 87, 0.12);
+	}
+
+	&:focus-visible {
+		outline: 3px solid rgba(4, 120, 87, 0.22);
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 760px) {
+		min-height: 0;
+	}
+`;
+
+const SetupPathAction = styled.span`
+	margin-top: 2px;
+	font-weight: 800;
+	color: ${COLORS.primary} !important;
+`;
+
+const SetupPathProgress = styled.div`
+	display: flex;
+	width: 100%;
+	flex-direction: column;
+	gap: 7px;
+	margin-top: auto;
+`;
+
+const SetupPathProgressLabel = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	font-size: 11px;
+	line-height: 1.3;
+
+	span {
+		color: ${COLORS.textSecondary};
+	}
+
+	strong {
+		font-size: 11px;
+		color: ${COLORS.primary};
+	}
+`;
+
+const SetupPathProgressTrack = styled.div`
+	width: 100%;
+	height: 7px;
+	border-radius: 999px;
+	background: ${COLORS.border};
+	overflow: hidden;
+`;
+
+const SetupPathProgressFill = styled.div`
+	height: 100%;
+	border-radius: inherit;
+	background: ${COLORS.primary};
+	transition: width 0.2s ease;
+`;
+
+const SetupReportAction = styled.button`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	width: 100%;
+	min-height: 52px;
+	padding: 12px 4px;
+	border: none;
+	border-top: 1px solid ${COLORS.border};
+	background: transparent;
+	color: ${COLORS.textSecondary};
+	text-align: left;
+	cursor: pointer;
+
+	> span {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		gap: 2px;
+		font-size: 12px;
+		line-height: 1.4;
+	}
+
+	strong {
+		font-size: 13px;
+		color: ${COLORS.textPrimary};
+	}
+
+	em {
+		flex: 0 0 auto;
+		font-size: 13px;
+		font-style: normal;
+		font-weight: 800;
+		color: ${COLORS.primary};
+	}
+
+	&:hover em,
+	&:focus-visible em {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	&:focus-visible {
+		outline: 3px solid rgba(4, 120, 87, 0.22);
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 520px) {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 6px;
+		padding-inline: 2px;
+	}
+`;
+
 const AreaPanel = styled.div`
 	display: flex;
 	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+`;
+
+const AreaScrollContent = styled.div`
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	gap: 16px;
 	padding: 18px;
-	overflow-y: auto;
 	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
 
 	@media (max-width: 640px) {
-		padding: 14px 14px max(24px, calc(18px + env(safe-area-inset-bottom)));
+		padding: 14px;
 		gap: 12px;
 	}
 `;
@@ -2031,6 +3133,19 @@ const AreaReviewedPill = styled.div`
 	padding: 7px 10px;
 `;
 
+const AreaValueSummary = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 11px 12px;
+	border: 1px solid ${COLORS.successLight};
+	border-radius: 10px;
+	background: ${COLORS.successLight};
+	color: ${COLORS.successDark};
+	font-size: 12px;
+	line-height: 1.5;
+`;
+
 const ItemList = styled.div`
 	display: flex;
 	flex-direction: column;
@@ -2065,6 +3180,38 @@ const ItemTopRow = styled.div`
 
 const ItemInfo = styled.div`
 	min-width: 0;
+`;
+
+const ItemExpandButton = styled.button`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-width: 0;
+	min-height: 44px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: 3px solid rgba(4, 120, 87, 0.2);
+		outline-offset: 4px;
+		border-radius: 8px;
+	}
+`;
+
+const ItemChevron = styled.span`
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	flex: 0 0 auto;
+	border-radius: 999px;
+	color: ${COLORS.primary};
+	background: ${COLORS.gray100};
 `;
 
 const ItemTitle = styled.div`
@@ -2108,6 +3255,237 @@ const StateButton = styled.button<{ $active?: boolean }>`
 	&:disabled {
 		opacity: 0.6;
 		cursor: wait;
+	}
+`;
+
+const ItemDetails = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding-top: 2px;
+`;
+
+const EquipmentCustomization = styled.section`
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 10px;
+	border: 1px solid ${COLORS.border};
+	border-radius: 10px;
+	background: ${COLORS.gray50};
+`;
+
+const CustomizationHeader = styled.div`
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	font-size: 12px;
+	color: ${COLORS.textPrimary};
+
+	div {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	span {
+		color: ${COLORS.textSecondary};
+		line-height: 1.4;
+	}
+
+	@media (max-width: 520px) {
+		flex-direction: column;
+	}
+`;
+
+const AddInstanceButton = styled.button`
+	min-height: 36px;
+	padding: 7px 10px;
+	border: 1px solid ${COLORS.primary};
+	border-radius: 8px;
+	background: ${COLORS.white};
+	color: ${COLORS.primary};
+	font-size: 12px;
+	font-weight: 800;
+	cursor: pointer;
+	white-space: nowrap;
+`;
+
+const InstanceCard = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 9px;
+	padding: 10px;
+	border: 1px solid ${COLORS.gray300};
+	border-radius: 9px;
+	background: ${COLORS.white};
+`;
+
+const InstanceHeader = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+`;
+
+const InstanceNumber = styled.span`
+	font-size: 11px;
+	font-weight: 900;
+	color: ${COLORS.primary};
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+`;
+
+const RemoveInstanceButton = styled.button`
+	min-height: 32px;
+	padding: 5px 8px;
+	border: 1px solid ${COLORS.gray300};
+	border-radius: 7px;
+	background: ${COLORS.white};
+	color: ${COLORS.errorDark};
+	font-size: 11px;
+	font-weight: 800;
+	cursor: pointer;
+`;
+
+const InstanceFieldGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 9px;
+
+	@media (max-width: 520px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const InstanceField = styled.label`
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	font-size: 11px;
+	font-weight: 800;
+	color: ${COLORS.textSecondary};
+
+	input,
+	select {
+		width: 100%;
+		min-height: 40px;
+		box-sizing: border-box;
+		padding: 8px 10px;
+		border: 1px solid ${COLORS.gray300};
+		border-radius: 8px;
+		background: ${COLORS.white};
+		color: ${COLORS.textPrimary};
+		font: inherit;
+		font-size: 13px;
+	}
+`;
+
+const SpaceFieldLabel = styled.div`
+	font-size: 12px;
+	font-weight: 900;
+	color: ${COLORS.textPrimary};
+`;
+
+const SpaceFieldHint = styled.div`
+	margin-top: -5px;
+	font-size: 11px;
+	line-height: 1.4;
+	color: ${COLORS.textSecondary};
+`;
+
+const InstanceSpaceGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px;
+
+	@media (max-width: 520px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const InstanceSpaceOption = styled.label<{ $selected: boolean }>`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	padding: 7px 9px;
+	box-sizing: border-box;
+	border: 1px solid
+		${({ $selected }) => ($selected ? COLORS.primary : COLORS.gray300)};
+	border-radius: 8px;
+	background: ${({ $selected }) =>
+		$selected ? COLORS.successLight : COLORS.white};
+	font-size: 12px;
+	font-weight: 700;
+	color: ${COLORS.textPrimary};
+	cursor: pointer;
+
+	input {
+		width: 20px;
+		height: 20px;
+		margin: 0;
+	}
+`;
+
+const QuickAddSpaceButton = styled.button`
+	align-self: flex-start;
+	min-height: 36px;
+	padding: 6px 0;
+	border: 0;
+	background: transparent;
+	color: ${COLORS.primary};
+	font-size: 12px;
+	font-weight: 900;
+	cursor: pointer;
+`;
+
+const QuickAddSpaceForm = styled.div`
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(120px, 0.6fr) auto;
+	gap: 8px;
+	padding: 9px;
+	border-radius: 8px;
+	background: ${COLORS.infoLight};
+
+	input,
+	select {
+		min-height: 40px;
+		box-sizing: border-box;
+		padding: 8px 9px;
+		border: 1px solid ${COLORS.gray300};
+		border-radius: 7px;
+		background: ${COLORS.white};
+		color: ${COLORS.textPrimary};
+	}
+
+	@media (max-width: 640px) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const QuickAddSpaceActions = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 6px;
+
+	button {
+		min-height: 40px;
+		padding: 7px 9px;
+		border: 1px solid ${COLORS.gray300};
+		border-radius: 7px;
+		background: ${COLORS.white};
+		color: ${COLORS.textPrimary};
+		font-size: 12px;
+		font-weight: 800;
+		cursor: pointer;
+	}
+
+	button:last-child {
+		border-color: ${COLORS.primary};
+		background: ${COLORS.primary};
+		color: ${COLORS.white};
 	}
 `;
 
@@ -2160,6 +3538,19 @@ const TaskPreviewItem = styled.div`
 
 const TaskPreviewName = styled.span`
 	min-width: 0;
+`;
+
+const TaskPreviewNameGroup = styled.div`
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 2px;
+`;
+
+const TaskApplicabilityText = styled.span`
+	font-size: 11px;
+	font-weight: 600;
+	color: ${COLORS.textSecondary};
 `;
 
 const TaskPreviewMeta = styled.div`
@@ -2225,18 +3616,21 @@ const EmptyTaskPreview = styled.div`
 
 const WizardNavigation = styled.div`
 	display: flex;
+	flex: 0 0 auto;
 	align-items: center;
 	justify-content: flex-end;
 	gap: 10px;
-	padding-top: 14px;
-	margin-top: 4px;
+	padding: 14px 18px;
 	border-top: 1px solid ${COLORS.border};
+	background: ${COLORS.white};
+	box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+	z-index: 1;
 
 	@media (max-width: 640px) {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto auto;
 		align-items: center;
-		padding: 12px 14px max(12px, env(safe-area-inset-bottom));
+		padding: 10px 14px max(10px, env(safe-area-inset-bottom));
 		gap: 8px;
 	}
 

@@ -271,6 +271,22 @@ export const FormRow = styled.div`
 	}
 `;
 
+export const AddressDetailRow = styled.div`
+	display: grid;
+	grid-template-columns: minmax(150px, 0.8fr) minmax(190px, 1.2fr) 90px 120px;
+	gap: 16px;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	@media (max-width: 480px) {
+		grid-template-columns: 1fr;
+		gap: 10px;
+	}
+`;
+
 export const FormField = styled.div`
 	display: flex;
 	flex-direction: column;

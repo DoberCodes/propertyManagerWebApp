@@ -31,6 +31,7 @@ const LOCATED_IN = 'located_in';
 const OCCURS_IN = 'occurs_in';
 const USES = 'uses';
 const DOCUMENTS = 'documents';
+const PART_OF = 'part_of';
 
 const cleanId = (value: unknown, label: string): string => {
 	const normalized = String(value || '').trim();
@@ -55,6 +56,61 @@ export const normalizeSpaceIds = (value: unknown): string[] => {
 };
 
 export const normalizeKnowledgeEndpointIds = normalizeSpaceIds;
+
+type EquipmentRelationshipLink = {
+	fromId?: unknown;
+	toId?: unknown;
+	fromType?: unknown;
+	toType?: unknown;
+	relationshipType?: unknown;
+};
+
+export const validateEquipmentRelationshipSelection = ({
+	primaryEquipmentId,
+	attachedEquipmentIds,
+	existingLinks,
+}: {
+	primaryEquipmentId: string;
+	attachedEquipmentIds: string[];
+	existingLinks: EquipmentRelationshipLink[];
+}): string | null => {
+	const attachedIds = new Set(attachedEquipmentIds);
+	if (attachedIds.has(primaryEquipmentId)) {
+		return 'Equipment cannot be connected to itself.';
+	}
+	const partOfLinks = existingLinks.filter(
+		(link) =>
+			link.fromType === EQUIPMENT_TYPE &&
+			link.toType === EQUIPMENT_TYPE &&
+			link.relationshipType === PART_OF,
+	);
+	if (
+		partOfLinks.some(
+			(link) => String(link.fromId || '') === primaryEquipmentId,
+		)
+	) {
+		return 'Attached Equipment cannot also contain other Equipment.';
+	}
+	for (const equipmentId of attachedEquipmentIds) {
+		if (
+			partOfLinks.some(
+				(link) =>
+					String(link.fromId || '') === equipmentId &&
+					String(link.toId || '') !== primaryEquipmentId,
+			)
+		) {
+			return 'One or more Equipment records are already connected elsewhere.';
+		}
+		if (
+			partOfLinks.some(
+				(link) => String(link.toId || '') === equipmentId,
+			)
+		) {
+			return 'Equipment that already contains other Equipment cannot be attached.';
+		}
+	}
+	return null;
+};
 
 export const buildPropertyKnowledgeLinkId = (params: {
 	propertyId: string;
@@ -333,6 +389,146 @@ export const setTaskSpaceLinks = functions.region('us-central1').https.onCall(
 		return { success: true, linkCount };
 	},
 );
+
+export const setAttachedEquipment = functions
+	.region('us-central1')
+	.https.onCall(
+		async (
+			data: {
+				propertyId?: unknown;
+				primaryEquipmentId?: unknown;
+				attachedEquipmentIds?: unknown;
+			},
+			context,
+		) => {
+			if (!context.auth?.uid) {
+				throw new functions.https.HttpsError(
+					'unauthenticated',
+					'Sign in to update Equipment relationships.',
+				);
+			}
+			const propertyId = cleanId(data?.propertyId, 'Property');
+			const primaryEquipmentId = cleanId(
+				data?.primaryEquipmentId,
+				'Equipment',
+			);
+			const attachedEquipmentIds = normalizeKnowledgeEndpointIds(
+				data?.attachedEquipmentIds,
+			);
+			if (attachedEquipmentIds.length > 100) {
+				throw new functions.https.HttpsError(
+					'invalid-argument',
+					'Equipment can include up to 100 related Equipment records.',
+				);
+			}
+
+			const { accountId } = await getOwnedProperty(propertyId);
+			await assertAccountRole(
+				context.auth.uid,
+				accountId,
+				RELATIONSHIP_MANAGER_ROLES,
+			);
+
+			const equipmentIds = [primaryEquipmentId, ...attachedEquipmentIds];
+			const equipmentRefs = equipmentIds.map((equipmentId) =>
+				db.collection('devices').doc(equipmentId),
+			);
+			const equipmentSnapshots = await db.getAll(...equipmentRefs);
+			for (const [index, snapshot] of equipmentSnapshots.entries()) {
+				const equipment = snapshot.data() || {};
+				if (
+					!snapshot.exists ||
+					String(equipment.accountId || equipment.userId || '') !== accountId ||
+					String(equipment.location?.propertyId || '') !== propertyId
+				) {
+					throw new functions.https.HttpsError(
+						'invalid-argument',
+						'One or more selected Equipment records are no longer available for this Property.',
+					);
+				}
+				if (index > 0 && equipment.recordScope === 'combined') {
+					throw new functions.https.HttpsError(
+						'failed-precondition',
+						'Combined Equipment cannot be attached to another Equipment record.',
+					);
+				}
+			}
+
+			const linkSnapshot = await db
+				.collection('propertyKnowledgeLinks')
+				.where('propertyId', '==', propertyId)
+				.get();
+			const propertyLinks = linkSnapshot.docs.map((candidate) => candidate.data());
+			const validationError = validateEquipmentRelationshipSelection({
+				primaryEquipmentId,
+				attachedEquipmentIds,
+				existingLinks: propertyLinks,
+			});
+			if (validationError) {
+				throw new functions.https.HttpsError(
+					'failed-precondition',
+					validationError,
+				);
+			}
+
+			const existing = linkSnapshot.docs.filter((candidate) => {
+				const link = candidate.data();
+				return (
+					String(link.accountId || '') === accountId &&
+					link.fromType === EQUIPMENT_TYPE &&
+					link.relationshipType === PART_OF &&
+					link.toType === EQUIPMENT_TYPE &&
+					String(link.toId || '') === primaryEquipmentId
+				);
+			});
+			const existingByEquipmentId = new Map(
+				existing.map((candidate) => [
+					String(candidate.data().fromId || ''),
+					candidate,
+				]),
+			);
+			const desiredIds = new Set(attachedEquipmentIds);
+			const batch = db.batch();
+			const now = new Date().toISOString();
+
+			for (const candidate of existing) {
+				if (!desiredIds.has(String(candidate.data().fromId || ''))) {
+					batch.delete(candidate.ref);
+				}
+			}
+			for (const equipmentId of attachedEquipmentIds) {
+				const current = existingByEquipmentId.get(equipmentId);
+				const linkId = buildPropertyKnowledgeLinkId({
+					propertyId,
+					fromType: EQUIPMENT_TYPE,
+					fromId: equipmentId,
+					relationshipType: PART_OF,
+					toType: EQUIPMENT_TYPE,
+					toId: primaryEquipmentId,
+				});
+				batch.set(db.collection('propertyKnowledgeLinks').doc(linkId), {
+					accountId,
+					propertyId,
+					fromType: EQUIPMENT_TYPE,
+					fromId: equipmentId,
+					relationshipType: PART_OF,
+					toType: EQUIPMENT_TYPE,
+					toId: primaryEquipmentId,
+					source: 'manual',
+					createdAt: current?.data().createdAt || now,
+					createdBy: current?.data().createdBy || context.auth.uid,
+					updatedAt: now,
+					updatedBy: context.auth.uid,
+				});
+			}
+			batch.update(db.collection('devices').doc(primaryEquipmentId), {
+				recordScope: attachedEquipmentIds.length > 0 ? 'combined' : 'physical',
+				updatedAt: now,
+			});
+			await batch.commit();
+			return { success: true, linkCount: attachedEquipmentIds.length };
+		},
+	);
 
 export const removePropertySpace = functions
 	.region('us-central1')

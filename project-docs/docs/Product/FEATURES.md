@@ -22,6 +22,20 @@ For related documentation:
 
 ---
 
+# Accounts and Email Verification
+
+New email-and-password registrations verify their email address before entering
+checkout, onboarding, or the working application. Users can resend the message
+and resume the same registration after verification. The verification screen
+confirms Firebase's status before continuing, while `Do this later` signs the
+pending user out. A later login recognizes an already-verified address and
+completes activation automatically. Existing accounts remain available when
+they predate this requirement, and an unverified existing user can request
+verification from Profile. Maintley does not automatically delete an account
+because its email is unverified.
+
+---
+
 # Core Maintenance Loop
 
 Maintley is centered around a simple maintenance record workflow:
@@ -100,6 +114,14 @@ visible; account managers can review and restore archived Spaces. Existing Task
 location values remain stored during a conservative exact-match migration
 period rather than being discarded or guessed.
 
+Property Details presents each Space as a connected snapshot. Cards summarize
+Equipment, open Tasks, Supplies, and Documents and call attention to overdue or
+next scheduled work. The fixed-size Space detail view provides direct access to
+linked Equipment and Tasks, opens connected Supplies and Documents through
+their canonical Property experiences, and derives recent Maintenance History
+from explicitly connected Equipment and Tasks. These summaries do not copy
+records into the Space or create another source of truth.
+
 New residential Properties preview numbered Bedroom, Bathroom, and Half
 Bathroom Spaces before saving. Later Property Profile edits reconcile those
 same generated Spaces whenever bedroom or bathroom counts increase. Creation
@@ -110,6 +132,29 @@ create or reuse applicable Kitchen, Bathroom, Laundry Room, Garage, and
 Exterior Spaces before connecting accepted Equipment and Tasks. Reopening setup
 reuses the stable generated Space or an active matching manual Space instead of
 creating duplicates. Archived matches require review.
+
+Within a Setup Assistant area, one unambiguous active matching Space is selected
+by default for new Equipment, including a Space added earlier in that step.
+Users may change the selection. Multiple matching Spaces remain unselected for
+explicit review.
+
+Before saving, the Setup Assistant presents a compact summary of Equipment,
+Spaces, and selected recurring tasks. Detailed records are available in
+collapsed sections, while the dialog keeps Back and Save setup visible as the
+details scroll. Archived-Space conflicts remain visible because they require
+review before saving. A separate Quick Setup Review confirms what was saved.
+
+The Setup Assistant entry screen prioritizes two guided choices: nine
+10-minute essentials and the complete 28-item room-by-room review. Each choice
+shows its saved reviewed count and progress bar. Both derive from the same
+responses, so essential progress also counts toward full setup. Existing report
+upload remains available as a secondary action below the guided choices.
+
+Guidance-relevant Equipment subtypes refine Setup Assistant recurring-task
+suggestions. Tank water heaters keep tank-flush guidance, while tankless water
+heaters replace it with a descaling or manufacturer-service review. For mixed
+Equipment, each accepted Task connects only to its applicable Equipment and
+Spaces.
 
 Supplies preserve the product details a property uses without introducing
 inventory management. Account managers may record product identifiers,
@@ -140,12 +185,27 @@ The Property Setup Assistant helps users create initial property records more ef
 
 Current capabilities:
 
+* Choose a focused 10-minute essentials review, the full room-by-room review,
+  or an existing inspection/service report upload.
 * Review common rooms and property areas.
 * Identify systems and equipment present at a property.
 * Create equipment and system records.
 * Generate suggested maintenance tasks.
 * Support progressive setup over time.
 * Provide quick recommendations after setup completion.
+
+Matching Equipment records may be identified as helpful context, but they do
+not count as reviewed until the user explicitly confirms the item. Each
+reviewed area explains the Equipment, recurring-task suggestions, and Space
+connections that will be prepared before the user saves.
+
+Items marked Present expand in place for optional detail. Users can distinguish
+multiple physical records of the same type, choose a guidance-relevant subtype,
+connect each record to one or more existing Spaces, or quickly add a missing
+Space. Distributed records such as smoke detectors remain separate Equipment
+records so their location and maintenance history are not combined. The final
+review lists the exact Equipment and Space connections that will be created or
+reused.
 
 The assistant is intended to reduce onboarding effort while keeping setup optional and flexible.
 
@@ -208,6 +268,14 @@ Current capabilities:
 * Associate maintenance history.
 * Browse Equipment Hub groups such as Comfort, Safety, Exterior, Utilities,
   Appliances, and Other.
+* Connect several physical Equipment records beneath one primary Equipment
+  profile without merging their model, serial, Space, status, or history.
+* Add new Equipment from a primary Equipment profile or connect existing
+  standalone Equipment.
+
+Connected physical Equipment is omitted from ordinary top-level Equipment
+cards and remains available from the primary profile, direct links, reports,
+exports, search-backed record resolution, and its own Equipment profile.
 
 Supported statuses:
 

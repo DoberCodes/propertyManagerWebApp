@@ -10,7 +10,7 @@ on:
       deploy_targets:
         description: Comma-separated Firebase deploy targets.
         required: false
-        default: functions,firestore:rules
+        default: functions,firestore:rules,firestore:indexes
       release_recovery_sha:
         description: Exact failed release-merge SHA to rebuild and recover to production Hosting.
         required: false
@@ -28,10 +28,14 @@ jobs:
     environment: development
     permissions:
       contents: read
+    outputs:
+      beta_version: ${{ steps.beta-version.outputs.version }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -41,6 +45,27 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+
+      - name: Resolve stable Beta version
+        id: beta-version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p tmp
+          node scripts/generateReleaseNotes.cjs \
+            --allow-empty \
+            --output tmp/beta.customer.md \
+            --engineering-output tmp/beta.engineering.md \
+            --metadata-output tmp/beta.json
+          node scripts/resolveBetaVersion.cjs \
+            --candidate-metadata tmp/beta.json \
+            --output tmp/beta-version.json
+          BETA_VERSION="$(node -p "require('./tmp/beta-version.json').label")"
+          echo "version=$BETA_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Stable Maintley $BETA_VERSION"
 
       - name: Validate environment contract
         run: yarn env:contract:validate
@@ -65,6 +90,7 @@ jobs:
       - name: Build stable Maintley Beta app
         env:
           CI: true
+          REACT_APP_BUILD_VERSION: ${{ steps.beta-version.outputs.version }}
           REACT_APP_FIREBASE_API_KEY: ${{ vars.DEV_REACT_APP_FIREBASE_API_KEY }}
           REACT_APP_FIREBASE_AUTH_DOMAIN: ${{ vars.DEV_REACT_APP_FIREBASE_AUTH_DOMAIN }}
           REACT_APP_FIREBASE_PROJECT_ID: ${{ vars.DEV_REACT_APP_FIREBASE_PROJECT_ID }}
@@ -157,6 +183,11 @@ jobs:
             backend_targets+=("firestore:rules")
           fi
 
+          if echo "$CHANGED_FILES" | grep -Eq '^firestore\.indexes\.json$'; then
+            targets+=("firestore:indexes")
+            backend_targets+=("firestore:indexes")
+          fi
+
           if echo "$CHANGED_FILES" | grep -Eq '^storage\.rules$'; then
             targets+=("storage")
             backend_targets+=("storage")
@@ -164,7 +195,7 @@ jobs:
 
           ACTIVE_BACKEND_PREVIEWS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues?state=all&labels=beta-backend-active&per_page=100" --jq 'length' | awk '{ total += $1 } END { print total + 0 }')"
           if [[ "$ACTIVE_BACKEND_PREVIEWS" -gt 0 ]]; then
-            echo "An active pull-request backend preview exists; this stable Beta deployment will reclaim the complete backend."
+            echo "An active pull-request backend preview exists; this stable Beta deployment will reclaim the shared preview targets."
             targets=("hosting:beta" "functions" "firestore:rules" "storage")
             backend_targets=("functions" "firestore:rules" "storage")
           fi
@@ -213,7 +244,7 @@ jobs:
 
       - name: Use Java for Firebase emulators
         if: steps.deploy-targets.outputs.has_backend_targets == 'true'
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
           java-version: '21'
@@ -270,6 +301,17 @@ jobs:
             --only "${{ steps.deploy-targets.outputs.targets }}" \
             --non-interactive \
             --force
+
+      - name: Record deployed Beta version
+        shell: bash
+        env:
+          BETA_VERSION: ${{ needs.development-build.outputs.beta_version }}
+        run: |
+          {
+            echo "## Maintley Beta deployment"
+            echo ""
+            echo "**Version:** $BETA_VERSION"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Ensure HTTPS and callable Function invokers
         if: contains(steps.deploy-targets.outputs.backend_targets, 'functions')
@@ -560,6 +602,10 @@ jobs:
             targets+=("firestore:rules")
           fi
 
+          if echo "$CHANGED_FILES" | grep -Eq '^firestore\.indexes\.json$'; then
+            targets+=("firestore:indexes")
+          fi
+
           if echo "$CHANGED_FILES" | grep -Eq '^storage\.rules$'; then
             targets+=("storage")
           fi
@@ -656,7 +702,7 @@ jobs:
 
       - name: Use Java for Firebase emulators
         if: steps.deploy-targets.outputs.has_targets == 'true' && (contains(steps.deploy-targets.outputs.targets, 'functions') || contains(steps.deploy-targets.outputs.targets, 'firestore') || contains(steps.deploy-targets.outputs.targets, 'storage'))
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
           java-version: '21'

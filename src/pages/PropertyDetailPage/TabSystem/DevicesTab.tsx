@@ -27,6 +27,7 @@ import {
 import {
 	useGetPropertyKnowledgeLinksQuery,
 	useSetEquipmentSpaceLinksMutation,
+	useSetAttachedEquipmentMutation,
 	useSetSupplyLinksMutation,
 } from 'Redux/API/propertyKnowledgeLinkSlice';
 import {
@@ -77,7 +78,7 @@ import { PropertyTabFilterPanel } from './PropertyTabFilterPanel';
 import { FilterConfig, FilterValues } from '../../../Components/Library/FilterBar';
 import {
 	canAddDevice,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getRemainingDeviceSlots,
 	getSubscriptionPlanDetails,
 } from '../../../utils/subscriptionUtils';
@@ -97,10 +98,12 @@ import { getMaintenanceEventDate } from '../../../utils/maintenanceEventUtils';
 import { mergeMaintenanceHistoryWithDeviceSources } from '../../../maintenanceHistory/maintenanceHistoryAdapter';
 import {
 	getEquipmentSpaceIds,
+	getAttachedEquipmentIds,
 	getEndpointSupplyIds,
 } from '../../../types/PropertyKnowledgeLink.types';
 import type { PendingEquipmentSupplyDraft } from '../../../Components/EquipmentSuppliesReview/EquipmentSuppliesReview';
 import { buildEquipmentSupplyLinkUpdates } from '../../../propertyKnowledge/equipmentSupplyConnections';
+import { getTopLevelEquipment } from '../../../propertyKnowledge/equipmentRelationships';
 
 const SectionLead = styled.p`
 	margin: -4px 0 14px;
@@ -138,6 +141,7 @@ interface DevicesTabProps {
 	maintenanceHistoryRecords?: any[];
 	permissions?: RoleCapabilities;
 	openCreateDeviceToken?: number;
+	attachToEquipmentId?: string;
 }
 
 export const DevicesTab: React.FC<DevicesTabProps> = ({
@@ -145,6 +149,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	maintenanceHistoryRecords = [],
 	permissions,
 	openCreateDeviceToken = 0,
+	attachToEquipmentId,
 }) => {
 	const navigate = useNavigate();
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
@@ -202,6 +207,11 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			{ accountId: propertyAccountId, propertyId: property.id },
 			{ skip: !propertyAccountId || !property.id },
 		);
+	const [setAttachedEquipment] = useSetAttachedEquipmentMutation();
+	const topLevelDevices = useMemo(
+		() => getTopLevelEquipment(devices, propertyKnowledgeLinks),
+		[devices, propertyKnowledgeLinks],
+	);
 	const { data: propertySupplies = [] } = useGetPropertySuppliesQuery(
 		{
 			accountId: propertyAccountId,
@@ -417,7 +427,8 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 	const filteredDevices = useMemo(() => {
 		const query = String(filters.search || '').trim().toLowerCase();
-		const filtered = devices.filter((device: any) => {
+		const searchableDevices = query ? devices : topLevelDevices;
+		const filtered = searchableDevices.filter((device: any) => {
 			const status = getResolvedDeviceStatus(device);
 			const linkedOpenTasks =
 				linkedOpenTaskCountByDevice.get(String(device.id)) || 0;
@@ -464,7 +475,10 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			}
 			return String(left.type || '').localeCompare(String(right.type || ''));
 		});
-	}, [devices, filters, sortBy, linkedOpenTaskCountByDevice, hasApplianceDetails]);
+	}, [devices, topLevelDevices, filters, sortBy, linkedOpenTaskCountByDevice, hasApplianceDetails]);
+	const visibleDeviceCount = String(filters.search || '').trim()
+		? devices.length
+		: topLevelDevices.length;
 
 	const clearDeviceFilters = () => {
 		setFilters({});
@@ -826,7 +840,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 
 		if (!canAddDevice(currentUser.subscription, accountDeviceCount)) {
 			const planDetails = getSubscriptionPlanDetails(
-				getEffectiveSubscriptionPlanId(currentUser.subscription),
+				getEffectiveAccessPlanId(currentUser.subscription),
 			);
 			const maxDevices = planDetails?.maxDevices || 15;
 			if (isTeamMemberAccount) {
@@ -900,6 +914,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 		setShowDeviceModal(false);
 		resetForm();
 		setSelectedDevice(null);
+		if (attachToEquipmentId) {
+			navigate(`/property/${property.slug}?tab=devices`, { replace: true });
+		}
 	};
 
 	const handleFormChange = (field: string, value: any) => {
@@ -1084,6 +1101,28 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				setPendingPropertyDocumentCategory('other');
 			}
 
+			if (!editingDevice && attachToEquipmentId && savedDeviceId) {
+				const currentAttachedIds = getAttachedEquipmentIds(
+					propertyKnowledgeLinks,
+					attachToEquipmentId,
+				);
+				await setAttachedEquipment({
+					propertyId: property.id,
+					primaryEquipmentId: attachToEquipmentId,
+					attachedEquipmentIds: Array.from(
+						new Set([...currentAttachedIds, savedDeviceId]),
+					),
+				}).unwrap();
+				const primaryEquipment = devices.find(
+					(candidate) => String(candidate.id) === attachToEquipmentId,
+				);
+				if (primaryEquipment) {
+					handleCloseModal();
+					navigate(getDeviceDetailPath(primaryEquipment));
+					return;
+				}
+			}
+
 			handleCloseModal();
 		} catch (error) {
 			console.error('Error saving equipment:', error);
@@ -1098,6 +1137,12 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 	const handleDeleteDevice = (deviceId: string) => {
 		if (!canManageAppliances) {
 			feedback.notify('Your role can view equipment but cannot delete it.');
+			return;
+		}
+		if (getAttachedEquipmentIds(propertyKnowledgeLinks, deviceId).length > 0) {
+			feedback.notify(
+				'Remove the connected Equipment from this record before deleting it.',
+			);
 			return;
 		}
 		const device = devices.find((item: any) => String(item.id) === String(deviceId));
@@ -1163,9 +1208,9 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				Keep equipment details, related tasks, and service history together for {equipmentLanguage.contextNoun}.
 			</SectionLead>
 			<TabSummaryBar>
-				<TabSummaryPill>Total: {devices.length}</TabSummaryPill>
+				<TabSummaryPill>Total: {topLevelDevices.length}</TabSummaryPill>
 				<TabSummaryPill>
-					Active: {devices.filter((d) => getResolvedDeviceStatus(d) === 'Active').length}
+					Active: {topLevelDevices.filter((d) => getResolvedDeviceStatus(d) === 'Active').length}
 				</TabSummaryPill>
 				<TabSummaryPill>
 					Open Equipment Tasks: {linkedOpenTaskCount}
@@ -1188,7 +1233,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 			)}
 
 			<CompactFilterResultCount>
-				Showing {filteredDevices.length} of {devices.length} equipment records for{' '}
+				Showing {filteredDevices.length} of {visibleDeviceCount} equipment records for{' '}
 				{property.title || equipmentLanguage.contextNoun}
 			</CompactFilterResultCount>
 			<PropertyTabFilterPanel
@@ -1377,7 +1422,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({
 				</div>
 			)}
 
-			{devices.length === 0 ? (
+			{topLevelDevices.length === 0 ? (
 				<AppZeroState
 					kind='noAppliances'
 					actions={

@@ -58,6 +58,14 @@ Compiled output:
 functions/lib/
 ```
 
+`functions/lib/` is generated and ignored. Firebase predeploy runs the
+TypeScript build before validating the upload package. Deployments do not rely
+on compiled JavaScript stored in Git.
+
+The source export contract is recorded in
+`functions/function-exports.json` and validated before deployment. Update that
+inventory only after reviewing the deployed-function and rollback impact.
+
 ## Firestore Rules
 
 Rules source:
@@ -539,6 +547,25 @@ Repository changes move in one direction:
 feature branch -> beta -> release/next -> main
 ```
 
+### Beta version sequence
+
+Every feature PR targeting Beta receives a projected prerelease version such
+as `v2.15.0-beta.1`. The number after `beta` counts PRs accumulated since the
+latest production release. Additional commits to the same open PR rebuild its
+preview under the same version; the next PR becomes `.2`.
+
+The Firebase preview comment and Beta navigation footer display this label.
+The stable Beta deployment recalculates it from merged PRs, so the deployed
+application always identifies the newest accumulated candidate. Git commit
+details remain available in GitHub internally but are intentionally omitted
+from the homeowner-facing Beta label.
+
+Beta labels do not modify `package.json`, Android `versionName`, tags, or GitHub
+Releases. Those remain owned by Release Prep and production finalization.
+Release Prep carries the latest accumulated Beta label into the top of the
+`release/next` PR description so reviewers can see which Beta build produced
+the candidate.
+
 Do not open synchronization PRs from `main` back into `beta`. After a normal
 release is deployed, tagged, and published, the finalizer verifies that the
 released commit contains the current Beta tip and advances the `beta` reference
@@ -760,6 +787,19 @@ file during non-interactive deployment. Successful activation replaces the
 request label with `beta-backend-active`. Exactly one PR may carry the active
 label, and all backend preview and stable Beta deployments share one concurrency
 lock.
+
+The shared pull-request preview does not redeploy Firestore indexes. Indexes are
+project-wide infrastructure rather than an isolated preview artifact and remain
+owned by the stable Beta deployment workflow. A PR that changes
+`firestore.indexes.json` may validate the contract in CI, but the index change
+becomes active only after the approved change merges into `beta`.
+
+When stable Beta reclaims an active pull-request backend, it redeploys only the
+same shared preview targets: Functions, Firestore Rules, and Storage Rules.
+Firestore indexes are included only when `firestore.indexes.json` itself changed.
+This keeps project-wide index infrastructure outside the preview restoration
+lifecycle and requires Firestore index-administration access only for an
+intentional index deployment.
 
 While the label is active, later pushes redeploy automatically after required
 checks pass. An older queued request fails safely if a later push changes the PR

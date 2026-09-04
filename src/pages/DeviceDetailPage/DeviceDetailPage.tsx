@@ -23,6 +23,7 @@ import {
 } from '../../Redux/API/deviceSlice';
 import {
 	useGetPropertyKnowledgeLinksQuery,
+	useSetAttachedEquipmentMutation,
 	useSetEquipmentSpaceLinksMutation,
 } from '../../Redux/API/propertyKnowledgeLinkSlice';
 import { useGetPropertySuppliesQuery } from '../../Redux/API/supplySlice';
@@ -88,6 +89,8 @@ import {
 import { getRoleCapabilities } from '../../utils/permissions';
 import {
 	getEndpointSupplyIds,
+	getAttachedEquipmentIds,
+	getEquipmentPrimaryId,
 	getEquipmentSpaceIds,
 } from '../../types/PropertyKnowledgeLink.types';
 import { getPropertySupplyTypeLabel } from '../../utils/propertySupplies';
@@ -102,6 +105,10 @@ import { BarcodeScannerModal } from '../../Components/Library/BarcodeScanner/Bar
 import { LoadingState } from '../../Components/LoadingState';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import { PageStack, HeroEditButton, SummaryGrid, SummaryCard, SummaryLabel, SummaryValue, QuickActionPanel, QuickActionHeader, ViewActionsButton, QuickActionGrid, QuickActionButton, QuickActionHint, SectionBlock, SectionEyebrow, SectionTitleStrong, SectionDescription, PhotoActions, ScanButton, PhotoHelperText, PhotoSection, DevicePhotoCard, DevicePhotoImg, PhotoPlaceholder, PhotoActionButton, RemovePhotoButton, MobileCardStack, MobileDetailCard, MobileDetailHeader, MobileDetailTitle, MobileDetailMeta, ActionButton, SubmitButton, CombinedHistoryContainer, TimelineAttachmentList, TimelineAttachmentLink, PartsForm, FormField, RecordSuggestionList, RecordSuggestionItem, ServiceItemDetailsList, ServiceItemDetail } from './DeviceDetailPage.styles';
+import {
+	getEquipmentContextIds,
+	recordReferencesEquipment,
+} from '../../propertyKnowledge/equipmentRelationships';
 
 type DeviceEditFormState = {
 	type: string;
@@ -328,6 +335,12 @@ export const DeviceDetailPage: React.FC = () => {
 	const photoInputRef = useRef<HTMLInputElement | null>(null);
 	const documentInputRef = useRef<HTMLInputElement | null>(null);
 	const [showDeviceEditModal, setShowDeviceEditModal] = useState(false);
+	const [showEquipmentRelationshipsModal, setShowEquipmentRelationshipsModal] =
+		useState(false);
+	const [selectedAttachedEquipmentIds, setSelectedAttachedEquipmentIds] =
+		useState<string[]>([]);
+	const [isSavingEquipmentRelationships, setIsSavingEquipmentRelationships] =
+		useState(false);
 	const [editingDevice, setEditingDevice] = useState<any>(null);
 	const [deviceFormData, setDeviceFormData] = useState<DeviceEditFormState>({
 		type: '',
@@ -448,6 +461,7 @@ export const DeviceDetailPage: React.FC = () => {
 		{ skip: !property?.id || !propertyAccountId },
 	);
 	const [setEquipmentSpaceLinks] = useSetEquipmentSpaceLinksMutation();
+	const [setAttachedEquipment] = useSetAttachedEquipmentMutation();
 
 	const device = useMemo(() => {
 		if (queriedDevice) {
@@ -466,6 +480,53 @@ export const DeviceDetailPage: React.FC = () => {
 			);
 		});
 	}, [queriedDevice, deviceSlug, propertyDevices]);
+
+	const primaryEquipmentId = useMemo(
+		() =>
+			device
+				? getEquipmentPrimaryId(propertyKnowledgeLinks, String(device.id))
+				: undefined,
+		[device, propertyKnowledgeLinks],
+	);
+	const primaryEquipment = useMemo(
+		() =>
+			propertyDevices.find(
+				(candidate) => String(candidate.id) === primaryEquipmentId,
+			),
+		[primaryEquipmentId, propertyDevices],
+	);
+	const attachedEquipmentIds = useMemo(
+		() =>
+			device
+				? getAttachedEquipmentIds(propertyKnowledgeLinks, String(device.id))
+				: [],
+		[device, propertyKnowledgeLinks],
+	);
+	const attachedEquipment = useMemo(() => {
+		const attachedIds = new Set(attachedEquipmentIds);
+		return propertyDevices.filter((candidate) =>
+			attachedIds.has(String(candidate.id)),
+		);
+	}, [attachedEquipmentIds, propertyDevices]);
+	const availableEquipmentForRelationship = useMemo(() => {
+		if (!device) return [];
+		return propertyDevices.filter((candidate) => {
+			const candidateId = String(candidate.id);
+			if (candidateId === String(device.id)) return false;
+			if (candidate.recordScope === 'combined') return false;
+			const candidatePrimaryId = getEquipmentPrimaryId(
+				propertyKnowledgeLinks,
+				candidateId,
+			);
+			return !candidatePrimaryId || candidatePrimaryId === String(device.id);
+		});
+	}, [device, propertyDevices, propertyKnowledgeLinks]);
+
+	const getEquipmentDisplayName = (candidate: any): string =>
+		[candidate?.name || candidate?.type, candidate?.brand, candidate?.model]
+			.filter(Boolean)
+			.join(' ')
+			.trim() || 'Equipment';
 
 	const { data: unitById } = useGetUnitQuery(device?.location?.unitId || '', {
 		skip: !device?.location?.unitId,
@@ -568,46 +629,37 @@ export const DeviceDetailPage: React.FC = () => {
 
 	const linkedTasks = useMemo(() => {
 		if (!device || !property) return [];
-		const deviceIdString = String(device.id);
+		const relevantEquipmentIds = getEquipmentContextIds(
+			String(device.id),
+			propertyKnowledgeLinks,
+		);
 
 		return allTasks
 			.filter((task: any) => {
 				if (task.propertyId !== property.id) return false;
-				if (String(task.deviceId || '') === deviceIdString) return true;
-				if (Array.isArray(task.devices)) {
-					return task.devices.map((id: any) => String(id)).includes(deviceIdString);
-				}
-				return false;
+				return recordReferencesEquipment(task, relevantEquipmentIds);
 			})
 			.filter((task: any) => String(task.status || '').toLowerCase() !== 'completed');
-	}, [allTasks, device, property]);
+	}, [allTasks, device, property, propertyKnowledgeLinks]);
 
 	const relatedMaintenanceHistory = useMemo(() => {
 		if (!device) return [];
-		const deviceIdString = String(device.id);
+		const relevantEquipmentIds = getEquipmentContextIds(
+			String(device.id),
+			propertyKnowledgeLinks,
+		);
 
 		return resolvedPropertyMaintenanceHistory
 			.filter((record: any) => {
 				if (!isContinuityEvent(record)) return false;
-				if (String(record.deviceId || '') === deviceIdString) return true;
-				if (Array.isArray(record.deviceIds)) {
-					return record.deviceIds
-						.map((id: any) => String(id))
-						.includes(deviceIdString);
-				}
-				if (Array.isArray(record.devices)) {
-					return record.devices
-						.map((id: any) => String(id))
-						.includes(deviceIdString);
-				}
-				return false;
+				return recordReferencesEquipment(record, relevantEquipmentIds);
 			})
 			.sort((a: any, b: any) => {
 				const aDate = getDisplayDateTime(getMaintenanceEventDate(a));
 				const bDate = getDisplayDateTime(getMaintenanceEventDate(b));
 				return bDate - aDate;
 			});
-	}, [device, resolvedPropertyMaintenanceHistory]);
+	}, [device, propertyKnowledgeLinks, resolvedPropertyMaintenanceHistory]);
 
 	const deviceTimelineEntries = useMemo(() => {
 		const propertyEntries = relatedMaintenanceHistory.map((record: any, index: number) => ({
@@ -1305,6 +1357,46 @@ export const DeviceDetailPage: React.FC = () => {
 		}
 	};
 
+	const openEquipmentRelationshipsModal = () => {
+		if (!device || !canManageApplianceActions) return;
+		setSelectedAttachedEquipmentIds(attachedEquipmentIds);
+		setShowEquipmentRelationshipsModal(true);
+	};
+
+	const handleSaveEquipmentRelationships = async () => {
+		if (!device || !property || !canManageApplianceActions) return;
+		setIsSavingEquipmentRelationships(true);
+		try {
+			await setAttachedEquipment({
+				propertyId: property.id,
+				primaryEquipmentId: String(device.id),
+				attachedEquipmentIds: selectedAttachedEquipmentIds,
+			}).unwrap();
+			setShowEquipmentRelationshipsModal(false);
+		} catch (error) {
+			console.error('Failed to save Equipment relationships:', error);
+			feedback.notify(
+				'Maintley could not update the connected Equipment. Please review the selection and try again.',
+			);
+		} finally {
+			setIsSavingEquipmentRelationships(false);
+		}
+	};
+
+	const handleCreateAttachedEquipment = () => {
+		if (!device || !property) return;
+		navigate(
+			`/property/${property.slug}?tab=devices&action=create-system&attachTo=${encodeURIComponent(String(device.id))}`,
+		);
+	};
+
+	const openEquipmentProfile = (candidate: any) => {
+		if (!property) return;
+		navigate(
+			`/property/${property.slug}/device/${buildDeviceSlug(candidate)}`,
+		);
+	};
+
 	const tabs: TabConfig[] = [
 		{ id: 'info' as any, label: 'Details' },
 		{ id: 'tasks' as any, label: 'Tasks', count: linkedTasks.length },
@@ -1763,6 +1855,65 @@ export const DeviceDetailPage: React.FC = () => {
 									<InfoValue>{locationLabel}</InfoValue>
 								</InfoCard>
 							</InfoGrid>
+
+							<InfoCard style={{ marginTop: 16 }}>
+								<InfoLabel>Equipment</InfoLabel>
+								{primaryEquipment ? (
+									<>
+										<InfoValue>
+											Connected with {getEquipmentDisplayName(primaryEquipment)}.
+										</InfoValue>
+										<ActionButton
+											type='button'
+											onClick={() => openEquipmentProfile(primaryEquipment)}>
+											Open Equipment
+										</ActionButton>
+									</>
+								) : (
+									<>
+										<InfoValue>
+											{attachedEquipment.length > 0
+												? `${attachedEquipment.length} connected Equipment record${attachedEquipment.length === 1 ? '' : 's'}.`
+												: 'Keep related physical Equipment together while preserving each record’s details and history.'}
+										</InfoValue>
+										{attachedEquipment.length > 0 && (
+											<div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+												{attachedEquipment.map((candidate) => (
+													<button
+														type='button'
+														key={candidate.id}
+														onClick={() => openEquipmentProfile(candidate)}
+														style={{
+															textAlign: 'left',
+															padding: '10px 12px',
+															border: '1px solid #e2e8f0',
+															borderRadius: 8,
+															background: '#fff',
+															cursor: 'pointer',
+														}}>
+														<strong>{getEquipmentDisplayName(candidate)}</strong>
+														{candidate.serialNumber && (
+															<span style={{ display: 'block', color: '#64748b', marginTop: 3 }}>
+																Serial {candidate.serialNumber}
+															</span>
+														)}
+													</button>
+												))}
+											</div>
+										)}
+										{canManageApplianceActions && (
+											<PhotoActions style={{ marginTop: 12 }}>
+												<ActionButton type='button' onClick={openEquipmentRelationshipsModal}>
+													Manage Equipment
+												</ActionButton>
+												<ActionButton type='button' onClick={handleCreateAttachedEquipment}>
+													Add Equipment
+												</ActionButton>
+											</PhotoActions>
+										)}
+									</>
+								)}
+							</InfoCard>
 
 							{recordSuggestions.length > 0 && (
 								<InfoCard>
@@ -2572,6 +2723,69 @@ export const DeviceDetailPage: React.FC = () => {
 					</PartsForm>
 				</GenericModal>
 
+				<GenericModal
+					isOpen={showEquipmentRelationshipsModal}
+					title='Manage Equipment'
+					onClose={() => setShowEquipmentRelationshipsModal(false)}
+					onSubmit={handleSaveEquipmentRelationships}
+					showActions={true}
+					isLoading={isSavingEquipmentRelationships}
+					primaryButtonLabel={
+						isSavingEquipmentRelationships ? 'Saving...' : 'Save Equipment'
+					}
+					secondaryButtonLabel='Cancel'>
+					<div style={{ display: 'grid', gap: 12 }}>
+						<p style={{ margin: 0, color: '#475569', lineHeight: 1.5 }}>
+							Selected Equipment keeps its own model, serial number, Space, status,
+							documents, and maintenance history. This record becomes the primary
+							Equipment profile for the connected set.
+						</p>
+						{availableEquipmentForRelationship.length === 0 ? (
+							<p style={{ margin: 0, color: '#64748b' }}>
+								No other standalone Equipment is available. Use Add Equipment to
+								create a new record here.
+							</p>
+						) : (
+							availableEquipmentForRelationship.map((candidate) => {
+								const candidateId = String(candidate.id);
+								const checked = selectedAttachedEquipmentIds.includes(candidateId);
+								return (
+									<label
+										key={candidateId}
+										style={{
+											display: 'flex',
+											alignItems: 'flex-start',
+											gap: 10,
+											padding: 12,
+											border: '1px solid #e2e8f0',
+											borderRadius: 8,
+											cursor: 'pointer',
+										}}>
+										<input
+											type='checkbox'
+											checked={checked}
+											onChange={() =>
+												setSelectedAttachedEquipmentIds((current) =>
+													checked
+														? current.filter((id) => id !== candidateId)
+														: [...current, candidateId],
+												)
+											}
+										/>
+										<span>
+											<strong>{getEquipmentDisplayName(candidate)}</strong>
+											{candidate.serialNumber && (
+												<span style={{ display: 'block', color: '#64748b', marginTop: 3 }}>
+													Serial {candidate.serialNumber}
+												</span>
+											)}
+										</span>
+									</label>
+								);
+							})
+						)}
+					</div>
+				</GenericModal>
 
 				{device && property && (
 					<DeviceModal

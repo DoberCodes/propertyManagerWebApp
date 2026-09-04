@@ -1,6 +1,6 @@
 # Maintley Plan Feature Matrix
 
-Last Reviewed: 2026-07
+Last Reviewed: 2026-08-18
 
 ## Purpose
 
@@ -32,6 +32,13 @@ must match the shared presets. The resolver parity tests enforce that boundary.
 Public plan facts must remain aligned with this matrix; run
 `npm run sync:public-pricing` and `npm run validate:seo` after changing either
 source.
+
+User-facing capability and limit decisions use current effective access. The
+billing plan remains a separate commercial fact. For example, a Free account
+with an active temporary Homeowner+ grant receives and displays the
+Homeowner+ property and storage limits while billing remains Free. Expired
+grants stop contributing access, and a lower grant never replaces a higher
+paid plan.
 
 This document does not define:
 

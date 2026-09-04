@@ -687,6 +687,21 @@ async function run() {
 				subscription: { status: 'active', plan: 'portfolio' },
 			}),
 		);
+		await assertSucceeds(
+			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).set({
+				id: maliciousNewUserUid,
+				email: `${maliciousNewUserUid}@example.com`,
+				registrationStatus: 'pending_email_verification',
+				registrationMode: 'standard',
+				subscription: { status: 'active', plan: 'homeowner' },
+			}),
+		);
+		await assertFails(
+			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).update({
+				registrationStatus: 'active',
+				emailVerifiedAt: '2026-09-04T12:00:00.000Z',
+			}),
+		);
 		await assertFails(
 			maliciousNewUserDb.doc(`users/${maliciousNewUserUid}`).set({
 				id: maliciousNewUserUid,
@@ -1169,6 +1184,19 @@ async function run() {
 				.get(),
 		);
 		await assertFails(outsiderDb.doc('propertySpaces/space-owned').get());
+		// Generated Space creation must discover existing records through an
+		// authorized property-scoped query. Reading a deterministic missing
+		// document directly is intentionally denied because no resource data exists.
+		await assertFails(
+			ownerDb.doc('propertySpaces/property-1__bedroom_1').get(),
+		);
+		await assertSucceeds(
+			ownerDb
+				.collection('propertySpaces')
+				.where('accountId', '==', accountId)
+				.where('propertyId', '==', 'property-1')
+				.get(),
+		);
 		await assertSucceeds(
 			ownerDb.doc('propertySpaces/space-created').set(
 				createPropertySpace({

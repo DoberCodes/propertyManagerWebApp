@@ -77,6 +77,19 @@ describe('property Space generation', () => {
 		).toBe('archived_conflict');
 	});
 
+	it('preserves a user-selected Space type instead of generating a duplicate name', () => {
+		const userCreatedKitchen = space({
+			name: 'Kitchen',
+			type: 'utility',
+		});
+		expect(
+			planGeneratedPropertySpaces(
+				getSetupAreaSpaceTemplates('kitchen', {}),
+				[userCreatedKitchen],
+			)[0],
+		).toMatchObject({ status: 'reuse', space: userCreatedKitchen });
+	});
+
 	it('does not generate automatic utility or safety Spaces', () => {
 		expect(getSetupAreaSpaceTemplates('utility-systems', {})).toEqual([]);
 		expect(getSetupAreaSpaceTemplates('safety', {})).toEqual([]);

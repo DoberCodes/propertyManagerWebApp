@@ -34,6 +34,7 @@ type SetupTaskProposal = {
 	priority?: string;
 	notes?: string;
 	deviceId?: string;
+	deviceIds?: string[];
 	recurrenceFrequency?: string;
 	recurrenceInterval?: number;
 	recurrenceCustomUnit?: string;
@@ -62,7 +63,7 @@ type ValidatedProposal = {
 	dueDate: string;
 	priority: string;
 	notes: string;
-	deviceId: string | null;
+	deviceIds: string[];
 	recurrenceFrequency: string | null;
 	recurrenceInterval: number | null;
 	recurrenceCustomUnit: string | null;
@@ -149,13 +150,31 @@ export const validatePropertySetupProposal = (raw: SetupTaskProposal): Validated
 		);
 	}
 
+	const rawDeviceIds = [
+		...(Array.isArray(raw?.deviceIds) ? raw.deviceIds : []),
+		...(raw?.deviceId ? [raw.deviceId] : []),
+	];
+	if (rawDeviceIds.length > 50) {
+		throw new functions.https.HttpsError(
+			'invalid-argument',
+			'No more than 50 devices may be linked to one setup task.',
+		);
+	}
+	const deviceIds = Array.from(
+		new Set(
+			rawDeviceIds
+				.map((deviceId) => assertBoundedText(deviceId, 'deviceId', 160))
+				.filter(Boolean),
+		),
+	);
+
 	return {
 		proposalId,
 		title,
 		dueDate,
 		priority,
 		notes: assertBoundedText(raw?.notes, 'notes', 4000),
-		deviceId: assertBoundedText(raw?.deviceId, 'deviceId', 160) || null,
+		deviceIds,
 		recurrenceFrequency,
 		recurrenceInterval,
 		recurrenceCustomUnit,
@@ -290,7 +309,7 @@ export const activatePropertySetupMaintenancePlan = functions
 			}
 
 			const deviceIds = Array.from(
-				new Set(proposals.map(({ deviceId }) => deviceId).filter(Boolean) as string[]),
+				new Set(proposals.flatMap((proposal) => proposal.deviceIds)),
 			);
 			const deviceSnapshots = await Promise.all(
 				deviceIds.map((deviceId) => db.collection('devices').doc(deviceId).get()),
@@ -359,7 +378,9 @@ export const activatePropertySetupMaintenancePlan = functions
 						...recurrence,
 						enableNotifications: true,
 						notifications: getDefaultNotifications(),
-						...(proposal.deviceId ? { devices: [proposal.deviceId] } : {}),
+						...(proposal.deviceIds.length > 0
+							? { devices: proposal.deviceIds }
+							: {}),
 						setupProposalId: proposal.proposalId,
 						setupActivationRequestId: requestId,
 						source: 'property_setup_assistant',

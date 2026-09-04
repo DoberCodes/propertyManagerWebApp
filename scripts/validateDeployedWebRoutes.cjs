@@ -1,4 +1,10 @@
-const DEFAULT_ROUTES = ['/', '/login', '/registration', '/forgot-password'];
+const DEFAULT_ROUTES = [
+	'/',
+	'/login',
+	'/registration',
+	'/forgot-password',
+	'/verify-email',
+];
 
 const parseArgs = (argv) => {
 	const options = {

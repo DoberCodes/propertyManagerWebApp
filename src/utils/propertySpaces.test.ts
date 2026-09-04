@@ -29,7 +29,7 @@ describe('property Spaces', () => {
 	it('uses the approved Space type vocabulary', () => {
 		expect(isPropertySpaceType('grounds')).toBe(true);
 		expect(isPropertySpaceType('room')).toBe(false);
-		expect(getPropertySpaceTypeLabel('utility')).toBe('Utility or mechanical');
+		expect(getPropertySpaceTypeLabel('utility')).toBe('Utility');
 	});
 
 	it('orders Spaces by display order and then name', () => {

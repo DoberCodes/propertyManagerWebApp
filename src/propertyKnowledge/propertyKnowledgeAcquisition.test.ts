@@ -186,6 +186,64 @@ describe('property knowledge acquisition', () => {
 		expect(result.maintenanceHistorySuggestion).toBeUndefined();
 	});
 
+	it('fills blank details on matched equipment without overwriting existing memory', () => {
+		const suggestion = acceptKnowledgeSuggestion({
+			id: 'knowledge-inspection-1',
+			sourceDocumentId: 'inspection-1',
+			propertyId: 'property-1',
+			documentType: 'inspection_report' as const,
+			extractionMethod: 'pdf_text' as const,
+			extractedFields: [],
+			suggestedEquipment: [{
+				id: 'equipment-hvac',
+				label: 'HVAC',
+				assetType: 'HVAC',
+				details: {
+					brand: 'Trane',
+					model: '4TWR5036H1000',
+					serialNumber: '18182AB3F',
+					installDate: '2018',
+					filterSize: '16x25x1',
+					specNotes: 'Reported heat pump',
+				},
+				sourceText: 'HVAC: heat pump with 16x25x1 filter',
+			}],
+			status: 'pending' as const,
+			createdAt: '2026-08-19T12:00:00.000Z',
+		}, {
+			acceptedByUser: 'user-1',
+			equipmentValues: {
+				'equipment-hvac': {
+					accepted: true,
+					matchedDeviceId: 'system-hvac',
+				},
+			},
+		});
+		const result = applyAcceptedKnowledgeSuggestion({
+			suggestion,
+			property: baseProperty,
+			systems: [{
+				...baseSystem,
+				id: 'system-hvac',
+				type: 'HVAC',
+				specNotes: 'Existing notes',
+			}],
+			acceptedByUser: 'user-1',
+			acceptedAt: '2026-08-19T12:30:00.000Z',
+		});
+
+		expect(result.systemUpdates).toHaveLength(1);
+		expect(result.systemUpdates[0].updates.brand).toBe('Trane');
+		expect(result.systemUpdates[0].updates.model).toBe('4TWR5036H1000');
+		expect(result.systemUpdates[0].updates.serialNumber).toBe('18182AB3F');
+		expect(result.systemUpdates[0].updates.installationDate).toBe('2018');
+		expect(result.systemUpdates[0].updates.filterSize).toBe('16x25x1');
+		expect(result.systemUpdates[0].updates.specNotes).toBeUndefined();
+		expect(
+			result.systemUpdates[0].updates.propertyKnowledgeProvenance?.filterSize,
+		).toHaveLength(1);
+	});
+
 	it('keeps the reason when an equipment suggestion is intentionally skipped', () => {
 		const suggestion = {
 			id: 'knowledge-docx-skip',
@@ -822,6 +880,7 @@ describe('property knowledge acquisition', () => {
 						name: 'Honeywell T6 Pro Smart Thermostat',
 						category: 'accessory',
 						relatedAssetTypes: ['hvac'],
+						relatedAssetVariant: 'Air Handler',
 						targetEntity: 'part',
 						sourceText: 'Honeywell T6 Pro Smart Thermostat',
 						confidence: 0.65,
@@ -864,7 +923,10 @@ describe('property knowledge acquisition', () => {
 		expect(result.systemUpdates).toHaveLength(0);
 		expect(result.supplySuggestions).toHaveLength(1);
 		expect(result.supplySuggestions[0]).toMatchObject({
+			partSuggestionId: 'part-thermostat-1',
 			equipmentId: 'system-1',
+			relatedAssetTypes: ['hvac'],
+			relatedAssetVariant: 'Air Handler',
 			draft: {
 			name: 'Honeywell T6 Pro Smart Thermostat',
 			type: 'other',
@@ -875,5 +937,90 @@ describe('property knowledge acquisition', () => {
 			'Source text: Honeywell T6 Pro Smart Thermostat',
 		);
 		expect(accepted.suggestedParts?.[1].reviewStatus).toBe('rejected');
+	});
+
+	it('preserves reviewed exact equipment relationships and edited equipment details', () => {
+		const accepted = acceptKnowledgeSuggestion(
+			{
+				id: 'suggestion-inspection-v4',
+				sourceDocumentId: 'doc-inspection-v4',
+				propertyId: 'property-1',
+				documentType: 'inspection_report',
+				extractionMethod: 'pdf_text',
+				extractedFields: [],
+				suggestedParts: [
+					{
+						id: 'part-filter',
+						partKnowledgeId: 'part-filter',
+						label: 'HVAC filter',
+						name: '20x25x1 HVAC filter',
+						category: 'consumable',
+						relatedAssetTypes: ['HVAC'],
+						relatedEquipmentSuggestionIds: ['equipment-air-handler'],
+						targetEntity: 'part',
+						sourceText: '20x25x1 HVAC filter',
+					},
+				],
+				suggestedTasks: [
+					{
+						id: 'task-filter',
+						title: 'Replace HVAC filter',
+						description: 'Replace every 90 days.',
+						priority: 'Medium',
+						relatedAssetType: 'HVAC',
+						relatedAssetVariant: 'Air Handler',
+						relatedEquipmentSuggestionIds: ['equipment-air-handler'],
+						sourceText: 'Replace the filter every 90 days.',
+					},
+				],
+				suggestedEquipment: [
+					{
+						id: 'equipment-air-handler',
+						label: 'Air Handler',
+						assetType: 'HVAC',
+						assetVariant: 'Air Handler',
+						details: { model: 'TEM6' },
+						sourceText: 'Trane TEM6 air handler',
+					},
+				],
+				status: 'pending',
+				createdAt: '2026-08-19T12:00:00.000Z',
+			},
+			{
+				partValues: {
+					'part-filter': {
+						matchedDeviceIds: ['existing-air-handler'],
+						relatedEquipmentSuggestionIds: [],
+					},
+				},
+				taskValues: {
+					'task-filter': {
+						matchedDeviceIds: ['existing-air-handler'],
+						relatedEquipmentSuggestionIds: [],
+					},
+				},
+				equipmentValues: {
+					'equipment-air-handler': {
+						details: {
+							model: 'TEM6A0C36H31',
+							serialNumber: '18191K9P',
+						},
+					},
+				},
+			},
+		);
+
+		expect(accepted.suggestedParts?.[0]).toMatchObject({
+			matchedDeviceIds: ['existing-air-handler'],
+			relatedEquipmentSuggestionIds: [],
+		});
+		expect(accepted.suggestedTasks?.[0]).toMatchObject({
+			matchedDeviceIds: ['existing-air-handler'],
+			relatedEquipmentSuggestionIds: [],
+		});
+		expect(accepted.suggestedEquipment?.[0].details).toMatchObject({
+			model: 'TEM6A0C36H31',
+			serialNumber: '18191K9P',
+		});
 	});
 });

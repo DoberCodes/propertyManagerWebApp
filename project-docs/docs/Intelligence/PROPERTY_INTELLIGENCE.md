@@ -84,12 +84,20 @@ The initial readiness categories are:
 * **Service history** - whether completed work is recorded and connected well
   enough to provide historical context.
 
-Customer-facing levels are:
+Customer-facing capability labels are:
 
-* **Starting** - Maintley has little or no usable context in this category.
-* **Building context** - Maintley can provide some guidance and can identify the
-  next records that would make it more useful.
-* **Ready** - the current records support the defined benefit for that category.
+* **Recorded** - Maintley recognizes the equipment type and can provide
+  equipment-specific guidance.
+* **Scheduled** - at least one usable recurring schedule and next due date are
+  connected to the applicable equipment record.
+* **Informed** - comparable dated service events provide enough saved history
+  for recorded-pattern guidance.
+
+Partial states use plain category-specific language: `Partly recorded`,
+`Partly scheduled`, and `Building history`. Empty states use `Not recorded yet`,
+`Not scheduled yet`, and `No history yet`. Do not use a generic `Ready` label
+across categories because recorded identity, scheduled care, and historical
+patterns support different capabilities.
 
 Readiness is not a property score. Do not show:
 
@@ -116,8 +124,7 @@ it must not pool records into a new percentage or hide which property needs
 additional context. Opening a readiness category shows the independent property
 results and names the property before navigating to its Insights review.
 
-Readiness uses three customer-facing levels, while supporting evidence explains
-the depth of guidance available:
+Supporting evidence explains the depth of guidance available:
 
 * **Scheduled care** means an active recurring task has a valid recurrence and
   next due date linked to the equipment record.
@@ -129,7 +136,8 @@ the depth of guidance available:
   events linked to the equipment record and a recognized care item. A pattern
   describes saved history; it does not predict equipment condition or failure.
 
-The dashboard property chooser may show compact fractions such as `Care 2/4`.
+The dashboard property chooser may show compact fractions such as
+`Scheduled 2/4`.
 Fractions mean supported applicable records divided by total applicable records
 for that category. Use an em dash when no records are applicable. Do not combine
 category fractions into an overall score.

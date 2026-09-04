@@ -27,6 +27,7 @@ import { createLegalAgreementDocuments } from '../constants/legal';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../utils/notificationPreferences';
 import { DEFAULT_EMAIL_PREFERENCES } from '../utils/emailPreferences';
 import { getUserProfile } from './userProfileService';
+import { reconcileCurrentUserEmailVerification } from './emailVerificationService';
 
 export { getUserProfile } from './userProfileService';
 export { onAuthStateChange } from './authSession';
@@ -101,7 +102,7 @@ export const signInWithEmail = async (
 		}
 
 		const user = await getUserProfile(userCredential.user.uid);
-		return user;
+		return reconcileCurrentUserEmailVerification(user);
 	} catch (error: any) {
 		console.error('Sign in error:', error);
 		if (isBlockedByClientError(error)) {
@@ -118,24 +119,40 @@ export const signInWithEmail = async (
  */
 export const checkEmailExists = async (email: string): Promise<boolean> => {
 	try {
-		// Check if email exists in Firebase Auth
+		// Registration is unauthenticated, so this check must stay within Firebase
+		// Auth. Querying the protected users collection here creates a permission
+		// warning for every new email and would weaken email privacy if allowed.
 		const signInMethods = await fetchSignInMethodsForEmail(auth, email);
-		if (signInMethods.length > 0) {
-			return true;
+		return signInMethods.length > 0;
+	} catch (error: any) {
+		// Account creation remains the authoritative duplicate-email check. A
+		// transient lookup failure should not block a legitimate registration.
+		console.info('Email availability pre-check was unavailable.', error);
+		return false;
+	}
+};
+
+const createFirebaseAuthUser = async (email: string, password: string) => {
+	try {
+		return await createUserWithEmailAndPassword(auth, email, password);
+	} catch (error: any) {
+		const currentAuthUser = auth.currentUser;
+		const requestedEmail = email.trim().toLowerCase();
+		const currentEmail = String(currentAuthUser?.email || '').trim().toLowerCase();
+		const errorCode = String(error?.code || '').toLowerCase();
+		const canResumeProvisioning =
+			Boolean(currentAuthUser) &&
+			currentEmail === requestedEmail &&
+			errorCode === 'auth/network-request-failed';
+
+		if (!canResumeProvisioning || !currentAuthUser) {
+			throw error;
 		}
 
-		// Also check Firestore users collection as backup
-		const q = query(
-			collection(db, 'users'),
-			where('email', '==', email.toLowerCase().trim()),
+		console.warn(
+			'Firebase Auth created the account but signup did not finish. Resuming profile provisioning for the current user.',
 		);
-		const snapshot = await getDocs(q);
-		return !snapshot.empty;
-	} catch (error: any) {
-		// If there's an error (e.g., network issue), assume email doesn't exist
-		// to not block registration unnecessarily
-		console.warn('Error checking email existence:', error);
-		return false;
+		return { user: currentAuthUser };
 	}
 };
 
@@ -409,9 +426,8 @@ export const signUpWithEmail = async (
 		}
 
 		// Create Firebase Auth user
-		const userCredential = await createUserWithEmailAndPassword(
-			auth,
-			email,
+		const userCredential = await createFirebaseAuthUser(
+			email.trim().toLowerCase(),
 			password,
 		);
 
@@ -422,11 +438,21 @@ export const signUpWithEmail = async (
 
 		// Create user profile in Firestore
 		const isTeamInviteSignup = inviteType === 'team';
+		const registrationMode: NonNullable<User['registrationMode']> =
+			inviteType === 'team'
+				? 'team_invite'
+				: inviteType === 'tenant'
+					? 'tenant_invite'
+					: resolvedRole === USER_ROLES.TENANT
+						? 'tenant'
+						: 'standard';
 		const userProfile: User = {
 			id: userCredential.user.uid,
 			firstName,
 			lastName,
-			email,
+			email: email.trim().toLowerCase(),
+			registrationStatus: 'pending_email_verification',
+			registrationMode,
 			role: resolvedRole as any,
 			title: getRoleTitleFromRole(resolvedRole),
 			image: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=22c55e&color=fff`,

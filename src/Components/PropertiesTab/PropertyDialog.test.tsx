@@ -4,6 +4,13 @@ import { Provider } from 'react-redux';
 import { store } from '../../Redux/store/store';
 import { PropertyDialog } from './PropertyDialog';
 
+const enterRequiredAddress = async (user: ReturnType<typeof userEvent.setup>) => {
+	await user.type(screen.getByLabelText('Street address'), '100 Review Lane');
+	await user.type(screen.getByLabelText('City'), 'Columbus');
+	await user.type(screen.getByLabelText('State'), 'OH');
+	await user.type(screen.getByLabelText('ZIP code'), '43215');
+};
+
 describe('PropertyDialog', () => {
 	test('reviews the Spaces generated from bedroom and bathroom counts', async () => {
 		const user = userEvent.setup();
@@ -23,10 +30,7 @@ describe('PropertyDialog', () => {
 			screen.getByPlaceholderText('Enter property name'),
 			'Reviewed Home',
 		);
-		await user.type(
-			screen.getByPlaceholderText('Enter address'),
-			'100 Review Lane',
-		);
+		await enterRequiredAddress(user);
 		await user.click(screen.getByRole('button', { name: /^next$/i }));
 
 		const bedroomInput = screen.getByLabelText('Bedrooms');
@@ -66,10 +70,7 @@ describe('PropertyDialog', () => {
 			screen.getByPlaceholderText('Enter property name'),
 			'Test Property',
 		);
-		await user.type(
-			screen.getByPlaceholderText('Enter address'),
-			'123 Main Street',
-		);
+		await enterRequiredAddress(user);
 		await user.click(screen.getByRole('button', { name: /^next$/i }));
 
 		const checkbox = screen.getByRole('checkbox');
@@ -116,7 +117,7 @@ describe('PropertyDialog', () => {
 		expect(screen.queryByText('Access & Sharing')).not.toBeInTheDocument();
 
 		await user.type(screen.getByPlaceholderText('Enter home name'), 'Willow House');
-		await user.type(screen.getByPlaceholderText('Enter address'), '123 Willow Lane');
+		await enterRequiredAddress(user);
 		await user.click(screen.getByRole('button', { name: /^next$/i }));
 
 		expect(screen.getByText('Home Details')).toBeInTheDocument();
@@ -138,6 +139,15 @@ describe('PropertyDialog', () => {
 		expect(savedArg.bedrooms).toBe(3);
 		expect(savedArg.bathrooms).toBe(2.5);
 		expect(savedArg.openSetupAfterCreate).toBe(false);
+		expect(savedArg.address).toBe('100 Review Lane, Columbus, OH 43215');
+		expect(savedArg.addressDetails).toEqual({
+			streetAddress: '100 Review Lane',
+			unit: '',
+			city: 'Columbus',
+			state: 'OH',
+			postalCode: '43215',
+			countryCode: 'US',
+		});
 	});
 
 	test('preserves an existing rental marker while hiding homeowner rental controls', async () => {
@@ -176,7 +186,10 @@ describe('PropertyDialog', () => {
 		await user.click(screen.getByRole('button', { name: /save home/i }));
 
 		await waitFor(() => expect(onSave).toHaveBeenCalled());
-		expect((onSave as jest.Mock).mock.calls[0][0].isRental).toBe(true);
+		const savedLegacyProperty = (onSave as jest.Mock).mock.calls[0][0];
+		expect(savedLegacyProperty.isRental).toBe(true);
+		expect(savedLegacyProperty.address).toBe('123 Main Street');
+		expect(savedLegacyProperty).not.toHaveProperty('addressDetails');
 	});
 
 	test('keeps first-property access activation inside the save loading state', async () => {
@@ -206,7 +219,7 @@ describe('PropertyDialog', () => {
 		);
 
 		await user.type(screen.getByPlaceholderText('Enter home name'), 'Willow House');
-		await user.type(screen.getByPlaceholderText('Enter address'), '123 Willow Lane');
+		await enterRequiredAddress(user);
 		await user.click(screen.getByRole('button', { name: /^next$/i }));
 		void user.click(screen.getByRole('button', { name: /save home/i }));
 

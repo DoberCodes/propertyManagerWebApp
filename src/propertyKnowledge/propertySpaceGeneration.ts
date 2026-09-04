@@ -146,9 +146,7 @@ export const planGeneratedPropertySpaces = (
 			(space) => space.generationKey === template.generationKey,
 		);
 		const nameMatch = existingSpaces.find(
-			(space) =>
-				space.type === template.type &&
-				normalizeName(space.name) === normalizeName(template.name),
+			(space) => normalizeName(space.name) === normalizeName(template.name),
 		);
 		const match = generationMatch || nameMatch;
 

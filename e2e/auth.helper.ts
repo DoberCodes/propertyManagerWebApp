@@ -1,4 +1,7 @@
 import { Page } from '@playwright/test';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
 /**
  * Helper functions to handle Firebase authentication in tests
@@ -8,9 +11,40 @@ import { Page } from '@playwright/test';
  * Generate a unique email for testing to avoid conflicts
  */
 export function generateTestEmail(): string {
+	const configuredEmail = process.env.E2E_ACTIVATION_EMAIL?.trim();
+	if (configuredEmail) return configuredEmail;
 	const timestamp = Date.now();
 	const random = Math.floor(Math.random() * 10000);
 	return `test.user.${timestamp}.${random}@maintley-test.com`;
+}
+
+export async function activateTestEmailAsAdmin(email: string): Promise<void> {
+	const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+	if (!serviceAccountJson) {
+		throw new Error(
+			'FIREBASE_SERVICE_ACCOUNT_JSON is required to verify an activation-test email.',
+		);
+	}
+
+	const appName = 'maintley-e2e-email-verification';
+	const app =
+		getApps().find((candidate) => candidate.name === appName) ||
+		initializeApp(
+			{
+				credential: cert(JSON.parse(serviceAccountJson)),
+			},
+			appName,
+		);
+	const user = await getAuth(app).getUserByEmail(email);
+	await getAuth(app).updateUser(user.uid, { emailVerified: true });
+	await getFirestore(app).collection('users').doc(user.uid).set(
+		{
+			registrationStatus: 'active',
+			emailVerifiedAt: FieldValue.serverTimestamp(),
+			updatedAt: FieldValue.serverTimestamp(),
+		},
+		{ merge: true },
+	);
 }
 
 export function getDemoCredentials(): { email: string; password: string } {
@@ -260,31 +294,23 @@ export async function registerNewAccount(
 	console.log('On Step 3 - checking for plan selection or tenant code');
 	await page.waitForTimeout(500);
 
-	console.log('Looking for plan selection buttons');
-	const selectPlanButtons = page.getByRole('button', { name: /select plan/i });
-	const buttonCount = await selectPlanButtons.count();
-
-	if (buttonCount > 0) {
-		console.log(`Found ${buttonCount} "Select Plan" buttons`);
+	console.log('Selecting the Free plan for isolated account tests');
+	const freePlanButton = page.getByRole('button', { name: /start free plan/i });
+	if (await freePlanButton.isVisible({ timeout: 10000 }).catch(() => false)) {
+		await freePlanButton.click();
+		console.log('Free plan selected');
+	} else {
+		const selectPlanButtons = page.getByRole('button', { name: /^select plan$/i });
 		await selectPlanButtons.first().click();
-		console.log('Plan selected');
+		console.log('Fallback plan selected');
+	}
 
-		// Wait for Continue button
-		console.log('Waiting for Continue button');
-		const continueButton = page.getByRole('button', { name: /continue/i });
-		const canContinue = await continueButton
-			.isVisible({ timeout: 10000 })
-			.catch(() => false);
-		if (!canContinue && !submitFinalStep) {
-			console.log(
-				'Continue button not shown after plan selection; registration smoke stops before account submission.',
-			);
-			return;
-		}
-		await continueButton.waitFor({ state: 'visible', timeout: 10000 });
-		console.log('Found Continue button, clicking it');
+	// Paid-plan registration can use a separate checkout continuation. Free
+	// registration keeps the final Create Account action on this step.
+	const continueButton = page.getByRole('button', { name: /^continue$/i });
+	if (await continueButton.isVisible({ timeout: 1500 }).catch(() => false)) {
 		await continueButton.click();
-		console.log('Clicked Continue button to proceed to Step 4');
+		console.log('Continued from plan selection');
 	}
 
 	// Step 4: Final submission

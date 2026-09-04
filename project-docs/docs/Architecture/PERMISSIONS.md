@@ -52,6 +52,20 @@ Authentication answers:
 
 > Who is this user?
 
+Public registration may use Firebase Authentication's email-method lookup as
+a non-blocking availability hint. It must not query the protected `users`
+collection before authentication. Firebase Authentication account creation is
+the authoritative duplicate-email check.
+
+New self-service registrations are created with
+`registrationStatus: pending_email_verification`. They may authenticate, but
+the application routes them only to email verification until a trusted callable
+confirms `emailVerified` from Firebase Authentication and sets the profile to
+`active`. Clients and account managers cannot change `registrationStatus`,
+`registrationMode`, or `emailVerifiedAt` directly. Existing profiles without a
+registration status remain active for compatibility and may verify voluntarily
+from Profile. Maintley does not automatically delete unverified accounts.
+
 Authorization answers:
 
 > What may this user access?
@@ -682,6 +696,14 @@ same account, validate the Space field contract, keep `accountId`,
 referenced Property to exist within the same account. Spaces do not create a
 separate permission boundary.
 
+Generated Space creation discovers an existing `generationKey` through the
+same authorized account- and property-scoped query used by the Space reader,
+then writes the deterministic document id when no match exists. It does not
+read a missing deterministic document directly because a nonexistent resource
+has no account fields with which the rules can authorize that read. A
+concurrent-create retry reuses only a matching Space visible through the scoped
+query; Firestore read permissions are not broadened for idempotency.
+
 The removal callable deletes an unreferenced Space and archives a referenced
 Space. The restore callable reactivates an archived Space within the same
 account boundary. Direct client deletion is denied.
@@ -704,6 +726,12 @@ Each callable validates that the Property, source record, and Space share the
 same account and property boundary and rejects new links to archived Spaces.
 Recurring Task generation may copy already accepted Task-to-Space links through
 the trusted writer. Task deletion removes its outgoing links.
+
+Account managers may replace one-level Equipment `part_of` Equipment links.
+The trusted callable validates both Equipment records against the same account
+and Property, permits only one primary connection per physical record, and
+rejects self-reference, recursive nesting, and combined Equipment as an
+attached record. Direct relationship writes remain denied.
 
 Trusted Supply relationship writes support Equipment, Space, or Task `uses`
 Supply for account managers. The callable validates the Property, Supply, and

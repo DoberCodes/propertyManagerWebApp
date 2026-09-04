@@ -43,10 +43,10 @@ export const isInspectionRecordAsset = (asset: Partial<Device>): boolean => {
 
 export const expectsEquipmentIdentityDetails = (
 	asset: Partial<Device>,
-): boolean => !isInspectionRecordAsset(asset);
+): boolean => asset.recordScope !== 'combined' && !isInspectionRecordAsset(asset);
 
 export const expectsInstallDateRecord = (asset: Partial<Device>): boolean =>
-	!isInspectionRecordAsset(asset);
+	asset.recordScope !== 'combined' && !isInspectionRecordAsset(asset);
 
 export const expectsRecurringCareRecord = (asset: Partial<Device>): boolean =>
 	!isInspectionRecordAsset(asset);

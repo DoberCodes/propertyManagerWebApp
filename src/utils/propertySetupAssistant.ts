@@ -4,6 +4,10 @@ import {
 	SuggestedSystemId,
 	SuggestedSystemTemplate,
 } from './suggestedMaintenance';
+import {
+	getAssetVariantOptions,
+	normalizeAssetType,
+} from './systemTypes';
 
 export type PropertySetupAreaId =
 	| 'kitchen'
@@ -31,6 +35,11 @@ export interface PropertySetupAssistantArea {
 	hint: string;
 	itemIds: SuggestedSystemId[];
 }
+
+export type PropertySetupPath =
+	| 'essentials'
+	| 'room_by_room'
+	| 'existing_report';
 
 const SYSTEM_BY_ID = new Map<SuggestedSystemId, SuggestedSystemTemplate>(
 	SUGGESTED_SYSTEMS.map((system) => [system.id, system]),
@@ -106,6 +115,26 @@ export const PROPERTY_SETUP_AREAS: PropertySetupAssistantArea[] = [
 	},
 ];
 
+const PROPERTY_SETUP_ESSENTIAL_ITEM_IDS = new Set<SuggestedSystemId>([
+	'gfci-outlets',
+	'dryer',
+	'electrical-panel',
+	'gutters-downspouts',
+	'roof',
+	'hvac',
+	'water-heater',
+	'smoke-detectors',
+	'carbon-monoxide-detectors',
+]);
+
+export const PROPERTY_SETUP_ESSENTIAL_AREAS: PropertySetupAssistantArea[] =
+	PROPERTY_SETUP_AREAS.map((area) => ({
+		...area,
+		itemIds: area.itemIds.filter((itemId) =>
+			PROPERTY_SETUP_ESSENTIAL_ITEM_IDS.has(itemId),
+		),
+	})).filter((area) => area.itemIds.length > 0);
+
 export const PROPERTY_SETUP_TOTAL_ITEMS = PROPERTY_SETUP_AREAS.reduce(
 	(total, area) => total + area.itemIds.length,
 	0,
@@ -126,11 +155,54 @@ export const getPropertySetupItem = (
 	};
 };
 
+const SETUP_ITEM_SUBTYPE_OPTIONS: Partial<Record<SuggestedSystemId, string[]>> = {
+	'smoke-detectors': ['Smoke Detector', 'Combo Detector'],
+	'carbon-monoxide-detectors': [
+		'Carbon Monoxide Detector',
+		'Combo Detector',
+	],
+};
+
+export const getPropertySetupSubtypeOptions = (
+	id: SuggestedSystemId,
+): string[] => {
+	const explicitOptions = SETUP_ITEM_SUBTYPE_OPTIONS[id];
+	if (explicitOptions) return explicitOptions;
+	const item = getPropertySetupItem(id);
+	return item
+		? getAssetVariantOptions(normalizeAssetType(item.system.deviceType))
+		: [];
+};
+
+export const getPropertySetupInstanceName = (
+	id: SuggestedSystemId,
+	index: number,
+): string => {
+	const item = getPropertySetupItem(id);
+	const label = item?.label || 'Equipment';
+	return index === 0 ? label : `${label} ${index + 1}`;
+};
+
+export const isDistributedPropertySetupItem = (
+	id: SuggestedSystemId,
+): boolean =>
+	id === 'smoke-detectors' || id === 'carbon-monoxide-detectors';
+
+export const getUnreviewedDetectedSetupItemIds = (
+	items: NonNullable<PropertySetupAssistantState['items']> = {},
+	detectedItemIds: SuggestedSystemId[],
+) =>
+	detectedItemIds.filter((itemId) => {
+		const status = items[itemId]?.status;
+		return status !== 'present' && status !== 'not_present';
+	});
+
 export const getPropertySetupProgress = (
 	setupAssistant?: PropertySetupAssistantState,
+	areas: PropertySetupAssistantArea[] = PROPERTY_SETUP_AREAS,
 ) => {
 	const items = setupAssistant?.items || {};
-	const reviewed = PROPERTY_SETUP_AREAS.reduce((count, area) => {
+	const reviewed = areas.reduce((count, area) => {
 		const areaReviewedCount = area.itemIds.filter((itemId) => {
 			const status = items[itemId]?.status;
 			return status === 'present' || status === 'not_present';
@@ -140,21 +212,23 @@ export const getPropertySetupProgress = (
 
 	return {
 		reviewed,
-		total: PROPERTY_SETUP_TOTAL_ITEMS,
-		isComplete: reviewed >= PROPERTY_SETUP_TOTAL_ITEMS,
+		total: areas.reduce((total, area) => total + area.itemIds.length, 0),
+		isComplete:
+			reviewed >= areas.reduce((total, area) => total + area.itemIds.length, 0),
 	};
 };
 
 export const getFirstIncompleteSetupAreaId = (
 	setupAssistant?: PropertySetupAssistantState,
+	areas: PropertySetupAssistantArea[] = PROPERTY_SETUP_AREAS,
 ): PropertySetupAreaId => {
 	const items = setupAssistant?.items || {};
-	const incompleteArea = PROPERTY_SETUP_AREAS.find((area) =>
+	const incompleteArea = areas.find((area) =>
 		area.itemIds.some((itemId) => {
 			const status = items[itemId]?.status;
 			return status !== 'present' && status !== 'not_present';
 		}),
 	);
 
-	return incompleteArea?.id || PROPERTY_SETUP_AREAS[0].id;
+	return incompleteArea?.id || areas[0]?.id || PROPERTY_SETUP_AREAS[0].id;
 };

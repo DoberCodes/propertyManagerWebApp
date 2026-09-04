@@ -40,12 +40,12 @@ import {
 	faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import {
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getSubscriptionPlanDetails,
 } from '../../../../utils/subscriptionUtils';
 import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
 import { COLORS } from '../../../../constants/colors';
-import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
+import { CURRENT_BUILD_VERSION } from '../../../../config/appVersion';
 
 export const SideNav = () => {
 	const navigate = useNavigate();
@@ -65,9 +65,8 @@ export const SideNav = () => {
 
 	const isActive = (path: string) => activeRoute === path;
 
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
+	const effectivePlanId = getEffectiveAccessPlanId(
 		currentUser?.subscription,
-		'homeowner',
 	);
 	const planDetails = getSubscriptionPlanDetails(effectivePlanId);
 	const maxProperties = planDetails?.maxProperties ?? 1;
@@ -257,7 +256,7 @@ export const SideNav = () => {
 					</SectionContent>
 				</Section>
 			</BottomSections>
-			<AppVersionFooter>Maintley v{CURRENT_APP_VERSION}</AppVersionFooter>
+			<AppVersionFooter>Maintley {CURRENT_BUILD_VERSION}</AppVersionFooter>
 		</DesktopWrapper>
 	);
 };

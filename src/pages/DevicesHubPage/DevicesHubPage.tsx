@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -42,13 +42,18 @@ import {
 import { usePropertyDocumentUploadWorkflow } from '../../propertyKnowledge/usePropertyDocumentUploadWorkflow';
 import {
 	canAddDevice,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getSubscriptionPlanDetails,
 } from '../../utils/subscriptionUtils';
 import { getRoleCapabilities } from '../../utils/permissions';
 import { useAppFeedback } from '../../Components/Library/AppFeedback/AppFeedbackProvider';
 import type { PendingEquipmentSupplyDraft } from '../../Components/EquipmentSuppliesReview/EquipmentSuppliesReview';
 import { buildEquipmentSupplyLinkUpdates } from '../../propertyKnowledge/equipmentSupplyConnections';
+import { getTopLevelEquipment } from '../../propertyKnowledge/equipmentRelationships';
+import {
+	readCollapsedGroupPreference,
+	writeCollapsedGroupPreference,
+} from '../../utils/listViewPreferences';
 import {
 	AppPage as StandardAppPage,
 	AppPageHeader as StandardAppPageHeader,
@@ -100,6 +105,7 @@ import {
 	StatusPill,
 	Value
 } from './DeviceHubPage.styles';
+import { formatRelativeCalendarTime } from '../../utils/dateDisplay';
 
 
 const toDate = (value?: string): Date | null => {
@@ -115,23 +121,7 @@ const formatDate = (value?: string): string => {
 	return date.toLocaleDateString();
 };
 
-const formatRelativeTime = (value?: string): string => {
-	const date = toDate(value);
-	if (!date) return 'recently';
-
-	const diffMs = Date.now() - date.getTime();
-	const diffDays = Math.round(Math.abs(diffMs) / 86400000);
-
-	if (diffDays === 0) return diffMs >= 0 ? 'today' : 'later today';
-	if (diffDays === 1) return diffMs >= 0 ? 'yesterday' : 'tomorrow';
-	if (diffDays < 7) return diffMs >= 0 ? `${diffDays} days ago` : `in ${diffDays} days`;
-	if (diffDays < 30) {
-		const weeks = Math.round(diffDays / 7);
-		return diffMs >= 0 ? `${weeks} weeks ago` : `in ${weeks} weeks`;
-	}
-	const months = Math.round(diffDays / 30);
-	return diffMs >= 0 ? `${months} months ago` : `in ${months} months`;
-};
+const formatRelativeTime = formatRelativeCalendarTime;
 
 const isOpenTask = (task: any): boolean => String(task?.status || '') !== 'Completed';
 
@@ -310,6 +300,15 @@ const equipmentGroupOrder: EquipmentGroupId[] = [
 	'other',
 ];
 
+const DEFAULT_COLLAPSED_EQUIPMENT_GROUPS: Record<EquipmentGroupId, boolean> = {
+	comfort: true,
+	safety: true,
+	exterior: true,
+	utilities: true,
+	appliances: true,
+	other: true,
+};
+
 const getEquipmentGroupId = (device: Device): EquipmentGroupId => {
 	const context = [
 		device.type,
@@ -390,9 +389,32 @@ export const DevicesHubPage: React.FC = () => {
 	const location = useLocation();
 	const feedback = useAppFeedback();
 	const currentUser = useSelector((state: RootState) => state.user.currentUser);
-	const { data: devices = [], isLoading } = useGetAllDevicesQuery();
-	const { data: properties = [], isLoading: isLoadingProperties } =
-		useGetPropertiesQuery();
+	const hubAccountId = String(currentUser?.accountId || currentUser?.id || '').trim();
+	const {
+		data: devices = [],
+		isLoading,
+		isFetching,
+		isSuccess: areDevicesLoaded,
+		isError: didDevicesFail,
+		refetch: refetchDevices,
+	} = useGetAllDevicesQuery();
+	const {
+		data: properties = [],
+		isLoading: isLoadingProperties,
+		isFetching: isFetchingProperties,
+		isSuccess: arePropertiesLoaded,
+		isError: didPropertiesFail,
+		refetch: refetchProperties,
+	} = useGetPropertiesQuery();
+	const { data: hubPropertyKnowledgeLinks = [] } =
+		useGetPropertyKnowledgeLinksQuery(
+			{ accountId: hubAccountId },
+			{ skip: !hubAccountId },
+		);
+	const topLevelDevices = useMemo(
+		() => getTopLevelEquipment(devices, hubPropertyKnowledgeLinks),
+		[devices, hubPropertyKnowledgeLinks],
+	);
 	const { data: allTasks = [] } = useGetTasksQuery();
 	const { data: allMaintenanceHistory = [] } = useGetAllMaintenanceHistoryForUserQuery();
 	const resolvedMaintenanceHistory = useMemo(
@@ -410,16 +432,18 @@ export const DevicesHubPage: React.FC = () => {
 	const [draftStatusFilter, setDraftStatusFilter] =
 		useState<typeof statusFilter>('All');
 	const [draftPropertyFilter, setDraftPropertyFilter] = useState('');
+	const equipmentGroupPreferenceKey = `maintley:equipment:collapsed:${currentUser?.id || 'anonymous'}`;
+	const initialEquipmentGroupPreference = readCollapsedGroupPreference(
+		typeof window === 'undefined' ? null : window.localStorage,
+		equipmentGroupPreferenceKey,
+		DEFAULT_COLLAPSED_EQUIPMENT_GROUPS,
+	);
+	const hasSavedEquipmentGroupPreference = useRef(
+		initialEquipmentGroupPreference.wasSaved,
+	);
 	const [collapsedEquipmentGroups, setCollapsedEquipmentGroups] = useState<
 		Record<EquipmentGroupId, boolean>
-	>({
-		comfort: false,
-		safety: false,
-		exterior: false,
-		utilities: false,
-		appliances: false,
-		other: false,
-	});
+	>(() => initialEquipmentGroupPreference.value);
 	const [showDeviceModal, setShowDeviceModal] = useState(false);
 	const [isSavingDevice, setIsSavingDevice] = useState(false);
 	const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
@@ -494,9 +518,8 @@ export const DevicesHubPage: React.FC = () => {
 	);
 	const canManageAppliances = roleCapabilities.canManageAppliances;
 	const canManageSpaces = roleCapabilities.canManageProperties;
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
+	const effectivePlanId = getEffectiveAccessPlanId(
 		currentUser?.subscription,
-		'homeowner',
 	);
 	const isSinglePropertyPlan =
 		effectivePlanId === 'homeowner' || effectivePlanId === 'homeowner_plus';
@@ -952,7 +975,9 @@ export const DevicesHubPage: React.FC = () => {
 
 	const filteredDeviceRows = useMemo(() => {
 		const query = searchQuery.trim().toLowerCase();
+		const topLevelIds = new Set(topLevelDevices.map((device) => String(device.id)));
 		return deviceRows.filter((row) => {
+			if (!query && !topLevelIds.has(String(row.id))) return false;
 			if (statusFilter !== 'All' && row.status !== statusFilter) return false;
 			if (propertyFilter && row.propertyId !== propertyFilter) return false;
 			if (query) {
@@ -965,7 +990,10 @@ export const DevicesHubPage: React.FC = () => {
 			}
 			return true;
 		});
-	}, [deviceRows, searchQuery, statusFilter, propertyFilter]);
+	}, [deviceRows, propertyFilter, searchQuery, statusFilter, topLevelDevices]);
+	const visibleDeviceRowCount = searchQuery.trim()
+		? deviceRows.length
+		: topLevelDevices.length;
 
 	const equipmentGroups = useMemo(() => {
 		const groups = new Map<
@@ -982,15 +1010,59 @@ export const DevicesHubPage: React.FC = () => {
 				id: groupId,
 				...equipmentGroupDetails[groupId],
 				rows: groups.get(groupId) || [],
+				attentionCount: (groups.get(groupId) || []).filter(
+					(row) =>
+						row.status === 'Broken' ||
+						row.status === 'Maintenance' ||
+						row.openTaskCount > 0,
+				).length,
 			}))
-			.filter((group) => group.rows.length > 0);
+			.filter((group) => group.rows.length > 0)
+			.sort((left, right) => {
+				if (right.attentionCount !== left.attentionCount) {
+					return right.attentionCount - left.attentionCount;
+				}
+				return (
+					equipmentGroupOrder.indexOf(left.id) -
+					equipmentGroupOrder.indexOf(right.id)
+				);
+			});
 	}, [filteredDeviceRows]);
 
+	useEffect(() => {
+		if (
+			hasSavedEquipmentGroupPreference.current ||
+			equipmentGroups.length === 0
+		) {
+			return;
+		}
+
+		const next = { ...DEFAULT_COLLAPSED_EQUIPMENT_GROUPS };
+		equipmentGroups.forEach((group) => {
+			next[group.id] = group.attentionCount === 0;
+		});
+		hasSavedEquipmentGroupPreference.current = true;
+		setCollapsedEquipmentGroups(next);
+		writeCollapsedGroupPreference(
+			window.localStorage,
+			equipmentGroupPreferenceKey,
+			next,
+		);
+	}, [equipmentGroupPreferenceKey, equipmentGroups]);
+
 	const toggleEquipmentGroup = (groupId: EquipmentGroupId) => {
-		setCollapsedEquipmentGroups((current) => ({
-			...current,
-			[groupId]: !current[groupId],
-		}));
+		setCollapsedEquipmentGroups((current) => {
+			const next = {
+				...current,
+				[groupId]: !current[groupId],
+			};
+			writeCollapsedGroupPreference(
+				typeof window === 'undefined' ? null : window.localStorage,
+				equipmentGroupPreferenceKey,
+				next,
+			);
+			return next;
+		});
 	};
 
 	const needsAttentionCount = useMemo(
@@ -1044,7 +1116,11 @@ export const DevicesHubPage: React.FC = () => {
 		: false;
 
 
-	if (isLoadingProperties || isLoading) {
+	if (
+		(properties.length === 0 &&
+			(isLoadingProperties || isFetchingProperties)) ||
+		(devices.length === 0 && (isLoading || isFetching))
+	) {
 		return (
 			<LoadingState
 				loadingKey='appliance-hub'
@@ -1061,7 +1137,30 @@ export const DevicesHubPage: React.FC = () => {
 		);
 	}
 
-	if (!isLoadingProperties && properties.length === 0) {
+	if (
+		(properties.length === 0 && didPropertiesFail) ||
+		(devices.length === 0 && didDevicesFail)
+	) {
+		return (
+			<AppZeroState
+				kind='noAppliances'
+				title='Equipment could not be loaded'
+				description='Maintley could not load your property and equipment records. Try again before adding anything new.'
+				actions={[
+					{
+						label: 'Try Again',
+						onClick: () => {
+							void refetchProperties();
+							void refetchDevices();
+						},
+					},
+				]}
+				fullPage
+			/>
+		);
+	}
+
+	if (arePropertiesLoaded && properties.length === 0) {
 		return (
 			<AppZeroState
 				kind='noProperties'
@@ -1077,7 +1176,7 @@ export const DevicesHubPage: React.FC = () => {
 		);
 	}
 
-	if (!isLoading && deviceRows.length === 0) {
+	if (areDevicesLoaded && deviceRows.length === 0) {
 		return (
 			<>
 				<AppZeroState
@@ -1234,12 +1333,12 @@ export const DevicesHubPage: React.FC = () => {
 					</PropertySelect>
 				) : null}
 				<FilterResultCount>
-					{filteredDeviceRows.length} of {deviceRows.length} equipment record{deviceRows.length === 1 ? '' : 's'}
+					{filteredDeviceRows.length} of {visibleDeviceRowCount} equipment record{visibleDeviceRowCount === 1 ? '' : 's'}
 				</FilterResultCount>
 			</FilterBar>
 			<CompactFilterResultCount>
-				Showing {filteredDeviceRows.length} of {deviceRows.length}{' '}
-				{deviceRows.length === 1 ? 'equipment record' : 'equipment records'}
+				Showing {filteredDeviceRows.length} of {visibleDeviceRowCount}{' '}
+				{visibleDeviceRowCount === 1 ? 'equipment record' : 'equipment records'}
 			</CompactFilterResultCount>
 			<FloatingFilterPanel
 				isOpen={isFilterPanelOpen}
@@ -1327,9 +1426,11 @@ export const DevicesHubPage: React.FC = () => {
 									aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${group.label}`}>
 									<EquipmentGroupTitleBlock>
 										<EquipmentGroupTitle>{group.label}</EquipmentGroupTitle>
-										<EquipmentGroupDescription>
-											{group.description}
-										</EquipmentGroupDescription>
+									<EquipmentGroupDescription>
+										{group.attentionCount > 0
+											? `${group.attentionCount} ${group.attentionCount === 1 ? 'record needs' : 'records need'} attention. ${group.description}`
+											: `No immediate attention recorded. ${group.description}`}
+									</EquipmentGroupDescription>
 									</EquipmentGroupTitleBlock>
 									<EquipmentGroupMeta>
 										<EquipmentGroupBadge>{group.rows.length}</EquipmentGroupBadge>

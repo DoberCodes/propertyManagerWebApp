@@ -25,6 +25,12 @@ for (const plan of plans) {
 	if (!card[8].includes(`<h3>${plan.name}</h3>`) || !card[8].includes(`$${plan.priceMonthly} / month`)) {
 		failures.push(`Public pricing copy does not match ${plan.id}`);
 	}
+	const bullets = [...card[8].matchAll(/<li>([^<]+)<\/li>/g)].map((match) =>
+		match[1].trim().toLowerCase(),
+	);
+	if (new Set(bullets).size !== bullets.length) {
+		failures.push(`Public pricing card contains duplicate bullets for ${plan.id}`);
+	}
 }
 
 if (cards.size !== plans.length) failures.push(`Expected ${plans.length} pricing cards, found ${cards.size}`);

@@ -1,6 +1,6 @@
 # CI and Release Gates
 
-Last reviewed: 2026-08-02
+Last reviewed: 2026-08-18
 
 ## Purpose
 
@@ -17,6 +17,21 @@ Multiple approved feature branches may merge into Beta before a release. The
 single `release/next` pull request is refreshed from the latest successfully
 deployed Beta commit and represents the complete pending release.
 
+Beta builds use a prerelease sequence that counts pull requests accumulated
+since the latest production release:
+
+```text
+v2.15.0-beta.1
+v2.15.0-beta.2
+v2.15.0-beta.3
+```
+
+The candidate release number continues to follow Conventional Commit impact.
+The Beta sequence increments once for each PR, not once for every push or
+workflow rerun. Updating an open PR therefore replaces its preview without
+changing its assigned Beta number. Release Prep removes the Beta suffix and
+writes the final version files only when preparing the production candidate.
+
 ## Beta PR Gate
 
 `Beta PR Gate` is the permanent aggregate status for a feature pull request
@@ -32,8 +47,9 @@ During its canary period it verifies the results of:
 * Frontend production compilation and asset budgets.
 * Functions compilation and the complete Functions test manifest.
 
-E2E, release-note preview, Hosting preview, and Beta backend readiness remain
-separate visible checks during the first migration stage. The Beta ruleset
+The isolated first-value E2E journey, release-note preview, Hosting preview, and
+Beta backend readiness remain separate visible checks during the first
+migration stage. The Beta ruleset
 should continue requiring its existing checks until `Beta PR Gate` has reported
 successfully and consistently.
 
@@ -44,6 +60,11 @@ Functions, preview, and readiness checks provide execution coverage. The
 exception is limited to `dependabot/github_actions/*`; all other internal PRs
 retain authenticated Playwright smoke coverage.
 
+Ordinary feature PRs into Beta run a unique-account activation journey rather
+than mutating the demo account. That journey covers registration, first-home
+creation, generated Spaces, and effective trial access, and performs mandatory
+email-scoped cleanup even when the browser test fails.
+
 ## Release Gate
 
 `Release Gate` is the stable validation status for the bot-owned
@@ -52,6 +73,14 @@ retain authenticated Playwright smoke coverage.
 The release candidate continues to receive full Build Check coverage. It is not
 assumed safe merely because its visible diff contains version files: the branch
 promotes the entire accumulated Beta release.
+
+The `release/next` PR also reruns the isolated activation journey against Beta
+before release approval. A cleanup failure fails the same E2E check.
+
+Release Prep records the accumulated Beta prerelease label at the top of the
+release PR description, immediately before the prepared production version.
+This provides a direct link between the tested Beta build and its production
+candidate without changing the final release version.
 
 Pull requests targeting Main use the `release-validation` GitHub environment.
 That environment contains only the browser-safe `PROD_REACT_APP_*` variables

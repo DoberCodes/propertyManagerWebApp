@@ -4,6 +4,7 @@ import {
 	removeFamilyMember,
 	getUserProfile,
 	signUpWithEmail,
+	checkEmailExists,
 } from './authService';
 import { USER_ROLES } from '../constants/roles';
 import { SUBSCRIPTION_STATUS } from '../constants/subscriptions';
@@ -406,6 +407,13 @@ describe('Family Account Functionality', () => {
 					pendingCheckoutStartedAt: expect.any(Number),
 				}),
 			);
+			expect(userProfileWrite?.[1]).toEqual(
+				expect.objectContaining({
+					email: 'paid@example.com',
+					registrationStatus: 'pending_email_verification',
+					registrationMode: 'standard',
+				}),
+			);
 
 			expect(ensureFamilyAccount).not.toHaveBeenCalled();
 
@@ -459,6 +467,9 @@ describe('Family Account Functionality', () => {
 					plan: 'homeowner',
 				}),
 			);
+			expect(result.user.registrationStatus).toBe(
+				'pending_email_verification',
+			);
 			expect(ensureFamilyAccount).toHaveBeenCalledWith(
 				expect.objectContaining({
 					accountId: 'free-user-id',
@@ -466,5 +477,102 @@ describe('Family Account Functionality', () => {
 				}),
 			);
 		});
+
+		it('resumes profile provisioning when Firebase Auth created the current user before a network failure', async () => {
+			const mockAuth = require('../config/firebase').auth;
+			const mockDoc = require('firebase/firestore').doc;
+			const mockSetDoc = require('firebase/firestore').setDoc;
+			const mockHttpsCallable = require('firebase/functions').httpsCallable;
+			const ensureFamilyAccount = jest.fn().mockResolvedValue({
+				data: { success: true, accountId: 'recovered-user-id' },
+			});
+			const consoleWarnSpy = jest
+				.spyOn(console, 'warn')
+				.mockImplementation(() => {});
+
+			mockAuth.currentUser = {
+				uid: 'recovered-user-id',
+				email: 'recover@example.com',
+			};
+			mockDoc.mockImplementation(
+				(_db: unknown, collectionName: string, id: string) => ({
+					collectionName,
+					id,
+				}),
+			);
+			mockCreateUserWithEmailAndPassword.mockRejectedValue(
+				Object.assign(new Error('Network request failed'), {
+					code: 'auth/network-request-failed',
+				}),
+			);
+			mockUpdateProfile.mockResolvedValue(undefined);
+			mockSetDoc.mockResolvedValue(undefined);
+			mockHttpsCallable.mockImplementation(
+				(_functions: unknown, name: string) =>
+					name === 'ensureFamilyAccount'
+						? ensureFamilyAccount
+						: jest.fn().mockResolvedValue({ data: { success: true } }),
+			);
+
+			const result = await signUpWithEmail(
+				'recover@example.com',
+				'Testing123!',
+				'Recover',
+				'User',
+				USER_ROLES.ADMIN,
+				'homeowner',
+			);
+
+			expect(result.user.id).toBe('recovered-user-id');
+			expect(mockSetDoc).toHaveBeenCalledWith(
+				expect.objectContaining({
+					collectionName: 'users',
+					id: 'recovered-user-id',
+				}),
+				expect.objectContaining({
+					email: 'recover@example.com',
+				}),
+			);
+			expect(ensureFamilyAccount).toHaveBeenCalled();
+			expect(consoleWarnSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Resuming profile provisioning'),
+			);
+
+			consoleWarnSpy.mockRestore();
+		});
+	});
+});
+
+describe('registration email availability', () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it('uses Firebase Auth without querying the protected users collection', async () => {
+		const mockFetchSignInMethodsForEmail =
+			require('firebase/auth').fetchSignInMethodsForEmail;
+		const mockGetDocs = require('firebase/firestore').getDocs;
+		mockFetchSignInMethodsForEmail.mockResolvedValue(['password']);
+
+		await expect(checkEmailExists('owner@example.com')).resolves.toBe(true);
+		expect(mockGetDocs).not.toHaveBeenCalled();
+	});
+
+	it('leaves duplicate enforcement to account creation when the pre-check fails', async () => {
+		const mockFetchSignInMethodsForEmail =
+			require('firebase/auth').fetchSignInMethodsForEmail;
+		const consoleInfoSpy = jest
+			.spyOn(console, 'info')
+			.mockImplementation(() => {});
+		mockFetchSignInMethodsForEmail.mockRejectedValue(
+			new Error('lookup unavailable'),
+		);
+
+		await expect(checkEmailExists('owner@example.com')).resolves.toBe(false);
+		expect(consoleInfoSpy).toHaveBeenCalledWith(
+			'Email availability pre-check was unavailable.',
+			expect.any(Error),
+		);
+		consoleInfoSpy.mockRestore();
 	});
 });

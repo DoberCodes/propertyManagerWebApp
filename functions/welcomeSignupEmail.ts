@@ -8,6 +8,7 @@ import {
 	renderMaintleyEmailShell,
 } from './emailBrand';
 import { buildAppRouteUrl, getCanonicalAppOrigin } from './emailLinks';
+import { shouldSendWelcomeSignupEmail } from './emailVerificationPolicy';
 
 const RESEND_API_KEY = defineSecret(
 	process.env.RESEND_API_KEY_SECRET_NAME || 'RESEND_API_KEY',
@@ -22,6 +23,7 @@ interface SignupUserRecord {
 	firstName?: string;
 	displayName?: string;
 	isTeamMemberAccount?: boolean;
+	registrationStatus?: string;
 	welcomeEmailSentAt?: unknown;
 }
 
@@ -64,13 +66,37 @@ const getWelcomeEmailHtml = (
 export const sendWelcomeSignupEmail = functions
 	.runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 120, memory: '256MB' })
 	.firestore.document('users/{userId}')
-	.onCreate(async (snapshot, context) => {
-		const user = snapshot.data() as SignupUserRecord;
-		if (user.isTeamMemberAccount) {
+	.onWrite(async (change, context) => {
+		if (!change.after.exists) return null;
+		const user = change.after.data() as SignupUserRecord;
+		const previousUser = change.before.exists
+			? (change.before.data() as SignupUserRecord)
+			: null;
+		if (
+			user.isTeamMemberAccount ||
+			user.welcomeEmailSentAt ||
+			user.registrationStatus !== 'active' ||
+			previousUser?.registrationStatus === 'active'
+		) {
 			return null;
 		}
 
-		if (user.welcomeEmailSentAt) {
+		let authUser: admin.auth.UserRecord;
+		try {
+			authUser = await admin.auth().getUser(context.params.userId);
+		} catch (error: any) {
+			if (error?.code === 'auth/user-not-found') {
+				functions.logger.info('Skipping welcome email because the Auth user no longer exists', {
+					userId: context.params.userId,
+				});
+				return null;
+			}
+			throw error;
+		}
+		if (!shouldSendWelcomeSignupEmail(user, previousUser, authUser.emailVerified)) {
+			functions.logger.info('Skipping welcome email until email is verified', {
+				userId: context.params.userId,
+			});
 			return null;
 		}
 
@@ -97,7 +123,7 @@ export const sendWelcomeSignupEmail = functions
 			html: getWelcomeEmailHtml(recipientName, appUrl, quickStartUrl),
 		});
 
-		await snapshot.ref.set(
+		await change.after.ref.set(
 			{
 				welcomeEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
 			},

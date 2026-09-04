@@ -6,7 +6,7 @@ import { AccountSnapshot } from "Components/AccountSnapshot"
 import { useNavigate } from "react-router-dom"
 import titleName from '../../../../Assets/TitleName.png';
 import { COLORS } from '../../../../constants/colors';
-import { CURRENT_APP_VERSION } from '../../../../config/appVersion';
+import { CURRENT_BUILD_VERSION } from '../../../../config/appVersion';
 import { TODAY_PAGE_LABEL } from '../../../../constants/navigation';
 
 
@@ -160,7 +160,7 @@ export const MobileHamburgerNav: React.FC<MobileNavProps> = ({ isSidebarOpen, se
                         <AccountSnapshot isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
                     )}
                 </div>
-                <MobileSidebarVersion>Maintley v{CURRENT_APP_VERSION}</MobileSidebarVersion>
+                <MobileSidebarVersion>Maintley {CURRENT_BUILD_VERSION}</MobileSidebarVersion>
             </MobileSidebar>
         </div>
     )
@@ -179,7 +179,10 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({
     primaryHomePropertyPath,
 }: MobileNavProps) => {
     const navigate = useNavigate();
-    const isApplianceContext = /^\/property\/[^/]+\/device\/[^/]+\/?$/i.test(pathname);
+    const appliancePathMatch = pathname.match(
+        /^\/property\/([^/]+)\/device\/([^/]+)\/?$/i,
+    );
+    const isApplianceContext = Boolean(appliancePathMatch);
     const propertyPathMatch = pathname.match(/^\/property\/([^/]+)/i);
     const propertyBasePath = propertyPathMatch
         ? `/property/${propertyPathMatch[1]}`
@@ -190,7 +193,7 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({
 
     const quickCreateActions = isApplianceContext
         ? [
-            { key: 'add_part', label: 'Add Part', x: -108, y: 0 },
+            { key: 'add_supply', label: 'Add Supply', x: -108, y: 0 },
             { key: 'add_task', label: 'Add Task', x: -56, y: -58 },
             { key: 'upload_document', label: 'Upload Document', x: 56, y: -58 },
             { key: 'add_log', label: 'Log Work', x: 108, y: 0 },
@@ -243,8 +246,16 @@ export const MobileBottomNav: React.FC<MobileNavProps> = ({
         };
 
         switch (action) {
-            case 'add_part':
-                navigateToApplianceAction('add_part');
+            case 'add_supply':
+                if (!appliancePathMatch) break;
+                navigate({
+                    pathname: `/property/${appliancePathMatch[1]}`,
+                    search: `?${new URLSearchParams({
+                        tab: 'supplies',
+                        action: 'add-supply',
+                        equipmentId: appliancePathMatch[2],
+                    }).toString()}`,
+                });
                 break;
             case 'add_task':
                 if (isApplianceContext) {

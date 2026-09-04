@@ -10,6 +10,7 @@ import {
 	getPropertyImageSrc,
 	isPropertyImageFallback,
 } from '../../utils/propertyImagePlaceholder';
+import { formatPropertyAddress } from '../../utils/propertyAddress';
 import {
 	AppPage as StandardAppPage,
 	AppPageHeader as StandardAppPageHeader,
@@ -19,6 +20,7 @@ import {
 } from '../Library/AppPageLayout/AppPageLayout.styles';
 import { DeleteConfirmationModal } from '../Library/Modal/DeleteConfirmationModal';
 import { AppZeroState } from '../Library/AppZeroState';
+import { LoadingState } from '../LoadingState';
 import {
 	FloatingFilterPanel,
 	GenericModal,
@@ -47,6 +49,7 @@ import {
 	useCreatePropertyGroupMutation,
 	useUpdatePropertyGroupMutation,
 	useDeletePropertyGroupMutation,
+	useGetPropertyGroupsQuery,
 } from '../../Redux/API/propertySlice';
 import { useCreateTaskMutation, useGetTasksQuery } from '../../Redux/API/taskSlice';
 import {
@@ -64,13 +67,17 @@ import {
 	canPropertyGroups,
 	canUseBusinessPropertyTypes,
 	canUseRentalManagement,
-	getEffectiveSubscriptionPlanId,
+	getEffectiveAccessPlanId,
 	getMaxPropertiesForPlan,
 	getRemainingPropertySlots,
 	getSubscriptionPlanDetails,
 	isIntentionalFreeAccountSubscription,
 	isTrialExpired,
 } from '../../utils/subscriptionUtils';
+import {
+	WORKFLOW_SUPPORT_CODES,
+	withWorkflowSupportCode,
+} from '../../utils/workflowSupportCodes';
 import {
 	getDefaultPropertyClassification,
 	isMultiUnitProperty,
@@ -288,10 +295,16 @@ export const Properties = () => {
 		teamMembers.filter((member): member is TeamMember => member !== undefined),
 	);
 
-	// Read property groups from Redux store (populated by DataLoader)
-	const propertyGroups = useSelector(
-		(state: RootState) => state.propertyData.groups,
-	);
+	// Render from the query lifecycle directly so an unresolved request cannot
+	// be mistaken for an account with no properties.
+	const {
+		data: propertyGroups = [],
+		isLoading: arePropertyGroupsLoading,
+		isFetching: arePropertyGroupsFetching,
+		isSuccess: arePropertyGroupsLoaded,
+		isError: didPropertyGroupsFail,
+		refetch: refetchPropertyGroups,
+	} = useGetPropertyGroupsQuery();
 
 	const { addRecentlyViewed } = useRecentlyViewed(currentUser!.id);
 	const { toggleFavorite, isFavorite } = useFavorites(currentUser!.id);
@@ -333,9 +346,8 @@ export const Properties = () => {
 		canPropertyGroups(currentUser.subscription) &&
 		!isTrialExpired(currentUser.subscription)
 		: false;
-	const effectivePlanId = getEffectiveSubscriptionPlanId(
+	const effectivePlanId = getEffectiveAccessPlanId(
 		currentUser?.subscription,
-		'homeowner',
 	);
 	const showPropertyGroupUpsell =
 		!isTeamMemberAccount &&
@@ -919,6 +931,7 @@ export const Properties = () => {
 			photo: propertyToDuplicate.image,
 			owner: propertyToDuplicate.owner || '',
 			address: propertyToDuplicate.address || '',
+			addressDetails: propertyToDuplicate.addressDetails,
 			propertyType: normalizePropertyType(propertyToDuplicate.propertyType),
 			propertyClassification:
 				propertyToDuplicate.propertyClassification ||
@@ -1079,7 +1092,7 @@ export const Properties = () => {
 			);
 			if (!canAdd) {
 				const planDetails = getSubscriptionPlanDetails(
-					getEffectiveSubscriptionPlanId(currentUser.subscription),
+					getEffectiveAccessPlanId(currentUser.subscription),
 				);
 				const maxProperties = planDetails?.maxProperties || 1;
 
@@ -1177,7 +1190,7 @@ export const Properties = () => {
 		);
 		if (!canAdd) {
 			const planDetails = getSubscriptionPlanDetails(
-				getEffectiveSubscriptionPlanId(currentUser.subscription),
+				getEffectiveAccessPlanId(currentUser.subscription),
 			);
 			const maxProperties = planDetails?.maxProperties || 1;
 			feedback.notify(
@@ -1979,7 +1992,8 @@ export const Properties = () => {
 
 	const getPropertyAddress = useCallback((property: Property) => {
 		const propertyTitle = property.title?.trim() || 'Untitled Property';
-		const rawAddress = property.address?.trim();
+		const rawAddress =
+			formatPropertyAddress(property.addressDetails) || property.address?.trim();
 		if (!rawAddress) {
 			return {
 				primary: propertyTitle,
@@ -2253,6 +2267,7 @@ export const Properties = () => {
 					groupId: normalizedGroupId,
 					owner: formData.owner,
 					address: formData.address,
+					addressDetails: formData.addressDetails,
 					propertyType: effectivePropertyType,
 					propertyClassification: formData.propertyClassification,
 					bedrooms: formData.bedrooms,
@@ -2297,7 +2312,10 @@ export const Properties = () => {
 							spaceError,
 						);
 						feedback.notify(
-							'Property details were saved, but Maintley could not add every Bedroom and Bathroom Space. Please try saving again.',
+							withWorkflowSupportCode(
+								'Property details were saved, but Maintley could not add every Bedroom and Bathroom Space. Please try saving again.',
+								WORKFLOW_SUPPORT_CODES.propertySpaceReconciliation,
+							),
 						);
 					}
 				}
@@ -2340,9 +2358,8 @@ export const Properties = () => {
 			}
 		} else {
 			// Add new property
-			const shouldFinalizeFirstPropertyTrial =
+			const shouldAttemptFirstPropertyTrial =
 				totalProperties === 0 &&
-				isHomeownerPlusTrialEnabled() &&
 				isIntentionalFreeAccountSubscription(currentUser?.subscription) &&
 				!isTeamMemberAccount &&
 				currentUser?.isAccountOwner !== false;
@@ -2369,7 +2386,7 @@ export const Properties = () => {
 				)
 			) {
 				const planDetails = getSubscriptionPlanDetails(
-					getEffectiveSubscriptionPlanId(currentUser.subscription),
+					getEffectiveAccessPlanId(currentUser.subscription),
 				);
 				const maxProperties = planDetails?.maxProperties || 1;
 				feedback.notify(
@@ -2389,6 +2406,9 @@ export const Properties = () => {
 				...(formData.photo && { image: formData.photo }),
 				owner: formData.owner,
 				address: normalizedAddress,
+				...(formData.addressDetails && {
+					addressDetails: formData.addressDetails,
+				}),
 				propertyType: effectivePropertyType,
 				propertyClassification: formData.propertyClassification,
 				bedrooms: formData.bedrooms,
@@ -2424,15 +2444,20 @@ export const Properties = () => {
 						} catch (spaceError) {
 							console.error('Property created but reviewed Spaces were not all created:', spaceError);
 							feedback.notify(
-								'Your property was saved, but Maintley could not add every reviewed Space. The Setup Assistant can safely retry without creating duplicates.',
+								withWorkflowSupportCode(
+									'Your property was saved, but Maintley could not add every reviewed Space. The Setup Assistant can safely retry without creating duplicates.',
+									WORKFLOW_SUPPORT_CODES.propertySpaceReconciliation,
+								),
 							);
 						}
 					}
-					if (shouldFinalizeFirstPropertyTrial) {
-						reportProgress?.({
-							title: 'Activating Homeowner+...',
-							text: `Your ${isHomeowner ? 'home' : 'property'} is saved. We are preparing the 30-day Homeowner+ access used by the setup assistant.`,
-						});
+					if (shouldAttemptFirstPropertyTrial) {
+						if (isHomeownerPlusTrialEnabled()) {
+							reportProgress?.({
+								title: 'Activating Homeowner+...',
+								text: `Your ${isHomeowner ? 'home' : 'property'} is saved. We are preparing the 30-day Homeowner+ access used by the setup assistant.`,
+							});
+						}
 						try {
 							const activation = await finalizeFirstPropertyTrial(result.data.id);
 							if (activation.effectiveEntitlementProjection) {
@@ -2460,7 +2485,10 @@ export const Properties = () => {
 					} catch (visibilityError) {
 						console.error('Failed to update dashboard visibility:', visibilityError);
 						feedback.notify(
-							'Property was created, but dashboard visibility could not be updated. Please try again.',
+							withWorkflowSupportCode(
+								'Property was created, but dashboard visibility could not be updated. Please try again.',
+								WORKFLOW_SUPPORT_CODES.propertyDashboardPreference,
+							),
 						);
 					}
 
@@ -2482,7 +2510,10 @@ export const Properties = () => {
 							} catch (applianceCopyError) {
 								console.error('Failed to copy equipment:', applianceCopyError);
 								feedback.notify(
-									'Property was duplicated, but equipment could not all be copied.',
+									withWorkflowSupportCode(
+										'Property was duplicated, but equipment could not all be copied.',
+										WORKFLOW_SUPPORT_CODES.propertyEquipmentCopy,
+									),
 								);
 							}
 						}
@@ -2496,7 +2527,10 @@ export const Properties = () => {
 							} catch (taskCopyError) {
 								console.error('Failed to copy tasks:', taskCopyError);
 								feedback.notify(
-									'Property was duplicated, but tasks could not all be copied.',
+									withWorkflowSupportCode(
+										'Property was duplicated, but tasks could not all be copied.',
+										WORKFLOW_SUPPORT_CODES.propertyTaskCopy,
+									),
 								);
 							}
 						}
@@ -2571,11 +2605,41 @@ export const Properties = () => {
 		// Success - dialog will be closed by PropertyDialog after successful save
 	};
 
-	if (singlePropertyRoute) {
+	if (
+		propertyGroups.length === 0 &&
+		(arePropertyGroupsLoading || arePropertyGroupsFetching)
+	) {
+		return (
+			<LoadingState
+				loadingKey='properties-page'
+				title='Loading properties'
+				message='Preparing your property records.'
+			/>
+		);
+	}
+
+	if (propertyGroups.length === 0 && didPropertyGroupsFail) {
+		return (
+			<AppZeroState
+				kind='noProperties'
+				title='Properties could not be loaded'
+				description='Maintley could not load your property records. Try again before adding anything new.'
+				actions={[
+					{
+						label: 'Try Again',
+						onClick: () => void refetchPropertyGroups(),
+					},
+				]}
+				fullPage
+			/>
+		);
+	}
+
+	if (arePropertyGroupsLoaded && singlePropertyRoute) {
 		return <Navigate to={singlePropertyRoute} replace />;
 	}
 
-	if (visibleProperties.length === 0) {
+	if (arePropertyGroupsLoaded && visibleProperties.length === 0) {
 		const zeroStateKind = isUserTenant || isTeamMemberAccount
 			? 'noAssignedProperties'
 			: 'noProperties';
@@ -2593,6 +2657,7 @@ export const Properties = () => {
 			<>
 				<AppZeroState
 					kind={zeroStateKind}
+					context={isHomeowner ? 'homeowner' : 'property'}
 					actions={zeroStateActions}
 					fullPage
 				/>
@@ -2976,6 +3041,7 @@ export const Properties = () => {
 								photo: selectedPropertyForEdit.image,
 								owner: selectedPropertyForEdit.owner || '',
 								address: selectedPropertyForEdit.address || '',
+								addressDetails: selectedPropertyForEdit.addressDetails,
 								propertyType: normalizePropertyType(selectedPropertyForEdit.propertyType),
 								propertyClassification:
 									selectedPropertyForEdit.propertyClassification ||

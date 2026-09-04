@@ -49,6 +49,7 @@ const getPlanById = (planId: string) => {
 
 const resolveSubscriptionEntitlements = (
 	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
+	nowMs?: number,
 ) => {
 	const grants = Array.isArray(subscription?.entitlementGrants)
 		? (subscription.entitlementGrants as EntitlementGrant[])
@@ -65,6 +66,7 @@ const resolveSubscriptionEntitlements = (
 		mode: 'compatibility',
 		allowLegacyPlanWithoutStatus: true,
 		featureFlags: ENTITLEMENT_FEATURE_FLAGS,
+		...(Number.isFinite(nowMs) ? { nowMs } : {}),
 	});
 };
 
@@ -121,8 +123,9 @@ export const isIntentionalFreeAccountSubscription = (
 
 export const getEffectiveAccessPlanId = (
 	subscription?: Parameters<typeof getEffectiveSubscriptionPlanId>[0],
+	nowMs?: number,
 ): string => {
-	const result = resolveSubscriptionEntitlements(subscription);
+	const result = resolveSubscriptionEntitlements(subscription, nowMs);
 	const candidates = [
 		result.basePlanId,
 		...result.appliedBundleIds.map((value) => String(value).split('@')[0]),
@@ -420,12 +423,12 @@ export const canAddProperty = (
 		return false;
 	}
 
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false; // No active subscription
 	}
 
 	const maxProperties = getMaxPropertiesForPlan(
-		getEffectiveSubscriptionPlanId(subscription),
+		getEffectiveAccessPlanId(subscription),
 	);
 	return currentPropertyCount < maxProperties;
 };
@@ -437,12 +440,12 @@ export const getRemainingPropertySlots = (
 	subscription: SubscriptionData,
 	currentPropertyCount: number,
 ): number => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return 0;
 	}
 
 	const maxProperties = getMaxPropertiesForPlan(
-		getEffectiveSubscriptionPlanId(subscription),
+		getEffectiveAccessPlanId(subscription),
 	);
 	return Math.max(0, maxProperties - currentPropertyCount);
 };
@@ -454,12 +457,12 @@ export const canAddDevice = (
 	subscription: SubscriptionData,
 	currentDeviceCount: number,
 ): boolean => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return false;
 	}
 
 	const maxDevices = getMaxDevicesForPlan(
-		getEffectiveSubscriptionPlanId(subscription),
+		getEffectiveAccessPlanId(subscription),
 	);
 	return currentDeviceCount < maxDevices;
 };
@@ -471,12 +474,12 @@ export const getRemainingDeviceSlots = (
 	subscription: SubscriptionData,
 	currentDeviceCount: number,
 ): number => {
-	if (!isSubscriptionActive(subscription)) {
+	if (!hasActiveSubscriptionOrGrant(subscription)) {
 		return 0;
 	}
 
 	const maxDevices = getMaxDevicesForPlan(
-		getEffectiveSubscriptionPlanId(subscription),
+		getEffectiveAccessPlanId(subscription),
 	);
 	if (isUnlimitedDeviceLimit(maxDevices)) {
 		return Number.POSITIVE_INFINITY;

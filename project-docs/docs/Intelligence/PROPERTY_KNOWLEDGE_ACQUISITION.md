@@ -1,6 +1,6 @@
 # Property Knowledge Acquisition
 
-Last reviewed: 2026-06
+Last reviewed: 2026-08
 
 Property Knowledge Acquisition is the layer that turns uploaded documents and other sources into reviewed structured property knowledge.
 
@@ -79,7 +79,27 @@ For eligible document categories, suggested details are generated from document 
 for uploaded image files, backend layout-aware extraction for supported
 text-based PDFs, and backend DOCX text and table extraction for structured
 maintenance service reports. Digital PDF and DOCX service reports share the
-same deterministic visit interpreter after format-specific extraction. Maintley does not perform AI
+same deterministic visit interpreter after format-specific extraction.
+Recognized text-based general home-inspection PDFs and DOCX files use a separate staged interpreter that
+first preserves report sections, observations, specifications, and explicit
+recommendations before mapping them to reviewable Equipment and Task candidates.
+The `inspection-v4` interpreter recognizes both simple headings such as
+**Electrical** and compound headings such as **Electrical and Life Safety** or
+**Heating, Cooling, and Plumbing**. A compound section may participate in more
+than one system category so controlled equipment and recommendations are not
+lost merely because a report groups related systems on one page.
+It reads equipment from narrow report rows so model, serial, installation year,
+filter size, and other specifications do not leak between adjacent assets. It
+also recognizes explicitly listed reusable supplies and proposes them as
+Property-owned Supplies linked to the reviewed Equipment rather than as
+additional Equipment records.
+Inspection v4 records exact Equipment suggestion relationships rather than
+relying only on broad asset types. This allows a filter recommendation to
+target the Air Handler instead of another HVAC record and allows one Task, such
+as smoke and carbon-monoxide alarm testing, to link to multiple Equipment
+records. Older suggestions without exact relationship identifiers continue to
+use the type-and-subtype compatibility matcher.
+Maintley does not perform AI
 extraction, rendered-page OCR for scanned PDFs, or manual-specific parsing in
 this phase.
 
@@ -105,6 +125,47 @@ into equipment records. Only controlled maintainable asset types may be offered
 for matching or creation, and every proposed task or equipment record requires
 review.
 
+Recognized general inspection reports do not automatically become completed
+Maintenance Events. The staged inspection interpreter creates a source-neutral
+understanding of the report, then proposes only controlled maintainable assets
+and explicit homeowner actions. Reported specifications such as HVAC filter
+size or water-heater capacity remain attached to their equipment candidate.
+Reported observations remain visible as expandable review context. If the
+report does not clearly provide a visit date and performed work, Maintley does
+not infer that maintenance occurred.
+
+Inspection recommendations without a stated due date are created as **Not
+scheduled** when accepted. Repeated recommendations in system sections and a
+maintenance summary are deduplicated before review.
+Relative timing such as **within 14 days** remains visible as report evidence
+without silently becoming a calculated due date. The reviewer may choose a due
+date or ASAP during review.
+
+The inspection review shows editable proposed Equipment details, including
+manufacturer, model, serial number, installation date, reported location,
+filter size, and specifications. Task and Supply cards show their proposed
+Equipment links and allow the reviewer to add or remove relationships before
+saving. The apply flow resolves exact suggestion identifiers only after matched
+or approved new Equipment records have stable IDs.
+
+Inspection recommendation classification remains evidence-scoped. Refrigerator
+filter wording is resolved before general HVAC-filter wording, tankless
+descaling does not create a tank-flushing task, and negative instructions such
+as "do not create a task" are not converted into homeowner actions.
+Only explicit recommendations, action rows, and consolidated maintenance-plan
+rows become Task candidates. Conditions, completed-work notes, inaccessible
+items, classification guidance, and explanatory test text remain source
+evidence. Cadence is derived from the candidate's own recommendation so a
+nearby 90-day filter interval cannot overwrite a six-month refrigerator-filter
+interval.
+
+The current review schema can propose one completed Maintenance Event and one
+contractor from a document. When an inspection packet contains multiple dated
+service-history rows or multiple service providers, the inspection interpreter
+does not combine them into a single inaccurate record. Those rows remain in the
+source document until a future batch-history review schema can represent each
+record and provider independently.
+
 PDF acquisition runs after the canonical Property Document is saved. Maintley
 first uses the PDF's embedded text layer and page coordinates to preserve lines
 and recognized tables. Service-report layouts are routed through the shared
@@ -113,9 +174,24 @@ extraction. The legacy byte-stream decoder remains a compatibility fallback when
 the layout extractor cannot open a file. Image-only PDFs still require the
 future rendered-page OCR fallback.
 
+Acquisition suggestions store privacy-safe processing diagnostics such as the
+interpreter version, page count, extracted character count, table count, and
+recognized section/candidate counts. Raw extracted document text is not stored
+in diagnostics. These checkpoints make it possible to distinguish source-text
+loss from classification or review-mapping failures.
+
 PDF uploads may move through `processing`, `pending_review`, or `failed`
 acquisition states. The PDF remains the source document; any extracted text or
 future rendered page images are derived processing artifacts only.
+
+While a supported document is in `processing`, its document card shows a
+persistent **Checking** badge and an indeterminate status message. The message
+explains that the user may leave the page and will be notified when suggested
+details are ready. Processing takes precedence over older pending suggestions
+so the active scan never appears idle. The status badge then moves to **Needs
+review**, **Checked**, or **Needs attention** as appropriate. Completed scans
+show either the reviewable suggestion count or an explicit
+no-suggested-details result. A completed empty result may be scanned again.
 
 PDF and DOCX processing are backend-triggered from the saved property document
 state. The frontend marks the supported document as `processing`; the backend

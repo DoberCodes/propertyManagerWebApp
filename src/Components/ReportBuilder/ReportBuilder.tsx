@@ -360,6 +360,28 @@ const REPORT_CATEGORY_BY_TYPE: Partial<Record<ReportType, ReportCategoryId>> = {
 	units: 'portfolio',
 };
 
+const REPORT_GOALS: Array<{
+	title: string;
+	description: string;
+	reportType: ReportType;
+}> = [
+	{
+		title: 'Prepare tax records',
+		description: 'Review recorded maintenance costs and service spending.',
+		reportType: 'maintenance-costs',
+	},
+	{
+		title: 'Review service history',
+		description: 'See completed work and preserved maintenance records.',
+		reportType: 'maintenance-history',
+	},
+	{
+		title: 'See what is overdue',
+		description: 'Start with open work that is already past due.',
+		reportType: 'overdue-tasks',
+	},
+];
+
 const DEFAULT_REPORT_COLUMNS: Partial<Record<ReportType, string[]>> = {
 	tasks: ['title', 'property', 'dueDate', 'status', 'priority', 'assignee'],
 	'overdue-tasks': ['title', 'property', 'dueDate', 'daysOverdue', 'priority', 'assignee'],
@@ -1422,6 +1444,9 @@ export const ReportBuilder: React.FC = () => {
 
 	const selectReport = (nextReportType: ReportType) => {
 		setReportType(nextReportType);
+		setSelectedCategory(
+			REPORT_CATEGORY_BY_TYPE[nextReportType] || selectedCategory,
+		);
 		setSelectedColumns([]);
 		setFilters({
 			status: '',
@@ -1482,6 +1507,37 @@ export const ReportBuilder: React.FC = () => {
 				)}
 				<Section>
 					<ReportSetupPanel>
+						<ReportStepHeader>
+							<ReportStepKicker>Quick start</ReportStepKicker>
+							<SectionTitle>What do you need?</SectionTitle>
+							<ReportStepText>
+								Choose a common goal, or browse the complete report catalog below.
+							</ReportStepText>
+						</ReportStepHeader>
+						<ReportTemplateGrid>
+							{REPORT_GOALS.map((goal) => {
+								const isAccessible = accessibleReports.some(
+									(report) => report.value === goal.reportType,
+								);
+								return (
+									<MobileReportCard
+										key={goal.reportType}
+										type='button'
+										$active={reportType === goal.reportType}
+										$locked={!isAccessible}
+										disabled={!isAccessible}
+										onClick={() => selectReport(goal.reportType)}>
+										<MobileReportCardTitle>{goal.title}</MobileReportCardTitle>
+										<MobileReportCardDescription>
+											{goal.description}
+										</MobileReportCardDescription>
+										<MobileReportCardMeta>
+											{isAccessible ? 'Available now' : 'Unavailable for this access'}
+										</MobileReportCardMeta>
+									</MobileReportCard>
+								);
+							})}
+						</ReportTemplateGrid>
 						<ReportStepHeader>
 							<ReportStepKicker>Step 1</ReportStepKicker>
 							<SectionTitle>Choose a Report Category</SectionTitle>

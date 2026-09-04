@@ -7,6 +7,7 @@ import {
 	updateSubscriptionFromStripe,
 	setAuthLoading,
 } from './Redux/Slices/userSlice';
+import { isAccountDeletionSessionActive } from './services/accountDeletionSession';
 import type { AppDispatch, RootState } from './Redux/store/store';
 import { RouterComponent } from './router';
 import { DataFetchProvider } from './Hooks/DataFetchContext';
@@ -97,6 +98,8 @@ export const App = () => {
 	const resolvedAuthUserIdRef = useRef<string | null | undefined>(undefined);
 	const pushNotificationsInitializedRef = useRef(false);
 	const stripeSyncKeyRef = useRef('');
+	const isPendingEmailVerification =
+		currentUser?.registrationStatus === 'pending_email_verification';
 
 	useEffect(() => {
 		if ('scrollRestoration' in window.history) {
@@ -109,7 +112,7 @@ export const App = () => {
 	}, [currentUser?.id]);
 
 	useEffect(() => {
-		if (!currentUser?.id) return undefined;
+		if (!currentUser?.id || isPendingEmailVerification) return undefined;
 
 		const recordActivity = () => {
 			if (document.visibilityState !== 'visible') return;
@@ -130,10 +133,14 @@ export const App = () => {
 			window.clearInterval(intervalId);
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		};
-	}, [currentUser?.id]);
+	}, [currentUser?.id, isPendingEmailVerification]);
 
 	useEffect(() => {
-		if (!currentUser?.id || !currentUser.subscription?.stripeCustomerId) {
+		if (
+			!currentUser?.id ||
+			isPendingEmailVerification ||
+			!currentUser.subscription?.stripeCustomerId
+		) {
 			stripeSyncKeyRef.current = '';
 			return;
 		}
@@ -174,11 +181,12 @@ export const App = () => {
 		currentUser?.isTeamMemberAccount,
 		currentUser?.subscription?.stripeCustomerId,
 		currentUser?.subscription?.stripeSubscriptionId,
+		isPendingEmailVerification,
 		dispatch,
 	]);
 
 	useEffect(() => {
-		if (!currentUser?.id) return undefined;
+		if (!currentUser?.id || isPendingEmailVerification) return undefined;
 		const accountId =
 			String(currentUser.accountId || '').trim() || currentUser.id;
 
@@ -207,15 +215,20 @@ export const App = () => {
 				dispatch(updateEntitlementProjection({ accountId, projection }));
 			},
 			(error) => {
+				if (isAccountDeletionSessionActive()) return;
 				console.warn('Account access updates could not be loaded:', error);
 			},
 		);
-	}, [currentUser?.accountId, currentUser?.id, dispatch]);
+	}, [currentUser?.accountId, currentUser?.id, dispatch, isPendingEmailVerification]);
 
 	// Register push notifications on native app startup
 	useEffect(() => {
 		if (!Capacitor.isNativePlatform()) return;
-		if (!currentUser?.id || pushNotificationsInitializedRef.current) return;
+		if (
+			!currentUser?.id ||
+			isPendingEmailVerification ||
+			pushNotificationsInitializedRef.current
+		) return;
 		if (
 			!currentUser?.subscription ||
 			!canUseNotifications(currentUser.subscription)
@@ -229,7 +242,7 @@ export const App = () => {
 			undefined,
 			() => currentUserIdRef.current,
 		);
-	}, [currentUser?.id, currentUser?.subscription]);
+	}, [currentUser?.id, currentUser?.subscription, isPendingEmailVerification]);
 
 	useEffect(() => {
 		// Listen to Firebase auth state changes to persist authentication
