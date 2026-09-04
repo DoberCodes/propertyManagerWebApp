@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Wrapper } from '../RegistrationPage/RegistrationPage.styles';
 import type { AppDispatch, RootState } from '../../Redux/store/store';
-import { setCurrentUser } from '../../Redux/Slices/userSlice';
+import { setCurrentUser, type User } from '../../Redux/Slices/userSlice';
 import { USER_ROLES } from '../../constants/roles';
 import { signOutUser } from '../../services/authService';
 import {
@@ -27,6 +27,14 @@ import {
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
+const getPostVerificationDestination = (user: User): string => {
+	if (sessionStorage.getItem('pendingComplimentaryAccessCode')) {
+		return '/registration?continue=complimentary-access';
+	}
+	if (user.subscription?.pendingCheckoutPlan) return '/checkout/start';
+	return user.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard';
+};
+
 export const EmailVerificationPage = () => {
 	const navigate = useNavigate();
 	const dispatch = useDispatch<AppDispatch>();
@@ -36,6 +44,15 @@ export const EmailVerificationPage = () => {
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const [cooldown, setCooldown] = useState(0);
+
+	useEffect(() => {
+		if (
+			currentUser &&
+			currentUser.registrationStatus !== 'pending_email_verification'
+		) {
+			navigate(getPostVerificationDestination(currentUser), { replace: true });
+		}
+	}, [currentUser, navigate]);
 
 	useEffect(() => {
 		if (cooldown <= 0) return;
@@ -69,18 +86,7 @@ export const EmailVerificationPage = () => {
 				requires_checkout: Boolean(user.subscription?.pendingCheckoutPlan),
 			});
 
-			if (sessionStorage.getItem('pendingComplimentaryAccessCode')) {
-				navigate('/registration?continue=complimentary-access', { replace: true });
-				return;
-			}
-			if (user.subscription?.pendingCheckoutPlan) {
-				navigate('/checkout/start', { replace: true });
-				return;
-			}
-			navigate(
-				user.role === USER_ROLES.TENANT ? '/tenant-profile' : '/dashboard',
-				{ replace: true },
-			);
+			navigate(getPostVerificationDestination(user), { replace: true });
 		} catch (verificationError: any) {
 			setError(
 				String(
